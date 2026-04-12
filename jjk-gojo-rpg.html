@@ -326,9 +326,7 @@ function spawnBoss() {
   };
   bossActive = true;
   bossBar.style.display = 'block';
-  announceWave('! ' + bDef.name + ' APPROACHING !', function() {
-    showNotif(boss.name + ' HAS APPEARED!', true);
-  });
+  showNotif('! ' + bDef.name + ' APPROACHING !', true);
   updateUI();
 }
 
@@ -357,10 +355,18 @@ function bossUpdate() {
 }
 
 function bossDie() {
-  
+  score += boss.score;
+  const bx = boss.x, by = boss.y;
+  bossActive = false;
+  boss = null;
+  bossBar.style.display = 'none';
+  spawnParticles(bx, by, '#ffffff', 50, 8, 8);
+  spawnParticles(bx, by, '#ff00ff', 30, 6, 6);
+  screenShake = 40;
+  showNotif('BOSS DEFEATED! +' + score + ' SCORE');
+  totalKills = 0;
+  setTimeout(spawnBoss, 3000);
 }
-
-
 
 function respawn() {
   P.x = 0; P.y = 0; P.hp = P.maxHp; P.ce = P.maxCe;
