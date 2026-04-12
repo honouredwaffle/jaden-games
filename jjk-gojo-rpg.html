@@ -16,9 +16,11 @@ let damages = [];
 let projectiles = [];
 let screenShake = 0;
 let score = 0;
+let totalKills = 0;
 let boss = null;
 let bossActive = false;
 let bossBar = document.getElementById('boss-bar');
+
 window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
 window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
 window.addEventListener('mousemove', e => { mouse.x = e.clientX; mouse.y = e.clientY; });
@@ -41,12 +43,10 @@ function showNotif(t, isBoss) {
 }
 
 
-
 function updateUI() {
   document.getElementById('hp-bar').style.width = (P.hp / P.maxHp * 100) + '%';
   document.getElementById('ce-bar').style.width = (P.ce / P.maxCe * 100) + '%';
   document.getElementById('score').textContent = score;
-  document.getElementById('wave').textContent = wave;
   if (boss && bossActive) {
     document.getElementById('boss-name').textContent = boss.name;
     document.getElementById('boss-hp-fill').style.width = (boss.hp / boss.maxHp * 100) + '%';
@@ -357,20 +357,7 @@ function bossUpdate() {
 }
 
 function bossDie() {
-  score += boss.score;
-  const bx = boss.x;
-  const by = boss.y;
-  bossActive = false;
-  boss = null;
-  bossBar.style.display = 'none';
-  spawnParticles(bx, by, '#ffffff', 50, 8, 8);
-  spawnParticles(bx, by, '#ff00ff', 30, 6, 6);
-  screenShake = 40;
-  showNotif('BOSS DEFEATED! +' + boss.score + ' SCORE');
-  wave++;
-  killsPerWave = Math.floor(killsPerWave * 1.5);
-  waveKills = 0;
-  setTimeout(nextWave, 3000);
+  
 }
 
 
@@ -379,15 +366,13 @@ function respawn() {
   P.x = 0; P.y = 0; P.hp = P.maxHp; P.ce = P.maxCe;
   P.dead = false; P.locked = false; P.iframes = 0;
   enemies = []; orbs = []; particles = []; damages = []; projectiles = [];
-  score = 0; wave = 1; waveKills = 0; killsPerWave = 5;
+  score = 0; totalKills = 0;
   boss = null; bossActive = false;
   bossBar.style.display = 'none';
   document.getElementById('game-over').classList.remove('show');
   document.getElementById('final-score').textContent = '';
   updateUI();
-  
-}
-
+  }
 
 function update() {
   if (P.dead) return;
