@@ -632,11 +632,12 @@
         }
         
         function drawCursedSpirits() {
-            const viewPadding = 100;
+            const viewPadding = 150;
             const viewLeft = camera.x - viewPadding;
             const viewRight = camera.x + canvas.width + viewPadding;
             const viewTop = camera.y - viewPadding;
             const viewBottom = camera.y + canvas.height + viewPadding;
+            const time = Date.now() * 0.002;
             
             for (const spirit of cursedSpirits) {
                 if (spirit.x < viewLeft || spirit.x > viewRight || 
@@ -648,45 +649,99 @@
                 ctx.save();
                 
                 // Shadow
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
                 ctx.beginPath();
-                ctx.ellipse(screenX, screenY + spirit.size * 0.3, spirit.size * 0.6, spirit.size * 0.3, 0, 0, Math.PI * 2);
+                ctx.ellipse(screenX, screenY + spirit.size * 0.4, spirit.size * 0.7, spirit.size * 0.25, 0, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Spirit body (blob shape)
+                // Dark aura for higher grades
+                if (spirit.grade === 'GRADE_1' || spirit.grade === 'SPECIAL') {
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+                    ctx.beginPath();
+                    ctx.arc(screenX, screenY, spirit.size + 15, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Spirit body with tentacles
                 ctx.fillStyle = spirit.color;
                 ctx.shadowColor = spirit.color;
-                ctx.shadowBlur = 15;
+                ctx.shadowBlur = spirit.grade === 'SPECIAL' ? 25 : 12;
                 
+                // Main body
                 ctx.beginPath();
-                const time = Date.now() * 0.003;
-                for (let i = 0; i < 8; i++) {
-                    const angle = (i / 8) * Math.PI * 2;
-                    const wobble = Math.sin(time + i) * spirit.size * 0.2;
-                    const r = spirit.size + wobble;
+                const tentacles = 6;
+                for (let i = 0; i < tentacles; i++) {
+                    const angle = (i / tentacles) * Math.PI * 2 + time * 0.5;
+                    const wobble = Math.sin(time * 2 + i * 1.5) * spirit.size * 0.3;
+                    const r = spirit.size * 0.8 + wobble;
                     const x = screenX + Math.cos(angle) * r;
-                    const y = screenY + Math.sin(angle) * r * 0.7;
+                    const y = screenY + Math.sin(angle) * r * 0.6;
                     if (i === 0) ctx.moveTo(x, y);
                     else ctx.lineTo(x, y);
                 }
                 ctx.closePath();
                 ctx.fill();
                 
-                // Eyes
+                // Inner core
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
                 ctx.shadowBlur = 0;
-                ctx.fillStyle = '#ff0000';
-                const eyeOffset = spirit.size * 0.3;
                 ctx.beginPath();
-                ctx.arc(screenX - eyeOffset * 0.5, screenY - eyeOffset * 0.3, spirit.size * 0.15, 0, Math.PI * 2);
-                ctx.arc(screenX + eyeOffset * 0.5, screenY - eyeOffset * 0.3, spirit.size * 0.15, 0, Math.PI * 2);
+                ctx.arc(screenX, screenY, spirit.size * 0.5, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Grade indicator
-                ctx.fillStyle = '#fff';
-                ctx.font = '10px "Segoe UI", sans-serif';
-                ctx.textAlign = 'center';
+                // Glowing core center
+                ctx.fillStyle = spirit.color;
+                ctx.shadowColor = spirit.color;
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, spirit.size * 0.25, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                
+                // Multiple eyes for higher grades
+                ctx.fillStyle = '#ff0000';
+                ctx.shadowColor = '#ff0000';
+                ctx.shadowBlur = 8;
+                
+                if (spirit.grade === 'SPECIAL') {
+                    // Special grade has 4 eyes
+                    const eyeDist = spirit.size * 0.35;
+                    ctx.beginPath();
+                    ctx.arc(screenX - eyeDist, screenY - eyeDist * 0.3, spirit.size * 0.12, 0, Math.PI * 2);
+                    ctx.arc(screenX + eyeDist, screenY - eyeDist * 0.3, spirit.size * 0.12, 0, Math.PI * 2);
+                    ctx.arc(screenX - eyeDist * 0.6, screenY + eyeDist * 0.3, spirit.size * 0.1, 0, Math.PI * 2);
+                    ctx.arc(screenX + eyeDist * 0.6, screenY + eyeDist * 0.3, spirit.size * 0.1, 0, Math.PI * 2);
+                    ctx.fill();
+                } else if (spirit.grade === 'GRADE_1') {
+                    // Grade 1 has 3 eyes
+                    const eyeDist = spirit.size * 0.3;
+                    ctx.beginPath();
+                    ctx.arc(screenX - eyeDist * 0.5, screenY - eyeDist * 0.3, spirit.size * 0.12, 0, Math.PI * 2);
+                    ctx.arc(screenX + eyeDist * 0.5, screenY - eyeDist * 0.3, spirit.size * 0.12, 0, Math.PI * 2);
+                    ctx.arc(screenX, screenY + eyeDist * 0.4, spirit.size * 0.1, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    // Lower grades have 2 eyes
+                    const eyeDist = spirit.size * 0.25;
+                    ctx.beginPath();
+                    ctx.arc(screenX - eyeDist * 0.5, screenY - eyeDist * 0.2, spirit.size * 0.12, 0, Math.PI * 2);
+                    ctx.arc(screenX + eyeDist * 0.5, screenY - eyeDist * 0.2, spirit.size * 0.12, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.shadowBlur = 0;
+                
+                // Grade indicator with background
                 const gradeText = spirit.grade.replace('GRADE_', 'G').replace('SPECIAL', 'SG');
-                ctx.fillText(gradeText, screenX, screenY - spirit.size - 5);
+                ctx.font = 'bold 11px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                const textY = screenY - spirit.size - 12;
+                const textWidth = ctx.measureText(gradeText).width;
+                
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                ctx.fillRect(screenX - textWidth/2 - 4, textY - 10, textWidth + 8, 16);
+                
+                ctx.fillStyle = spirit.grade === 'SPECIAL' ? '#ff00ff' : '#fff';
+                ctx.fillText(gradeText, screenX, textY);
                 
                 ctx.restore();
             }
@@ -796,28 +851,58 @@
         function drawPlayer() {
             const screenX = player.x - camera.x;
             const screenY = player.y - camera.y;
+            const time = Date.now() * 0.005;
             
-            // Player shadow
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            // Shadow
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
             ctx.beginPath();
-            ctx.ellipse(screenX, screenY + player.radius, player.radius, player.radius * 0.5, 0, 0, Math.PI * 2);
+            ctx.ellipse(screenX, screenY + player.radius + 5, player.radius * 0.8, player.radius * 0.3, 0, 0, Math.PI * 2);
             ctx.fill();
             
-            // Player body
+            // Aura glow
             ctx.save();
             ctx.shadowColor = player.color;
-            ctx.shadowBlur = 20;
+            ctx.shadowBlur = 30 + Math.sin(time) * 10;
             ctx.fillStyle = player.color;
+            ctx.globalAlpha = 0.3;
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, player.radius + 8, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 1;
+            ctx.restore();
+            
+            // Body
+            ctx.save();
+            ctx.shadowColor = player.color;
+            ctx.shadowBlur = 15;
+            
+            // Outer ring
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.arc(screenX, screenY, player.radius, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Fill
+            const grad = ctx.createRadialGradient(screenX - 5, screenY - 5, 0, screenX, screenY, player.radius);
+            grad.addColorStop(0, '#fff');
+            grad.addColorStop(0.3, player.color);
+            grad.addColorStop(1, '#003366');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, player.radius - 2, 0, Math.PI * 2);
             ctx.fill();
             ctx.restore();
             
-            // Inner glow
+            // Eye glow (Six Eyes style)
             ctx.fillStyle = '#fff';
+            ctx.shadowColor = '#00ffff';
+            ctx.shadowBlur = 10;
             ctx.beginPath();
-            ctx.arc(screenX, screenY, player.radius * 0.4, 0, Math.PI * 2);
+            ctx.arc(screenX - 4, screenY - 2, 2.5, 0, Math.PI * 2);
+            ctx.arc(screenX + 4, screenY - 2, 2.5, 0, Math.PI * 2);
             ctx.fill();
+            ctx.shadowBlur = 0;
         }
         
         function updateAbilities() {
