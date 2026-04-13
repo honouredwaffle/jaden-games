@@ -181,6 +181,29 @@
             life: 120
         };
         
+        // Hollow Purple state
+        let hollowPurple = {
+            active: false,
+            charging: false,
+            fusing: false, // Blue and Red orbs fusing
+            fused: false,  // Ready to fire
+            chargeTime: 0,
+            maxChargeTime: 180, // 3 seconds for fusion
+            x: 0,
+            y: 0,
+            vx: 0,
+            vy: 0,
+            radius: 25,
+            speed: 10,
+            damage: 200,
+            pierce: true,
+            life: 120, // 2 seconds of flight
+            maxLife: 120,
+            hitEnemies: [], // Track which enemies have been pierced
+            blueOrb: { x: 0, y: 0, angle: 0 },
+            redOrb: { x: 0, y: 0, angle: Math.PI }
+        };
+        
         // Camera
         const camera = {
             x: 0,
@@ -2117,9 +2140,17 @@
                         maxBlue.timer = maxBlue.duration;
                     }
                 } else if (index === 1) { // Reversal Red
-                    if (!reversalRed.active && !reversalRed.charging && !maxBlue.active) {
+                    if (!reversalRed.active && !reversalRed.charging && !maxBlue.active && !hollowPurple.active && !hollowPurple.charging) {
                         reversalRed.charging = true;
                         reversalRed.chargeTime = reversalRed.maxChargeTime;
+                    }
+                } else if (index === 2) { // Hollow Purple
+                    if (!hollowPurple.active && !hollowPurple.charging && !maxBlue.active && !reversalRed.active && !reversalRed.charging) {
+                        hollowPurple.charging = true;
+                        hollowPurple.fusing = true;
+                        hollowPurple.chargeTime = hollowPurple.maxChargeTime;
+                        hollowPurple.blueOrb.angle = 0;
+                        hollowPurple.redOrb.angle = Math.PI;
                     }
                 }
             }
@@ -2387,6 +2418,245 @@
             ctx.restore();
         }
         
+        function updateHollowPurple() {
+            // Handle fusion phase
+            if (hollowPurple.charging && hollowPurple.fusing) {
+                hollowPurple.chargeTime--;
+                
+                // Position orbs in front of player
+                const orbDistance = 50;
+                const fusionProgress = 1 - (hollowPurple.chargeTime / hollowPurple.maxChargeTime);
+                
+                // Blue orb orbits clockwise, Red orbits counter-clockwise
+                hollowPurple.blueOrb.angle += 0.15;
+                hollowPurple.redOrb.angle -= 0.15;
+                
+                // Calculate orb positions relative to player facing
+                const facingX = Math.cos(player.facing);
+                const facingY = Math.sin(player.facing);
+                const perpX = -facingY;
+                const perpY = facingX;
+                
+                const centerX = player.x + facingX * orbDistance;
+                const centerY = player.y + facingY * orbDistance;
+                
+                // Orbs spiral inward as fusion progresses
+                const orbitRadius = 30 * (1 - fusionProgress * 0.7);
+                hollowPurple.blueOrb.x = centerX + Math.cos(hollowPurple.blueOrb.angle) * orbitRadius * perpX + Math.sin(hollowPurple.blueOrb.angle) * orbitRadius * facingX;
+                hollowPurple.blueOrb.y = centerY + Math.cos(hollowPurple.blueOrb.angle) * orbitRadius * perpY + Math.sin(hollowPurple.blueOrb.angle) * orbitRadius * facingY;
+                hollowPurple.redOrb.x = centerX + Math.cos(hollowPurple.redOrb.angle) * orbitRadius * perpX + Math.sin(hollowPurple.redOrb.angle) * orbitRadius * facingX;
+                hollowPurple.redOrb.y = centerY + Math.cos(hollowPurple.redOrb.angle) * orbitRadius * perpY + Math.sin(hollowPurple.redOrb.angle) * orbitRadius * facingY;
+                
+                if (hollowPurple.chargeTime <= 0) {
+                    // Fusion complete - fire!
+                    hollowPurple.charging = false;
+                    hollowPurple.fusing = false;
+                    hollowPurple.fused = true;
+                    hollowPurple.active = true;
+                    hollowPurple.x = centerX;
+                    hollowPurple.y = centerY;
+                    hollowPurple.vx = facingX * hollowPurple.speed;
+                    hollowPurple.vy = facingY * hollowPurple.speed;
+                    hollowPurple.life = hollowPurple.maxLife;
+                    hollowPurple.hitEnemies = [];
+                }
+                return;
+            }
+            
+            if (!hollowPurple.active) return;
+            
+            // Move projectile
+            hollowPurple.x += hollowPurple.vx;
+            hollowPurple.y += hollowPurple.vy;
+            hollowPurple.life--;
+            
+            // Check collisions with spirits (piercing)
+            for (let i = cursedSpirits.length - 1; i >= 0; i--) {
+                const spirit = cursedSpirits[i];
+                const dx = hollowPurple.x - spirit.x;
+                const dy = hollowPurple.y - spirit.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                // Check if already hit this enemy
+                const alreadyHit = hollowPurple.hitEnemies.includes(spirit);
+                
+                if (dist < hollowPurple.radius + spirit.size && !alreadyHit) {
+                    spirit.hp -= hollowPurple.damage;
+                    addDamageCounter(hollowPurple.damage);
+                    addDamageNumber(spirit.x, spirit.y, hollowPurple.damage);
+                    addHitEffect(spirit.x, spirit.y, 'purple');
+                    hollowPurple.hitEnemies.push(spirit);
+                    
+                    if (spirit.hp <= 0) {
+                        addKillEffect(spirit.x, spirit.y, 'purple');
+                        cursedSpirits.splice(i, 1);
+                    }
+                }
+            }
+            
+            // Check collision with boss (piercing, can hit multiple times)
+            if (activeDisasterCurse) {
+                const dx = hollowPurple.x - activeDisasterCurse.x;
+                const dy = hollowPurple.y - activeDisasterCurse.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < hollowPurple.radius + activeDisasterCurse.size) {
+                    const dmg = hollowPurple.damage * 2;
+                    activeDisasterCurse.hp -= dmg;
+                    addDamageCounter(dmg);
+                    addDamageNumber(activeDisasterCurse.x, activeDisasterCurse.y, dmg);
+                    addHitEffect(activeDisasterCurse.x, activeDisasterCurse.y, 'purple');
+                }
+            }
+            
+            // Explode when life ends
+            if (hollowPurple.life <= 0) {
+                // Explosion effect
+                addKillEffect(hollowPurple.x, hollowPurple.y, 'purple');
+                
+                // AOE damage on explosion
+                for (let i = cursedSpirits.length - 1; i >= 0; i--) {
+                    const spirit = cursedSpirits[i];
+                    const dx = hollowPurple.x - spirit.x;
+                    const dy = hollowPurple.y - spirit.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist < 150) { // Explosion radius
+                        spirit.hp -= 100; // Explosion damage
+                        addDamageCounter(100);
+                        if (spirit.hp <= 0) {
+                            addKillEffect(spirit.x, spirit.y, 'purple');
+                            cursedSpirits.splice(i, 1);
+                        }
+                    }
+                }
+                
+                // Boss explosion damage
+                if (activeDisasterCurse) {
+                    const dx = hollowPurple.x - activeDisasterCurse.x;
+                    const dy = hollowPurple.y - activeDisasterCurse.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist < 150) {
+                        activeDisasterCurse.hp -= 200;
+                        addDamageCounter(200);
+                    }
+                }
+                
+                hollowPurple.active = false;
+                hollowPurple.fused = false;
+            }
+        }
+        
+        function drawHollowPurple() {
+            // Draw fusion phase
+            if (hollowPurple.charging && hollowPurple.fusing) {
+                const blueScreenX = hollowPurple.blueOrb.x - camera.x;
+                const blueScreenY = hollowPurple.blueOrb.y - camera.y;
+                const redScreenX = hollowPurple.redOrb.x - camera.x;
+                const redScreenY = hollowPurple.redOrb.y - camera.y;
+                const fusionProgress = 1 - (hollowPurple.chargeTime / hollowPurple.maxChargeTime);
+                
+                ctx.save();
+                
+                // Draw connecting energy line between orbs
+                ctx.strokeStyle = `rgba(180, 50, 255, ${0.3 + fusionProgress * 0.5})`;
+                ctx.lineWidth = 3 + fusionProgress * 5;
+                ctx.beginPath();
+                ctx.moveTo(blueScreenX, blueScreenY);
+                ctx.lineTo(redScreenX, redScreenY);
+                ctx.stroke();
+                
+                // Draw Blue orb
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = '#4444ff';
+                ctx.fillStyle = '#4444ff';
+                ctx.beginPath();
+                ctx.arc(blueScreenX, blueScreenY, 12, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw Red orb
+                ctx.shadowColor = '#ff4444';
+                ctx.fillStyle = '#ff4444';
+                ctx.beginPath();
+                ctx.arc(redScreenX, redScreenY, 12, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw fusion center glow
+                const centerX = (blueScreenX + redScreenX) / 2;
+                const centerY = (blueScreenY + redScreenY) / 2;
+                ctx.shadowColor = '#aa44ff';
+                ctx.fillStyle = `rgba(180, 50, 255, ${fusionProgress * 0.8})`;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, 8 + fusionProgress * 15, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw fusion percentage
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 14px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                const percentText = Math.floor(fusionProgress * 100) + '%';
+                ctx.fillText(percentText, centerX, centerY - 30);
+                
+                ctx.restore();
+                return;
+            }
+            
+            if (!hollowPurple.active) return;
+            
+            const screenX = hollowPurple.x - camera.x;
+            const screenY = hollowPurple.y - camera.y;
+            const time = Date.now() * 0.02;
+            
+            ctx.save();
+            
+            // Purple orb with swirling energy
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = '#aa44ff';
+            
+            // Outer swirling ring
+            ctx.strokeStyle = '#aa44ff';
+            ctx.lineWidth = 4;
+            for (let i = 0; i < 3; i++) {
+                ctx.beginPath();
+                const offset = (time + i * 2) % (Math.PI * 2);
+                ctx.arc(screenX, screenY, hollowPurple.radius + i * 8, offset, offset + Math.PI * 1.5);
+                ctx.stroke();
+            }
+            
+            // Main purple orb
+            const gradient = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, hollowPurple.radius);
+            gradient.addColorStop(0, '#ffffff');
+            gradient.addColorStop(0.3, '#cc88ff');
+            gradient.addColorStop(0.7, '#8844cc');
+            gradient.addColorStop(1, '#442266');
+            
+            ctx.fillStyle = gradient;
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, hollowPurple.radius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Inner core
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, 8, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Energy trail
+            ctx.globalAlpha = 0.5;
+            for (let i = 1; i <= 5; i++) {
+                const trailX = screenX - hollowPurple.vx * i * 2;
+                const trailY = screenY - hollowPurple.vy * i * 2;
+                ctx.fillStyle = `rgba(180, 50, 255, ${0.5 - i * 0.1})`;
+                ctx.beginPath();
+                ctx.arc(trailX, trailY, hollowPurple.radius * (1 - i * 0.15), 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            ctx.restore();
+        }
+        
         function updateMaxBlue() {
             if (!maxBlue.active) return;
             
@@ -2635,9 +2905,10 @@
             
             updatePlayer();
             updateAbilities();
+            updateCursedSpirits();
             updateMaxBlue();
             updateReversalRed();
-            updateCursedSpirits();
+            updateHollowPurple();
             updateDamageCounter();
             updateDamageNumbers();
             updateHitEffects();
@@ -2662,11 +2933,12 @@
             drawSpiritProjectiles();
             drawCursedSpirits();
             drawDisasterCurse();
-            drawMaxBlue();
-            drawReversalRed();
             drawPlayer();
             drawBossHealthBar();
             drawDamageCounter();
+            drawMaxBlue();
+            drawReversalRed();
+            drawHollowPurple();
             drawDamageNumbers();
             drawHitEffects();
             drawKillEffects();
@@ -2705,8 +2977,9 @@
         }
         
         function addHitEffect(x, y, type) {
-            // type: 'blue' or 'red'
-            const color = type === 'blue' ? '#4444ff' : '#ff4444';
+            // type: 'blue', 'red', or 'purple'
+            const colors = { blue: '#4444ff', red: '#ff4444', purple: '#aa44ff' };
+            const color = colors[type] || '#ff4444';
             hitEffects.push({
                 x: x,
                 y: y,
@@ -2722,8 +2995,9 @@
         }
         
         function addKillEffect(x, y, type) {
-            // type: 'blue' or 'red'
-            const color = type === 'blue' ? '#4444ff' : '#ff4444';
+            // type: 'blue', 'red', or 'purple'
+            const colors = { blue: '#4444ff', red: '#ff4444', purple: '#aa44ff' };
+            const color = colors[type] || '#ff4444';
             killEffects.push({
                 x: x,
                 y: y,
