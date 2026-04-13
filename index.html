@@ -73,15 +73,19 @@
         const player = {
             x: 0,
             y: 0,
-            speed: 8,
+            speed: 4,
             radius: 15,
             color: '#00aaff',
             hp: 100,
             maxHp: 100,
             ce: 100,
             maxCe: 100,
-            facing: 0 // angle in radians
+            facing: 0, // angle in radians
+            iframes: 0
         };
+        
+        // Spirit projectiles
+        const spiritProjectiles = [];
         
         // Abilities
         const abilities = [
@@ -152,11 +156,11 @@
         const SPIRIT_COUNT = 200;
         
         const SPIRIT_GRADES = {
-            'GRADE_4': { hp: 30, damage: 5, speed: 1.5, size: 12, spawnRate: 0.4 },
-            'GRADE_3': { hp: 60, damage: 10, speed: 2, size: 15, spawnRate: 0.3 },
-            'GRADE_2': { hp: 120, damage: 20, speed: 2.5, size: 18, spawnRate: 0.15 },
-            'GRADE_1': { hp: 250, damage: 40, speed: 3, size: 22, spawnRate: 0.1 },
-            'SPECIAL': { hp: 800, damage: 100, speed: 4, size: 35, spawnRate: 0.05 }
+            'GRADE_4': { hp: 30, damage: 5, speed: 1, size: 12, spawnRate: 0.4, attackRange: 80, attackCooldown: 120, projectileSpeed: 3 },
+            'GRADE_3': { hp: 60, damage: 10, speed: 1.2, size: 15, spawnRate: 0.3, attackRange: 120, attackCooldown: 100, projectileSpeed: 4 },
+            'GRADE_2': { hp: 120, damage: 20, speed: 1.5, size: 18, spawnRate: 0.15, attackRange: 150, attackCooldown: 90, projectileSpeed: 5 },
+            'GRADE_1': { hp: 250, damage: 40, speed: 1.8, size: 22, spawnRate: 0.1, attackRange: 200, attackCooldown: 80, projectileSpeed: 6 },
+            'SPECIAL': { hp: 800, damage: 100, speed: 2, size: 35, spawnRate: 0.05, attackRange: 300, attackCooldown: 60, projectileSpeed: 8 }
         };
         
         // Biome-specific spirit colors
@@ -206,7 +210,12 @@
                     vx: 0,
                     vy: 0,
                     angle: 0,
-                    biome: biome
+                    biome: biome,
+                    state: 'IDLE', // IDLE, CHASE, ATTACK, RETREAT
+                    stateTimer: 0,
+                    attackCooldown: 0,
+                    targetX: x,
+                    targetY: y
                 });
             }
         }
@@ -566,9 +575,17 @@
             player.x = Math.max(-WORLD_WIDTH/2, Math.min(WORLD_WIDTH/2, player.x));
             player.y = Math.max(-WORLD_HEIGHT/2, Math.min(WORLD_HEIGHT/2, player.y));
             
-            // Regen CE
+            // Regen CE and HP
             if (player.ce < player.maxCe) {
-                player.ce += 0.1;
+                player.ce += 0.08;
+            }
+            if (player.hp < player.maxHp) {
+                player.hp += 0.03;
+            }
+            
+            // Iframes
+            if (player.iframes > 0) {
+                player.iframes--;
             }
             
             // Update camera to follow player
@@ -661,24 +678,135 @@
         }
         
         function updateCursedSpirits() {
+            const data = SPIRIT_GRADES[spirit.grade];
+            
             for (const spirit of cursedSpirits) {
                 // Distance to player
                 const dx = player.x - spirit.x;
                 const dy = player.y - spirit.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
-                // Chase player if within range
-                if (dist < 400 && dist > 30) {
-                    spirit.vx = (dx / dist) * spirit.speed;
-                    spirit.vy = (dy / dist) * spirit.speed;
-                    spirit.angle = Math.atan2(dy, dx);
-                } else {
-                    spirit.vx *= 0.9;
-                    spirit.vy *= 0.9;
+                // State machine
+                spirit.stateTimer--;
+                spirit.attackCooldown--;
+                
+                if (spirit.stateTimer <= 0) {
+                    // Pick new state
+                    const rand = Math.random();
+                    if (dist < 300) {
+                        if (rand < 0.4) spirit.state = 'CHASE';
+                        else if (rand < 0.7) spirit.state = 'ATTACK';
+                        else if (rand < 0.85) spirit.state = 'IDLE';
+                        else spirit.state = 'RETREAT';
+                    } else {
+                        spirit.state = 'IDLE';
+                    }
+                    spirit.stateTimer = 60 + Math.random() * 120;
                 }
                 
+                // Behavior based on state
+                switch(spirit.state) {
+                    case 'CHASE':
+                        if (dist > 50) {
+                            spirit.vx += (dx / dist) * spirit.speed * 0.1;
+                            spirit.vy += (dy / dist) * spirit.speed * 0.1;
+                        }
+                        spirit.angle = Math.atan2(dy, dx);
+                        break;
+                        
+                    case 'ATTACK':
+                        // Stay at range and attack
+                        if (dist < data.attackRange && spirit.attackCooldown <= 0) {
+                            // Fire projectile
+                            spiritProjectiles.push({
+                                x: spirit.x,
+                                y: spirit.y,
+                                vx: (dx / dist) * data.projectileSpeed,
+                                vy: (dy / dist) * data.projectileSpeed,
+                                damage: data.damage,
+                                size: spirit.size * 0.3,
+                                color: spirit.color,
+                                life: 180
+                            });
+                            spirit.attackCooldown = data.attackCooldown;
+                        }
+                        // Circle around player
+                        const circleAngle = Math.atan2(dy, dx) + Math.PI / 2;
+                        spirit.vx += Math.cos(circleAngle) * spirit.speed * 0.05;
+                        spirit.vy += Math.sin(circleAngle) * spirit.speed * 0.05;
+                        break;
+                        
+                    case 'RETREAT':
+                        if (dist < 200) {
+                            spirit.vx -= (dx / dist) * spirit.speed * 0.15;
+                            spirit.vy -= (dy / dist) * spirit.speed * 0.15;
+                        }
+                        break;
+                        
+                    case 'IDLE':
+                        // Wander randomly
+                        if (Math.random() < 0.05) {
+                            spirit.targetX = spirit.x + (Math.random() - 0.5) * 200;
+                            spirit.targetY = spirit.y + (Math.random() - 0.5) * 200;
+                        }
+                        const tdx = spirit.targetX - spirit.x;
+                        const tdy = spirit.targetY - spirit.y;
+                        const tdist = Math.sqrt(tdx * tdx + tdy * tdy);
+                        if (tdist > 10) {
+                            spirit.vx += (tdx / tdist) * spirit.speed * 0.03;
+                            spirit.vy += (tdy / tdist) * spirit.speed * 0.03;
+                        }
+                        break;
+                }
+                
+                // Apply friction
+                spirit.vx *= 0.95;
+                spirit.vy *= 0.95;
+                
+                // Update position
                 spirit.x += spirit.vx;
                 spirit.y += spirit.vy;
+            }
+        }
+        
+        function updateSpiritProjectiles() {
+            for (let i = spiritProjectiles.length - 1; i >= 0; i--) {
+                const proj = spiritProjectiles[i];
+                proj.x += proj.vx;
+                proj.y += proj.vy;
+                proj.life--;
+                
+                // Check collision with player
+                const dx = player.x - proj.x;
+                const dy = player.y - proj.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < player.radius + proj.size && player.iframes <= 0) {
+                    player.hp -= proj.damage;
+                    player.iframes = 60;
+                    spiritProjectiles.splice(i, 1);
+                    continue;
+                }
+                
+                if (proj.life <= 0) {
+                    spiritProjectiles.splice(i, 1);
+                }
+            }
+        }
+        
+        function drawSpiritProjectiles() {
+            for (const proj of spiritProjectiles) {
+                const screenX = proj.x - camera.x;
+                const screenY = proj.y - camera.y;
+                
+                ctx.save();
+                ctx.fillStyle = proj.color;
+                ctx.shadowColor = proj.color;
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, proj.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
             }
         }
         
@@ -1509,10 +1637,12 @@
             updatePlayer();
             updateAbilities();
             updateCursedSpirits();
+            updateSpiritProjectiles();
             drawBiomeGround();
             drawGrid();
             drawBiomeOverlay();
             drawBiomeObjects();
+            drawSpiritProjectiles();
             drawCursedSpirits();
             drawPlayer();
             drawAbilityBar();
