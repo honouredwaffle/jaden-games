@@ -103,18 +103,93 @@
         // Biomes: Snow, Forest, Volcano, City, Sand
         const BIOMES = ['SNOW', 'FOREST', 'VOLCANO', 'CITY', 'SAND'];
         
-        // Biome colors
+        // Biome colors - more distinct and realistic
         const BIOME_COLORS = {
-            'SNOW': { bg: '#e8f4f8', grid: 'rgba(100, 150, 200, 0.15)' },
-            'FOREST': { bg: '#0d2818', grid: 'rgba(100, 200, 100, 0.15)' },
-            'VOLCANO': { bg: '#1a0a0a', grid: 'rgba(200, 100, 50, 0.15)' },
-            'CITY': { bg: '#1a1a2e', grid: 'rgba(150, 150, 200, 0.15)' },
-            'SAND': { bg: '#c2b280', grid: 'rgba(150, 120, 80, 0.15)' }
+            'SNOW': { 
+                bg: '#f0f8ff', 
+                grid: 'rgba(200, 220, 255, 0.2)',
+                ground: '#ffffff',
+                groundAlt: '#e8f4f8'
+            },
+            'FOREST': { 
+                bg: '#0a1f0a', 
+                grid: 'rgba(50, 150, 50, 0.15)',
+                ground: '#1a3d1a',
+                groundAlt: '#0f2f0f'
+            },
+            'VOLCANO': { 
+                bg: '#1a0505', 
+                grid: 'rgba(255, 80, 30, 0.2)',
+                ground: '#2d1810',
+                groundAlt: '#1a0f0a'
+            },
+            'CITY': { 
+                bg: '#0a0a15', 
+                grid: 'rgba(100, 100, 150, 0.15)',
+                ground: '#1a1a2e',
+                groundAlt: '#151525'
+            },
+            'SAND': { 
+                bg: '#f4e4c1', 
+                grid: 'rgba(200, 170, 120, 0.2)',
+                ground: '#e6d5ac',
+                groundAlt: '#d4c49a'
+            }
         };
         
         // Biome objects
         const biomeObjects = [];
         const OBJECT_COUNT_PER_BIOME = 500;
+        
+        // Cursed spirits
+        const cursedSpirits = [];
+        const SPIRIT_COUNT = 200;
+        
+        const SPIRIT_GRADES = {
+            'GRADE_4': { hp: 30, damage: 5, speed: 1.5, color: '#444444', size: 12, spawnRate: 0.4 },
+            'GRADE_3': { hp: 60, damage: 10, speed: 2, color: '#666666', size: 15, spawnRate: 0.3 },
+            'GRADE_2': { hp: 120, damage: 20, speed: 2.5, color: '#884444', size: 18, spawnRate: 0.15 },
+            'GRADE_1': { hp: 250, damage: 40, speed: 3, color: '#aa2222', size: 22, spawnRate: 0.1 },
+            'SPECIAL': { hp: 800, damage: 100, speed: 4, color: '#6600cc', size: 35, spawnRate: 0.05 }
+        };
+        
+        function generateCursedSpirits() {
+            cursedSpirits.length = 0;
+            
+            for (let i = 0; i < SPIRIT_COUNT; i++) {
+                const rand = Math.random();
+                let grade = 'GRADE_4';
+                let cumulative = 0;
+                
+                for (const [g, data] of Object.entries(SPIRIT_GRADES)) {
+                    cumulative += data.spawnRate;
+                    if (rand < cumulative) {
+                        grade = g;
+                        break;
+                    }
+                }
+                
+                const data = SPIRIT_GRADES[grade];
+                const x = -WORLD_WIDTH/2 + Math.random() * WORLD_WIDTH;
+                const y = -WORLD_HEIGHT/2 + Math.random() * WORLD_HEIGHT;
+                
+                cursedSpirits.push({
+                    x, y,
+                    grade,
+                    hp: data.hp,
+                    maxHp: data.hp,
+                    damage: data.damage,
+                    speed: data.speed,
+                    color: data.color,
+                    size: data.size,
+                    vx: 0,
+                    vy: 0,
+                    angle: 0
+                });
+            }
+        }
+        
+        generateCursedSpirits();
         
         function generateBiomeObjects() {
             biomeObjects.length = 0;
@@ -486,8 +561,37 @@
             }
         }
         
+        function drawBiomeGround() {
+            // Draw textured ground for each biome
+            const startX = Math.floor(camera.x / BIOME_WIDTH) * BIOME_WIDTH;
+            const endX = startX + canvas.width + BIOME_WIDTH;
+            
+            for (let x = startX; x < endX; x += BIOME_WIDTH) {
+                const colors = getBiomeColors(x);
+                const screenX = x - camera.x;
+                const width = Math.min(BIOME_WIDTH, WORLD_WIDTH / 2 - x);
+                
+                // Base biome color
+                ctx.fillStyle = colors.ground;
+                ctx.fillRect(screenX, 0, width, canvas.height);
+                
+                // Add texture pattern
+                ctx.fillStyle = colors.groundAlt;
+                ctx.globalAlpha = 0.3;
+                const patternSize = 100;
+                for (let px = 0; px < width; px += patternSize) {
+                    for (let py = 0; py < canvas.height; py += patternSize) {
+                        if ((px + py) % (patternSize * 2) === 0) {
+                            ctx.fillRect(screenX + px, py, patternSize, patternSize);
+                        }
+                    }
+                }
+                ctx.globalAlpha = 1;
+            }
+        }
+        
         function drawBiomeOverlay() {
-            // Draw semi-transparent biome colors on screen
+            // Additional atmospheric overlay
             const startX = Math.floor(camera.x / BIOME_WIDTH) * BIOME_WIDTH;
             const endX = startX + canvas.width + BIOME_WIDTH;
             
@@ -497,9 +601,92 @@
                 const width = Math.min(BIOME_WIDTH, WORLD_WIDTH / 2 - x);
                 
                 ctx.fillStyle = colors.bg;
-                ctx.globalAlpha = 0.15;
+                ctx.globalAlpha = 0.08;
                 ctx.fillRect(screenX, 0, width, canvas.height);
                 ctx.globalAlpha = 1;
+            }
+        }
+        
+        function updateCursedSpirits() {
+            for (const spirit of cursedSpirits) {
+                // Distance to player
+                const dx = player.x - spirit.x;
+                const dy = player.y - spirit.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                // Chase player if within range
+                if (dist < 400 && dist > 30) {
+                    spirit.vx = (dx / dist) * spirit.speed;
+                    spirit.vy = (dy / dist) * spirit.speed;
+                    spirit.angle = Math.atan2(dy, dx);
+                } else {
+                    spirit.vx *= 0.9;
+                    spirit.vy *= 0.9;
+                }
+                
+                spirit.x += spirit.vx;
+                spirit.y += spirit.vy;
+            }
+        }
+        
+        function drawCursedSpirits() {
+            const viewPadding = 100;
+            const viewLeft = camera.x - viewPadding;
+            const viewRight = camera.x + canvas.width + viewPadding;
+            const viewTop = camera.y - viewPadding;
+            const viewBottom = camera.y + canvas.height + viewPadding;
+            
+            for (const spirit of cursedSpirits) {
+                if (spirit.x < viewLeft || spirit.x > viewRight || 
+                    spirit.y < viewTop || spirit.y > viewBottom) continue;
+                
+                const screenX = spirit.x - camera.x;
+                const screenY = spirit.y - camera.y;
+                
+                ctx.save();
+                
+                // Shadow
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+                ctx.beginPath();
+                ctx.ellipse(screenX, screenY + spirit.size * 0.3, spirit.size * 0.6, spirit.size * 0.3, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Spirit body (blob shape)
+                ctx.fillStyle = spirit.color;
+                ctx.shadowColor = spirit.color;
+                ctx.shadowBlur = 15;
+                
+                ctx.beginPath();
+                const time = Date.now() * 0.003;
+                for (let i = 0; i < 8; i++) {
+                    const angle = (i / 8) * Math.PI * 2;
+                    const wobble = Math.sin(time + i) * spirit.size * 0.2;
+                    const r = spirit.size + wobble;
+                    const x = screenX + Math.cos(angle) * r;
+                    const y = screenY + Math.sin(angle) * r * 0.7;
+                    if (i === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.fill();
+                
+                // Eyes
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = '#ff0000';
+                const eyeOffset = spirit.size * 0.3;
+                ctx.beginPath();
+                ctx.arc(screenX - eyeOffset * 0.5, screenY - eyeOffset * 0.3, spirit.size * 0.15, 0, Math.PI * 2);
+                ctx.arc(screenX + eyeOffset * 0.5, screenY - eyeOffset * 0.3, spirit.size * 0.15, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Grade indicator
+                ctx.fillStyle = '#fff';
+                ctx.font = '10px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                const gradeText = spirit.grade.replace('GRADE_', 'G').replace('SPECIAL', 'SG');
+                ctx.fillText(gradeText, screenX, screenY - spirit.size - 5);
+                
+                ctx.restore();
             }
         }
         
@@ -709,9 +896,12 @@
             
             updatePlayer();
             updateAbilities();
+            updateCursedSpirits();
+            drawBiomeGround();
             drawGrid();
             drawBiomeOverlay();
             drawBiomeObjects();
+            drawCursedSpirits();
             drawPlayer();
             drawAbilityBar();
             
