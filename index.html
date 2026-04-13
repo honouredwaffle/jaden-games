@@ -2196,7 +2196,7 @@
                 const beamCount = 10;
                 for (let i = 0; i < beamCount; i++) {
                     const baseAngle = (i / beamCount) * Math.PI * 2;
-                    const rotationSpeed = 0.08 * (i % 2 === 0 ? 1 : -1);
+                    const rotationSpeed = 0.08;
                     const angle = baseAngle + time * rotationSpeed;
                     const orbitRadius = reversalRed.radius + 15;
 
