@@ -2453,7 +2453,7 @@
                     hollowPurple.fusing = false;
                     hollowPurple.fused = true;
                     hollowPurple.active = true;
-                    hollowPurple.holdTime = 90; // 1.5 seconds at 60fps
+                    hollowPurple.holdTime = 180; // 3 seconds at 60fps
                     hollowPurple.x = centerX;
                     hollowPurple.y = centerY;
                     hollowPurple.vx = 0;
@@ -2864,14 +2864,6 @@
                 ctx.beginPath();
                 ctx.arc(screenX, screenY, 10 + holdProgress * 3, 0, Math.PI * 2);
                 ctx.fill();
-                
-                // Launch countdown indicator
-                ctx.shadowBlur = 10;
-                ctx.fillStyle = '#fff';
-                ctx.font = 'bold 20px "Segoe UI", sans-serif';
-                ctx.textAlign = 'center';
-                const secondsLeft = Math.ceil(hollowPurple.holdTime / 60);
-                ctx.fillText(secondsLeft + '...', screenX, screenY - 50);
                 
                 ctx.restore();
                 return;
