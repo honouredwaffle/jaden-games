@@ -2185,7 +2185,7 @@
                 const waveCount = 4;
                 for (let w = 0; w < waveCount; w++) {
                     const waveProgress = ((time * 40 + w * 25) % 60) / 60;
-                    const waveRadius = 15 + waveProgress * 35;
+                    const waveRadius = 10 + waveProgress * 20;
                     const alpha = (1 - waveProgress) * (0.4 + chargeProgress * 0.3);
                     
                     ctx.strokeStyle = `rgba(255, ${120 + w * 30}, ${120 + w * 30}, ${alpha})`;
