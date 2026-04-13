@@ -75,7 +75,12 @@
             y: 0,
             speed: 8,
             radius: 15,
-            color: '#00aaff'
+            color: '#00aaff',
+            hp: 100,
+            maxHp: 100,
+            ce: 100,
+            maxCe: 100,
+            facing: 0 // angle in radians
         };
         
         // Abilities
@@ -514,11 +519,17 @@
                 dy /= len;
                 player.x += dx * player.speed;
                 player.y += dy * player.speed;
+                player.facing = Math.atan2(dy, dx);
             }
             
             // Keep player in world bounds
             player.x = Math.max(-WORLD_WIDTH/2, Math.min(WORLD_WIDTH/2, player.x));
             player.y = Math.max(-WORLD_HEIGHT/2, Math.min(WORLD_HEIGHT/2, player.y));
+            
+            // Regen CE
+            if (player.ce < player.maxCe) {
+                player.ce += 0.1;
+            }
             
             // Update camera to follow player
             camera.x = player.x - canvas.width / 2;
@@ -1111,40 +1122,65 @@
             ctx.shadowColor = '#00aaff';
             ctx.shadowBlur = 15;
             
-            // Legs
+            // Legs with proper walking animation based on facing direction
             ctx.strokeStyle = '#1a1a2e';
             ctx.lineWidth = 5;
             ctx.lineCap = 'round';
+            ctx.lineJoin = 'round';
+            
+            const legLength = 25;
+            const stepSize = isMoving ? 8 : 0;
+            const leftStep = Math.sin(time * 5) * stepSize;
+            const rightStep = Math.sin(time * 5 + Math.PI) * stepSize;
+            
+            // Calculate leg positions based on facing direction
+            const perpX = -Math.sin(player.facing);
+            const perpY = Math.cos(player.facing);
             
             // Left leg
+            const leftHipX = screenX - 6;
+            const leftHipY = drawY + player.radius;
+            const leftKneeX = leftHipX + perpX * 3 + Math.cos(player.facing) * leftStep;
+            const leftKneeY = leftHipY + legLength * 0.5;
+            const leftFootX = leftKneeX + Math.cos(player.facing) * leftStep * 0.5;
+            const leftFootY = leftHipY + legLength;
+            
             ctx.beginPath();
-            ctx.moveTo(screenX - 6, drawY + player.radius);
-            ctx.lineTo(screenX - 8, drawY + player.radius + 15 + walkCycle * 3);
-            ctx.lineTo(screenX - 8, drawY + player.radius + 25);
+            ctx.moveTo(leftHipX, leftHipY);
+            ctx.lineTo(leftKneeX, leftKneeY);
+            ctx.lineTo(leftFootX, leftFootY);
             ctx.stroke();
             
             // Right leg
+            const rightHipX = screenX + 6;
+            const rightHipY = drawY + player.radius;
+            const rightKneeX = rightHipX - perpX * 3 + Math.cos(player.facing) * rightStep;
+            const rightKneeY = rightHipY + legLength * 0.5;
+            const rightFootX = rightKneeX + Math.cos(player.facing) * rightStep * 0.5;
+            const rightFootY = rightHipY + legLength;
+            
             ctx.beginPath();
-            ctx.moveTo(screenX + 6, drawY + player.radius);
-            ctx.lineTo(screenX + 8, drawY + player.radius + 15 - walkCycle * 3);
-            ctx.lineTo(screenX + 8, drawY + player.radius + 25);
+            ctx.moveTo(rightHipX, rightHipY);
+            ctx.lineTo(rightKneeX, rightKneeY);
+            ctx.lineTo(rightFootX, rightFootY);
             ctx.stroke();
             
-            // Arms
+            // Arms - more natural position at sides
             ctx.lineWidth = 4;
+            const armSwing = isMoving ? Math.sin(time * 3) * 6 : 0;
             
-            // Left arm
+            // Left arm - relaxed at side
             ctx.beginPath();
-            ctx.moveTo(screenX - player.radius + 2, drawY);
-            ctx.lineTo(screenX - player.radius - 8, drawY + 8 - walkCycle * 2);
-            ctx.lineTo(screenX - player.radius - 6, drawY + 18);
+            ctx.moveTo(screenX - player.radius + 2, drawY + 3);
+            ctx.lineTo(screenX - player.radius - 4, drawY + 12 + armSwing * 0.5);
+            ctx.lineTo(screenX - player.radius - 2, drawY + 20);
             ctx.stroke();
             
-            // Right arm
+            // Right arm - relaxed at side
             ctx.beginPath();
-            ctx.moveTo(screenX + player.radius - 2, drawY);
-            ctx.lineTo(screenX + player.radius + 8, drawY + 8 + walkCycle * 2);
-            ctx.lineTo(screenX + player.radius + 6, drawY + 18);
+            ctx.moveTo(screenX + player.radius - 2, drawY + 3);
+            ctx.lineTo(screenX + player.radius + 4, drawY + 12 - armSwing * 0.5);
+            ctx.lineTo(screenX + player.radius + 2, drawY + 20);
             ctx.stroke();
             
             // Body (torso)
@@ -1264,8 +1300,11 @@
         
         function useAbility(index) {
             const ability = abilities[index];
-            if (ability.cooldown === 0) {
+            const ceCost = [20, 30, 50, 80][index]; // Blue, Red, Purple, Domain costs
+            
+            if (ability.cooldown === 0 && player.ce >= ceCost) {
                 ability.cooldown = ability.maxCooldown;
+                player.ce -= ceCost;
                 // TODO: Actually use the ability
             }
         }
@@ -1286,19 +1325,63 @@
             drawPlayer();
             drawAbilityBar();
             drawMinimap();
+            drawPlayerBars();
             
             // UI - Coordinates and current biome
             const currentBiome = getBiomeAt(player.x);
             
             ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-            ctx.fillRect(10, 10, 200, 60);
+            ctx.fillRect(10, 70, 200, 60);
             
             ctx.fillStyle = '#fff';
             ctx.font = '14px "Segoe UI", sans-serif';
             ctx.textAlign = 'left';
-            ctx.fillText(`X: ${Math.floor(player.x)} Y: ${Math.floor(player.y)}`, 20, 35);
+            ctx.fillText(`X: ${Math.floor(player.x)} Y: ${Math.floor(player.y)}`, 20, 95);
             ctx.fillStyle = BIOME_COLORS[currentBiome].grid.replace('0.15', '1');
-            ctx.fillText(`BIOME: ${currentBiome}`, 20, 58);
+            ctx.fillText(`BIOME: ${currentBiome}`, 20, 118);
+        }
+        
+        function drawPlayerBars() {
+            const barWidth = 200;
+            const barHeight = 18;
+            const x = 15;
+            
+            // Health bar
+            const hpPercent = player.hp / player.maxHp;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(x, 15, barWidth, barHeight);
+            
+            const hpGradient = ctx.createLinearGradient(x, 0, x + barWidth * hpPercent, 0);
+            hpGradient.addColorStop(0, '#ff4444');
+            hpGradient.addColorStop(1, '#ff8888');
+            ctx.fillStyle = hpGradient;
+            ctx.fillRect(x, 15, barWidth * hpPercent, barHeight);
+            
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, 15, barWidth, barHeight);
+            
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 12px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`HP ${Math.floor(player.hp)}/${player.maxHp}`, x + barWidth / 2, 28);
+            
+            // CE bar
+            const cePercent = player.ce / player.maxCe;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(x, 38, barWidth, barHeight);
+            
+            const ceGradient = ctx.createLinearGradient(x, 0, x + barWidth * cePercent, 0);
+            ceGradient.addColorStop(0, '#4444ff');
+            ceGradient.addColorStop(1, '#8888ff');
+            ctx.fillStyle = ceGradient;
+            ctx.fillRect(x, 38, barWidth * cePercent, barHeight);
+            
+            ctx.strokeStyle = '#fff';
+            ctx.strokeRect(x, 38, barWidth, barHeight);
+            
+            ctx.fillStyle = '#fff';
+            ctx.fillText(`CE ${Math.floor(player.ce)}/${player.maxCe}`, x + barWidth / 2, 51);
         }
         
         function drawMinimap() {
