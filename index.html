@@ -48,6 +48,10 @@
         }
         resize();
         window.addEventListener('resize', resize);
+        
+        // Initial clear to prevent black screen on load
+        ctx.fillStyle = '#1a0a2e';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         // Game state
         let screen = 'title';
