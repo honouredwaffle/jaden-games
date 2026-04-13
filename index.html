@@ -559,20 +559,32 @@
             for (let x = startX; x < endX; x += BIOME_WIDTH) {
                 const colors = getBiomeColors(x);
                 const screenX = x - camera.x;
-                const width = Math.min(BIOME_WIDTH, WORLD_WIDTH / 2 - x);
+                const biomeStart = -WORLD_WIDTH/2 + Math.floor((x + WORLD_WIDTH/2) / BIOME_WIDTH) * BIOME_WIDTH;
+                const biomeEnd = biomeStart + BIOME_WIDTH;
+                const width = Math.min(biomeEnd, WORLD_WIDTH/2) - Math.max(biomeStart, -WORLD_WIDTH/2);
+                const drawX = Math.max(biomeStart, -WORLD_WIDTH/2) - camera.x;
+                const drawWidth = width;
                 
                 // Base biome color
                 ctx.fillStyle = colors.ground;
-                ctx.fillRect(screenX, 0, width, canvas.height);
+                ctx.fillRect(drawX, 0, drawWidth, canvas.height);
                 
-                // Add texture pattern
+                // Add texture pattern - aligned to world coordinates
                 ctx.fillStyle = colors.groundAlt;
                 ctx.globalAlpha = 0.3;
                 const patternSize = 100;
-                for (let px = 0; px < width; px += patternSize) {
-                    for (let py = 0; py < canvas.height; py += patternSize) {
-                        if ((px + py) % (patternSize * 2) === 0) {
-                            ctx.fillRect(screenX + px, py, patternSize, patternSize);
+                const patternStartX = Math.floor((Math.max(biomeStart, -WORLD_WIDTH/2)) / patternSize) * patternSize;
+                const patternEndX = Math.min(biomeEnd, WORLD_WIDTH/2);
+                
+                for (let px = patternStartX; px < patternEndX; px += patternSize) {
+                    for (let py = camera.y; py < camera.y + canvas.height; py += patternSize) {
+                        const worldY = Math.floor(py / patternSize) * patternSize;
+                        if ((px + worldY) % (patternSize * 2) < patternSize) {
+                            const screenPX = px - camera.x;
+                            const screenPY = worldY - camera.y;
+                            if (screenPX >= drawX && screenPX < drawX + drawWidth) {
+                                ctx.fillRect(screenPX, screenPY, patternSize, patternSize);
+                            }
                         }
                     }
                 }
