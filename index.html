@@ -150,6 +150,9 @@
         // Reversal Red state
         let reversalRed = {
             active: false,
+            charging: false,
+            chargeTime: 0,
+            maxChargeTime: 90, // 1.5 seconds at 60fps
             x: 0,
             y: 0,
             vx: 0,
@@ -2081,19 +2084,35 @@
                     maxBlue.active = true;
                     maxBlue.timer = maxBlue.duration;
                 } else if (index === 1) { // Reversal Red
-                    if (!reversalRed.active) {
-                        reversalRed.active = true;
-                        reversalRed.x = player.x;
-                        reversalRed.y = player.y;
-                        reversalRed.vx = Math.cos(player.facing) * reversalRed.speed;
-                        reversalRed.vy = Math.sin(player.facing) * reversalRed.speed;
-                        reversalRed.life = 120;
+                    if (!reversalRed.active && !reversalRed.charging) {
+                        reversalRed.charging = true;
+                        reversalRed.chargeTime = reversalRed.maxChargeTime;
                     }
                 }
             }
         }
         
         function updateReversalRed() {
+            // Handle charging
+            if (reversalRed.charging) {
+                reversalRed.chargeTime--;
+                
+                // Position orb in front of player
+                const chargeDistance = 40;
+                reversalRed.x = player.x + Math.cos(player.facing) * chargeDistance;
+                reversalRed.y = player.y + Math.sin(player.facing) * chargeDistance;
+                
+                if (reversalRed.chargeTime <= 0) {
+                    // Fire!
+                    reversalRed.charging = false;
+                    reversalRed.active = true;
+                    reversalRed.vx = Math.cos(player.facing) * reversalRed.speed;
+                    reversalRed.vy = Math.sin(player.facing) * reversalRed.speed;
+                    reversalRed.life = 120;
+                }
+                return;
+            }
+            
             if (!reversalRed.active) return;
             
             reversalRed.x += reversalRed.vx;
@@ -2135,6 +2154,90 @@
         }
         
         function drawReversalRed() {
+            // Draw charge-up effect
+            if (reversalRed.charging) {
+                const screenX = reversalRed.x - camera.x;
+                const screenY = reversalRed.y - camera.y;
+                const time = Date.now() * 0.01;
+                const chargeProgress = 1 - (reversalRed.chargeTime / reversalRed.maxChargeTime);
+                
+                ctx.save();
+                
+                // Pulsing glow that gets more intense
+                const glowIntensity = 20 + chargeProgress * 40;
+                ctx.shadowColor = '#ff4444';
+                ctx.shadowBlur = glowIntensity;
+                ctx.fillStyle = `rgba(255, ${100 - chargeProgress * 50}, 100, ${0.3 + chargeProgress * 0.4})`;
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, reversalRed.radius + chargeProgress * 15, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Main charge orb
+                const orbGrad = ctx.createRadialGradient(screenX - 8, screenY - 8, 0, screenX, screenY, reversalRed.radius);
+                orbGrad.addColorStop(0, '#ffffff');
+                orbGrad.addColorStop(0.4, '#ff8888');
+                orbGrad.addColorStop(0.8, '#ff4444');
+                orbGrad.addColorStop(1, '#aa0000');
+                ctx.fillStyle = orbGrad;
+                ctx.shadowBlur = 30;
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, reversalRed.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Inner core
+                ctx.fillStyle = '#fff';
+                ctx.shadowBlur = 15;
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, 10, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Bending light beams that circle the orb
+                const beamCount = 6;
+                for (let i = 0; i < beamCount; i++) {
+                    const baseAngle = (i / beamCount) * Math.PI * 2;
+                    const rotationSpeed = 0.15 * (i % 2 === 0 ? 1 : -1);
+                    const beamAngle = baseAngle + time * rotationSpeed;
+                    const beamLength = 60 + chargeProgress * 40;
+                    const bendAmount = 20 + chargeProgress * 30;
+                    
+                    ctx.strokeStyle = `rgba(255, ${200 - i * 20}, ${200 - i * 20}, ${0.6 + chargeProgress * 0.4})`;
+                    ctx.lineWidth = 3;
+                    ctx.shadowColor = '#ff6666';
+                    ctx.shadowBlur = 20;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(screenX, screenY);
+                    
+                    // Create bending curve
+                    const midX = screenX + Math.cos(beamAngle) * (beamLength * 0.5) + Math.cos(beamAngle + Math.PI / 2) * bendAmount;
+                    const midY = screenY + Math.sin(beamAngle) * (beamLength * 0.5) + Math.sin(beamAngle + Math.PI / 2) * bendAmount;
+                    const endX = screenX + Math.cos(beamAngle) * beamLength;
+                    const endY = screenY + Math.sin(beamAngle) * beamLength;
+                    
+                    ctx.quadraticCurveTo(midX, midY, endX, endY);
+                    ctx.stroke();
+                }
+                
+                // Spinning energy ring
+                ctx.strokeStyle = '#ffaaaa';
+                ctx.lineWidth = 2;
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                const ringRadius = reversalRed.radius + 10 + Math.sin(time * 5) * 5;
+                ctx.arc(screenX, screenY, ringRadius, time * 2, time * 2 + Math.PI * 1.5);
+                ctx.stroke();
+                
+                // Charge percentage text
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 14px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.shadowBlur = 5;
+                ctx.fillText(`${Math.floor(chargeProgress * 100)}%`, screenX, screenY - reversalRed.radius - 15);
+                
+                ctx.restore();
+                return;
+            }
+            
             if (!reversalRed.active) return;
             
             const screenX = reversalRed.x - camera.x;
