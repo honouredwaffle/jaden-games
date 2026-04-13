@@ -2172,17 +2172,19 @@
                 ctx.arc(screenX, screenY, reversalRed.radius + chargeProgress * 15, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Main charge orb
+                // Main charge orb (slightly transparent)
+                ctx.globalAlpha = 0.85;
                 const orbGrad = ctx.createRadialGradient(screenX - 8, screenY - 8, 0, screenX, screenY, reversalRed.radius);
-                orbGrad.addColorStop(0, '#ffffff');
-                orbGrad.addColorStop(0.4, '#ff8888');
-                orbGrad.addColorStop(0.8, '#ff4444');
-                orbGrad.addColorStop(1, '#aa0000');
+                orbGrad.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
+                orbGrad.addColorStop(0.4, 'rgba(255, 136, 136, 0.8)');
+                orbGrad.addColorStop(0.8, 'rgba(255, 68, 68, 0.7)');
+                orbGrad.addColorStop(1, 'rgba(170, 0, 0, 0.6)');
                 ctx.fillStyle = orbGrad;
                 ctx.shadowBlur = 30;
                 ctx.beginPath();
                 ctx.arc(screenX, screenY, reversalRed.radius, 0, Math.PI * 2);
                 ctx.fill();
+                ctx.globalAlpha = 1;
                 
                 // Inner core
                 ctx.fillStyle = '#fff';
@@ -2192,18 +2194,18 @@
                 ctx.fill();
                 
                 // Bending light beams that circle the orb
-                const beamCount = 6;
+                const beamCount = 12;
                 for (let i = 0; i < beamCount; i++) {
                     const baseAngle = (i / beamCount) * Math.PI * 2;
-                    const rotationSpeed = 0.15 * (i % 2 === 0 ? 1 : -1);
+                    const rotationSpeed = 0.12 * (i % 2 === 0 ? 1 : -1);
                     const beamAngle = baseAngle + time * rotationSpeed;
-                    const beamLength = 60 + chargeProgress * 40;
-                    const bendAmount = 20 + chargeProgress * 30;
+                    const beamLength = 70 + chargeProgress * 50;
+                    const bendAmount = 25 + chargeProgress * 35;
                     
-                    ctx.strokeStyle = `rgba(255, ${200 - i * 20}, ${200 - i * 20}, ${0.6 + chargeProgress * 0.4})`;
-                    ctx.lineWidth = 3;
+                    ctx.strokeStyle = `rgba(255, ${200 - i * 15}, ${200 - i * 15}, ${0.4 + chargeProgress * 0.3})`;
+                    ctx.lineWidth = 2;
                     ctx.shadowColor = '#ff6666';
-                    ctx.shadowBlur = 20;
+                    ctx.shadowBlur = 15;
                     
                     ctx.beginPath();
                     ctx.moveTo(screenX, screenY);
