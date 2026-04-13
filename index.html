@@ -2577,65 +2577,111 @@
                 // Draw fusion center glow (only appears late in fusion)
                 const centerX = (blueScreenX + redScreenX) / 2;
                 const centerY = (blueScreenY + redScreenY) / 2;
-                const lateFusion = Math.max(0, (fusionProgress - 0.5) / 0.5); // Starts at 50% fusion
+                const lateFusion = Math.max(0, (fusionProgress - 0.4) / 0.6); // Starts at 40% fusion
                 
                 // Pulsing energy between orbs
-                const time = Date.now() * 0.01;
+                const time = Date.now() * 0.015;
                 const pulse = Math.sin(time) * 0.5 + 0.5;
+                const fastPulse = Math.sin(time * 3) * 0.5 + 0.5;
+                
+                // Lightning arcs between orbs
+                if (fusionProgress > 0.3) {
+                    ctx.strokeStyle = `rgba(200, 100, 255, ${fusionProgress * 0.8})`;
+                    ctx.lineWidth = 2;
+                    ctx.shadowColor = '#aa44ff';
+                    ctx.shadowBlur = 15;
+                    for (let i = 0; i < 5; i++) {
+                        ctx.beginPath();
+                        ctx.moveTo(blueScreenX, blueScreenY);
+                        const midX = (blueScreenX + redScreenX) / 2 + (Math.random() - 0.5) * 20;
+                        const midY = (blueScreenY + redScreenY) / 2 + (Math.random() - 0.5) * 20;
+                        ctx.lineTo(midX, midY);
+                        ctx.lineTo(redScreenX, redScreenY);
+                        ctx.stroke();
+                    }
+                }
                 
                 if (lateFusion > 0) {
                     // Outer expanding rings
-                    ctx.strokeStyle = `rgba(180, 50, 255, ${lateFusion * 0.6})`;
-                    ctx.lineWidth = 2;
-                    for (let i = 0; i < 3; i++) {
-                        const ringSize = lateFusion * (10 + i * 8 + pulse * 5);
+                    ctx.strokeStyle = `rgba(180, 50, 255, ${lateFusion * 0.7})`;
+                    ctx.lineWidth = 3;
+                    ctx.shadowBlur = 20;
+                    for (let i = 0; i < 4; i++) {
+                        const ringSize = lateFusion * (8 + i * 10 + pulse * 8);
+                        ctx.globalAlpha = 1 - (i * 0.15);
                         ctx.beginPath();
                         ctx.arc(centerX, centerY, ringSize, 0, Math.PI * 2);
                         ctx.stroke();
                     }
+                    ctx.globalAlpha = 1;
                     
-                    // Core glow
-                    ctx.shadowColor = '#aa44ff';
-                    ctx.shadowBlur = 20 + lateFusion * 20;
-                    ctx.fillStyle = `rgba(200, 100, 255, ${lateFusion * 0.9})`;
+                    // Rotating energy hexagon
+                    ctx.save();
+                    ctx.translate(centerX, centerY);
+                    ctx.rotate(time * 2);
+                    ctx.strokeStyle = `rgba(220, 120, 255, ${lateFusion * 0.6})`;
+                    ctx.lineWidth = 2;
                     ctx.beginPath();
-                    ctx.arc(centerX, centerY, lateFusion * 15 * (0.8 + pulse * 0.4), 0, Math.PI * 2);
-                    ctx.fill();
+                    for (let i = 0; i < 6; i++) {
+                        const angle = (i / 6) * Math.PI * 2;
+                        const x = Math.cos(angle) * (20 + pulse * 10);
+                        const y = Math.sin(angle) * (20 + pulse * 10);
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    }
+                    ctx.closePath();
+                    ctx.stroke();
+                    ctx.restore();
+                    
+                    // Core glow with multiple layers
+                    for (let i = 3; i >= 0; i--) {
+                        ctx.shadowColor = '#aa44ff';
+                        ctx.shadowBlur = 30 + i * 10;
+                        const alpha = lateFusion * (0.9 - i * 0.15);
+                        const size = lateFusion * (25 - i * 5) * (0.7 + pulse * 0.5);
+                        ctx.fillStyle = `rgba(${200 + i * 15}, ${100 + i * 30}, 255, ${alpha})`;
+                        ctx.beginPath();
+                        ctx.arc(centerX, centerY, size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
                     
                     // White hot center
-                    ctx.fillStyle = `rgba(255, 255, 255, ${lateFusion * 0.8})`;
+                    ctx.shadowBlur = 40;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${lateFusion * (0.6 + fastPulse * 0.4)})`;
                     ctx.beginPath();
-                    ctx.arc(centerX, centerY, lateFusion * 6, 0, Math.PI * 2);
+                    ctx.arc(centerX, centerY, lateFusion * 8, 0, Math.PI * 2);
                     ctx.fill();
                 }
                 
                 // Energy particles being pulled to center
-                if (fusionProgress > 0.3) {
-                    ctx.shadowBlur = 10;
-                    const particleCount = Math.floor(fusionProgress * 12);
+                if (fusionProgress > 0.2) {
+                    ctx.shadowBlur = 15;
+                    const particleCount = Math.floor(fusionProgress * 20);
                     for (let i = 0; i < particleCount; i++) {
-                        const angle = (time + i * 0.5) % (Math.PI * 2);
-                        const dist = 35 * (1 - fusionProgress) + 5;
+                        const angle = (time * 2 + i * 0.3) % (Math.PI * 2);
+                        const dist = 25 * (1 - fusionProgress) + 3;
                         const px = centerX + Math.cos(angle) * dist;
                         const py = centerY + Math.sin(angle) * dist;
-                        ctx.fillStyle = i % 2 === 0 ? '#8888ff' : '#ff8888';
+                        const color = i % 3 === 0 ? '#ffffff' : (i % 3 === 1 ? '#8888ff' : '#ff8888');
+                        ctx.fillStyle = color;
                         ctx.beginPath();
-                        ctx.arc(px, py, 2 + pulse, 0, Math.PI * 2);
+                        ctx.arc(px, py, 1.5 + pulse * 2, 0, Math.PI * 2);
                         ctx.fill();
                     }
                 }
                 
-                // Draw fusion percentage
-                ctx.shadowBlur = 0;
+                // Draw fusion percentage with glow
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#aa44ff';
                 ctx.fillStyle = '#fff';
-                ctx.font = 'bold 16px "Segoe UI", sans-serif';
+                ctx.font = 'bold 18px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
                 const percentText = Math.floor(fusionProgress * 100) + '%';
-                ctx.fillText(percentText, centerX, centerY - 40);
+                ctx.fillText(percentText, centerX, centerY - 45);
                 
                 // Shake effect when nearly fused
-                if (fusionProgress > 0.8) {
-                    const shake = (fusionProgress - 0.8) * 3;
+                if (fusionProgress > 0.75) {
+                    const shake = (fusionProgress - 0.75) * 5;
                     ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
                 }
                 
