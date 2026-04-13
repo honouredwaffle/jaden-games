@@ -99,6 +99,12 @@
         // Damage numbers that appear on enemies
         let damageNumbers = [];
         
+        // Hit effects (when abilities hit enemies)
+        let hitEffects = [];
+        
+        // Kill effects (when enemies die)
+        let killEffects = [];
+        
         // Disaster Curses (Bosses)
         // Biome boundaries: SNOW -20000 to -10000, FOREST -10000 to 0, VOLCANO 0 to 10000, CITY 10000 to 20000, SAND 20000 to 25000
         const DISASTER_CURSES = {
@@ -2408,7 +2414,12 @@
                     const damage = 0.6 + Math.random() * 0.6; // 0.6 to 1.2
                     spirit.hp -= damage;
                     addDamageCounter(damage);
+                    // Show hit effect occasionally
+                    if (Math.random() < 0.2) {
+                        addHitEffect(spirit.x, spirit.y, 'blue');
+                    }
                     if (spirit.hp <= 0) {
+                        addKillEffect(spirit.x, spirit.y, 'blue');
                         cursedSpirits.splice(i, 1);
                         continue;
                     }
@@ -2629,6 +2640,8 @@
             updateCursedSpirits();
             updateDamageCounter();
             updateDamageNumbers();
+            updateHitEffects();
+            updateKillEffects();
             updateSpiritProjectiles();
             updateDisasterCurse();
             
@@ -2655,6 +2668,8 @@
             drawBossHealthBar();
             drawDamageCounter();
             drawDamageNumbers();
+            drawHitEffects();
+            drawKillEffects();
             drawDisasterNotification();
             drawAbilityBar();
             drawMinimap();
@@ -2687,6 +2702,133 @@
                 life: 60, // 1 second
                 vy: -1 // float up
             });
+        }
+        
+        function addHitEffect(x, y, type) {
+            // type: 'blue' or 'red'
+            const color = type === 'blue' ? '#4444ff' : '#ff4444';
+            hitEffects.push({
+                x: x,
+                y: y,
+                type: type,
+                life: 20,
+                maxLife: 20,
+                particles: Array(8).fill(0).map(() => ({
+                    angle: Math.random() * Math.PI * 2,
+                    speed: 2 + Math.random() * 3,
+                    size: 2 + Math.random() * 3
+                }))
+            });
+        }
+        
+        function addKillEffect(x, y, type) {
+            // type: 'blue' or 'red'
+            const color = type === 'blue' ? '#4444ff' : '#ff4444';
+            killEffects.push({
+                x: x,
+                y: y,
+                type: type,
+                life: 40,
+                maxLife: 40,
+                ringSize: 10,
+                particles: Array(16).fill(0).map(() => ({
+                    angle: Math.random() * Math.PI * 2,
+                    speed: 3 + Math.random() * 4,
+                    size: 3 + Math.random() * 4
+                }))
+            });
+        }
+        
+        function updateHitEffects() {
+            for (let i = hitEffects.length - 1; i >= 0; i--) {
+                const effect = hitEffects[i];
+                effect.life--;
+                if (effect.life <= 0) {
+                    hitEffects.splice(i, 1);
+                }
+            }
+        }
+        
+        function updateKillEffects() {
+            for (let i = killEffects.length - 1; i >= 0; i--) {
+                const effect = killEffects[i];
+                effect.life--;
+                effect.ringSize += 2;
+                if (effect.life <= 0) {
+                    killEffects.splice(i, 1);
+                }
+            }
+        }
+        
+        function drawHitEffects() {
+            for (const effect of hitEffects) {
+                const screenX = effect.x - camera.x;
+                const screenY = effect.y - camera.y;
+                const alpha = effect.life / effect.maxLife;
+                const color = effect.type === 'blue' ? '#4444ff' : '#ff4444';
+                
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                
+                // Draw burst particles
+                for (const p of effect.particles) {
+                    const px = screenX + Math.cos(p.angle) * p.speed * (effect.maxLife - effect.life) * 0.5;
+                    const py = screenY + Math.sin(p.angle) * p.speed * (effect.maxLife - effect.life) * 0.5;
+                    ctx.fillStyle = color;
+                    ctx.beginPath();
+                    ctx.arc(px, py, p.size * alpha, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Draw flash
+                ctx.fillStyle = color;
+                ctx.globalAlpha = alpha * 0.5;
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, 15 * alpha, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
+            }
+        }
+        
+        function drawKillEffects() {
+            for (const effect of killEffects) {
+                const screenX = effect.x - camera.x;
+                const screenY = effect.y - camera.y;
+                const alpha = effect.life / effect.maxLife;
+                const color = effect.type === 'blue' ? '#4444ff' : '#ff4444';
+                
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                
+                // Draw expanding ring
+                ctx.strokeStyle = color;
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, effect.ringSize, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Draw explosion particles
+                for (const p of effect.particles) {
+                    const dist = p.speed * (effect.maxLife - effect.life) * 0.3;
+                    const px = screenX + Math.cos(p.angle) * dist;
+                    const py = screenY + Math.sin(p.angle) * dist;
+                    ctx.fillStyle = color;
+                    ctx.globalAlpha = alpha * 0.8;
+                    ctx.beginPath();
+                    ctx.arc(px, py, p.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Draw center burst
+                ctx.fillStyle = '#fff';
+                ctx.globalAlpha = alpha;
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, 8 * alpha, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
+            }
         }
         
         function updateDamageNumbers() {
