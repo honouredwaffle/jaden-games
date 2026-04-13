@@ -104,6 +104,59 @@
             'SAND': { bg: '#c2b280', grid: 'rgba(150, 120, 80, 0.15)' }
         };
         
+        // Biome objects
+        const biomeObjects = [];
+        const OBJECT_COUNT_PER_BIOME = 150;
+        
+        function generateBiomeObjects() {
+            biomeObjects.length = 0;
+            
+            for (let i = 0; i < 5; i++) {
+                const biomeStart = -WORLD_WIDTH/2 + i * BIOME_WIDTH;
+                const biome = BIOMES[i];
+                
+                for (let j = 0; j < OBJECT_COUNT_PER_BIOME; j++) {
+                    const x = biomeStart + Math.random() * BIOME_WIDTH;
+                    const y = -WORLD_HEIGHT/2 + Math.random() * WORLD_HEIGHT;
+                    
+                    let type, size, color;
+                    
+                    switch(biome) {
+                        case 'SNOW':
+                            type = Math.random() > 0.5 ? 'pine' : 'rock';
+                            size = type === 'pine' ? 40 + Math.random() * 30 : 25 + Math.random() * 20;
+                            color = type === 'pine' ? '#1a3d1a' : '#888888';
+                            break;
+                        case 'FOREST':
+                            type = Math.random() > 0.3 ? 'tree' : 'bush';
+                            size = type === 'tree' ? 50 + Math.random() * 40 : 20 + Math.random() * 15;
+                            color = type === 'tree' ? '#228b22' : '#32cd32';
+                            break;
+                        case 'VOLCANO':
+                            type = Math.random() > 0.6 ? 'rock' : 'lava';
+                            size = 30 + Math.random() * 40;
+                            color = type === 'rock' ? '#444444' : '#ff4500';
+                            break;
+                        case 'CITY':
+                            type = 'building';
+                            size = 60 + Math.random() * 100;
+                            color = `hsl(${200 + Math.random() * 40}, 30%, ${30 + Math.random() * 20}%)`;
+                            break;
+                        case 'SAND':
+                            type = Math.random() > 0.5 ? 'cactus' : 'rock';
+                            size = type === 'cactus' ? 30 + Math.random() * 25 : 20 + Math.random() * 30;
+                            color = type === 'cactus' ? '#2d5a2d' : '#c4a35a';
+                            break;
+                    }
+                    
+                    biomeObjects.push({ x, y, type, size, color, biome });
+                }
+            }
+        }
+        
+        // Generate objects on load
+        generateBiomeObjects();
+        
         // Particles
         const particles = [];
         for (let i = 0; i < 60; i++) {
@@ -442,6 +495,107 @@
             }
         }
         
+        function drawBiomeObjects() {
+            // Only draw objects near the camera
+            const viewPadding = 200;
+            const viewLeft = camera.x - viewPadding;
+            const viewRight = camera.x + canvas.width + viewPadding;
+            const viewTop = camera.y - viewPadding;
+            const viewBottom = camera.y + canvas.height + viewPadding;
+            
+            for (const obj of biomeObjects) {
+                if (obj.x < viewLeft || obj.x > viewRight || obj.y < viewTop || obj.y > viewBottom) continue;
+                
+                const screenX = obj.x - camera.x;
+                const screenY = obj.y - camera.y;
+                
+                ctx.save();
+                
+                // Shadow
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+                ctx.beginPath();
+                ctx.ellipse(screenX, screenY + obj.size * 0.4, obj.size * 0.5, obj.size * 0.2, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                switch(obj.type) {
+                    case 'tree':
+                    case 'pine':
+                        // Trunk
+                        ctx.fillStyle = '#8b4513';
+                        ctx.fillRect(screenX - obj.size * 0.15, screenY, obj.size * 0.3, obj.size * 0.4);
+                        // Leaves (triangle)
+                        ctx.fillStyle = obj.color;
+                        ctx.beginPath();
+                        ctx.moveTo(screenX, screenY - obj.size);
+                        ctx.lineTo(screenX - obj.size * 0.5, screenY + obj.size * 0.3);
+                        ctx.lineTo(screenX + obj.size * 0.5, screenY + obj.size * 0.3);
+                        ctx.closePath();
+                        ctx.fill();
+                        break;
+                        
+                    case 'bush':
+                        ctx.fillStyle = obj.color;
+                        ctx.beginPath();
+                        ctx.arc(screenX, screenY, obj.size * 0.6, 0, Math.PI * 2);
+                        ctx.arc(screenX - obj.size * 0.3, screenY + obj.size * 0.2, obj.size * 0.4, 0, Math.PI * 2);
+                        ctx.arc(screenX + obj.size * 0.3, screenY + obj.size * 0.2, obj.size * 0.4, 0, Math.PI * 2);
+                        ctx.fill();
+                        break;
+                        
+                    case 'rock':
+                        ctx.fillStyle = obj.color;
+                        ctx.beginPath();
+                        ctx.moveTo(screenX, screenY - obj.size * 0.6);
+                        ctx.lineTo(screenX + obj.size * 0.5, screenY + obj.size * 0.3);
+                        ctx.lineTo(screenX - obj.size * 0.5, screenY + obj.size * 0.3);
+                        ctx.closePath();
+                        ctx.fill();
+                        break;
+                        
+                    case 'lava':
+                        ctx.fillStyle = obj.color;
+                        ctx.shadowColor = '#ff4500';
+                        ctx.shadowBlur = 20;
+                        ctx.beginPath();
+                        ctx.arc(screenX, screenY, obj.size * 0.4, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                        break;
+                        
+                    case 'building':
+                        // Building body
+                        ctx.fillStyle = obj.color;
+                        ctx.fillRect(screenX - obj.size * 0.3, screenY - obj.size, obj.size * 0.6, obj.size);
+                        // Windows
+                        ctx.fillStyle = '#ffff99';
+                        for (let wy = 0; wy < 3; wy++) {
+                            for (let wx = 0; wx < 2; wx++) {
+                                ctx.fillRect(
+                                    screenX - obj.size * 0.2 + wx * obj.size * 0.2, 
+                                    screenY - obj.size * 0.8 + wy * obj.size * 0.25, 
+                                    obj.size * 0.08, 
+                                    obj.size * 0.12
+                                );
+                            }
+                        }
+                        break;
+                        
+                    case 'cactus':
+                        // Main stem
+                        ctx.fillStyle = obj.color;
+                        ctx.fillRect(screenX - obj.size * 0.15, screenY - obj.size, obj.size * 0.3, obj.size);
+                        // Arms
+                        ctx.fillRect(screenX - obj.size * 0.4, screenY - obj.size * 0.5, obj.size * 0.25, obj.size * 0.15);
+                        ctx.fillRect(screenX + obj.size * 0.15, screenY - obj.size * 0.7, obj.size * 0.25, obj.size * 0.15);
+                        ctx.fillRect(screenX - obj.size * 0.4, screenY - obj.size * 0.5, obj.size * 0.15, obj.size * 0.4);
+                        ctx.fillRect(screenX + obj.size * 0.25, screenY - obj.size * 0.7, obj.size * 0.15, obj.size * 0.4);
+                        break;
+                }
+                
+                ctx.restore();
+            }
+        }
+        
         function drawPlayer() {
             const screenX = player.x - camera.x;
             const screenY = player.y - camera.y;
@@ -477,6 +631,7 @@
             updatePlayer();
             drawGrid();
             drawBiomeOverlay();
+            drawBiomeObjects();
             drawPlayer();
             
             // UI - Coordinates and current biome
