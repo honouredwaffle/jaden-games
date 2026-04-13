@@ -87,8 +87,22 @@
         // Keys
         const keys = {};
         
-        // World size
-        const WORLD_SIZE = 5000;
+        // World size - 5 biomes, each 3000x15000
+        const WORLD_WIDTH = 15000;
+        const WORLD_HEIGHT = 15000;
+        const BIOME_WIDTH = 3000;
+        
+        // Biomes: Snow, Forest, Volcano, City, Sand
+        const BIOMES = ['SNOW', 'FOREST', 'VOLCANO', 'CITY', 'SAND'];
+        
+        // Biome colors
+        const BIOME_COLORS = {
+            'SNOW': { bg: '#e8f4f8', grid: 'rgba(100, 150, 200, 0.15)' },
+            'FOREST': { bg: '#0d2818', grid: 'rgba(100, 200, 100, 0.15)' },
+            'VOLCANO': { bg: '#1a0a0a', grid: 'rgba(200, 100, 50, 0.15)' },
+            'CITY': { bg: '#1a1a2e', grid: 'rgba(150, 150, 200, 0.15)' },
+            'SAND': { bg: '#c2b280', grid: 'rgba(150, 120, 80, 0.15)' }
+        };
         
         // Particles
         const particles = [];
@@ -351,12 +365,22 @@
             }
             
             // Keep player in world bounds
-            player.x = Math.max(-WORLD_SIZE/2, Math.min(WORLD_SIZE/2, player.x));
-            player.y = Math.max(-WORLD_SIZE/2, Math.min(WORLD_SIZE/2, player.y));
+            player.x = Math.max(-WORLD_WIDTH/2, Math.min(WORLD_WIDTH/2, player.x));
+            player.y = Math.max(-WORLD_HEIGHT/2, Math.min(WORLD_HEIGHT/2, player.y));
             
             // Update camera to follow player
             camera.x = player.x - canvas.width / 2;
             camera.y = player.y - canvas.height / 2;
+        }
+        
+        function getBiomeAt(x) {
+            const biomeIndex = Math.floor((x + WORLD_WIDTH / 2) / BIOME_WIDTH);
+            return BIOMES[Math.max(0, Math.min(4, biomeIndex))];
+        }
+        
+        function getBiomeColors(x) {
+            const biome = getBiomeAt(x);
+            return BIOME_COLORS[biome];
         }
         
         function drawGrid() {
@@ -366,10 +390,25 @@
             const endX = startX + canvas.width + gridSize;
             const endY = startY + canvas.height + gridSize;
             
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
-            ctx.lineWidth = 1;
+            // Draw vertical biome boundaries
+            for (let i = 0; i <= 5; i++) {
+                const boundaryX = -WORLD_WIDTH / 2 + i * BIOME_WIDTH;
+                const screenX = boundaryX - camera.x;
+                if (screenX >= 0 && screenX <= canvas.width) {
+                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(screenX, 0);
+                    ctx.lineTo(screenX, canvas.height);
+                    ctx.stroke();
+                }
+            }
             
+            // Draw grid with biome colors
             for (let x = startX; x < endX; x += gridSize) {
+                const colors = getBiomeColors(x);
+                ctx.strokeStyle = colors.grid;
+                ctx.lineWidth = 1;
                 ctx.beginPath();
                 ctx.moveTo(x - camera.x, 0);
                 ctx.lineTo(x - camera.x, canvas.height);
@@ -377,10 +416,29 @@
             }
             
             for (let y = startY; y < endY; y += gridSize) {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+                ctx.lineWidth = 1;
                 ctx.beginPath();
                 ctx.moveTo(0, y - camera.y);
                 ctx.lineTo(canvas.width, y - camera.y);
                 ctx.stroke();
+            }
+        }
+        
+        function drawBiomeOverlay() {
+            // Draw semi-transparent biome colors on screen
+            const startX = Math.floor(camera.x / BIOME_WIDTH) * BIOME_WIDTH;
+            const endX = startX + canvas.width + BIOME_WIDTH;
+            
+            for (let x = startX; x < endX; x += BIOME_WIDTH) {
+                const colors = getBiomeColors(x);
+                const screenX = x - camera.x;
+                const width = Math.min(BIOME_WIDTH, WORLD_WIDTH / 2 - x);
+                
+                ctx.fillStyle = colors.bg;
+                ctx.globalAlpha = 0.15;
+                ctx.fillRect(screenX, 0, width, canvas.height);
+                ctx.globalAlpha = 1;
             }
         }
         
@@ -413,18 +471,26 @@
         
         function drawGame() {
             // Clear with dark background
-            ctx.fillStyle = '#0d1117';
+            ctx.fillStyle = '#0a0a0a';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
             updatePlayer();
             drawGrid();
+            drawBiomeOverlay();
             drawPlayer();
             
-            // Coordinates display
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            // UI - Coordinates and current biome
+            const currentBiome = getBiomeAt(player.x);
+            
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.fillRect(10, 10, 200, 60);
+            
+            ctx.fillStyle = '#fff';
             ctx.font = '14px "Segoe UI", sans-serif';
             ctx.textAlign = 'left';
-            ctx.fillText(`X: ${Math.floor(player.x)} Y: ${Math.floor(player.y)}`, 20, 30);
+            ctx.fillText(`X: ${Math.floor(player.x)} Y: ${Math.floor(player.y)}`, 20, 35);
+            ctx.fillStyle = BIOME_COLORS[currentBiome].grid.replace('0.15', '1');
+            ctx.fillText(`BIOME: ${currentBiome}`, 20, 58);
         }
 
         function loop() {
