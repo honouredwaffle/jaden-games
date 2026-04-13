@@ -115,19 +115,19 @@
             ctx.fillStyle = '#fff';
             ctx.font = 'bold 80px "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('JJK', canvas.width / 2, canvas.height / 3);
+            ctx.fillText('JJK', canvas.width / 2, 100);
             ctx.restore();
 
             ctx.fillStyle = '#e94560';
             ctx.font = '36px "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('CURSED ARENA', canvas.width / 2, canvas.height / 3 + 50);
+            ctx.fillText('CURSED ARENA', canvas.width / 2, 160);
 
             ctx.strokeStyle = '#e94560';
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.moveTo(canvas.width / 2 - 180, canvas.height / 3 + 70);
-            ctx.lineTo(canvas.width / 2 + 180, canvas.height / 3 + 70);
+            ctx.moveTo(canvas.width / 2 - 180, 180);
+            ctx.lineTo(canvas.width / 2 + 180, 180);
             ctx.stroke();
         }
 
@@ -168,10 +168,10 @@
                 ctx.fillStyle = '#fff';
                 ctx.font = '28px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText(title, canvas.width / 2, canvas.height / 2 - 40);
+                ctx.fillText(title, canvas.width / 2, 240);
             }
             
-            const startY = title ? canvas.height / 2 : canvas.height / 2 - 20;
+            const startY = title ? 280 : 260;
             const buttonWidth = 280;
             const buttonHeight = 50;
             const spacing = 65;
