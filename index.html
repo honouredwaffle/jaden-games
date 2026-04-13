@@ -2392,7 +2392,9 @@
             const orbWorldY = player.y + Math.sin(maxBlue.angle) * maxBlue.radius;
             
             // Pull and damage nearby spirits - only near the orb
-            for (const spirit of cursedSpirits) {
+            // Pull and damage nearby spirits - only near the orb
+            for (let i = cursedSpirits.length - 1; i >= 0; i--) {
+                const spirit = cursedSpirits[i];
                 const dx = orbWorldX - spirit.x;
                 const dy = orbWorldY - spirit.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
@@ -2403,7 +2405,7 @@
                     spirit.vy += (dy / dist) * pullStrength;
                     
                     // Damage over time when in orb radius
-                    const damage = 0.6;
+                    const damage = 0.6 + Math.random() * 0.6; // 0.6 to 1.2
                     spirit.hp -= damage;
                     addDamageCounter(damage);
                     if (spirit.hp <= 0) {
@@ -2754,7 +2756,7 @@
             // Value
             ctx.fillStyle = '#ff4444';
             ctx.font = 'bold 24px "Segoe UI", sans-serif';
-            ctx.fillText(Math.floor(damageCounter.total * 10) / 10, x + 65, y + 40);
+            ctx.fillText((Math.floor(damageCounter.total * 10) / 10).toFixed(1), x + 65, y + 40);
             
             ctx.restore();
         }
