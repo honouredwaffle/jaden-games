@@ -2135,7 +2135,9 @@
                 const dy = reversalRed.y - spirit.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
-                if (dist < reversalRed.radius + spirit.size) {
+                // Larger hitbox for easier collision
+                const hitDist = reversalRed.radius * 0.6 + spirit.size;
+                if (dist < hitDist) {
                     spirit.hp -= reversalRed.damage;
                     if (spirit.hp <= 0) {
                         cursedSpirits.splice(i, 1);
@@ -2179,44 +2181,35 @@
                 ctx.arc(screenX, screenY, vortexSize, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Spiral arms pulling inward
-                const armCount = 6;
-                for (let arm = 0; arm < armCount; arm++) {
-                    const armAngle = (arm / armCount) * Math.PI * 2 + time * 0.5;
+                // Radiating energy waves outward
+                const waveCount = 4;
+                for (let w = 0; w < waveCount; w++) {
+                    const waveProgress = ((time * 40 + w * 25) % 60) / 60;
+                    const waveRadius = 20 + waveProgress * 70;
+                    const alpha = (1 - waveProgress) * (0.4 + chargeProgress * 0.3);
                     
-                    ctx.strokeStyle = `rgba(255, ${100 + arm * 20}, ${100 + arm * 20}, ${0.4 + chargeProgress * 0.4})`;
-                    ctx.lineWidth = 4;
-                    ctx.shadowColor = '#ff4444';
-                    ctx.shadowBlur = 25;
-                    
+                    ctx.strokeStyle = `rgba(255, ${120 + w * 30}, ${120 + w * 30}, ${alpha})`;
+                    ctx.lineWidth = 3;
+                    ctx.shadowColor = '#ff5555';
+                    ctx.shadowBlur = 20;
                     ctx.beginPath();
-                    
-                    // Spiral from outside to center
-                    for (let t = 0; t <= 1; t += 0.05) {
-                        const r = vortexSize * (1 - t);
-                        const theta = armAngle + t * Math.PI * 3;
-                        const x = screenX + Math.cos(theta) * r;
-                        const y = screenY + Math.sin(theta) * r;
-                        
-                        if (t === 0) ctx.moveTo(x, y);
-                        else ctx.lineTo(x, y);
-                    }
+                    ctx.arc(screenX, screenY, waveRadius, 0, Math.PI * 2);
                     ctx.stroke();
                 }
 
-                // Energy particles being sucked into center
-                for (let i = 0; i < 15; i++) {
-                    const particleAngle = (i / 15) * Math.PI * 2 + time * 2;
-                    const particleDist = vortexSize * (0.3 + Math.sin(time * 3 + i) * 0.3);
+                // Floating energy particles around orb
+                for (let i = 0; i < 12; i++) {
+                    const particleAngle = (i / 12) * Math.PI * 2 + time * 0.8;
+                    const particleDist = 25 + Math.sin(time * 2 + i) * 10;
                     const px = screenX + Math.cos(particleAngle) * particleDist;
                     const py = screenY + Math.sin(particleAngle) * particleDist;
                     
-                    const size = 3 + Math.sin(time * 5 + i) * 2;
-                    const alpha = 0.5 + Math.sin(time * 4 + i) * 0.3;
+                    const size = 2 + Math.sin(time * 4 + i) * 1.5;
+                    const alpha = 0.6 + Math.sin(time * 3 + i) * 0.3;
                     
-                    ctx.fillStyle = `rgba(255, ${200 + i * 3}, 150, ${alpha})`;
-                    ctx.shadowColor = '#ffaa44';
-                    ctx.shadowBlur = 15;
+                    ctx.fillStyle = `rgba(255, ${180 + i * 5}, ${180 + i * 5}, ${alpha})`;
+                    ctx.shadowColor = '#ff6666';
+                    ctx.shadowBlur = 12;
                     ctx.beginPath();
                     ctx.arc(px, py, size, 0, Math.PI * 2);
                     ctx.fill();
