@@ -3236,7 +3236,7 @@
             drawPlayerBars();
             
             // UI - Coordinates and current biome
-            const currentBiome = getBiomeAt(player.x);
+            const currentBiome = getBiomeAt(player.x, player.y);
             
             ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
             ctx.fillRect(10, 70, 200, 60);
