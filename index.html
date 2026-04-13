@@ -2405,10 +2405,11 @@
                     // Damage over time when in orb radius
                     const damage = 0.6;
                     spirit.hp -= damage;
-                    if (spirit.hp <= 0) {
-                        spirit.hp = 0;
-                    }
                     addDamageCounter(damage);
+                    if (spirit.hp <= 0) {
+                        cursedSpirits.splice(i, 1);
+                        continue;
+                    }
                     // Only show damage number occasionally to avoid spam
                     if (Math.random() < 0.1) {
                         addDamageNumber(spirit.x, spirit.y - spirit.size, Math.floor(damage * 10) / 10);
