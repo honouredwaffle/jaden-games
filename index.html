@@ -2577,22 +2577,67 @@
                 // Draw fusion center glow (only appears late in fusion)
                 const centerX = (blueScreenX + redScreenX) / 2;
                 const centerY = (blueScreenY + redScreenY) / 2;
-                const lateFusion = Math.max(0, (fusionProgress - 0.6) / 0.4); // Starts at 60% fusion
+                const lateFusion = Math.max(0, (fusionProgress - 0.5) / 0.5); // Starts at 50% fusion
+                
+                // Pulsing energy between orbs
+                const time = Date.now() * 0.01;
+                const pulse = Math.sin(time) * 0.5 + 0.5;
+                
                 if (lateFusion > 0) {
+                    // Outer expanding rings
+                    ctx.strokeStyle = `rgba(180, 50, 255, ${lateFusion * 0.6})`;
+                    ctx.lineWidth = 2;
+                    for (let i = 0; i < 3; i++) {
+                        const ringSize = lateFusion * (10 + i * 8 + pulse * 5);
+                        ctx.beginPath();
+                        ctx.arc(centerX, centerY, ringSize, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+                    
+                    // Core glow
                     ctx.shadowColor = '#aa44ff';
-                    ctx.fillStyle = `rgba(180, 50, 255, ${lateFusion * 0.9})`;
+                    ctx.shadowBlur = 20 + lateFusion * 20;
+                    ctx.fillStyle = `rgba(200, 100, 255, ${lateFusion * 0.9})`;
                     ctx.beginPath();
-                    ctx.arc(centerX, centerY, lateFusion * 20, 0, Math.PI * 2);
+                    ctx.arc(centerX, centerY, lateFusion * 15 * (0.8 + pulse * 0.4), 0, Math.PI * 2);
                     ctx.fill();
+                    
+                    // White hot center
+                    ctx.fillStyle = `rgba(255, 255, 255, ${lateFusion * 0.8})`;
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, lateFusion * 6, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Energy particles being pulled to center
+                if (fusionProgress > 0.3) {
+                    ctx.shadowBlur = 10;
+                    const particleCount = Math.floor(fusionProgress * 12);
+                    for (let i = 0; i < particleCount; i++) {
+                        const angle = (time + i * 0.5) % (Math.PI * 2);
+                        const dist = 35 * (1 - fusionProgress) + 5;
+                        const px = centerX + Math.cos(angle) * dist;
+                        const py = centerY + Math.sin(angle) * dist;
+                        ctx.fillStyle = i % 2 === 0 ? '#8888ff' : '#ff8888';
+                        ctx.beginPath();
+                        ctx.arc(px, py, 2 + pulse, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
                 }
                 
                 // Draw fusion percentage
                 ctx.shadowBlur = 0;
                 ctx.fillStyle = '#fff';
-                ctx.font = 'bold 14px "Segoe UI", sans-serif';
+                ctx.font = 'bold 16px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
                 const percentText = Math.floor(fusionProgress * 100) + '%';
-                ctx.fillText(percentText, centerX, centerY - 30);
+                ctx.fillText(percentText, centerX, centerY - 40);
+                
+                // Shake effect when nearly fused
+                if (fusionProgress > 0.8) {
+                    const shake = (fusionProgress - 0.8) * 3;
+                    ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+                }
                 
                 ctx.restore();
                 return;
