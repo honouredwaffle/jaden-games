@@ -678,9 +678,8 @@
         }
         
         function updateCursedSpirits() {
-            const data = SPIRIT_GRADES[spirit.grade];
-            
             for (const spirit of cursedSpirits) {
+                const data = SPIRIT_GRADES[spirit.grade];
                 // Distance to player
                 const dx = player.x - spirit.x;
                 const dy = player.y - spirit.y;
