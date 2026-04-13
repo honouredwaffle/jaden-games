@@ -57,6 +57,8 @@
         // Mouse tracking
         let mouseX = 0;
         let mouseY = 0;
+        let mouseWorldX = 0;
+        let mouseWorldY = 0;
         let menuItemRects = []; // Store clickable areas
         
         // Menu options
@@ -695,8 +697,12 @@
                 dy /= len;
                 player.x += dx * player.speed;
                 player.y += dy * player.speed;
-                player.facing = Math.atan2(dy, dx);
             }
+            
+            // Face mouse cursor
+            const faceDx = mouseWorldX - player.x;
+            const faceDy = mouseWorldY - player.y;
+            player.facing = Math.atan2(faceDy, faceDx);
             
             // Keep player in world bounds
             player.x = Math.max(-WORLD_WIDTH/2, Math.min(WORLD_WIDTH/2, player.x));
@@ -2822,6 +2828,10 @@
             const rect = canvas.getBoundingClientRect();
             mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
             mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
+            
+            // Calculate mouse position in world coordinates
+            mouseWorldX = mouseX + camera.x;
+            mouseWorldY = mouseY + camera.y;
         });
 
         canvas.addEventListener('click', (e) => {
