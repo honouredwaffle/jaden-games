@@ -136,6 +136,16 @@
             { name: 'DOMAIN', key: '4', cooldown: 0, maxCooldown: 600, active: false }
         ];
         
+        // Max Blue state
+        let maxBlue = {
+            active: false,
+            angle: 0,
+            radius: 80,
+            pullRadius: 200,
+            duration: 300,
+            timer: 0
+        };
+        
         // Camera
         const camera = {
             x: 0,
@@ -864,7 +874,7 @@
                                         y: spirit.y,
                                         vx: Math.cos(angle) * data.projectileSpeed * 1.5,
                                         vy: Math.sin(angle) * data.projectileSpeed * 1.5,
-                                        damage: data.damage * 2,
+                                        damage: data.damage * 0.8, // Nerfed damage
                                         size: spirit.size * 0.4,
                                         color: '#ff0000',
                                         life: 120,
@@ -920,7 +930,38 @@
                 const dy = player.y - boss.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
-                // Chase player
+                // Find which spawn location this boss is at
+                const curseData = DISASTER_CURSES[boss.name];
+                let spawnDist = 999999;
+                for (const loc of curseData.spawnLocations) {
+                    const sdx = loc.x - boss.x;
+                    const sdy = loc.y - boss.y;
+                    const sdist = Math.sqrt(sdx * sdx + sdy * sdy);
+                    if (sdist < spawnDist) spawnDist = sdist;
+                }
+                
+                // Only active when player is near boss structure (within 600px)
+                const activationRadius = 600;
+                const isPlayerNear = dist < activationRadius;
+                
+                if (!isPlayerNear) {
+                    // Return to spawn and idle
+                    const spawnLoc = curseData.spawnLocations[0];
+                    const sdx = spawnLoc.x - boss.x;
+                    const sdy = spawnLoc.y - boss.y;
+                    const sdist = Math.sqrt(sdx * sdx + sdy * sdy);
+                    if (sdist > 50) {
+                        boss.vx += (sdx / sdist) * boss.speed * 0.02;
+                        boss.vy += (sdy / sdist) * boss.speed * 0.02;
+                    }
+                    boss.vx *= 0.9;
+                    boss.vy *= 0.9;
+                    boss.x += boss.vx;
+                    boss.y += boss.vy;
+                    return;
+                }
+                
+                // Chase player when active
                 if (dist > 100) {
                     boss.vx += (dx / dist) * boss.speed * 0.05;
                     boss.vy += (dy / dist) * boss.speed * 0.05;
@@ -2020,8 +2061,88 @@
             if (ability.cooldown === 0 && player.ce >= ceCost) {
                 ability.cooldown = ability.maxCooldown;
                 player.ce -= ceCost;
-                // TODO: Actually use the ability
+                
+                // Activate abilities
+                if (index === 0) { // Max Blue
+                    maxBlue.active = true;
+                    maxBlue.timer = maxBlue.duration;
+                }
             }
+        }
+        
+        function updateMaxBlue() {
+            if (!maxBlue.active) return;
+            
+            maxBlue.timer--;
+            maxBlue.angle += 0.1;
+            
+            // Pull nearby spirits
+            for (const spirit of cursedSpirits) {
+                const dx = player.x - spirit.x;
+                const dy = player.y - spirit.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < maxBlue.pullRadius && dist > 30) {
+                    const pullStrength = (1 - dist / maxBlue.pullRadius) * 3;
+                    spirit.vx += (dx / dist) * pullStrength;
+                    spirit.vy += (dy / dist) * pullStrength;
+                }
+            }
+            
+            // Pull disaster curse if active
+            if (activeDisasterCurse) {
+                const dx = player.x - activeDisasterCurse.x;
+                const dy = player.y - activeDisasterCurse.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < maxBlue.pullRadius * 1.5 && dist > 50) {
+                    const pullStrength = (1 - dist / (maxBlue.pullRadius * 1.5)) * 2;
+                    activeDisasterCurse.vx += (dx / dist) * pullStrength;
+                    activeDisasterCurse.vy += (dy / dist) * pullStrength;
+                }
+            }
+            
+            if (maxBlue.timer <= 0) {
+                maxBlue.active = false;
+            }
+        }
+        
+        function drawMaxBlue() {
+            if (!maxBlue.active) return;
+            
+            const screenX = player.x - camera.x;
+            const screenY = player.y - camera.y;
+            
+            // Orb position
+            const orbX = screenX + Math.cos(maxBlue.angle) * maxBlue.radius;
+            const orbY = screenY + Math.sin(maxBlue.angle) * maxBlue.radius;
+            
+            ctx.save();
+            
+            // Pull radius indicator
+            ctx.strokeStyle = 'rgba(0, 100, 255, 0.2)';
+            ctx.lineWidth = 2;
+            ctx.setLineDash([5, 5]);
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, maxBlue.pullRadius, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Orb glow
+            ctx.shadowColor = '#0088ff';
+            ctx.shadowBlur = 30;
+            ctx.fillStyle = '#0088ff';
+            ctx.beginPath();
+            ctx.arc(orbX, orbY, 15, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Inner core
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(orbX, orbY, 6, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.restore();
         }
         
         function drawGame() {
@@ -2031,9 +2152,23 @@
             
             updatePlayer();
             updateAbilities();
+            updateMaxBlue();
             updateCursedSpirits();
             updateSpiritProjectiles();
             updateDisasterCurse();
+            
+            // Check player death
+            if (player.hp <= 0) {
+                player.hp = 0;
+                player.x = 0;
+                player.y = 0;
+                player.hp = player.maxHp;
+                player.ce = player.maxCe;
+                if (activeDisasterCurse) {
+                    activeDisasterCurse = null;
+                }
+            }
+            
             drawBiomeGround();
             drawGrid();
             drawBiomeOverlay();
@@ -2041,6 +2176,7 @@
             drawSpiritProjectiles();
             drawCursedSpirits();
             drawDisasterCurse();
+            drawMaxBlue();
             drawPlayer();
             drawBossHealthBar();
             drawDisasterNotification();
