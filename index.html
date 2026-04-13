@@ -2448,15 +2448,15 @@
                 hollowPurple.redOrb.y = centerY + perpY * currentOffset;
                 
                 if (hollowPurple.chargeTime <= 0) {
-                    // Fusion complete - fire!
+                    // Fusion complete - hold in place before firing
                     hollowPurple.charging = false;
                     hollowPurple.fusing = false;
                     hollowPurple.fused = true;
-                    hollowPurple.active = true;
+                    hollowPurple.holdTime = 90; // 1.5 seconds at 60fps
                     hollowPurple.x = centerX;
                     hollowPurple.y = centerY;
-                    hollowPurple.vx = facingX * hollowPurple.speed;
-                    hollowPurple.vy = facingY * hollowPurple.speed;
+                    hollowPurple.vx = 0;
+                    hollowPurple.vy = 0;
                     hollowPurple.life = hollowPurple.maxLife;
                     hollowPurple.hitEnemies = [];
                 }
@@ -2464,6 +2464,22 @@
             }
             
             if (!hollowPurple.active) return;
+            
+            // Hold in place before launching
+            if (hollowPurple.holdTime > 0) {
+                hollowPurple.holdTime--;
+                // Keep position in front of player
+                const holdDistance = 50;
+                hollowPurple.x = player.x + Math.cos(player.facing) * holdDistance;
+                hollowPurple.y = player.y + Math.sin(player.facing) * holdDistance;
+                
+                if (hollowPurple.holdTime <= 0) {
+                    // Launch!
+                    hollowPurple.vx = Math.cos(player.facing) * hollowPurple.speed;
+                    hollowPurple.vy = Math.sin(player.facing) * hollowPurple.speed;
+                }
+                return;
+            }
             
             // Move projectile
             hollowPurple.x += hollowPurple.vx;
@@ -2808,6 +2824,57 @@
             const screenX = hollowPurple.x - camera.x;
             const screenY = hollowPurple.y - camera.y;
             const time = Date.now() * 0.02;
+            
+            // Draw hold phase effects
+            if (hollowPurple.holdTime > 0) {
+                const holdProgress = 1 - (hollowPurple.holdTime / 90);
+                const pulse = Math.sin(time * 3) * 0.5 + 0.5;
+                
+                ctx.save();
+                
+                // Expanding warning rings
+                ctx.strokeStyle = `rgba(180, 50, 255, ${0.5 + pulse * 0.3})`;
+                ctx.lineWidth = 3;
+                ctx.shadowColor = '#aa44ff';
+                ctx.shadowBlur = 30;
+                for (let i = 0; i < 3; i++) {
+                    const ringSize = 30 + i * 15 + holdProgress * 20 + pulse * 10;
+                    ctx.globalAlpha = 0.7 - i * 0.15;
+                    ctx.beginPath();
+                    ctx.arc(screenX, screenY, ringSize, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.globalAlpha = 1;
+                
+                // Intense pulsing orb
+                for (let i = 4; i >= 0; i--) {
+                    ctx.shadowBlur = 40 + i * 10;
+                    ctx.shadowColor = '#cc66ff';
+                    const size = (25 + holdProgress * 5) * (0.8 + pulse * 0.4) - i * 3;
+                    const alpha = 0.9 - i * 0.12;
+                    ctx.fillStyle = `rgba(${200 + i * 10}, ${100 + i * 30}, 255, ${alpha})`;
+                    ctx.beginPath();
+                    ctx.arc(screenX, screenY, Math.max(0, size), 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // White core
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.7 + pulse * 0.3})`;
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, 10 + holdProgress * 3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Launch countdown indicator
+                ctx.shadowBlur = 10;
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 20px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                const secondsLeft = Math.ceil(hollowPurple.holdTime / 60);
+                ctx.fillText(secondsLeft + '...', screenX, screenY - 50);
+                
+                ctx.restore();
+                return;
+            }
             
             ctx.save();
             
