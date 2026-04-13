@@ -2559,17 +2559,25 @@
                 
                 ctx.save();
                 
-                // Draw Blue orb
-                ctx.shadowBlur = 20;
-                ctx.shadowColor = '#4444ff';
-                ctx.fillStyle = '#4444ff';
+                // Draw Blue orb (cleaner with gradient)
+                const blueGrad = ctx.createRadialGradient(blueScreenX - 3, blueScreenY - 3, 2, blueScreenX, blueScreenY, 12);
+                blueGrad.addColorStop(0, '#aaccff');
+                blueGrad.addColorStop(0.5, '#4488ff');
+                blueGrad.addColorStop(1, '#2244aa');
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = '#4488ff';
+                ctx.fillStyle = blueGrad;
                 ctx.beginPath();
                 ctx.arc(blueScreenX, blueScreenY, 12, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Draw Red orb
+                // Draw Red orb (cleaner with gradient)
+                const redGrad = ctx.createRadialGradient(redScreenX - 3, redScreenY - 3, 2, redScreenX, redScreenY, 12);
+                redGrad.addColorStop(0, '#ffcccc');
+                redGrad.addColorStop(0.5, '#ff4444');
+                redGrad.addColorStop(1, '#aa2222');
                 ctx.shadowColor = '#ff4444';
-                ctx.fillStyle = '#ff4444';
+                ctx.fillStyle = redGrad;
                 ctx.beginPath();
                 ctx.arc(redScreenX, redScreenY, 12, 0, Math.PI * 2);
                 ctx.fill();
