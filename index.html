@@ -141,10 +141,23 @@
             active: false,
             angle: 0,
             radius: 140,
-            orbPullRadius: 180, // Pull only works near the orb
-            duration: 600,
+            orbPullRadius: 180,
+            duration: 480,
             timer: 0,
-            debris: [] // Rubble that gets picked up
+            debris: []
+        };
+        
+        // Reversal Red state
+        let reversalRed = {
+            active: false,
+            x: 0,
+            y: 0,
+            vx: 0,
+            vy: 0,
+            radius: 25,
+            speed: 12,
+            damage: 80,
+            life: 120
         };
         
         // Camera
