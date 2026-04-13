@@ -2192,37 +2192,45 @@
                 ctx.arc(screenX, screenY, 4, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Beams of light surrounding and circling the orb
-                const beamCount = 8;
+                // Bent beams of light surrounding and circling the orb
+                const beamCount = 10;
                 for (let i = 0; i < beamCount; i++) {
-                    const angle = (i / beamCount) * Math.PI * 2 + time * 0.5;
-                    const orbitRadius = reversalRed.radius + 18;
+                    const baseAngle = (i / beamCount) * Math.PI * 2;
+                    const rotationSpeed = 0.08 * (i % 2 === 0 ? 1 : -1);
+                    const angle = baseAngle + time * rotationSpeed;
+                    const orbitRadius = reversalRed.radius + 15;
 
                     // Beam start position (orbiting around the orb)
                     const startX = screenX + Math.cos(angle) * orbitRadius;
                     const startY = screenY + Math.sin(angle) * orbitRadius;
 
-                    // Beam extends outward
-                    const beamLength = 40 + chargeProgress * 30;
-                    const endX = startX + Math.cos(angle) * beamLength;
-                    const endY = startY + Math.sin(angle) * beamLength;
+                    // Bent beam - curves outward
+                    const beamLength = 25 + chargeProgress * 20;
+                    const bendAmount = 8;
+                    const midAngle = angle + bendAmount / orbitRadius;
+                    const endAngle = angle + (bendAmount * 2) / orbitRadius;
 
-                    // Draw beam
-                    ctx.strokeStyle = `rgba(255, ${200 + i * 5}, ${200 + i * 5}, 0.7)`;
-                    ctx.lineWidth = 6;
-                    ctx.shadowColor = '#ff5555';
-                    ctx.shadowBlur = 20;
+                    const midX = screenX + Math.cos(midAngle) * (orbitRadius + beamLength * 0.5);
+                    const midY = screenY + Math.sin(midAngle) * (orbitRadius + beamLength * 0.5);
+                    const endX = screenX + Math.cos(endAngle) * (orbitRadius + beamLength);
+                    const endY = screenY + Math.sin(endAngle) * (orbitRadius + beamLength);
+
+                    // Draw bent beam
+                    ctx.strokeStyle = `rgba(255, ${220 + i * 3}, ${220 + i * 3}, 0.6)`;
+                    ctx.lineWidth = 3;
+                    ctx.shadowColor = '#ff6666';
+                    ctx.shadowBlur = 12;
                     ctx.beginPath();
                     ctx.moveTo(startX, startY);
-                    ctx.lineTo(endX, endY);
+                    ctx.quadraticCurveTo(midX, midY, endX, endY);
                     ctx.stroke();
 
-                    // Beam glow
-                    ctx.strokeStyle = `rgba(255, 255, 255, 0.4)`;
-                    ctx.lineWidth = 2;
+                    // Inner beam glow
+                    ctx.strokeStyle = `rgba(255, 255, 255, 0.5)`;
+                    ctx.lineWidth = 1;
                     ctx.beginPath();
                     ctx.moveTo(startX, startY);
-                    ctx.lineTo(endX, endY);
+                    ctx.quadraticCurveTo(midX, midY, endX, endY);
                     ctx.stroke();
                 }
 
