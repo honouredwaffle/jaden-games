@@ -2163,24 +2163,25 @@
                 
                 ctx.save();
                 
-                // Pulsing glow that gets more intense
-                const glowIntensity = 20 + chargeProgress * 40;
-                ctx.shadowColor = '#ff4444';
+                // Pulsing glow that gets more intense (transparent red)
+                const glowIntensity = 15 + chargeProgress * 30;
+                ctx.shadowColor = '#ff3333';
                 ctx.shadowBlur = glowIntensity;
-                ctx.fillStyle = `rgba(255, ${100 - chargeProgress * 50}, 100, ${0.3 + chargeProgress * 0.4})`;
+                ctx.fillStyle = `rgba(255, ${80 - chargeProgress * 30}, 80, ${0.2 + chargeProgress * 0.25})`;
                 ctx.beginPath();
-                ctx.arc(screenX, screenY, reversalRed.radius + chargeProgress * 15, 0, Math.PI * 2);
+                ctx.arc(screenX, screenY, reversalRed.radius + chargeProgress * 20, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Main charge orb (slightly transparent)
-                ctx.globalAlpha = 0.85;
+                // Main charge orb (more transparent but visible red)
+                ctx.globalAlpha = 0.6;
                 const orbGrad = ctx.createRadialGradient(screenX - 8, screenY - 8, 0, screenX, screenY, reversalRed.radius);
-                orbGrad.addColorStop(0, 'rgba(255, 255, 255, 0.9)');
-                orbGrad.addColorStop(0.4, 'rgba(255, 136, 136, 0.8)');
-                orbGrad.addColorStop(0.8, 'rgba(255, 68, 68, 0.7)');
-                orbGrad.addColorStop(1, 'rgba(170, 0, 0, 0.6)');
+                orbGrad.addColorStop(0, 'rgba(255, 255, 255, 0.7)');
+                orbGrad.addColorStop(0.3, 'rgba(255, 100, 100, 0.6)');
+                orbGrad.addColorStop(0.6, 'rgba(255, 50, 50, 0.5)');
+                orbGrad.addColorStop(1, 'rgba(200, 0, 0, 0.4)');
                 ctx.fillStyle = orbGrad;
-                ctx.shadowBlur = 30;
+                ctx.shadowColor = '#ff3333';
+                ctx.shadowBlur = 25;
                 ctx.beginPath();
                 ctx.arc(screenX, screenY, reversalRed.radius, 0, Math.PI * 2);
                 ctx.fill();
@@ -2202,8 +2203,8 @@
                     const beamLength = 70 + chargeProgress * 50;
                     const bendAmount = 25 + chargeProgress * 35;
                     
-                    ctx.strokeStyle = `rgba(255, ${200 - i * 15}, ${200 - i * 15}, ${0.4 + chargeProgress * 0.3})`;
-                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = `rgba(255, ${150 + i * 8}, ${150 + i * 8}, ${0.25 + chargeProgress * 0.25})`;
+                    ctx.lineWidth = 5;
                     ctx.shadowColor = '#ff6666';
                     ctx.shadowBlur = 15;
                     
