@@ -88,6 +88,7 @@
         const spiritProjectiles = [];
         
         // Disaster Curses (Bosses)
+        // Biome boundaries: SNOW -20000 to -10000, FOREST -10000 to 0, VOLCANO 0 to 10000, CITY 10000 to 20000, SAND 20000 to 25000
         const DISASTER_CURSES = {
             'JOGO': {
                 name: 'JOGO',
@@ -97,7 +98,7 @@
                 speed: 2.5,
                 size: 60,
                 color: '#ff3300',
-                spawnLocations: [{x: -15000, y: -10000}, {x: -12000, y: 8000}]
+                spawnLocations: [{x: 2000, y: -15000}, {x: 6000, y: 12000}] // VOLCANO biome: 0 to 10000
             },
             'HANAMI': {
                 name: 'HANAMI',
@@ -107,7 +108,7 @@
                 speed: 3,
                 size: 55,
                 color: '#228b22',
-                spawnLocations: [{x: 5000, y: -12000}, {x: 8000, y: 10000}]
+                spawnLocations: [{x: -5000, y: -8000}, {x: -8000, y: 10000}] // FOREST biome: -10000 to 0
             },
             'MAHITO': {
                 name: 'MAHITO',
@@ -117,7 +118,7 @@
                 speed: 4,
                 size: 50,
                 color: '#4a0080',
-                spawnLocations: [{x: 18000, y: -8000}, {x: 22000, y: 5000}]
+                spawnLocations: [{x: 12000, y: -10000}, {x: 16000, y: 8000}] // CITY biome: 10000 to 20000
             }
         };
         
@@ -265,8 +266,64 @@
         
         generateCursedSpirits();
         
+        function generateBossStructures() {
+            // Add structures at each boss spawn location
+            for (const curse of Object.values(DISASTER_CURSES)) {
+                for (const loc of curse.spawnLocations) {
+                    // Create arena/platform around boss spawn
+                    const structureCount = 15;
+                    for (let s = 0; s < structureCount; s++) {
+                        const angle = (s / structureCount) * Math.PI * 2;
+                        const dist = 150 + Math.random() * 100;
+                        const x = loc.x + Math.cos(angle) * dist;
+                        const y = loc.y + Math.sin(angle) * dist;
+                        
+                        let type, size, color;
+                        
+                        switch(curse.biome) {
+                            case 'VOLCANO':
+                                type = Math.random() > 0.5 ? 'volcano' : 'rock';
+                                size = type === 'volcano' ? 80 : 40;
+                                color = type === 'volcano' ? '#5a2a20' : '#444';
+                                break;
+                            case 'FOREST':
+                                type = 'tree';
+                                size = 70 + Math.random() * 30;
+                                color = '#1a4a1a';
+                                break;
+                            case 'CITY':
+                                type = 'building';
+                                size = 100 + Math.random() * 50;
+                                color = '#2a2a4a';
+                                break;
+                            default:
+                                type = 'rock';
+                                size = 40;
+                                color = '#666';
+                        }
+                        
+                        biomeObjects.push({ x, y, type, size, color, biome: curse.biome, isBossStructure: true });
+                    }
+                    
+                    // Central altar/platform
+                    biomeObjects.push({
+                        x: loc.x,
+                        y: loc.y,
+                        type: curse.biome === 'VOLCANO' ? 'lava' : (curse.biome === 'FOREST' ? 'tree' : 'building'),
+                        size: 120,
+                        color: curse.color,
+                        biome: curse.biome,
+                        isBossStructure: true
+                    });
+                }
+            }
+        }
+        
         function generateBiomeObjects() {
             biomeObjects.length = 0;
+            
+            // Generate boss structures first
+            generateBossStructures();
             
             for (let i = 0; i < 5; i++) {
                 const biomeStart = -WORLD_WIDTH/2 + i * BIOME_WIDTH;
@@ -946,7 +1003,14 @@
             const spawnLoc = curseData.spawnLocations[Math.floor(Math.random() * 2)];
             
             activeDisasterCurse = {
-                ...curseData,
+                name: curseData.name,
+                biome: curseData.biome,
+                hp: curseData.hp,
+                maxHp: curseData.hp,
+                damage: curseData.damage,
+                speed: curseData.speed,
+                size: curseData.size,
+                color: curseData.color,
                 x: spawnLoc.x,
                 y: spawnLoc.y,
                 vx: 0,
