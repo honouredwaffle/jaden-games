@@ -140,8 +140,8 @@
         let maxBlue = {
             active: false,
             angle: 0,
-            radius: 120,
-            pullRadius: 250,
+            radius: 140,
+            orbPullRadius: 180, // Pull only works near the orb
             duration: 360,
             timer: 0
         };
@@ -2076,27 +2076,31 @@
             maxBlue.timer--;
             maxBlue.angle += 0.03;
             
-            // Pull nearby spirits
+            // Calculate orb world position
+            const orbWorldX = player.x + Math.cos(maxBlue.angle) * maxBlue.radius;
+            const orbWorldY = player.y + Math.sin(maxBlue.angle) * maxBlue.radius;
+            
+            // Pull nearby spirits - only near the orb
             for (const spirit of cursedSpirits) {
-                const dx = player.x - spirit.x;
-                const dy = player.y - spirit.y;
+                const dx = orbWorldX - spirit.x;
+                const dy = orbWorldY - spirit.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
-                if (dist < maxBlue.pullRadius && dist > 30) {
-                    const pullStrength = (1 - dist / maxBlue.pullRadius) * 3;
+                if (dist < maxBlue.orbPullRadius && dist > 20) {
+                    const pullStrength = (1 - dist / maxBlue.orbPullRadius) * 4;
                     spirit.vx += (dx / dist) * pullStrength;
                     spirit.vy += (dy / dist) * pullStrength;
                 }
             }
             
-            // Pull disaster curse if active
+            // Pull disaster curse if active - only near the orb
             if (activeDisasterCurse) {
-                const dx = player.x - activeDisasterCurse.x;
-                const dy = player.y - activeDisasterCurse.y;
+                const dx = orbWorldX - activeDisasterCurse.x;
+                const dy = orbWorldY - activeDisasterCurse.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
-                if (dist < maxBlue.pullRadius * 1.5 && dist > 50) {
-                    const pullStrength = (1 - dist / (maxBlue.pullRadius * 1.5)) * 2;
+                if (dist < maxBlue.orbPullRadius && dist > 40) {
+                    const pullStrength = (1 - dist / maxBlue.orbPullRadius) * 3;
                     activeDisasterCurse.vx += (dx / dist) * pullStrength;
                     activeDisasterCurse.vy += (dy / dist) * pullStrength;
                 }
@@ -2120,57 +2124,59 @@
             
             ctx.save();
             
-            // Pull radius indicator - pulsing
-            const pulseRadius = maxBlue.pullRadius + Math.sin(time * 2) * 10;
-            ctx.strokeStyle = 'rgba(0, 150, 255, 0.15)';
+            // Orb pull radius indicator - follows the orb
+            const orbScreenX = screenX + Math.cos(maxBlue.angle) * maxBlue.radius;
+            const orbScreenY = screenY + Math.sin(maxBlue.angle) * maxBlue.radius;
+            const pulseRadius = maxBlue.orbPullRadius + Math.sin(time * 2) * 10;
+            ctx.strokeStyle = 'rgba(0, 150, 255, 0.25)';
             ctx.lineWidth = 3;
             ctx.setLineDash([8, 8]);
             ctx.beginPath();
-            ctx.arc(screenX, screenY, pulseRadius, 0, Math.PI * 2);
+            ctx.arc(orbScreenX, orbScreenY, pulseRadius, 0, Math.PI * 2);
             ctx.stroke();
             ctx.setLineDash([]);
             
-            // Second ring
-            ctx.strokeStyle = 'rgba(0, 100, 255, 0.1)';
+            // Second ring around orb
+            ctx.strokeStyle = 'rgba(0, 100, 255, 0.15)';
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.arc(screenX, screenY, maxBlue.pullRadius * 0.7, 0, Math.PI * 2);
+            ctx.arc(orbScreenX, orbScreenY, maxBlue.orbPullRadius * 0.6, 0, Math.PI * 2);
             ctx.stroke();
             
             // Orb outer glow
-            const glowSize = 25 + Math.sin(time * 3) * 5;
+            const glowSize = 35 + Math.sin(time * 3) * 8;
             ctx.shadowColor = '#00aaff';
-            ctx.shadowBlur = 40;
+            ctx.shadowBlur = 50;
             ctx.fillStyle = 'rgba(0, 170, 255, 0.3)';
             ctx.beginPath();
             ctx.arc(orbX, orbY, glowSize, 0, Math.PI * 2);
             ctx.fill();
             
             // Orb main body
-            ctx.shadowBlur = 20;
-            const orbGrad = ctx.createRadialGradient(orbX - 8, orbY - 8, 0, orbX, orbY, 22);
+            ctx.shadowBlur = 30;
+            const orbGrad = ctx.createRadialGradient(orbX - 10, orbY - 10, 0, orbX, orbY, 30);
             orbGrad.addColorStop(0, '#ffffff');
             orbGrad.addColorStop(0.3, '#00ccff');
             orbGrad.addColorStop(0.7, '#0088ff');
             orbGrad.addColorStop(1, '#0044aa');
             ctx.fillStyle = orbGrad;
             ctx.beginPath();
-            ctx.arc(orbX, orbY, 22, 0, Math.PI * 2);
+            ctx.arc(orbX, orbY, 30, 0, Math.PI * 2);
             ctx.fill();
             
             // Inner bright core
-            ctx.shadowBlur = 10;
+            ctx.shadowBlur = 15;
             ctx.fillStyle = '#fff';
             ctx.beginPath();
-            ctx.arc(orbX, orbY, 10, 0, Math.PI * 2);
+            ctx.arc(orbX, orbY, 14, 0, Math.PI * 2);
             ctx.fill();
             
             // Ring around orb
             ctx.strokeStyle = '#00ffff';
-            ctx.lineWidth = 2;
-            ctx.shadowBlur = 15;
+            ctx.lineWidth = 3;
+            ctx.shadowBlur = 20;
             ctx.beginPath();
-            ctx.arc(orbX, orbY, 28 + Math.sin(time * 4) * 3, 0, Math.PI * 2);
+            ctx.arc(orbX, orbY, 38 + Math.sin(time * 4) * 4, 0, Math.PI * 2);
             ctx.stroke();
             
             ctx.restore();
