@@ -157,7 +157,7 @@
             y: 0,
             vx: 0,
             vy: 0,
-            radius: 25,
+            radius: 18,
             speed: 12,
             damage: 80,
             life: 120
@@ -2163,31 +2163,33 @@
 
                 ctx.save();
 
-                // Red orb glow
+                // Red orb glow (transparent)
                 ctx.shadowColor = '#ff2222';
-                ctx.shadowBlur = 40;
-                ctx.fillStyle = 'rgba(255, 50, 50, 0.3)';
+                ctx.shadowBlur = 30;
+                ctx.fillStyle = 'rgba(255, 50, 50, 0.15)';
                 ctx.beginPath();
                 ctx.arc(screenX, screenY, reversalRed.radius + 15, 0, Math.PI * 2);
                 ctx.fill();
 
-                // Main red orb
+                // Main red orb (transparent)
+                ctx.globalAlpha = 0.5;
                 const orbGrad = ctx.createRadialGradient(screenX - 6, screenY - 6, 0, screenX, screenY, reversalRed.radius);
-                orbGrad.addColorStop(0, '#ffcccc');
-                orbGrad.addColorStop(0.4, '#ff6666');
-                orbGrad.addColorStop(0.8, '#ff2222');
-                orbGrad.addColorStop(1, '#cc0000');
+                orbGrad.addColorStop(0, 'rgba(255, 200, 200, 0.8)');
+                orbGrad.addColorStop(0.4, 'rgba(255, 100, 100, 0.7)');
+                orbGrad.addColorStop(0.8, 'rgba(255, 50, 50, 0.6)');
+                orbGrad.addColorStop(1, 'rgba(200, 0, 0, 0.5)');
                 ctx.fillStyle = orbGrad;
-                ctx.shadowBlur = 25;
+                ctx.shadowBlur = 20;
                 ctx.beginPath();
                 ctx.arc(screenX, screenY, reversalRed.radius, 0, Math.PI * 2);
                 ctx.fill();
+                ctx.globalAlpha = 1;
 
                 // Inner bright core
-                ctx.fillStyle = '#fff';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
                 ctx.shadowBlur = 10;
                 ctx.beginPath();
-                ctx.arc(screenX, screenY, 8, 0, Math.PI * 2);
+                ctx.arc(screenX, screenY, 6, 0, Math.PI * 2);
                 ctx.fill();
 
                 // Beams of light surrounding and circling the orb
@@ -2252,50 +2254,59 @@
             
             ctx.save();
             
-            // Trail effect
+            // Stretched orb when fired
+            const velocity = Math.sqrt(reversalRed.vx * reversalRed.vx + reversalRed.vy * reversalRed.vy);
+            const angle = Math.atan2(reversalRed.vy, reversalRed.vx);
+            
+            ctx.save();
+            ctx.translate(screenX, screenY);
+            ctx.rotate(angle);
+            
+            // Trail effect (stretched)
             for (let i = 0; i < 5; i++) {
-                const trailX = screenX - reversalRed.vx * i * 2;
-                const trailY = screenY - reversalRed.vy * i * 2;
-                ctx.fillStyle = `rgba(255, ${100 - i * 20}, 100, ${0.5 - i * 0.1})`;
+                const trailOffset = -i * 8;
+                ctx.fillStyle = `rgba(255, ${80 - i * 15}, 80, ${0.4 - i * 0.06})`;
                 ctx.beginPath();
-                ctx.arc(trailX, trailY, reversalRed.radius - i * 3, 0, Math.PI * 2);
+                ctx.ellipse(trailOffset, 0, (reversalRed.radius * 0.6) - i * 2, (reversalRed.radius * 0.4) - i, 0, 0, Math.PI * 2);
                 ctx.fill();
             }
             
-            // Outer glow
-            ctx.shadowColor = '#ff4444';
-            ctx.shadowBlur = 40;
-            ctx.fillStyle = 'rgba(255, 100, 100, 0.4)';
+            // Outer glow (stretched)
+            ctx.shadowColor = '#ff3333';
+            ctx.shadowBlur = 30;
+            ctx.fillStyle = 'rgba(255, 80, 80, 0.3)';
             ctx.beginPath();
-            ctx.arc(screenX, screenY, reversalRed.radius + 10, 0, Math.PI * 2);
+            ctx.ellipse(0, 0, reversalRed.radius + 8, (reversalRed.radius + 8) * 0.6, 0, 0, Math.PI * 2);
             ctx.fill();
             
-            // Main orb
-            ctx.shadowBlur = 30;
-            const grad = ctx.createRadialGradient(screenX - 8, screenY - 8, 0, screenX, screenY, reversalRed.radius);
+            // Main stretched orb (smaller)
+            ctx.shadowBlur = 20;
+            const grad = ctx.createRadialGradient(-6, -4, 0, 0, 0, reversalRed.radius * 0.6);
             grad.addColorStop(0, '#ffffff');
             grad.addColorStop(0.3, '#ff8888');
-            grad.addColorStop(0.7, '#ff4444');
+            grad.addColorStop(0.7, '#ff3333');
             grad.addColorStop(1, '#aa0000');
             ctx.fillStyle = grad;
             ctx.beginPath();
-            ctx.arc(screenX, screenY, reversalRed.radius, 0, Math.PI * 2);
+            ctx.ellipse(0, 0, reversalRed.radius * 0.6, (reversalRed.radius * 0.6) * 0.5, 0, 0, Math.PI * 2);
             ctx.fill();
             
             // Inner core
-            ctx.shadowBlur = 15;
+            ctx.shadowBlur = 10;
             ctx.fillStyle = '#fff';
             ctx.beginPath();
-            ctx.arc(screenX, screenY, 10, 0, Math.PI * 2);
+            ctx.ellipse(0, 0, 6, 4, 0, 0, Math.PI * 2);
             ctx.fill();
             
-            // Rotating ring
+            // Energy ring
             ctx.strokeStyle = '#ffaaaa';
-            ctx.lineWidth = 3;
-            ctx.shadowBlur = 20;
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 15;
             ctx.beginPath();
-            ctx.arc(screenX, screenY, reversalRed.radius + 5, time, time + Math.PI * 1.5);
+            ctx.ellipse(0, 0, (reversalRed.radius * 0.6) + 4, ((reversalRed.radius * 0.6) + 4) * 0.5, 0, time, time + Math.PI * 2);
             ctx.stroke();
+            
+            ctx.restore();
             
             ctx.restore();
         }
