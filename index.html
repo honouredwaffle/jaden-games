@@ -156,11 +156,11 @@
         const SPIRIT_COUNT = 200;
         
         const SPIRIT_GRADES = {
-            'GRADE_4': { hp: 30, damage: 5, speed: 1, size: 12, spawnRate: 0.4, attackRange: 80, attackCooldown: 120, projectileSpeed: 3 },
-            'GRADE_3': { hp: 60, damage: 10, speed: 1.2, size: 15, spawnRate: 0.3, attackRange: 120, attackCooldown: 100, projectileSpeed: 4 },
-            'GRADE_2': { hp: 120, damage: 20, speed: 1.5, size: 18, spawnRate: 0.15, attackRange: 150, attackCooldown: 90, projectileSpeed: 5 },
-            'GRADE_1': { hp: 250, damage: 40, speed: 1.8, size: 22, spawnRate: 0.1, attackRange: 200, attackCooldown: 80, projectileSpeed: 6 },
-            'SPECIAL': { hp: 800, damage: 100, speed: 2, size: 35, spawnRate: 0.05, attackRange: 300, attackCooldown: 60, projectileSpeed: 8 }
+            'GRADE_4': { hp: 30, damage: 5, speed: 1, size: 12, spawnRate: 0.4, attackRange: 60, attackCooldown: 60, projectileSpeed: 3, closeRange: 30 },
+            'GRADE_3': { hp: 60, damage: 10, speed: 1.2, size: 15, spawnRate: 0.3, attackRange: 100, attackCooldown: 50, projectileSpeed: 4, closeRange: 40 },
+            'GRADE_2': { hp: 120, damage: 20, speed: 1.5, size: 18, spawnRate: 0.15, attackRange: 140, attackCooldown: 45, projectileSpeed: 5, closeRange: 50, specialCooldown: 300 },
+            'GRADE_1': { hp: 250, damage: 40, speed: 1.8, size: 22, spawnRate: 0.1, attackRange: 180, attackCooldown: 40, projectileSpeed: 6, closeRange: 60, specialCooldown: 240 },
+            'SPECIAL': { hp: 800, damage: 100, speed: 2, size: 35, spawnRate: 0.05, attackRange: 250, attackCooldown: 30, projectileSpeed: 8, closeRange: 80, specialCooldown: 180 }
         };
         
         // Biome-specific spirit colors
@@ -211,11 +211,14 @@
                     vy: 0,
                     angle: 0,
                     biome: biome,
-                    state: 'IDLE', // IDLE, CHASE, ATTACK, RETREAT
+                    state: 'IDLE',
                     stateTimer: 0,
                     attackCooldown: 0,
+                    specialCooldown: 0,
                     targetX: x,
-                    targetY: y
+                    targetY: y,
+                    charging: false,
+                    chargeTime: 0
                 });
             }
         }
@@ -575,12 +578,12 @@
             player.x = Math.max(-WORLD_WIDTH/2, Math.min(WORLD_WIDTH/2, player.x));
             player.y = Math.max(-WORLD_HEIGHT/2, Math.min(WORLD_HEIGHT/2, player.y));
             
-            // Regen CE and HP
+            // Regen CE and HP (slower HP regen)
             if (player.ce < player.maxCe) {
-                player.ce += 0.08;
+                player.ce += 0.1;
             }
             if (player.hp < player.maxHp) {
-                player.hp += 0.03;
+                player.hp += 0.005; // Much slower HP regen
             }
             
             // Iframes
@@ -714,9 +717,17 @@
                         break;
                         
                     case 'ATTACK':
-                        // Stay at range and attack
-                        if (dist < data.attackRange && spirit.attackCooldown <= 0) {
-                            // Fire projectile
+                        // Close range melee attack
+                        if (dist < data.closeRange && spirit.attackCooldown <= 0) {
+                            // Melee damage
+                            if (player.iframes <= 0) {
+                                player.hp -= data.damage * 1.5; // Melee does more damage
+                                player.iframes = 60;
+                            }
+                            spirit.attackCooldown = data.attackCooldown;
+                        }
+                        // Mid range projectile
+                        else if (dist < data.attackRange && dist >= data.closeRange && spirit.attackCooldown <= 0) {
                             spiritProjectiles.push({
                                 x: spirit.x,
                                 y: spirit.y,
@@ -725,10 +736,47 @@
                                 damage: data.damage,
                                 size: spirit.size * 0.3,
                                 color: spirit.color,
-                                life: 180
+                                life: 180,
+                                type: 'normal'
                             });
                             spirit.attackCooldown = data.attackCooldown;
                         }
+                        
+                        // Special move for grade 2+
+                        if (data.specialCooldown && spirit.specialCooldown <= 0 && dist < 200) {
+                            spirit.charging = true;
+                            spirit.chargeTime = 60;
+                            spirit.specialCooldown = data.specialCooldown;
+                        }
+                        
+                        if (spirit.charging) {
+                            spirit.chargeTime--;
+                            // Charge visual effect - spirit grows
+                            if (spirit.chargeTime > 0) {
+                                spirit.vx *= 0.5;
+                                spirit.vy *= 0.5;
+                            } else if (spirit.chargeTime === 0) {
+                                // Release special attack - AOE burst
+                                spirit.charging = false;
+                                // Create burst of projectiles in all directions
+                                const projectileCount = spirit.grade === 'SPECIAL' ? 16 : (spirit.grade === 'GRADE_1' ? 12 : 8);
+                                for (let i = 0; i < projectileCount; i++) {
+                                    const angle = (i / projectileCount) * Math.PI * 2;
+                                    spiritProjectiles.push({
+                                        x: spirit.x,
+                                        y: spirit.y,
+                                        vx: Math.cos(angle) * data.projectileSpeed * 1.5,
+                                        vy: Math.sin(angle) * data.projectileSpeed * 1.5,
+                                        damage: data.damage * 2,
+                                        size: spirit.size * 0.4,
+                                        color: '#ff0000',
+                                        life: 120,
+                                        type: 'special'
+                                    });
+                                }
+                            }
+                        }
+                        
                         // Circle around player
                         const circleAngle = Math.atan2(dy, dx) + Math.PI / 2;
                         spirit.vx += Math.cos(circleAngle) * spirit.speed * 0.05;
@@ -849,6 +897,21 @@
                     case 'SPECIAL':
                         drawSpecialGradeSpirit(ctx, screenX, screenY, spirit, time);
                         break;
+                }
+                
+                // Charging indicator
+                if (spirit.charging) {
+                    ctx.strokeStyle = '#ff0000';
+                    ctx.lineWidth = 3;
+                    const chargePercent = 1 - (spirit.chargeTime / 60);
+                    ctx.beginPath();
+                    ctx.arc(screenX, screenY, spirit.size + 10 + chargePercent * 20, 0, Math.PI * 2);
+                    ctx.stroke();
+                    
+                    ctx.fillStyle = '#ff0000';
+                    ctx.font = 'bold 14px "Segoe UI", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('!', screenX, screenY - spirit.size - 25);
                 }
                 
                 // Grade indicator
