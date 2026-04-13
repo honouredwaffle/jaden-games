@@ -144,7 +144,8 @@
         
         // Biome objects
         const biomeObjects = [];
-        const OBJECT_COUNT_PER_BIOME = 500;
+        const OBJECT_COUNT_PER_BIOME = 800;
+        const SPECIAL_OBJECT_COUNT = 30; // Igloos, houses, volcanoes, pyramids, oasis
         
         // Cursed spirits
         const cursedSpirits = [];
@@ -219,6 +220,7 @@
                 const biomeStart = -WORLD_WIDTH/2 + i * BIOME_WIDTH;
                 const biome = BIOMES[i];
                 
+                // Regular objects
                 for (let j = 0; j < OBJECT_COUNT_PER_BIOME; j++) {
                     const x = biomeStart + Math.random() * BIOME_WIDTH;
                     const y = -WORLD_HEIGHT/2 + Math.random() * WORLD_HEIGHT;
@@ -250,6 +252,44 @@
                             type = Math.random() > 0.5 ? 'cactus' : 'rock';
                             size = type === 'cactus' ? 30 + Math.random() * 25 : 20 + Math.random() * 30;
                             color = type === 'cactus' ? '#2d5a2d' : '#c4a35a';
+                            break;
+                    }
+                    
+                    biomeObjects.push({ x, y, type, size, color, biome });
+                }
+                
+                // Special structures
+                for (let j = 0; j < SPECIAL_OBJECT_COUNT; j++) {
+                    const x = biomeStart + Math.random() * BIOME_WIDTH;
+                    const y = -WORLD_HEIGHT/2 + Math.random() * WORLD_HEIGHT;
+                    
+                    let type, size, color;
+                    
+                    switch(biome) {
+                        case 'SNOW':
+                            type = 'igloo';
+                            size = 80 + Math.random() * 40;
+                            color = '#e8f4f8';
+                            break;
+                        case 'FOREST':
+                            type = 'tree';
+                            size = 80 + Math.random() * 50;
+                            color = '#1a5c1a';
+                            break;
+                        case 'VOLCANO':
+                            type = Math.random() > 0.7 ? 'volcano' : 'rock';
+                            size = type === 'volcano' ? 200 + Math.random() * 150 : 50 + Math.random() * 40;
+                            color = type === 'volcano' ? '#4a2520' : '#444444';
+                            break;
+                        case 'CITY':
+                            type = 'house';
+                            size = 100 + Math.random() * 60;
+                            color = `hsl(${200 + Math.random() * 30}, 40%, ${40 + Math.random() * 15}%)`;
+                            break;
+                        case 'SAND':
+                            type = Math.random() > 0.8 ? 'pyramid' : (Math.random() > 0.5 ? 'oasis' : 'cactus');
+                            size = type === 'pyramid' ? 250 + Math.random() * 100 : (type === 'oasis' ? 120 : 40);
+                            color = type === 'pyramid' ? '#d4c49a' : (type === 'oasis' ? '#228b22' : '#2d5a2d');
                             break;
                     }
                     
@@ -1082,6 +1122,137 @@
                         ctx.fillRect(screenX - obj.size * 0.4, screenY - obj.size * 0.5, obj.size * 0.15, obj.size * 0.4);
                         ctx.fillRect(screenX + obj.size * 0.25, screenY - obj.size * 0.7, obj.size * 0.15, obj.size * 0.4);
                         break;
+                        
+                    case 'igloo':
+                        // Dome
+                        ctx.fillStyle = obj.color;
+                        ctx.beginPath();
+                        ctx.arc(screenX, screenY, obj.size * 0.6, Math.PI, 0);
+                        ctx.fill();
+                        // Ice blocks pattern
+                        ctx.strokeStyle = '#b8d4e3';
+                        ctx.lineWidth = 2;
+                        for (let row = 0; row < 3; row++) {
+                            const y = screenY - obj.size * 0.4 + row * obj.size * 0.25;
+                            const width = Math.sqrt(obj.size * obj.size * 0.36 - (screenY - y) * (screenY - y)) * 2;
+                            for (let col = 0; col < 4; col++) {
+                                const x = screenX - width/2 + (col + 0.5) * (width/4);
+                                ctx.strokeRect(x - width/8 + 2, y - obj.size * 0.1, width/4 - 4, obj.size * 0.2);
+                            }
+                        }
+                        // Entrance
+                        ctx.fillStyle = '#2a3a4a';
+                        ctx.beginPath();
+                        ctx.arc(screenX, screenY + obj.size * 0.1, obj.size * 0.2, Math.PI, 0);
+                        ctx.fill();
+                        break;
+                        
+                    case 'house':
+                        // Walls
+                        ctx.fillStyle = obj.color;
+                        ctx.fillRect(screenX - obj.size * 0.4, screenY - obj.size * 0.5, obj.size * 0.8, obj.size * 0.6);
+                        // Roof
+                        ctx.fillStyle = '#4a3c2a';
+                        ctx.beginPath();
+                        ctx.moveTo(screenX - obj.size * 0.5, screenY - obj.size * 0.5);
+                        ctx.lineTo(screenX, screenY - obj.size * 0.9);
+                        ctx.lineTo(screenX + obj.size * 0.5, screenY - obj.size * 0.5);
+                        ctx.closePath();
+                        ctx.fill();
+                        // Door
+                        ctx.fillStyle = '#3a2a1a';
+                        ctx.fillRect(screenX - obj.size * 0.1, screenY - obj.size * 0.2, obj.size * 0.2, obj.size * 0.3);
+                        // Windows
+                        ctx.fillStyle = '#ffffaa';
+                        ctx.fillRect(screenX - obj.size * 0.25, screenY - obj.size * 0.35, obj.size * 0.12, obj.size * 0.15);
+                        ctx.fillRect(screenX + obj.size * 0.13, screenY - obj.size * 0.35, obj.size * 0.12, obj.size * 0.15);
+                        break;
+                        
+                    case 'volcano':
+                        // Mountain
+                        ctx.fillStyle = obj.color;
+                        ctx.beginPath();
+                        ctx.moveTo(screenX - obj.size * 0.6, screenY + obj.size * 0.3);
+                        ctx.lineTo(screenX, screenY - obj.size * 0.8);
+                        ctx.lineTo(screenX + obj.size * 0.6, screenY + obj.size * 0.3);
+                        ctx.closePath();
+                        ctx.fill();
+                        // Crater
+                        ctx.fillStyle = '#ff4500';
+                        ctx.shadowColor = '#ff4500';
+                        ctx.shadowBlur = 30;
+                        ctx.beginPath();
+                        ctx.ellipse(screenX, screenY - obj.size * 0.5, obj.size * 0.25, obj.size * 0.1, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                        // Lava flowing down
+                        ctx.fillStyle = '#ff6600';
+                        for (let i = 0; i < 3; i++) {
+                            const vx = screenX + (i - 1) * obj.size * 0.15;
+                            ctx.beginPath();
+                            ctx.moveTo(vx - 5, screenY - obj.size * 0.4);
+                            ctx.lineTo(vx + 5, screenY - obj.size * 0.4);
+                            ctx.lineTo(vx, screenY + obj.size * 0.2 + i * 10);
+                            ctx.fill();
+                        }
+                        break;
+                        
+                    case 'pyramid':
+                        // Pyramid body
+                        ctx.fillStyle = obj.color;
+                        ctx.beginPath();
+                        ctx.moveTo(screenX - obj.size * 0.5, screenY + obj.size * 0.3);
+                        ctx.lineTo(screenX, screenY - obj.size * 0.7);
+                        ctx.lineTo(screenX + obj.size * 0.5, screenY + obj.size * 0.3);
+                        ctx.closePath();
+                        ctx.fill();
+                        // Shadow side
+                        ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                        ctx.beginPath();
+                        ctx.moveTo(screenX, screenY - obj.size * 0.7);
+                        ctx.lineTo(screenX + obj.size * 0.5, screenY + obj.size * 0.3);
+                        ctx.lineTo(screenX, screenY + obj.size * 0.3);
+                        ctx.fill();
+                        // Entrance
+                        ctx.fillStyle = '#2a2010';
+                        ctx.beginPath();
+                        ctx.moveTo(screenX - obj.size * 0.08, screenY + obj.size * 0.3);
+                        ctx.lineTo(screenX, screenY + obj.size * 0.1);
+                        ctx.lineTo(screenX + obj.size * 0.08, screenY + obj.size * 0.3);
+                        ctx.fill();
+                        break;
+                        
+                    case 'oasis':
+                        // Water
+                        ctx.fillStyle = '#00aaff';
+                        ctx.shadowColor = '#00aaff';
+                        ctx.shadowBlur = 10;
+                        ctx.beginPath();
+                        ctx.ellipse(screenX, screenY, obj.size * 0.5, obj.size * 0.3, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                        // Palm trees around
+                        ctx.fillStyle = '#8b4513';
+                        for (let i = 0; i < 4; i++) {
+                            const angle = (i / 4) * Math.PI * 2;
+                            const tx = screenX + Math.cos(angle) * obj.size * 0.6;
+                            const ty = screenY + Math.sin(angle) * obj.size * 0.4;
+                            // Trunk
+                            ctx.fillRect(tx - 3, ty - 30, 6, 30);
+                            // Leaves
+                            ctx.fillStyle = '#228b22';
+                            for (let j = 0; j < 5; j++) {
+                                const la = angle + (j - 2) * 0.3;
+                                ctx.beginPath();
+                                ctx.moveTo(tx, ty - 30);
+                                ctx.lineTo(tx + Math.cos(la) * 20, ty - 30 + Math.sin(la) * 10);
+                                ctx.lineWidth = 3;
+                                ctx.strokeStyle = '#228b22';
+                                ctx.stroke();
+                            }
+                            ctx.fillStyle = '#8b4513';
+                        }
+                        break;
                 }
                 
                 ctx.restore();
@@ -1165,23 +1336,44 @@
             ctx.lineTo(rightFootX, rightFootY);
             ctx.stroke();
             
-            // Arms - more natural position at sides
+            // Arms - swing opposite to legs
             ctx.lineWidth = 4;
-            const armSwing = isMoving ? Math.sin(time * 3) * 6 : 0;
             
-            // Left arm - relaxed at side
+            // Left arm swings with right leg
+            const leftArmSwing = isMoving ? Math.sin(time * 5 + Math.PI) * stepSize * 0.8 : 0;
+            const leftShoulderX = screenX - player.radius + 2;
+            const leftShoulderY = drawY + 3;
+            const leftElbowX = leftShoulderX + perpX * 2 + Math.cos(player.facing) * leftArmSwing;
+            const leftElbowY = leftShoulderY + 8;
+            const leftHandX = leftElbowX + Math.cos(player.facing) * leftArmSwing * 0.5;
+            const leftHandY = leftElbowY + 10;
+            
             ctx.beginPath();
-            ctx.moveTo(screenX - player.radius + 2, drawY + 3);
-            ctx.lineTo(screenX - player.radius - 4, drawY + 12 + armSwing * 0.5);
-            ctx.lineTo(screenX - player.radius - 2, drawY + 20);
+            ctx.moveTo(leftShoulderX, leftShoulderY);
+            ctx.lineTo(leftElbowX, leftElbowY);
+            ctx.lineTo(leftHandX, leftHandY);
             ctx.stroke();
             
-            // Right arm - relaxed at side
+            // Right arm swings with left leg
+            const rightArmSwing = isMoving ? Math.sin(time * 5) * stepSize * 0.8 : 0;
+            const rightShoulderX = screenX + player.radius - 2;
+            const rightShoulderY = drawY + 3;
+            const rightElbowX = rightShoulderX - perpX * 2 + Math.cos(player.facing) * rightArmSwing;
+            const rightElbowY = rightShoulderY + 8;
+            const rightHandX = rightElbowX + Math.cos(player.facing) * rightArmSwing * 0.5;
+            const rightHandY = rightElbowY + 10;
+            
             ctx.beginPath();
-            ctx.moveTo(screenX + player.radius - 2, drawY + 3);
-            ctx.lineTo(screenX + player.radius + 4, drawY + 12 - armSwing * 0.5);
-            ctx.lineTo(screenX + player.radius + 2, drawY + 20);
+            ctx.moveTo(rightShoulderX, rightShoulderY);
+            ctx.lineTo(rightElbowX, rightElbowY);
+            ctx.lineTo(rightHandX, rightHandY);
             ctx.stroke();
+            
+            // Body bob when walking up/down
+            if (isMoving && Math.abs(Math.sin(player.facing)) > 0.5) {
+                const bob = Math.abs(Math.sin(time * 10)) * 2;
+                // Already applied via drawY
+            }
             
             // Body (torso)
             ctx.fillStyle = '#1a1a2e';
