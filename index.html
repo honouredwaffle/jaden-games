@@ -116,7 +116,7 @@
                 speed: 2.5,
                 size: 60,
                 color: '#ff3300',
-                spawnLocations: [{x: 2000, y: -15000}, {x: 6000, y: 12000}] // VOLCANO biome: 0 to 10000
+                spawnLocations: [{x: -BIOME_SIZE - 2000, y: -3000}, {x: -BIOME_SIZE + 3000, y: 4000}] // VOLCANO: left of forest
             },
             'HANAMI': {
                 name: 'HANAMI',
@@ -126,7 +126,7 @@
                 speed: 3,
                 size: 55,
                 color: '#228b22',
-                spawnLocations: [{x: -5000, y: -8000}, {x: -8000, y: 10000}] // FOREST biome: -10000 to 0
+                spawnLocations: [{x: -4000, y: -4000}, {x: 3000, y: 3000}] // FOREST: center
             },
             'MAHITO': {
                 name: 'MAHITO',
@@ -136,7 +136,7 @@
                 speed: 4,
                 size: 50,
                 color: '#4a0080',
-                spawnLocations: [{x: 12000, y: -10000}, {x: 16000, y: 8000}] // CITY biome: 10000 to 20000
+                spawnLocations: [{x: BIOME_SIZE - 2000, y: -3000}, {x: BIOME_SIZE + 3000, y: 4000}] // CITY: right of forest
             }
         };
         
@@ -213,13 +213,28 @@
         // Keys
         const keys = {};
         
-        // World size - 5 biomes, each 10000x50000
+        // World size
         const WORLD_WIDTH = 50000;
         const WORLD_HEIGHT = 50000;
-        const BIOME_WIDTH = 10000;
+        const BIOME_SIZE = 12000; // Size of each biome region
         
         // Biomes: Snow, Forest, Volcano, City, Sand
+        // Layout: Forest in center, others around it
+        //         [Sand]
+        //           |
+        // [Volcano]—[Forest]—[City]
+        //           |
+        //        [Snow]
         const BIOMES = ['SNOW', 'FOREST', 'VOLCANO', 'CITY', 'SAND'];
+        
+        // Biome center positions (Forest at 0,0)
+        const BIOME_CENTERS = {
+            'FOREST': { x: 0, y: 0 },
+            'VOLCANO': { x: -BIOME_SIZE, y: 0 },
+            'CITY': { x: BIOME_SIZE, y: 0 },
+            'SNOW': { x: 0, y: BIOME_SIZE },
+            'SAND': { x: 0, y: -BIOME_SIZE }
+        };
         
         // Biome colors - more distinct and realistic
         const BIOME_COLORS = {
@@ -302,7 +317,7 @@
                 const y = -WORLD_HEIGHT/2 + Math.random() * WORLD_HEIGHT;
                 
                 // Get biome at this position for color
-                const biome = getBiomeAt(x);
+                const biome = getBiomeAt(x, y);
                 const biomeColors = BIOME_SPIRIT_COLORS[biome];
                 const isSpecial = grade === 'SPECIAL';
                 const color = isSpecial ? biomeColors.special : biomeColors.normal;
@@ -393,14 +408,17 @@
             // Generate boss structures first
             generateBossStructures();
             
-            for (let i = 0; i < 5; i++) {
-                const biomeStart = -WORLD_WIDTH/2 + i * BIOME_WIDTH;
-                const biome = BIOMES[i];
+            // Generate objects for each biome (radial layout)
+            for (const biome of BIOMES) {
+                const center = BIOME_CENTERS[biome];
                 
                 // Regular objects
                 for (let j = 0; j < OBJECT_COUNT_PER_BIOME; j++) {
-                    const x = biomeStart + Math.random() * BIOME_WIDTH;
-                    const y = -WORLD_HEIGHT/2 + Math.random() * WORLD_HEIGHT;
+                    // Random position within biome radius
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = Math.random() * BIOME_SIZE * 0.8;
+                    const x = center.x + Math.cos(angle) * dist;
+                    const y = center.y + Math.sin(angle) * dist;
                     
                     let type, size, color;
                     
@@ -765,13 +783,26 @@
             camera.y = player.y - canvas.height / 2;
         }
         
-        function getBiomeAt(x) {
-            const biomeIndex = Math.floor((x + WORLD_WIDTH / 2) / BIOME_WIDTH);
-            return BIOMES[Math.max(0, Math.min(4, biomeIndex))];
+        function getBiomeAt(x, y) {
+            // Find closest biome center
+            let closestBiome = 'FOREST';
+            let closestDist = Infinity;
+            
+            for (const [biome, center] of Object.entries(BIOME_CENTERS)) {
+                const dx = x - center.x;
+                const dy = y - center.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < closestDist) {
+                    closestDist = dist;
+                    closestBiome = biome;
+                }
+            }
+            
+            return closestBiome;
         }
         
-        function getBiomeColors(x) {
-            const biome = getBiomeAt(x);
+        function getBiomeColors(x, y) {
+            const biome = getBiomeAt(x, y);
             return BIOME_COLORS[biome];
         }
         
@@ -792,43 +823,31 @@
         }
         
         function drawBiomeGround() {
-            // Draw textured ground for each biome
-            const startX = Math.floor(camera.x / BIOME_WIDTH) * BIOME_WIDTH;
-            const endX = startX + canvas.width + BIOME_WIDTH;
+            // Draw biome ground based on closest biome center (radial system)
+            const tileSize = 200;
+            const startX = Math.floor(camera.x / tileSize) * tileSize;
+            const startY = Math.floor(camera.y / tileSize) * tileSize;
+            const endX = startX + canvas.width + tileSize;
+            const endY = startY + canvas.height + tileSize;
             
-            for (let x = startX; x < endX; x += BIOME_WIDTH) {
-                const colors = getBiomeColors(x);
-                const screenX = x - camera.x;
-                const biomeStart = -WORLD_WIDTH/2 + Math.floor((x + WORLD_WIDTH/2) / BIOME_WIDTH) * BIOME_WIDTH;
-                const biomeEnd = biomeStart + BIOME_WIDTH;
-                const width = Math.min(biomeEnd, WORLD_WIDTH/2) - Math.max(biomeStart, -WORLD_WIDTH/2);
-                const drawX = Math.max(biomeStart, -WORLD_WIDTH/2) - camera.x;
-                const drawWidth = width;
-                
-                // Base biome color
-                ctx.fillStyle = colors.ground;
-                ctx.fillRect(drawX, 0, drawWidth, canvas.height);
-                
-                // Add texture pattern - aligned to world coordinates
-                ctx.fillStyle = colors.groundAlt;
-                ctx.globalAlpha = 0.3;
-                const patternSize = 100;
-                const patternStartX = Math.floor((Math.max(biomeStart, -WORLD_WIDTH/2)) / patternSize) * patternSize;
-                const patternEndX = Math.min(biomeEnd, WORLD_WIDTH/2);
-                
-                for (let px = patternStartX; px < patternEndX; px += patternSize) {
-                    for (let py = camera.y; py < camera.y + canvas.height; py += patternSize) {
-                        const worldY = Math.floor(py / patternSize) * patternSize;
-                        if ((px + worldY) % (patternSize * 2) < patternSize) {
-                            const screenPX = px - camera.x;
-                            const screenPY = worldY - camera.y;
-                            if (screenPX >= drawX && screenPX < drawX + drawWidth) {
-                                ctx.fillRect(screenPX, screenPY, patternSize, patternSize);
-                            }
-                        }
+            for (let x = startX; x < endX; x += tileSize) {
+                for (let y = startY; y < endY; y += tileSize) {
+                    const colors = getBiomeColors(x + tileSize/2, y + tileSize/2);
+                    const screenX = x - camera.x;
+                    const screenY = y - camera.y;
+                    
+                    // Base biome color
+                    ctx.fillStyle = colors.ground;
+                    ctx.fillRect(screenX, screenY, tileSize, tileSize);
+                    
+                    // Add texture pattern
+                    if ((x + y) % (tileSize * 2) < tileSize) {
+                        ctx.fillStyle = colors.groundAlt;
+                        ctx.globalAlpha = 0.3;
+                        ctx.fillRect(screenX, screenY, tileSize, tileSize);
+                        ctx.globalAlpha = 1;
                     }
                 }
-                ctx.globalAlpha = 1;
             }
         }
         
@@ -837,15 +856,24 @@
             const startX = Math.floor(camera.x / BIOME_WIDTH) * BIOME_WIDTH;
             const endX = startX + canvas.width + BIOME_WIDTH;
             
-            for (let x = startX; x < endX; x += BIOME_WIDTH) {
-                const colors = getBiomeColors(x);
-                const screenX = x - camera.x;
-                const width = Math.min(BIOME_WIDTH, WORLD_WIDTH / 2 - x);
-                
-                ctx.fillStyle = colors.bg;
-                ctx.globalAlpha = 0.08;
-                ctx.fillRect(screenX, 0, width, canvas.height);
-                ctx.globalAlpha = 1;
+            // Draw atmospheric overlay based on current biome
+            const overlaySize = 400;
+            const overlayStartX = Math.floor(camera.x / overlaySize) * overlaySize;
+            const overlayStartY = Math.floor(camera.y / overlaySize) * overlaySize;
+            const overlayEndX = overlayStartX + canvas.width + overlaySize;
+            const overlayEndY = overlayStartY + canvas.height + overlaySize;
+            
+            for (let x = overlayStartX; x < overlayEndX; x += overlaySize) {
+                for (let y = overlayStartY; y < overlayEndY; y += overlaySize) {
+                    const colors = getBiomeColors(x + overlaySize/2, y + overlaySize/2);
+                    const screenX = x - camera.x;
+                    const screenY = y - camera.y;
+                    
+                    ctx.fillStyle = colors.bg;
+                    ctx.globalAlpha = 0.08;
+                    ctx.fillRect(screenX, screenY, overlaySize, overlaySize);
+                    ctx.globalAlpha = 1;
+                }
             }
         }
         
