@@ -2627,33 +2627,61 @@
                 const pulse = Math.sin(time) * 0.5 + 0.5;
                 const fastPulse = Math.sin(time * 3) * 0.5 + 0.5;
                 
-                // Lightning arcs between orbs
-                if (fusionProgress > 0.2) {
-                    ctx.strokeStyle = `rgba(220, 120, 255, ${fusionProgress * 0.9})`;
-                    ctx.lineWidth = 3;
+                // Energy effects start immediately and intensify
+                const earlyPower = Math.min(1, fusionProgress * 2.5); // Ramps up quickly
+                
+                // Pulsing glow around each orb from the start
+                ctx.shadowBlur = 15 + earlyPower * 20;
+                ctx.shadowColor = '#8844cc';
+                ctx.fillStyle = `rgba(136, 68, 204, ${earlyPower * 0.3})`;
+                ctx.beginPath();
+                ctx.arc(centerX, centerY, 20 + earlyPower * 15, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Lightning arcs between orbs (start small, grow bigger)
+                if (fusionProgress > 0.05) {
+                    const arcIntensity = Math.min(1, fusionProgress * 3);
+                    ctx.strokeStyle = `rgba(220, 120, 255, ${arcIntensity * 0.9})`;
+                    ctx.lineWidth = 2 + arcIntensity;
                     ctx.shadowColor = '#cc66ff';
-                    ctx.shadowBlur = 25;
-                    for (let i = 0; i < 8; i++) {
+                    ctx.shadowBlur = 20 + arcIntensity * 15;
+                    const arcCount = Math.floor(3 + fusionProgress * 8);
+                    for (let i = 0; i < arcCount; i++) {
                         ctx.beginPath();
                         ctx.moveTo(blueScreenX, blueScreenY);
-                        const midX = (blueScreenX + redScreenX) / 2 + (Math.random() - 0.5) * 30;
-                        const midY = (blueScreenY + redScreenY) / 2 + (Math.random() - 0.5) * 30;
+                        const midX = (blueScreenX + redScreenX) / 2 + (Math.random() - 0.5) * (10 + fusionProgress * 30);
+                        const midY = (blueScreenY + redScreenY) / 2 + (Math.random() - 0.5) * (10 + fusionProgress * 30);
                         ctx.lineTo(midX, midY);
                         ctx.lineTo(redScreenX, redScreenY);
                         ctx.stroke();
                     }
                     
-                    // Additional crackling energy
-                    ctx.strokeStyle = `rgba(255, 200, 255, ${fastPulse * fusionProgress})`;
+                    // Crackling energy (starts early)
+                    ctx.strokeStyle = `rgba(255, 200, 255, ${fastPulse * earlyPower})`;
                     ctx.lineWidth = 1;
-                    for (let i = 0; i < 12; i++) {
+                    const crackleCount = Math.floor(earlyPower * 15);
+                    for (let i = 0; i < crackleCount; i++) {
                         const angle = Math.random() * Math.PI * 2;
-                        const dist = 5 + Math.random() * 20;
+                        const dist = 3 + Math.random() * (15 + fusionProgress * 15);
                         ctx.beginPath();
                         ctx.moveTo(centerX, centerY);
                         ctx.lineTo(centerX + Math.cos(angle) * dist, centerY + Math.sin(angle) * dist);
                         ctx.stroke();
                     }
+                }
+                
+                // Early rotating energy ring
+                if (fusionProgress > 0.1) {
+                    ctx.save();
+                    ctx.translate(centerX, centerY);
+                    ctx.rotate(time * (1 + fusionProgress * 2));
+                    ctx.strokeStyle = `rgba(180, 100, 220, ${earlyPower * 0.5})`;
+                    ctx.lineWidth = 2;
+                    ctx.shadowBlur = 10;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, 18 + fusionProgress * 15, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.restore();
                 }
                 
                 if (lateFusion > 0) {
