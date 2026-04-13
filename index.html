@@ -146,11 +146,20 @@
         const SPIRIT_COUNT = 200;
         
         const SPIRIT_GRADES = {
-            'GRADE_4': { hp: 30, damage: 5, speed: 1.5, color: '#444444', size: 12, spawnRate: 0.4 },
-            'GRADE_3': { hp: 60, damage: 10, speed: 2, color: '#666666', size: 15, spawnRate: 0.3 },
-            'GRADE_2': { hp: 120, damage: 20, speed: 2.5, color: '#884444', size: 18, spawnRate: 0.15 },
-            'GRADE_1': { hp: 250, damage: 40, speed: 3, color: '#aa2222', size: 22, spawnRate: 0.1 },
-            'SPECIAL': { hp: 800, damage: 100, speed: 4, color: '#6600cc', size: 35, spawnRate: 0.05 }
+            'GRADE_4': { hp: 30, damage: 5, speed: 1.5, size: 12, spawnRate: 0.4 },
+            'GRADE_3': { hp: 60, damage: 10, speed: 2, size: 15, spawnRate: 0.3 },
+            'GRADE_2': { hp: 120, damage: 20, speed: 2.5, size: 18, spawnRate: 0.15 },
+            'GRADE_1': { hp: 250, damage: 40, speed: 3, size: 22, spawnRate: 0.1 },
+            'SPECIAL': { hp: 800, damage: 100, speed: 4, size: 35, spawnRate: 0.05 }
+        };
+        
+        // Biome-specific spirit colors
+        const BIOME_SPIRIT_COLORS = {
+            'SNOW': { normal: '#87ceeb', special: '#4169e1' },      // Ice blue / Royal blue
+            'FOREST': { normal: '#228b22', special: '#8b0000' },    // Forest green / Dark red
+            'VOLCANO': { normal: '#ff4500', special: '#8b0000' },   // Orange red / Dark red
+            'CITY': { normal: '#708090', special: '#4b0082' },      // Slate grey / Indigo
+            'SAND': { normal: '#daa520', special: '#8b4513' }       // Goldenrod / Saddle brown
         };
         
         function generateCursedSpirits() {
@@ -173,6 +182,12 @@
                 const x = -WORLD_WIDTH/2 + Math.random() * WORLD_WIDTH;
                 const y = -WORLD_HEIGHT/2 + Math.random() * WORLD_HEIGHT;
                 
+                // Get biome at this position for color
+                const biome = getBiomeAt(x);
+                const biomeColors = BIOME_SPIRIT_COLORS[biome];
+                const isSpecial = grade === 'SPECIAL';
+                const color = isSpecial ? biomeColors.special : biomeColors.normal;
+                
                 cursedSpirits.push({
                     x, y,
                     grade,
@@ -180,11 +195,12 @@
                     maxHp: data.hp,
                     damage: data.damage,
                     speed: data.speed,
-                    color: data.color,
+                    color: color,
                     size: data.size,
                     vx: 0,
                     vy: 0,
-                    angle: 0
+                    angle: 0,
+                    biome: biome
                 });
             }
         }
@@ -520,39 +536,13 @@
         }
         
         function drawGrid() {
-            const gridSize = 100;
-            const startX = Math.floor(camera.x / gridSize) * gridSize;
+            // Only draw subtle horizontal lines, no vertical biome boundaries
+            const gridSize = 200;
             const startY = Math.floor(camera.y / gridSize) * gridSize;
-            const endX = startX + canvas.width + gridSize;
             const endY = startY + canvas.height + gridSize;
             
-            // Draw vertical biome boundaries
-            for (let i = 0; i <= 5; i++) {
-                const boundaryX = -WORLD_WIDTH / 2 + i * BIOME_WIDTH;
-                const screenX = boundaryX - camera.x;
-                if (screenX >= 0 && screenX <= canvas.width) {
-                    ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-                    ctx.lineWidth = 3;
-                    ctx.beginPath();
-                    ctx.moveTo(screenX, 0);
-                    ctx.lineTo(screenX, canvas.height);
-                    ctx.stroke();
-                }
-            }
-            
-            // Draw grid with biome colors
-            for (let x = startX; x < endX; x += gridSize) {
-                const colors = getBiomeColors(x);
-                ctx.strokeStyle = colors.grid;
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(x - camera.x, 0);
-                ctx.lineTo(x - camera.x, canvas.height);
-                ctx.stroke();
-            }
-            
             for (let y = startY; y < endY; y += gridSize) {
-                ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.03)';
                 ctx.lineWidth = 1;
                 ctx.beginPath();
                 ctx.moveTo(0, y - camera.y);
