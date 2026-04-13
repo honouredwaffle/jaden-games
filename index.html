@@ -2067,8 +2067,115 @@
                 if (index === 0) { // Max Blue
                     maxBlue.active = true;
                     maxBlue.timer = maxBlue.duration;
+                } else if (index === 1) { // Reversal Red
+                    if (!reversalRed.active) {
+                        reversalRed.active = true;
+                        reversalRed.x = player.x;
+                        reversalRed.y = player.y;
+                        reversalRed.vx = Math.cos(player.facing) * reversalRed.speed;
+                        reversalRed.vy = Math.sin(player.facing) * reversalRed.speed;
+                        reversalRed.life = 120;
+                    }
                 }
             }
+        }
+        
+        function updateReversalRed() {
+            if (!reversalRed.active) return;
+            
+            reversalRed.x += reversalRed.vx;
+            reversalRed.y += reversalRed.vy;
+            reversalRed.life--;
+            
+            // Check collision with spirits
+            for (let i = cursedSpirits.length - 1; i >= 0; i--) {
+                const spirit = cursedSpirits[i];
+                const dx = reversalRed.x - spirit.x;
+                const dy = reversalRed.y - spirit.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < reversalRed.radius + spirit.size) {
+                    spirit.hp -= reversalRed.damage;
+                    if (spirit.hp <= 0) {
+                        cursedSpirits.splice(i, 1);
+                    }
+                    reversalRed.active = false;
+                    return;
+                }
+            }
+            
+            // Check collision with boss
+            if (activeDisasterCurse) {
+                const dx = reversalRed.x - activeDisasterCurse.x;
+                const dy = reversalRed.y - activeDisasterCurse.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < reversalRed.radius + activeDisasterCurse.size) {
+                    activeDisasterCurse.hp -= reversalRed.damage * 2;
+                    reversalRed.active = false;
+                }
+            }
+            
+            if (reversalRed.life <= 0) {
+                reversalRed.active = false;
+            }
+        }
+        
+        function drawReversalRed() {
+            if (!reversalRed.active) return;
+            
+            const screenX = reversalRed.x - camera.x;
+            const screenY = reversalRed.y - camera.y;
+            const time = Date.now() * 0.01;
+            
+            ctx.save();
+            
+            // Trail effect
+            for (let i = 0; i < 5; i++) {
+                const trailX = screenX - reversalRed.vx * i * 2;
+                const trailY = screenY - reversalRed.vy * i * 2;
+                ctx.fillStyle = `rgba(255, ${100 - i * 20}, 100, ${0.5 - i * 0.1})`;
+                ctx.beginPath();
+                ctx.arc(trailX, trailY, reversalRed.radius - i * 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Outer glow
+            ctx.shadowColor = '#ff4444';
+            ctx.shadowBlur = 40;
+            ctx.fillStyle = 'rgba(255, 100, 100, 0.4)';
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, reversalRed.radius + 10, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Main orb
+            ctx.shadowBlur = 30;
+            const grad = ctx.createRadialGradient(screenX - 8, screenY - 8, 0, screenX, screenY, reversalRed.radius);
+            grad.addColorStop(0, '#ffffff');
+            grad.addColorStop(0.3, '#ff8888');
+            grad.addColorStop(0.7, '#ff4444');
+            grad.addColorStop(1, '#aa0000');
+            ctx.fillStyle = grad;
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, reversalRed.radius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Inner core
+            ctx.shadowBlur = 15;
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, 10, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Rotating ring
+            ctx.strokeStyle = '#ffaaaa';
+            ctx.lineWidth = 3;
+            ctx.shadowBlur = 20;
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, reversalRed.radius + 5, time, time + Math.PI * 1.5);
+            ctx.stroke();
+            
+            ctx.restore();
         }
         
         function updateMaxBlue() {
@@ -2292,6 +2399,7 @@
             updatePlayer();
             updateAbilities();
             updateMaxBlue();
+            updateReversalRed();
             updateCursedSpirits();
             updateSpiritProjectiles();
             updateDisasterCurse();
@@ -2316,6 +2424,7 @@
             drawCursedSpirits();
             drawDisasterCurse();
             drawMaxBlue();
+            drawReversalRed();
             drawPlayer();
             drawBossHealthBar();
             drawDisasterNotification();
