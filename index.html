@@ -2574,14 +2574,17 @@
                 ctx.arc(redScreenX, redScreenY, 12, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Draw fusion center glow
+                // Draw fusion center glow (only appears late in fusion)
                 const centerX = (blueScreenX + redScreenX) / 2;
                 const centerY = (blueScreenY + redScreenY) / 2;
-                ctx.shadowColor = '#aa44ff';
-                ctx.fillStyle = `rgba(180, 50, 255, ${fusionProgress * 0.8})`;
-                ctx.beginPath();
-                ctx.arc(centerX, centerY, 8 + fusionProgress * 15, 0, Math.PI * 2);
-                ctx.fill();
+                const lateFusion = Math.max(0, (fusionProgress - 0.6) / 0.4); // Starts at 60% fusion
+                if (lateFusion > 0) {
+                    ctx.shadowColor = '#aa44ff';
+                    ctx.fillStyle = `rgba(180, 50, 255, ${lateFusion * 0.9})`;
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, lateFusion * 20, 0, Math.PI * 2);
+                    ctx.fill();
+                }
                 
                 // Draw fusion percentage
                 ctx.shadowBlur = 0;
