@@ -29,6 +29,7 @@
             display: block;
             width: 100%;
             height: 100%;
+            cursor: pointer;
         }
     </style>
 </head>
@@ -49,9 +50,14 @@
         window.addEventListener('resize', resize);
 
         // Game state
-        let screen = 'title'; // title, modes, character, customisation, game
+        let screen = 'title';
         let selectedOption = 0;
         let frame = 0;
+        
+        // Mouse tracking
+        let mouseX = 0;
+        let mouseY = 0;
+        let menuItemRects = []; // Store clickable areas
         
         // Menu options
         const titleOptions = ['PLAY', 'MODES', 'CHARACTER', 'CUSTOMISATION'];
@@ -62,7 +68,7 @@
         let currentMenu = titleOptions;
         let selectedCharacter = 'GOJO';
         
-        // Particles for background
+        // Particles
         const particles = [];
         for (let i = 0; i < 60; i++) {
             particles.push({
@@ -125,58 +131,74 @@
             ctx.stroke();
         }
 
+        function drawButton(text, x, y, width, height, isHovered, isSelected) {
+            const hover = isHovered || isSelected;
+            
+            // Button background
+            ctx.save();
+            if (hover) {
+                ctx.shadowColor = '#e94560';
+                ctx.shadowBlur = 15;
+                ctx.fillStyle = 'rgba(233, 69, 96, 0.2)';
+                ctx.fillRect(x - width/2, y - height/2, width, height);
+            }
+            ctx.restore();
+            
+            // Border
+            ctx.strokeStyle = hover ? '#e94560' : 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = hover ? 2 : 1;
+            ctx.strokeRect(x - width/2, y - height/2, width, height);
+            
+            // Text
+            ctx.fillStyle = hover ? '#e94560' : 'rgba(255, 255, 255, 0.8)';
+            ctx.font = hover ? 'bold 24px "Segoe UI", sans-serif' : '20px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(text, x, y);
+            
+            // Return clickable rect
+            return { x: x - width/2, y: y - height/2, width, height, text };
+        }
+
         function drawMenu(options, title) {
             drawTitle();
+            menuItemRects = [];
             
             if (title) {
                 ctx.fillStyle = '#fff';
                 ctx.font = '28px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText(title, canvas.width / 2, canvas.height / 2 - 20);
+                ctx.fillText(title, canvas.width / 2, canvas.height / 2 - 40);
             }
             
-            const startY = title ? canvas.height / 2 + 30 : canvas.height / 2 + 20;
-            const spacing = 55;
+            const startY = title ? canvas.height / 2 : canvas.height / 2 - 20;
+            const buttonWidth = 280;
+            const buttonHeight = 50;
+            const spacing = 65;
             
             options.forEach((option, i) => {
                 const y = startY + i * spacing;
-                const isSelected = i === selectedOption;
+                const isHovered = mouseX > canvas.width/2 - buttonWidth/2 && 
+                                  mouseX < canvas.width/2 + buttonWidth/2 &&
+                                  mouseY > y - buttonHeight/2 && 
+                                  mouseY < y + buttonHeight/2;
                 
-                if (isSelected) {
-                    ctx.save();
-                    ctx.shadowColor = '#e94560';
-                    ctx.shadowBlur = 20;
-                    ctx.fillStyle = '#e94560';
-                    ctx.font = 'bold 28px "Segoe UI", sans-serif';
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(canvas.width / 2 - 140, y - 5);
-                    ctx.lineTo(canvas.width / 2 - 120, y + 10);
-                    ctx.lineTo(canvas.width / 2 - 140, y + 25);
-                    ctx.fill();
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(canvas.width / 2 + 140, y - 5);
-                    ctx.lineTo(canvas.width / 2 + 120, y + 10);
-                    ctx.lineTo(canvas.width / 2 + 140, y + 25);
-                    ctx.fill();
-                    ctx.restore();
-                }
+                if (isHovered) selectedOption = i;
                 
-                ctx.fillStyle = isSelected ? '#e94560' : 'rgba(255, 255, 255, 0.7)';
-                ctx.font = isSelected ? 'bold 28px "Segoe UI", sans-serif' : '24px "Segoe UI", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText(option, canvas.width / 2, y + 10);
+                const rect = drawButton(option, canvas.width / 2, y, buttonWidth, buttonHeight, isHovered, i === selectedOption);
+                menuItemRects.push(rect);
             });
             
+            // Hint text
             ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-            ctx.font = '16px "Segoe UI", sans-serif';
+            ctx.font = '14px "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('↑↓ to navigate  |  ENTER to select', canvas.width / 2, canvas.height - 40);
+            ctx.fillText('Click to select  |  ESC to go back', canvas.width / 2, canvas.height - 30);
         }
 
         function drawCharacterSelect() {
             drawBackground();
+            menuItemRects = [];
             
             ctx.fillStyle = '#fff';
             ctx.font = 'bold 48px "Segoe UI", sans-serif';
@@ -189,53 +211,103 @@
                 'YUKI': { color: '#ffaa00', desc: 'Star Rage' }
             };
             
-            const startX = canvas.width / 2 - 300;
-            const spacing = 220;
+            const startX = canvas.width / 2 - 250;
+            const spacing = 250;
+            const cardWidth = 180;
+            const cardHeight = 280;
             
             characterOptions.slice(0, -1).forEach((char, i) => {
                 const x = startX + i * spacing;
-                const y = canvas.height / 2 - 50;
-                const isSelected = i === selectedOption;
+                const y = canvas.height / 2 - 40;
                 const data = charData[char];
                 
+                const isHovered = mouseX > x - cardWidth/2 && 
+                                  mouseX < x + cardWidth/2 &&
+                                  mouseY > y - cardHeight/2 && 
+                                  mouseY < y + cardHeight/2;
+                
+                if (isHovered) selectedOption = i;
+                const isSelected = i === selectedOption;
+                
+                // Card background
                 ctx.save();
-                if (isSelected) {
+                if (isSelected || isHovered) {
                     ctx.shadowColor = data.color;
-                    ctx.shadowBlur = 30;
-                    ctx.strokeStyle = data.color;
-                    ctx.lineWidth = 3;
-                    ctx.strokeRect(x - 80, y - 80, 160, 200);
+                    ctx.shadowBlur = 25;
+                    ctx.fillStyle = 'rgba(0,0,0,0.5)';
                 } else {
-                    ctx.strokeStyle = 'rgba(255,255,255,0.3)';
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(x - 80, y - 80, 160, 200);
+                    ctx.fillStyle = 'rgba(0,0,0,0.3)';
                 }
+                ctx.fillRect(x - cardWidth/2, y - cardHeight/2, cardWidth, cardHeight);
                 ctx.restore();
                 
+                // Border
+                ctx.strokeStyle = isSelected || isHovered ? data.color : 'rgba(255,255,255,0.2)';
+                ctx.lineWidth = isSelected ? 3 : 2;
+                ctx.strokeRect(x - cardWidth/2, y - cardHeight/2, cardWidth, cardHeight);
+                
+                // Character circle
                 ctx.fillStyle = data.color;
                 ctx.beginPath();
-                ctx.arc(x, y, 40, 0, Math.PI * 2);
+                ctx.arc(x, y - 40, 50, 0, Math.PI * 2);
                 ctx.fill();
                 
-                ctx.fillStyle = '#fff';
-                ctx.font = isSelected ? 'bold 24px "Segoe UI", sans-serif' : '20px "Segoe UI", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText(char, x, y + 70);
+                // Glow on circle
+                ctx.save();
+                ctx.shadowColor = data.color;
+                ctx.shadowBlur = 20;
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(x, y - 40, 50, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
                 
+                // Name
+                ctx.fillStyle = '#fff';
+                ctx.font = isSelected ? 'bold 26px "Segoe UI", sans-serif' : '22px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(char, x, y + 40);
+                
+                // Description
                 ctx.fillStyle = 'rgba(255,255,255,0.6)';
                 ctx.font = '14px "Segoe UI", sans-serif';
-                ctx.fillText(data.desc, x, y + 95);
+                ctx.fillText(data.desc, x, y + 70);
+                
+                menuItemRects.push({ 
+                    x: x - cardWidth/2, 
+                    y: y - cardHeight/2, 
+                    width: cardWidth, 
+                    height: cardHeight, 
+                    text: char 
+                });
             });
             
+            // Back button
             const backIndex = characterOptions.length - 1;
+            const backY = canvas.height - 80;
+            const isBackHovered = mouseX > canvas.width/2 - 100 && 
+                                  mouseX < canvas.width/2 + 100 &&
+                                  mouseY > backY - 20 && 
+                                  mouseY < backY + 20;
+            if (isBackHovered) selectedOption = backIndex;
+            
             ctx.fillStyle = selectedOption === backIndex ? '#e94560' : 'rgba(255,255,255,0.7)';
-            ctx.font = selectedOption === backIndex ? 'bold 24px "Segoe UI", sans-serif' : '20px "Segoe UI", sans-serif';
+            ctx.font = selectedOption === backIndex ? 'bold 22px "Segoe UI", sans-serif' : '18px "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(characterOptions[backIndex], canvas.width / 2, canvas.height - 80);
+            ctx.fillText('← BACK', canvas.width / 2, backY);
+            
+            menuItemRects.push({ 
+                x: canvas.width/2 - 100, 
+                y: backY - 20, 
+                width: 200, 
+                height: 40, 
+                text: 'BACK' 
+            });
             
             ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-            ctx.font = '16px "Segoe UI", sans-serif';
-            ctx.fillText('↑↓ to navigate  |  ENTER to select', canvas.width / 2, canvas.height - 40);
+            ctx.font = '14px "Segoe UI", sans-serif';
+            ctx.fillText('Click to select  |  ESC to go back', canvas.width / 2, canvas.height - 30);
         }
 
         function drawGame() {
@@ -315,6 +387,19 @@
             }
         }
 
+        // Mouse events
+        canvas.addEventListener('mousemove', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            mouseX = (e.clientX - rect.left) * (canvas.width / rect.width);
+            mouseY = (e.clientY - rect.top) * (canvas.height / rect.height);
+        });
+
+        canvas.addEventListener('click', (e) => {
+            if (screen === 'game') return;
+            handleSelect();
+        });
+
+        // Keyboard still works
         window.addEventListener('keydown', (e) => {
             if (e.key === 'ArrowUp') {
                 selectedOption = (selectedOption - 1 + currentMenu.length) % currentMenu.length;
