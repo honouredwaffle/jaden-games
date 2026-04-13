@@ -2559,27 +2559,62 @@
                 
                 ctx.save();
                 
-                // Draw Blue orb (cleaner with gradient)
-                const blueGrad = ctx.createRadialGradient(blueScreenX - 3, blueScreenY - 3, 2, blueScreenX, blueScreenY, 12);
-                blueGrad.addColorStop(0, '#aaccff');
-                blueGrad.addColorStop(0.5, '#4488ff');
-                blueGrad.addColorStop(1, '#2244aa');
-                ctx.shadowBlur = 15;
+                // Draw Blue orb (polished with outer glow ring)
+                const blueGrad = ctx.createRadialGradient(blueScreenX - 4, blueScreenY - 4, 0, blueScreenX, blueScreenY, 14);
+                blueGrad.addColorStop(0, '#ffffff');
+                blueGrad.addColorStop(0.3, '#88bbff');
+                blueGrad.addColorStop(0.6, '#4488ff');
+                blueGrad.addColorStop(1, '#1a44aa');
+                
+                // Outer glow ring
+                ctx.shadowBlur = 25;
                 ctx.shadowColor = '#4488ff';
+                ctx.strokeStyle = '#6699ff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(blueScreenX, blueScreenY, 14, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Main orb
                 ctx.fillStyle = blueGrad;
                 ctx.beginPath();
                 ctx.arc(blueScreenX, blueScreenY, 12, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Draw Red orb (cleaner with gradient)
-                const redGrad = ctx.createRadialGradient(redScreenX - 3, redScreenY - 3, 2, redScreenX, redScreenY, 12);
-                redGrad.addColorStop(0, '#ffcccc');
-                redGrad.addColorStop(0.5, '#ff4444');
-                redGrad.addColorStop(1, '#aa2222');
+                // Inner highlight
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.beginPath();
+                ctx.arc(blueScreenX - 3, blueScreenY - 3, 4, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Draw Red orb (polished with outer glow ring)
+                const redGrad = ctx.createRadialGradient(redScreenX - 4, redScreenY - 4, 0, redScreenX, redScreenY, 14);
+                redGrad.addColorStop(0, '#ffffff');
+                redGrad.addColorStop(0.3, '#ffaaaa');
+                redGrad.addColorStop(0.6, '#ff4444');
+                redGrad.addColorStop(1, '#aa1a1a');
+                
+                // Outer glow ring
+                ctx.shadowBlur = 25;
                 ctx.shadowColor = '#ff4444';
+                ctx.strokeStyle = '#ff6666';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(redScreenX, redScreenY, 14, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Main orb
                 ctx.fillStyle = redGrad;
                 ctx.beginPath();
                 ctx.arc(redScreenX, redScreenY, 12, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Inner highlight
+                ctx.shadowBlur = 0;
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.beginPath();
+                ctx.arc(redScreenX - 3, redScreenY - 3, 4, 0, Math.PI * 2);
                 ctx.fill();
                 
                 // Draw fusion center glow (only appears late in fusion)
