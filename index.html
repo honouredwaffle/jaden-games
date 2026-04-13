@@ -87,6 +87,46 @@
         // Spirit projectiles
         const spiritProjectiles = [];
         
+        // Disaster Curses (Bosses)
+        const DISASTER_CURSES = {
+            'JOGO': {
+                name: 'JOGO',
+                biome: 'VOLCANO',
+                hp: 5000,
+                damage: 50,
+                speed: 2.5,
+                size: 60,
+                color: '#ff3300',
+                spawnLocations: [{x: -15000, y: -10000}, {x: -12000, y: 8000}]
+            },
+            'HANAMI': {
+                name: 'HANAMI',
+                biome: 'FOREST',
+                hp: 4500,
+                damage: 45,
+                speed: 3,
+                size: 55,
+                color: '#228b22',
+                spawnLocations: [{x: 5000, y: -12000}, {x: 8000, y: 10000}]
+            },
+            'MAHITO': {
+                name: 'MAHITO',
+                biome: 'CITY',
+                hp: 4000,
+                damage: 60,
+                speed: 4,
+                size: 50,
+                color: '#4a0080',
+                spawnLocations: [{x: 18000, y: -8000}, {x: 22000, y: 5000}]
+            }
+        };
+        
+        let activeDisasterCurse = null;
+        let disasterSpawnTimer = 0;
+        let disasterSpawnCheckInterval = 1800; // 30 seconds at 60fps
+        let disasterNotification = null;
+        let disasterNotifTimer = 0;
+        
         // Abilities
         const abilities = [
             { name: 'BLUE', key: '1', cooldown: 0, maxCooldown: 120, active: false },
@@ -814,6 +854,235 @@
                 spirit.x += spirit.vx;
                 spirit.y += spirit.vy;
             }
+        }
+        
+        function updateDisasterCurse() {
+            if (activeDisasterCurse) {
+                const boss = activeDisasterCurse;
+                const dx = player.x - boss.x;
+                const dy = player.y - boss.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                // Chase player
+                if (dist > 100) {
+                    boss.vx += (dx / dist) * boss.speed * 0.05;
+                    boss.vy += (dy / dist) * boss.speed * 0.05;
+                }
+                
+                // Friction
+                boss.vx *= 0.95;
+                boss.vy *= 0.95;
+                
+                // Update position
+                boss.x += boss.vx;
+                boss.y += boss.vy;
+                
+                // Attack cooldown
+                boss.attackCooldown--;
+                
+                // Regular attacks
+                if (boss.attackCooldown <= 0 && dist < 300) {
+                    // Boss projectile
+                    spiritProjectiles.push({
+                        x: boss.x,
+                        y: boss.y,
+                        vx: (dx / dist) * 8,
+                        vy: (dy / dist) * 8,
+                        damage: boss.damage,
+                        size: 20,
+                        color: boss.color,
+                        life: 200,
+                        type: 'boss'
+                    });
+                    boss.attackCooldown = 40;
+                }
+                
+                // Domain Expansion (every 15 seconds)
+                boss.domainTimer--;
+                if (boss.domainTimer <= 0) {
+                    boss.domainActive = true;
+                    boss.domainTimer = 900; // Reset
+                    // AOE damage to player if in range
+                    if (dist < 400 && player.iframes <= 0) {
+                        player.hp -= boss.damage * 3;
+                        player.iframes = 120;
+                    }
+                }
+                
+                if (boss.domainActive) {
+                    boss.domainDuration--;
+                    if (boss.domainDuration <= 0) {
+                        boss.domainActive = false;
+                        boss.domainDuration = 300;
+                    }
+                }
+                
+                // Check if boss died
+                if (boss.hp <= 0) {
+                    activeDisasterCurse = null;
+                    disasterNotification = { text: 'DISASTER CURSE DEFEATED!', color: '#00ff00' };
+                    disasterNotifTimer = 180;
+                }
+            } else {
+                // Check for spawn
+                disasterSpawnTimer++;
+                if (disasterSpawnTimer >= disasterSpawnCheckInterval) {
+                    disasterSpawnTimer = 0;
+                    if (Math.random() < 0.2) { // 20% chance
+                        spawnDisasterCurse();
+                    }
+                }
+            }
+            
+            // Notification timer
+            if (disasterNotifTimer > 0) {
+                disasterNotifTimer--;
+            }
+        }
+        
+        function spawnDisasterCurse() {
+            const curses = Object.values(DISASTER_CURSES);
+            const curseData = curses[Math.floor(Math.random() * curses.length)];
+            const spawnLoc = curseData.spawnLocations[Math.floor(Math.random() * 2)];
+            
+            activeDisasterCurse = {
+                ...curseData,
+                x: spawnLoc.x,
+                y: spawnLoc.y,
+                vx: 0,
+                vy: 0,
+                attackCooldown: 0,
+                domainTimer: 900,
+                domainActive: false,
+                domainDuration: 300
+            };
+            
+            disasterNotification = { text: `${curseData.name} HAS APPEARED!`, color: '#ff0000' };
+            disasterNotifTimer = 300;
+        }
+        
+        function drawDisasterCurse() {
+            if (!activeDisasterCurse) return;
+            
+            const boss = activeDisasterCurse;
+            const screenX = boss.x - camera.x;
+            const screenY = boss.y - camera.y;
+            
+            ctx.save();
+            
+            // Domain expansion effect
+            if (boss.domainActive) {
+                ctx.fillStyle = 'rgba(100, 0, 100, 0.3)';
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, 400, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.strokeStyle = '#ff00ff';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([10, 10]);
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, 400, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+            
+            // Boss shadow
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.beginPath();
+            ctx.ellipse(screenX, screenY + boss.size * 0.6, boss.size * 0.8, boss.size * 0.3, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Boss body
+            ctx.fillStyle = boss.color;
+            ctx.shadowColor = boss.color;
+            ctx.shadowBlur = 30;
+            
+            // Pulsing effect
+            const pulse = Math.sin(Date.now() * 0.005) * 5;
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, boss.size + pulse, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Inner core
+            ctx.fillStyle = '#000';
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, boss.size * 0.5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Eyes
+            ctx.fillStyle = '#fff';
+            ctx.shadowColor = '#fff';
+            ctx.shadowBlur = 20;
+            ctx.beginPath();
+            ctx.arc(screenX - 15, screenY - 5, 8, 0, Math.PI * 2);
+            ctx.arc(screenX + 15, screenY - 5, 8, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.fillStyle = '#ff0000';
+            ctx.beginPath();
+            ctx.arc(screenX - 15, screenY - 5, 4, 0, Math.PI * 2);
+            ctx.arc(screenX + 15, screenY - 5, 4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            ctx.restore();
+        }
+        
+        function drawBossHealthBar() {
+            if (!activeDisasterCurse) return;
+            
+            const boss = activeDisasterCurse;
+            const barWidth = 600;
+            const barHeight = 30;
+            const x = (canvas.width - barWidth) / 2;
+            const y = 80;
+            
+            // Background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            ctx.fillRect(x - 5, y - 5, barWidth + 10, barHeight + 35);
+            
+            // Name
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 18px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(boss.name, canvas.width / 2, y + 18);
+            
+            // HP Bar background
+            ctx.fillStyle = '#333';
+            ctx.fillRect(x, y + 22, barWidth, barHeight - 5);
+            
+            // HP Bar fill
+            const hpPercent = boss.hp / boss.maxHp;
+            const grad = ctx.createLinearGradient(x, 0, x + barWidth * hpPercent, 0);
+            grad.addColorStop(0, '#ff0000');
+            grad.addColorStop(0.5, '#ff6600');
+            grad.addColorStop(1, '#ffaa00');
+            ctx.fillStyle = grad;
+            ctx.fillRect(x, y + 22, barWidth * hpPercent, barHeight - 5);
+            
+            // HP Text
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 14px "Segoe UI", sans-serif';
+            ctx.fillText(`${Math.floor(boss.hp)}/${boss.maxHp}`, canvas.width / 2, y + 38);
+        }
+        
+        function drawDisasterNotification() {
+            if (disasterNotifTimer <= 0 || !disasterNotification) return;
+            
+            const alpha = Math.min(1, disasterNotifTimer / 60);
+            const y = 150 + Math.sin(Date.now() * 0.01) * 5;
+            
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            
+            // Glow effect
+            ctx.shadowColor = disasterNotification.color;
+            ctx.shadowBlur = 30;
+            ctx.fillStyle = disasterNotification.color;
+            ctx.font = 'bold 48px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(disasterNotification.text, canvas.width / 2, y);
+            
+            ctx.restore();
         }
         
         function updateSpiritProjectiles() {
@@ -1700,13 +1969,17 @@
             updateAbilities();
             updateCursedSpirits();
             updateSpiritProjectiles();
+            updateDisasterCurse();
             drawBiomeGround();
             drawGrid();
             drawBiomeOverlay();
             drawBiomeObjects();
             drawSpiritProjectiles();
             drawCursedSpirits();
+            drawDisasterCurse();
             drawPlayer();
+            drawBossHealthBar();
+            drawDisasterNotification();
             drawAbilityBar();
             drawMinimap();
             drawPlayerBars();
@@ -1787,6 +2060,31 @@
                 const colors = BIOME_COLORS[BIOMES[i]];
                 ctx.fillStyle = colors.ground;
                 ctx.fillRect(biomeX, mapY, biomeWidth, mapHeight);
+            }
+            
+            // Disaster curse spawn locations
+            for (const curse of Object.values(DISASTER_CURSES)) {
+                for (const loc of curse.spawnLocations) {
+                    const locX = mapX + (loc.x + WORLD_WIDTH/2) * scaleX;
+                    const locY = mapY + (loc.y + WORLD_HEIGHT/2) * scaleY;
+                    ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+                    ctx.beginPath();
+                    ctx.arc(locX, locY, 3, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+            }
+            
+            // Active disaster curse
+            if (activeDisasterCurse) {
+                const bossX = mapX + (activeDisasterCurse.x + WORLD_WIDTH/2) * scaleX;
+                const bossY = mapY + (activeDisasterCurse.y + WORLD_HEIGHT/2) * scaleY;
+                ctx.fillStyle = '#ff0000';
+                ctx.shadowColor = '#ff0000';
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(bossX, bossY, 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
             }
             
             // Player dot
