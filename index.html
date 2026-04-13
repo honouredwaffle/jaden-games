@@ -894,6 +894,7 @@
             drawCursedSpirits();
             drawPlayer();
             drawAbilityBar();
+            drawMinimap();
             
             // UI - Coordinates and current biome
             const currentBiome = getBiomeAt(player.x);
@@ -907,6 +908,51 @@
             ctx.fillText(`X: ${Math.floor(player.x)} Y: ${Math.floor(player.y)}`, 20, 35);
             ctx.fillStyle = BIOME_COLORS[currentBiome].grid.replace('0.15', '1');
             ctx.fillText(`BIOME: ${currentBiome}`, 20, 58);
+        }
+        
+        function drawMinimap() {
+            const mapWidth = 200;
+            const mapHeight = 120;
+            const mapX = canvas.width - mapWidth - 20;
+            const mapY = 20;
+            const scaleX = mapWidth / WORLD_WIDTH;
+            const scaleY = mapHeight / WORLD_HEIGHT;
+            
+            // Background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            ctx.fillRect(mapX, mapY, mapWidth, mapHeight);
+            
+            // Biome zones
+            for (let i = 0; i < 5; i++) {
+                const biomeX = mapX + (i * BIOME_WIDTH) * scaleX;
+                const biomeWidth = BIOME_WIDTH * scaleX;
+                const colors = BIOME_COLORS[BIOMES[i]];
+                ctx.fillStyle = colors.ground;
+                ctx.fillRect(biomeX, mapY, biomeWidth, mapHeight);
+            }
+            
+            // Player dot
+            const playerMapX = mapX + (player.x + WORLD_WIDTH/2) * scaleX;
+            const playerMapY = mapY + (player.y + WORLD_HEIGHT/2) * scaleY;
+            
+            ctx.fillStyle = '#00ff00';
+            ctx.shadowColor = '#00ff00';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(playerMapX, playerMapY, 4, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            
+            // Border
+            ctx.strokeStyle = '#e94560';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(mapX, mapY, mapWidth, mapHeight);
+            
+            // Label
+            ctx.fillStyle = '#fff';
+            ctx.font = '12px "Segoe UI", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText('MAP', mapX, mapY - 8);
         }
 
         function loop() {
