@@ -157,7 +157,7 @@
             y: 0,
             vx: 0,
             vy: 0,
-            radius: 18,
+            radius: 14,
             speed: 12,
             damage: 80,
             life: 120
@@ -2168,7 +2168,7 @@
                 ctx.shadowBlur = 30;
                 ctx.fillStyle = 'rgba(255, 50, 50, 0.15)';
                 ctx.beginPath();
-                ctx.arc(screenX, screenY, reversalRed.radius + 15, 0, Math.PI * 2);
+                ctx.arc(screenX, screenY, reversalRed.radius + 10, 0, Math.PI * 2);
                 ctx.fill();
 
                 // Main red orb (transparent)
@@ -2189,14 +2189,14 @@
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
                 ctx.shadowBlur = 10;
                 ctx.beginPath();
-                ctx.arc(screenX, screenY, 6, 0, Math.PI * 2);
+                ctx.arc(screenX, screenY, 4, 0, Math.PI * 2);
                 ctx.fill();
 
                 // Beams of light surrounding and circling the orb
                 const beamCount = 8;
                 for (let i = 0; i < beamCount; i++) {
                     const angle = (i / beamCount) * Math.PI * 2 + time * 0.5;
-                    const orbitRadius = reversalRed.radius + 25;
+                    const orbitRadius = reversalRed.radius + 18;
 
                     // Beam start position (orbiting around the orb)
                     const startX = screenX + Math.cos(angle) * orbitRadius;
@@ -2240,7 +2240,7 @@
                 ctx.font = 'bold 16px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
                 ctx.shadowBlur = 5;
-                ctx.fillText(`${Math.floor(chargeProgress * 100)}%`, screenX, screenY - reversalRed.radius - 20);
+                ctx.fillText(`${Math.floor(chargeProgress * 100)}%`, screenX, screenY - reversalRed.radius - 15);
 
                 ctx.restore();
                 return;
