@@ -2559,14 +2559,6 @@
                 
                 ctx.save();
                 
-                // Draw connecting energy line between orbs
-                ctx.strokeStyle = `rgba(180, 50, 255, ${0.3 + fusionProgress * 0.5})`;
-                ctx.lineWidth = 3 + fusionProgress * 5;
-                ctx.beginPath();
-                ctx.moveTo(blueScreenX, blueScreenY);
-                ctx.lineTo(redScreenX, redScreenY);
-                ctx.stroke();
-                
                 // Draw Blue orb
                 ctx.shadowBlur = 20;
                 ctx.shadowColor = '#4444ff';
