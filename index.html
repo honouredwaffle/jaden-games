@@ -67,6 +67,28 @@
         
         let currentMenu = titleOptions;
         let selectedCharacter = 'GOJO';
+        let gameMode = 'STORY';
+        
+        // Player
+        const player = {
+            x: 0,
+            y: 0,
+            speed: 5,
+            radius: 15,
+            color: '#00aaff'
+        };
+        
+        // Camera
+        const camera = {
+            x: 0,
+            y: 0
+        };
+        
+        // Keys
+        const keys = {};
+        
+        // World size
+        const WORLD_SIZE = 5000;
         
         // Particles
         const particles = [];
@@ -310,16 +332,99 @@
             ctx.fillText('Click to select  |  ESC to go back', canvas.width / 2, canvas.height - 30);
         }
 
+        function updatePlayer() {
+            // WASD movement
+            let dx = 0;
+            let dy = 0;
+            if (keys['w'] || keys['W']) dy -= 1;
+            if (keys['s'] || keys['S']) dy += 1;
+            if (keys['a'] || keys['A']) dx -= 1;
+            if (keys['d'] || keys['D']) dx += 1;
+            
+            // Normalize diagonal movement
+            if (dx !== 0 || dy !== 0) {
+                const len = Math.sqrt(dx * dx + dy * dy);
+                dx /= len;
+                dy /= len;
+                player.x += dx * player.speed;
+                player.y += dy * player.speed;
+            }
+            
+            // Keep player in world bounds
+            player.x = Math.max(-WORLD_SIZE/2, Math.min(WORLD_SIZE/2, player.x));
+            player.y = Math.max(-WORLD_SIZE/2, Math.min(WORLD_SIZE/2, player.y));
+            
+            // Update camera to follow player
+            camera.x = player.x - canvas.width / 2;
+            camera.y = player.y - canvas.height / 2;
+        }
+        
+        function drawGrid() {
+            const gridSize = 100;
+            const startX = Math.floor(camera.x / gridSize) * gridSize;
+            const startY = Math.floor(camera.y / gridSize) * gridSize;
+            const endX = startX + canvas.width + gridSize;
+            const endY = startY + canvas.height + gridSize;
+            
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.lineWidth = 1;
+            
+            for (let x = startX; x < endX; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x - camera.x, 0);
+                ctx.lineTo(x - camera.x, canvas.height);
+                ctx.stroke();
+            }
+            
+            for (let y = startY; y < endY; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y - camera.y);
+                ctx.lineTo(canvas.width, y - camera.y);
+                ctx.stroke();
+            }
+        }
+        
+        function drawPlayer() {
+            const screenX = player.x - camera.x;
+            const screenY = player.y - camera.y;
+            
+            // Player shadow
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+            ctx.beginPath();
+            ctx.ellipse(screenX, screenY + player.radius, player.radius, player.radius * 0.5, 0, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Player body
+            ctx.save();
+            ctx.shadowColor = player.color;
+            ctx.shadowBlur = 20;
+            ctx.fillStyle = player.color;
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, player.radius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            
+            // Inner glow
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, player.radius * 0.4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+        
         function drawGame() {
-            ctx.fillStyle = '#1a1a2e';
+            // Clear with dark background
+            ctx.fillStyle = '#0d1117';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            ctx.fillStyle = '#fff';
-            ctx.font = '48px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('Game Starts Here', canvas.width / 2, canvas.height / 2);
-            ctx.font = '24px sans-serif';
-            ctx.fillText(`Character: ${selectedCharacter}`, canvas.width / 2, canvas.height / 2 + 50);
+            updatePlayer();
+            drawGrid();
+            drawPlayer();
+            
+            // Coordinates display
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.font = '14px "Segoe UI", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(`X: ${Math.floor(player.x)} Y: ${Math.floor(player.y)}`, 20, 30);
         }
 
         function loop() {
@@ -365,6 +470,10 @@
                     currentMenu = titleOptions;
                     selectedOption = 0;
                 } else {
+                    gameMode = option === 'OPEN WORLD' ? 'OPEN_WORLD' : 'STORY';
+                    // Reset player position
+                    player.x = 0;
+                    player.y = 0;
                     screen = 'game';
                 }
             } else if (screen === 'character') {
@@ -401,19 +510,27 @@
 
         // Keyboard still works
         window.addEventListener('keydown', (e) => {
-            if (e.key === 'ArrowUp') {
-                selectedOption = (selectedOption - 1 + currentMenu.length) % currentMenu.length;
-            } else if (e.key === 'ArrowDown') {
-                selectedOption = (selectedOption + 1) % currentMenu.length;
-            } else if (e.key === 'Enter') {
-                handleSelect();
-            } else if (e.key === 'Escape') {
-                if (screen !== 'title' && screen !== 'game') {
-                    screen = 'title';
-                    currentMenu = titleOptions;
-                    selectedOption = 0;
+            keys[e.key] = true;
+            
+            if (screen !== 'game') {
+                if (e.key === 'ArrowUp') {
+                    selectedOption = (selectedOption - 1 + currentMenu.length) % currentMenu.length;
+                } else if (e.key === 'ArrowDown') {
+                    selectedOption = (selectedOption + 1) % currentMenu.length;
+                } else if (e.key === 'Enter') {
+                    handleSelect();
+                } else if (e.key === 'Escape') {
+                    if (screen !== 'title') {
+                        screen = 'title';
+                        currentMenu = titleOptions;
+                        selectedOption = 0;
+                    }
                 }
             }
+        });
+        
+        window.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
         });
 
         loop();
