@@ -96,6 +96,9 @@
         // Spirit projectiles
         const spiritProjectiles = [];
         
+        // Damage numbers that appear on enemies
+        let damageNumbers = [];
+        
         // Disaster Curses (Bosses)
         // Biome boundaries: SNOW -20000 to -10000, FOREST -10000 to 0, VOLCANO 0 to 10000, CITY 10000 to 20000, SAND 20000 to 25000
         const DISASTER_CURSES = {
@@ -230,7 +233,7 @@
         
         // Cursed spirits
         const cursedSpirits = [];
-        const SPIRIT_COUNT = 1000;
+        const SPIRIT_COUNT = 500;
         
         const SPIRIT_GRADES = {
             'GRADE_4': { hp: 30, damage: 5, speed: 1, size: 12, spawnRate: 0.4, attackRange: 60, attackCooldown: 60, projectileSpeed: 3, closeRange: 30 },
@@ -2103,10 +2106,12 @@
                 
                 // Activate abilities
                 if (index === 0) { // Max Blue
-                    maxBlue.active = true;
-                    maxBlue.timer = maxBlue.duration;
-                } else if (index === 1) { // Reversal Red
                     if (!reversalRed.active && !reversalRed.charging) {
+                        maxBlue.active = true;
+                        maxBlue.timer = maxBlue.duration;
+                    }
+                } else if (index === 1) { // Reversal Red
+                    if (!reversalRed.active && !reversalRed.charging && !maxBlue.active) {
                         reversalRed.charging = true;
                         reversalRed.chargeTime = reversalRed.maxChargeTime;
                     }
@@ -2152,6 +2157,8 @@
                 const hitDist = reversalRed.radius * 2 + spirit.size;
                 if (dist < hitDist) {
                     spirit.hp -= reversalRed.damage;
+                    addDamageCounter(reversalRed.damage);
+                    addDamageNumber(spirit.x, spirit.y, reversalRed.damage);
                     if (spirit.hp <= 0) {
                         cursedSpirits.splice(i, 1);
                     }
@@ -2167,7 +2174,10 @@
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
                 if (dist < reversalRed.radius * 2 + activeDisasterCurse.size) {
-                    activeDisasterCurse.hp -= reversalRed.damage * 2;
+                    const dmg = reversalRed.damage * 2;
+                    activeDisasterCurse.hp -= dmg;
+                    addDamageCounter(dmg);
+                    addDamageNumber(activeDisasterCurse.x, activeDisasterCurse.y, dmg);
                     reversalRed.active = false;
                 }
             }
@@ -2399,6 +2409,10 @@
                         spirit.hp = 0;
                     }
                     addDamageCounter(damage);
+                    // Only show damage number occasionally to avoid spam
+                    if (Math.random() < 0.1) {
+                        addDamageNumber(spirit.x, spirit.y - spirit.size, Math.floor(damage * 10) / 10);
+                    }
                 }
             }
             
@@ -2417,6 +2431,9 @@
                     const bossDamage = 0.3;
                     activeDisasterCurse.hp -= bossDamage;
                     addDamageCounter(bossDamage);
+                    if (Math.random() < 0.1) {
+                        addDamageNumber(activeDisasterCurse.x, activeDisasterCurse.y - activeDisasterCurse.size, Math.floor(bossDamage * 10) / 10);
+                    }
                 }
             }
             
@@ -2608,6 +2625,7 @@
             updateReversalRed();
             updateCursedSpirits();
             updateDamageCounter();
+            updateDamageNumbers();
             updateSpiritProjectiles();
             updateDisasterCurse();
             
@@ -2635,6 +2653,7 @@
             drawPlayer();
             drawBossHealthBar();
             drawDamageCounter();
+            drawDamageNumbers();
             drawDisasterNotification();
             drawAbilityBar();
             drawMinimap();
@@ -2657,6 +2676,46 @@
         function addDamageCounter(damage) {
             damageCounter.total += damage;
             damageCounter.timer = damageCounter.maxTime;
+        }
+        
+        function addDamageNumber(x, y, damage) {
+            damageNumbers.push({
+                x: x,
+                y: y,
+                damage: Math.floor(damage),
+                life: 60, // 1 second
+                vy: -1 // float up
+            });
+        }
+        
+        function updateDamageNumbers() {
+            for (let i = damageNumbers.length - 1; i >= 0; i--) {
+                const num = damageNumbers[i];
+                num.y += num.vy;
+                num.life--;
+                if (num.life <= 0) {
+                    damageNumbers.splice(i, 1);
+                }
+            }
+        }
+        
+        function drawDamageNumbers() {
+            for (const num of damageNumbers) {
+                const screenX = num.x - camera.x;
+                const screenY = num.y - camera.y;
+                const alpha = Math.min(1, num.life / 20);
+                
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = '#ff4444';
+                ctx.strokeStyle = '#000';
+                ctx.lineWidth = 2;
+                ctx.font = 'bold 16px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.strokeText(num.damage, screenX, screenY);
+                ctx.fillText(num.damage, screenX, screenY);
+                ctx.restore();
+            }
         }
         
         function updateDamageCounter() {
