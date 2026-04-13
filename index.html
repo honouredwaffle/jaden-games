@@ -2175,7 +2175,7 @@
                 ctx.save();
 
                 // Dark vortex background
-                const vortexSize = 80 + chargeProgress * 60;
+                const vortexSize = 45 + chargeProgress * 25;
                 ctx.fillStyle = `rgba(50, 0, 0, ${0.3 + chargeProgress * 0.3})`;
                 ctx.beginPath();
                 ctx.arc(screenX, screenY, vortexSize, 0, Math.PI * 2);
@@ -2368,7 +2368,7 @@
             const orbWorldX = player.x + Math.cos(maxBlue.angle) * maxBlue.radius;
             const orbWorldY = player.y + Math.sin(maxBlue.angle) * maxBlue.radius;
             
-            // Pull nearby spirits - only near the orb
+            // Pull and damage nearby spirits - only near the orb
             for (const spirit of cursedSpirits) {
                 const dx = orbWorldX - spirit.x;
                 const dy = orbWorldY - spirit.y;
@@ -2378,10 +2378,16 @@
                     const pullStrength = (1 - dist / maxBlue.orbPullRadius) * 4;
                     spirit.vx += (dx / dist) * pullStrength;
                     spirit.vy += (dy / dist) * pullStrength;
+                    
+                    // Damage over time when in orb radius
+                    spirit.hp -= 0.5;
+                    if (spirit.hp <= 0) {
+                        spirit.hp = 0;
+                    }
                 }
             }
             
-            // Pull disaster curse if active - only near the orb
+            // Pull and damage disaster curse if active - only near the orb
             if (activeDisasterCurse) {
                 const dx = orbWorldX - activeDisasterCurse.x;
                 const dy = orbWorldY - activeDisasterCurse.y;
@@ -2391,6 +2397,9 @@
                     const pullStrength = (1 - dist / maxBlue.orbPullRadius) * 3;
                     activeDisasterCurse.vx += (dx / dist) * pullStrength;
                     activeDisasterCurse.vy += (dy / dist) * pullStrength;
+                    
+                    // Damage boss when in orb radius
+                    activeDisasterCurse.hp -= 0.3;
                 }
             }
             
