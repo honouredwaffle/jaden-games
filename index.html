@@ -2629,16 +2629,14 @@
             updateSpiritProjectiles();
             updateDisasterCurse();
             
-            // Check player death
+            // Check player death - boss stays alive
             if (player.hp <= 0) {
                 player.hp = 0;
                 player.x = 0;
                 player.y = 0;
                 player.hp = player.maxHp;
                 player.ce = player.maxCe;
-                if (activeDisasterCurse) {
-                    activeDisasterCurse = null;
-                }
+                // Boss stays active - remove the null assignment
             }
             
             drawBiomeGround();
