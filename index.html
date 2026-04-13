@@ -2158,85 +2158,88 @@
             if (reversalRed.charging) {
                 const screenX = reversalRed.x - camera.x;
                 const screenY = reversalRed.y - camera.y;
-                const time = Date.now() * 0.01;
+                const time = Date.now() * 0.008;
                 const chargeProgress = 1 - (reversalRed.chargeTime / reversalRed.maxChargeTime);
-                
+
                 ctx.save();
-                
-                // Pulsing glow that gets more intense (transparent red)
-                const glowIntensity = 15 + chargeProgress * 30;
-                ctx.shadowColor = '#ff3333';
-                ctx.shadowBlur = glowIntensity;
-                ctx.fillStyle = `rgba(255, ${80 - chargeProgress * 30}, 80, ${0.2 + chargeProgress * 0.25})`;
+
+                // Red orb glow
+                ctx.shadowColor = '#ff2222';
+                ctx.shadowBlur = 40;
+                ctx.fillStyle = 'rgba(255, 50, 50, 0.3)';
                 ctx.beginPath();
-                ctx.arc(screenX, screenY, reversalRed.radius + chargeProgress * 20, 0, Math.PI * 2);
+                ctx.arc(screenX, screenY, reversalRed.radius + 15, 0, Math.PI * 2);
                 ctx.fill();
-                
-                // Main charge orb (more transparent but visible red)
-                ctx.globalAlpha = 0.6;
-                const orbGrad = ctx.createRadialGradient(screenX - 8, screenY - 8, 0, screenX, screenY, reversalRed.radius);
-                orbGrad.addColorStop(0, 'rgba(255, 255, 255, 0.7)');
-                orbGrad.addColorStop(0.3, 'rgba(255, 100, 100, 0.6)');
-                orbGrad.addColorStop(0.6, 'rgba(255, 50, 50, 0.5)');
-                orbGrad.addColorStop(1, 'rgba(200, 0, 0, 0.4)');
+
+                // Main red orb
+                const orbGrad = ctx.createRadialGradient(screenX - 6, screenY - 6, 0, screenX, screenY, reversalRed.radius);
+                orbGrad.addColorStop(0, '#ffcccc');
+                orbGrad.addColorStop(0.4, '#ff6666');
+                orbGrad.addColorStop(0.8, '#ff2222');
+                orbGrad.addColorStop(1, '#cc0000');
                 ctx.fillStyle = orbGrad;
-                ctx.shadowColor = '#ff3333';
                 ctx.shadowBlur = 25;
                 ctx.beginPath();
                 ctx.arc(screenX, screenY, reversalRed.radius, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.globalAlpha = 1;
-                
-                // Inner core
+
+                // Inner bright core
                 ctx.fillStyle = '#fff';
-                ctx.shadowBlur = 15;
-                ctx.beginPath();
-                ctx.arc(screenX, screenY, 10, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Bending light beams that circle the orb
-                const beamCount = 12;
-                for (let i = 0; i < beamCount; i++) {
-                    const baseAngle = (i / beamCount) * Math.PI * 2;
-                    const rotationSpeed = 0.12 * (i % 2 === 0 ? 1 : -1);
-                    const beamAngle = baseAngle + time * rotationSpeed;
-                    const beamLength = 70 + chargeProgress * 50;
-                    const bendAmount = 25 + chargeProgress * 35;
-                    
-                    ctx.strokeStyle = `rgba(255, ${150 + i * 8}, ${150 + i * 8}, ${0.25 + chargeProgress * 0.25})`;
-                    ctx.lineWidth = 5;
-                    ctx.shadowColor = '#ff6666';
-                    ctx.shadowBlur = 15;
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(screenX, screenY);
-                    
-                    // Create bending curve
-                    const midX = screenX + Math.cos(beamAngle) * (beamLength * 0.5) + Math.cos(beamAngle + Math.PI / 2) * bendAmount;
-                    const midY = screenY + Math.sin(beamAngle) * (beamLength * 0.5) + Math.sin(beamAngle + Math.PI / 2) * bendAmount;
-                    const endX = screenX + Math.cos(beamAngle) * beamLength;
-                    const endY = screenY + Math.sin(beamAngle) * beamLength;
-                    
-                    ctx.quadraticCurveTo(midX, midY, endX, endY);
-                    ctx.stroke();
-                }
-                
-                // Spinning energy ring
-                ctx.strokeStyle = '#ffaaaa';
-                ctx.lineWidth = 2;
                 ctx.shadowBlur = 10;
                 ctx.beginPath();
-                const ringRadius = reversalRed.radius + 10 + Math.sin(time * 5) * 5;
-                ctx.arc(screenX, screenY, ringRadius, time * 2, time * 2 + Math.PI * 1.5);
+                ctx.arc(screenX, screenY, 8, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Beams of light surrounding and circling the orb
+                const beamCount = 8;
+                for (let i = 0; i < beamCount; i++) {
+                    const angle = (i / beamCount) * Math.PI * 2 + time * 0.5;
+                    const orbitRadius = reversalRed.radius + 25;
+
+                    // Beam start position (orbiting around the orb)
+                    const startX = screenX + Math.cos(angle) * orbitRadius;
+                    const startY = screenY + Math.sin(angle) * orbitRadius;
+
+                    // Beam extends outward
+                    const beamLength = 40 + chargeProgress * 30;
+                    const endX = startX + Math.cos(angle) * beamLength;
+                    const endY = startY + Math.sin(angle) * beamLength;
+
+                    // Draw beam
+                    ctx.strokeStyle = `rgba(255, ${200 + i * 5}, ${200 + i * 5}, 0.7)`;
+                    ctx.lineWidth = 6;
+                    ctx.shadowColor = '#ff5555';
+                    ctx.shadowBlur = 20;
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(endX, endY);
+                    ctx.stroke();
+
+                    // Beam glow
+                    ctx.strokeStyle = `rgba(255, 255, 255, 0.4)`;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(startX, startY);
+                    ctx.lineTo(endX, endY);
+                    ctx.stroke();
+                }
+
+                // Outer spinning ring
+                ctx.strokeStyle = 'rgba(255, 100, 100, 0.6)';
+                ctx.lineWidth = 3;
+                ctx.shadowBlur = 15;
+                ctx.beginPath();
+                const ringRadius = reversalRed.radius + 35;
+                ctx.arc(screenX, screenY, ringRadius, time, time + Math.PI * 2);
                 ctx.stroke();
-                
-                // Charge percentage text
+
+                // Charge percentage
                 ctx.fillStyle = '#fff';
-                ctx.font = 'bold 14px "Segoe UI", sans-serif';
+                ctx.font = 'bold 16px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
                 ctx.shadowBlur = 5;
-                ctx.fillText(`${Math.floor(chargeProgress * 100)}%`, screenX, screenY - reversalRed.radius - 15);
-                
+                ctx.fillText(`${Math.floor(chargeProgress * 100)}%`, screenX, screenY - reversalRed.radius - 20);
+
                 ctx.restore();
                 return;
             }
