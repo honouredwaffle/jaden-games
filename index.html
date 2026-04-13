@@ -1084,10 +1084,14 @@
             const floatY = Math.sin(time) * 2;
             const drawY = screenY + floatY;
             
+            // Movement animation
+            const isMoving = keys['w'] || keys['W'] || keys['s'] || keys['S'] || keys['a'] || keys['A'] || keys['d'] || keys['D'];
+            const walkCycle = isMoving ? Math.sin(time * 4) : 0;
+            
             // Shadow
             ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
             ctx.beginPath();
-            ctx.ellipse(screenX, screenY + player.radius + 8, player.radius * 0.7, player.radius * 0.25, 0, 0, Math.PI * 2);
+            ctx.ellipse(screenX, screenY + player.radius + 25, player.radius * 0.8, player.radius * 0.3, 0, 0, Math.PI * 2);
             ctx.fill();
             
             // Infinite aura rings (Limitless)
@@ -1103,10 +1107,51 @@
             }
             ctx.restore();
             
-            // Body
             ctx.save();
             ctx.shadowColor = '#00aaff';
-            ctx.shadowBlur = 20;
+            ctx.shadowBlur = 15;
+            
+            // Legs
+            ctx.strokeStyle = '#1a1a2e';
+            ctx.lineWidth = 5;
+            ctx.lineCap = 'round';
+            
+            // Left leg
+            ctx.beginPath();
+            ctx.moveTo(screenX - 6, drawY + player.radius);
+            ctx.lineTo(screenX - 8, drawY + player.radius + 15 + walkCycle * 3);
+            ctx.lineTo(screenX - 8, drawY + player.radius + 25);
+            ctx.stroke();
+            
+            // Right leg
+            ctx.beginPath();
+            ctx.moveTo(screenX + 6, drawY + player.radius);
+            ctx.lineTo(screenX + 8, drawY + player.radius + 15 - walkCycle * 3);
+            ctx.lineTo(screenX + 8, drawY + player.radius + 25);
+            ctx.stroke();
+            
+            // Arms
+            ctx.lineWidth = 4;
+            
+            // Left arm
+            ctx.beginPath();
+            ctx.moveTo(screenX - player.radius + 2, drawY);
+            ctx.lineTo(screenX - player.radius - 8, drawY + 8 - walkCycle * 2);
+            ctx.lineTo(screenX - player.radius - 6, drawY + 18);
+            ctx.stroke();
+            
+            // Right arm
+            ctx.beginPath();
+            ctx.moveTo(screenX + player.radius - 2, drawY);
+            ctx.lineTo(screenX + player.radius + 8, drawY + 8 + walkCycle * 2);
+            ctx.lineTo(screenX + player.radius + 6, drawY + 18);
+            ctx.stroke();
+            
+            // Body (torso)
+            ctx.fillStyle = '#1a1a2e';
+            ctx.beginPath();
+            ctx.roundRect(screenX - 8, drawY + player.radius - 5, 16, 12, 3);
+            ctx.fill();
             
             // White hair/back
             ctx.fillStyle = '#f0f0f0';
