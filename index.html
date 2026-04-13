@@ -2136,7 +2136,7 @@
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
                 // Larger hitbox for easier collision
-                const hitDist = reversalRed.radius * 0.6 + spirit.size;
+                const hitDist = reversalRed.radius * 2 + spirit.size;
                 if (dist < hitDist) {
                     spirit.hp -= reversalRed.damage;
                     if (spirit.hp <= 0) {
@@ -2153,7 +2153,7 @@
                 const dy = reversalRed.y - activeDisasterCurse.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
-                if (dist < reversalRed.radius + activeDisasterCurse.size) {
+                if (dist < reversalRed.radius * 2 + activeDisasterCurse.size) {
                     activeDisasterCurse.hp -= reversalRed.damage * 2;
                     reversalRed.active = false;
                 }
@@ -2185,7 +2185,7 @@
                 const waveCount = 4;
                 for (let w = 0; w < waveCount; w++) {
                     const waveProgress = ((time * 40 + w * 25) % 60) / 60;
-                    const waveRadius = 20 + waveProgress * 70;
+                    const waveRadius = 15 + waveProgress * 35;
                     const alpha = (1 - waveProgress) * (0.4 + chargeProgress * 0.3);
                     
                     ctx.strokeStyle = `rgba(255, ${120 + w * 30}, ${120 + w * 30}, ${alpha})`;
