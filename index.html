@@ -107,6 +107,9 @@
         
         // Disaster Curses (Bosses)
         // Biome boundaries: SNOW -20000 to -10000, FOREST -10000 to 0, VOLCANO 0 to 10000, CITY 10000 to 20000, SAND 20000 to 25000
+        // Biome size constant (defined early for use in spawn locations)
+        const BIOME_SIZE = 12000;
+
         const DISASTER_CURSES = {
             'JOGO': {
                 name: 'JOGO',
@@ -216,7 +219,6 @@
         // World size
         const WORLD_WIDTH = 50000;
         const WORLD_HEIGHT = 50000;
-        const BIOME_SIZE = 12000; // Size of each biome region
         
         // Biomes: Snow, Forest, Volcano, City, Sand
         // Layout: Forest in center, others around it
