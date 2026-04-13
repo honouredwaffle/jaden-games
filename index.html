@@ -61,6 +61,13 @@
         let mouseWorldY = 0;
         let menuItemRects = []; // Store clickable areas
         
+        // Damage counter
+        let damageCounter = {
+            total: 0,
+            timer: 0,
+            maxTime: 240 // 4 seconds at 60fps
+        };
+        
         // Menu options
         const titleOptions = ['PLAY', 'MODES', 'CHARACTER', 'CUSTOMISATION'];
         const modeOptions = ['STORY MODE', 'OPEN WORLD', 'BACK'];
@@ -2386,10 +2393,12 @@
                     spirit.vy += (dy / dist) * pullStrength;
                     
                     // Damage over time when in orb radius
-                    spirit.hp -= 0.5;
+                    const damage = 0.6;
+                    spirit.hp -= damage;
                     if (spirit.hp <= 0) {
                         spirit.hp = 0;
                     }
+                    addDamageCounter(damage);
                 }
             }
             
@@ -2405,7 +2414,9 @@
                     activeDisasterCurse.vy += (dy / dist) * pullStrength;
                     
                     // Damage boss when in orb radius
-                    activeDisasterCurse.hp -= 0.3;
+                    const bossDamage = 0.3;
+                    activeDisasterCurse.hp -= bossDamage;
+                    addDamageCounter(bossDamage);
                 }
             }
             
@@ -2596,6 +2607,7 @@
             updateMaxBlue();
             updateReversalRed();
             updateCursedSpirits();
+            updateDamageCounter();
             updateSpiritProjectiles();
             updateDisasterCurse();
             
@@ -2622,6 +2634,7 @@
             drawReversalRed();
             drawPlayer();
             drawBossHealthBar();
+            drawDamageCounter();
             drawDisasterNotification();
             drawAbilityBar();
             drawMinimap();
@@ -2639,6 +2652,53 @@
             ctx.fillText(`X: ${Math.floor(player.x)} Y: ${Math.floor(player.y)}`, 20, 95);
             ctx.fillStyle = BIOME_COLORS[currentBiome].grid.replace('0.15', '1');
             ctx.fillText(`BIOME: ${currentBiome}`, 20, 118);
+        }
+        
+        function addDamageCounter(damage) {
+            damageCounter.total += damage;
+            damageCounter.timer = damageCounter.maxTime;
+        }
+        
+        function updateDamageCounter() {
+            if (damageCounter.timer > 0) {
+                damageCounter.timer--;
+                if (damageCounter.timer <= 0) {
+                    damageCounter.total = 0;
+                }
+            }
+        }
+        
+        function drawDamageCounter() {
+            if (damageCounter.timer <= 0) return;
+            
+            const alpha = Math.min(1, damageCounter.timer / 60);
+            const x = canvas.width - 150;
+            const y = 200;
+            
+            ctx.save();
+            ctx.globalAlpha = alpha;
+            
+            // Background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(x, y, 130, 50);
+            
+            // Border
+            ctx.strokeStyle = '#ff4444';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(x, y, 130, 50);
+            
+            // Label
+            ctx.fillStyle = '#aaa';
+            ctx.font = '12px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('DAMAGE', x + 65, y + 18);
+            
+            // Value
+            ctx.fillStyle = '#ff4444';
+            ctx.font = 'bold 24px "Segoe UI", sans-serif';
+            ctx.fillText(Math.floor(damageCounter.total), x + 65, y + 40);
+            
+            ctx.restore();
         }
         
         function drawPlayerBars() {
