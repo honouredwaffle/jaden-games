@@ -5100,6 +5100,12 @@
         }
         
         function drawGame() {
+            // DEBUG FIRST - before anything else
+            ctx.fillStyle = '#ff0000';
+            ctx.font = 'bold 20px "Segoe UI", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText('GAME IS RUNNING', 20, 30);
+            
             // Ensure canvas has valid dimensions
             if (canvas.width < 100 || canvas.height < 100) {
                 resize();
