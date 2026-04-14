@@ -1324,8 +1324,8 @@
             ctx.fillStyle = '#3d5a35';
             ctx.fillRect(screenX, screenY, tileSize, tileSize);
             
-            // Deterministic seed based on position
-            const seed = Math.floor(x / tileSize) * 137 + Math.floor(y / tileSize) * 241;
+            // Deterministic seed based on position (use Math.abs to ensure positive)
+            const seed = Math.abs(Math.floor(x / tileSize) * 137 + Math.floor(y / tileSize) * 241);
             
             // Dappled sunlight spots (deterministic)
             ctx.fillStyle = '#6a9a50';
@@ -1335,7 +1335,7 @@
                 const size = 10 + ((seed + i * 13) % 25);
                 ctx.globalAlpha = 0.2 + ((seed + i * 17) % 30) / 100;
                 ctx.beginPath();
-                ctx.arc(sx, sy, size, 0, Math.PI * 2);
+                ctx.arc(sx, sy, Math.max(1, size), 0, Math.PI * 2);
                 ctx.fill();
             }
             
@@ -1389,8 +1389,8 @@
             ctx.fillStyle = '#1a1210';
             ctx.fillRect(screenX, screenY, tileSize, tileSize);
             
-            // Deterministic seed based on position
-            const crackSeed = Math.floor((x + y) / 100);
+            // Deterministic seed based on position (use Math.abs to ensure positive)
+            const crackSeed = Math.abs(Math.floor((x + y) / 100));
             
             // Lava cracks - glowing orange lines
             ctx.strokeStyle = '#ff4400';
