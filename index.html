@@ -20,15 +20,17 @@
             overflow: hidden;
         }
         #game-container {
-            position: relative;
+            position: fixed;
+            top: 0;
+            left: 0;
             width: 100%;
-            max-width: 1200px;
-            aspect-ratio: 16/9;
+            height: 100%;
+            max-width: none;
         }
         canvas {
             display: block;
-            width: 100%;
-            height: 100%;
+            width: 100vw;
+            height: 100vh;
             cursor: pointer;
         }
     </style>
@@ -43,11 +45,34 @@
         
         function resize() {
             const container = document.getElementById('game-container');
-            canvas.width = container.clientWidth;
-            canvas.height = container.clientHeight;
+            const rect = container.getBoundingClientRect();
+            
+            // Get actual display size
+            const displayWidth = Math.floor(rect.width);
+            const displayHeight = Math.floor(rect.height);
+            
+            // Only resize if dimensions are valid and different
+            if (displayWidth > 0 && displayHeight > 0) {
+                if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+                    canvas.width = displayWidth;
+                    canvas.height = displayHeight;
+                }
+            } else {
+                // Fallback to window size if container has no size
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
         }
+        
+        // Resize immediately and multiple times to ensure proper dimensions
         resize();
         window.addEventListener('resize', resize);
+        
+        // Also resize on load and after short delays
+        window.addEventListener('load', resize);
+        setTimeout(resize, 50);
+        setTimeout(resize, 200);
+        setTimeout(resize, 500);
         
         // Initial clear to prevent black screen on load
         ctx.fillStyle = '#1a0a2e';
@@ -113,6 +138,7 @@
         // Biome boundaries: SNOW -20000 to -10000, FOREST -10000 to 0, VOLCANO 0 to 10000, CITY 10000 to 20000, SAND 20000 to 25000
         // Biome size constant (defined early for use in spawn locations)
         const BIOME_SIZE = 12000;
+        const BIOME_WIDTH = 10000; // Legacy constant for minimap and overlay calculations
 
         const DISASTER_CURSES = {
             'JOGO': {
@@ -123,7 +149,7 @@
                 speed: 2.5,
                 size: 60,
                 color: '#ff3300',
-                spawnLocations: [{x: -BIOME_SIZE - 2000, y: -3000}, {x: -BIOME_SIZE + 3000, y: 4000}] // VOLCANO: left of forest
+                spawnLocations: [{x: -BIOME_SIZE * 0.8 - 2000, y: -BIOME_SIZE * 0.8 - 2000}, {x: -BIOME_SIZE * 0.8 + 3000, y: -BIOME_SIZE * 0.8 + 2000}] // VOLCANO: top-left
             },
             'HANAMI': {
                 name: 'HANAMI',
@@ -143,7 +169,7 @@
                 speed: 4,
                 size: 50,
                 color: '#4a0080',
-                spawnLocations: [{x: BIOME_SIZE - 2000, y: -3000}, {x: BIOME_SIZE + 3000, y: 4000}] // CITY: right of forest
+                spawnLocations: [{x: BIOME_SIZE * 0.8 + 2000, y: BIOME_SIZE * 0.8 + 2000}, {x: BIOME_SIZE * 0.8 - 2000, y: BIOME_SIZE * 0.8 + 3000}] // CITY: bottom-right
             }
         };
         
@@ -167,7 +193,7 @@
             angle: 0,
             radius: 140,
             orbPullRadius: 180,
-            duration: 480,
+            duration: 240, // 4 seconds (was 8)
             timer: 0,
             debris: []
         };
@@ -211,6 +237,26 @@
             redOrb: { x: 0, y: 0, angle: Math.PI }
         };
         
+        // Domain Expansion state
+        let playerDomain = {
+            active: false,
+            phase: 'expanding', // expanding, lines, cosmic, paint, active
+            phaseTimer: 0,
+            radius: 0,
+            maxRadius: 800,
+            duration: 1800, // 30 seconds at 60fps
+            centerX: 0, // Domain center world position
+            centerY: 0,
+            lines: [], // Speed lines
+            stars: [], // Background stars
+            galaxies: [], // Swirling galaxies
+            blackHole: { angle: 0, accretionRadius: 140 },
+            paintSplats: [], // White paint splatters
+            frozenEnemies: [], // Track which enemies are frozen
+            footstepRipples: [],
+            footstepDistance: 0
+        };
+        
         // Camera
         const camera = {
             x: 0,
@@ -225,54 +271,54 @@
         const WORLD_HEIGHT = 50000;
         
         // Biomes: Snow, Forest, Volcano, City, Sand
-        // Layout: Forest in center, others around it
-        //         [Sand]
-        //           |
-        // [Volcano]—[Forest]—[City]
-        //           |
-        //        [Snow]
+        // New Layout: Forest in center, others in corners
+        //    [Volcano]    [Sand]
+        //         \      /
+        //          [Forest]
+        //         /      \
+        //    [Snow]      [City]
         const BIOMES = ['SNOW', 'FOREST', 'VOLCANO', 'CITY', 'SAND'];
         
-        // Biome center positions (Forest at 0,0)
+        // Biome center positions (Forest at 0,0) - diagonal layout
         const BIOME_CENTERS = {
             'FOREST': { x: 0, y: 0 },
-            'VOLCANO': { x: -BIOME_SIZE, y: 0 },
-            'CITY': { x: BIOME_SIZE, y: 0 },
-            'SNOW': { x: 0, y: BIOME_SIZE },
-            'SAND': { x: 0, y: -BIOME_SIZE }
+            'VOLCANO': { x: -BIOME_SIZE * 0.8, y: -BIOME_SIZE * 0.8 },  // Top-left
+            'SAND': { x: BIOME_SIZE * 0.8, y: -BIOME_SIZE * 0.8 },       // Top-right
+            'SNOW': { x: -BIOME_SIZE * 0.8, y: BIOME_SIZE * 0.8 },       // Bottom-left
+            'CITY': { x: BIOME_SIZE * 0.8, y: BIOME_SIZE * 0.8 }         // Bottom-right
         };
         
         // Biome colors - more distinct and realistic
         const BIOME_COLORS = {
             'SNOW': { 
-                bg: '#f0f8ff', 
-                grid: 'rgba(200, 220, 255, 0.2)',
-                ground: '#ffffff',
-                groundAlt: '#e8f4f8'
+                bg: '#e8f4ff', 
+                grid: 'rgba(180, 210, 240, 0.15)',
+                ground: '#f5faff',
+                groundAlt: '#e0f0f8'
             },
             'FOREST': { 
-                bg: '#0a1f0a', 
-                grid: 'rgba(50, 150, 50, 0.15)',
-                ground: '#1a3d1a',
-                groundAlt: '#0f2f0f'
+                bg: '#1a2a15', 
+                grid: 'rgba(100, 160, 60, 0.12)',
+                ground: '#2d4a25',
+                groundAlt: '#3a5a30'
             },
             'VOLCANO': { 
-                bg: '#1a0505', 
-                grid: 'rgba(255, 80, 30, 0.2)',
-                ground: '#2d1810',
-                groundAlt: '#1a0f0a'
+                bg: '#0f0808', 
+                grid: 'rgba(255, 60, 20, 0.25)',
+                ground: '#1a1210',
+                groundAlt: '#251a15'
             },
             'CITY': { 
-                bg: '#0a0a15', 
-                grid: 'rgba(100, 100, 150, 0.15)',
-                ground: '#1a1a2e',
-                groundAlt: '#151525'
+                bg: '#2a2a35', 
+                grid: 'rgba(80, 80, 90, 0.2)',
+                ground: '#3a3a45',
+                groundAlt: '#454550'
             },
             'SAND': { 
-                bg: '#f4e4c1', 
-                grid: 'rgba(200, 170, 120, 0.2)',
-                ground: '#e6d5ac',
-                groundAlt: '#d4c49a'
+                bg: '#e8d4a0', 
+                grid: 'rgba(180, 140, 80, 0.15)',
+                ground: '#d4b876',
+                groundAlt: '#c4a86a'
             }
         };
         
@@ -329,6 +375,7 @@
                 const color = isSpecial ? biomeColors.special : biomeColors.normal;
                 
                 cursedSpirits.push({
+                    id: i,
                     x, y,
                     grade,
                     hp: data.hp,
@@ -356,14 +403,15 @@
         generateCursedSpirits();
         
         function generateBossStructures() {
-            // Add structures at each boss spawn location
+            // Add unique menacing structures at each boss spawn location
             for (const curse of Object.values(DISASTER_CURSES)) {
                 for (const loc of curse.spawnLocations) {
-                    // Create arena/platform around boss spawn
-                    const structureCount = 15;
+                    // Create a menacing arena with unique structures based on biome
+                    const structureCount = 8; // Fewer, more impactful structures
+                    
                     for (let s = 0; s < structureCount; s++) {
                         const angle = (s / structureCount) * Math.PI * 2;
-                        const dist = 150 + Math.random() * 100;
+                        const dist = 200 + Math.random() * 80; // More consistent distance
                         const x = loc.x + Math.cos(angle) * dist;
                         const y = loc.y + Math.sin(angle) * dist;
                         
@@ -371,38 +419,70 @@
                         
                         switch(curse.biome) {
                             case 'VOLCANO':
-                                type = Math.random() > 0.5 ? 'volcano' : 'rock';
-                                size = type === 'volcano' ? 80 : 40;
-                                color = type === 'volcano' ? '#5a2a20' : '#444';
+                                // Jagged obsidian pillars and volcanic vents
+                                type = s % 2 === 0 ? 'obsidian_pillar' : 'volcanic_vent';
+                                size = type === 'obsidian_pillar' ? 60 + Math.random() * 40 : 30;
+                                color = type === 'obsidian_pillar' ? '#1a0a0a' : '#ff2200';
                                 break;
                             case 'FOREST':
-                                type = 'tree';
-                                size = 70 + Math.random() * 30;
-                                color = '#1a4a1a';
+                                // Twisted ancient trees and corrupted groves
+                                type = s % 2 === 0 ? 'ancient_tree' : 'corrupted_grove';
+                                size = type === 'ancient_tree' ? 90 + Math.random() * 30 : 50;
+                                color = type === 'ancient_tree' ? '#0a1a0a' : '#4a0044';
                                 break;
                             case 'CITY':
-                                type = 'building';
-                                size = 100 + Math.random() * 50;
-                                color = '#2a2a4a';
+                                // Ruined skyscrapers and industrial towers
+                                type = s % 2 === 0 ? 'ruined_tower' : 'industrial_pillar';
+                                size = type === 'ruined_tower' ? 120 + Math.random() * 60 : 40;
+                                color = type === 'ruined_tower' ? '#1a1a2e' : '#2a1a1a';
                                 break;
                             default:
-                                type = 'rock';
-                                size = 40;
-                                color = '#666';
+                                type = 'menhir';
+                                size = 50 + Math.random() * 20;
+                                color = '#2a2a2a';
                         }
                         
-                        biomeObjects.push({ x, y, type, size, color, biome: curse.biome, isBossStructure: true });
+                        biomeObjects.push({ 
+                            x, y, type, size, color, 
+                            biome: curse.biome, 
+                            isBossStructure: true,
+                            angle: angle // Store angle for directional drawing
+                        });
                     }
                     
-                    // Central altar/platform
+                    // Central menacing altar - unique for each boss
+                    let centerType, centerSize, centerColor;
+                    switch(curse.biome) {
+                        case 'VOLCANO':
+                            centerType = 'lava_altar';
+                            centerSize = 150;
+                            centerColor = '#ff4400';
+                            break;
+                        case 'FOREST':
+                            centerType = 'corrupted_shrine';
+                            centerSize = 130;
+                            centerColor = '#660066';
+                            break;
+                        case 'CITY':
+                            centerType = 'ruined_cathedral';
+                            centerSize = 160;
+                            centerColor = '#1a1a3a';
+                            break;
+                        default:
+                            centerType = 'dark_altar';
+                            centerSize = 120;
+                            centerColor = '#333';
+                    }
+                    
                     biomeObjects.push({
                         x: loc.x,
                         y: loc.y,
-                        type: curse.biome === 'VOLCANO' ? 'lava' : (curse.biome === 'FOREST' ? 'tree' : 'building'),
-                        size: 120,
-                        color: curse.color,
+                        type: centerType,
+                        size: centerSize,
+                        color: centerColor,
                         biome: curse.biome,
-                        isBossStructure: true
+                        isBossStructure: true,
+                        isCenter: true
                     });
                 }
             }
@@ -414,30 +494,73 @@
             // Generate boss structures first
             generateBossStructures();
             
+            // Helper to check if position is too close to existing objects
+            function isTooClose(x, y, minDist) {
+                for (const obj of biomeObjects) {
+                    const dx = obj.x - x;
+                    const dy = obj.y - y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < minDist + obj.size) return true;
+                }
+                return false;
+            }
+            
             // Generate objects for each biome (radial layout)
             for (const biome of BIOMES) {
                 const center = BIOME_CENTERS[biome];
                 
-                // Regular objects
-                for (let j = 0; j < OBJECT_COUNT_PER_BIOME; j++) {
+                // Regular objects - with spacing check
+                let attempts = 0;
+                for (let j = 0; j < OBJECT_COUNT_PER_BIOME && attempts < OBJECT_COUNT_PER_BIOME * 3; j++) {
+                    attempts++;
+                    
                     // Random position within biome radius
                     const angle = Math.random() * Math.PI * 2;
                     const dist = Math.random() * BIOME_SIZE * 0.8;
                     const x = center.x + Math.cos(angle) * dist;
                     const y = center.y + Math.sin(angle) * dist;
                     
+                    // Check minimum distance from other objects (prevent stacking)
+                    const minSpacing = 80;
+                    if (isTooClose(x, y, minSpacing)) {
+                        j--; // Try again
+                        continue;
+                    }
+                    
                     let type, size, color;
                     
                     switch(biome) {
                         case 'SNOW':
-                            type = Math.random() > 0.5 ? 'pine' : 'rock';
-                            size = type === 'pine' ? 40 + Math.random() * 30 : 25 + Math.random() * 20;
-                            color = type === 'pine' ? '#1a3d1a' : '#888888';
+                            const snowTypeRand = Math.random();
+                            if (snowTypeRand > 0.6) {
+                                type = 'snow_pine';
+                                size = 50 + Math.random() * 35;
+                                color = '#2d5a3d';
+                            } else if (snowTypeRand > 0.3) {
+                                type = 'pine';
+                                size = 40 + Math.random() * 30;
+                                color = '#1a4a2d';
+                            } else {
+                                type = 'rock';
+                                size = 25 + Math.random() * 20;
+                                color = '#a0a8b0';
+                            }
                             break;
                         case 'FOREST':
-                            type = Math.random() > 0.3 ? 'tree' : 'bush';
-                            size = type === 'tree' ? 50 + Math.random() * 40 : 20 + Math.random() * 15;
-                            color = type === 'tree' ? '#228b22' : '#32cd32';
+                            const forestRand = Math.random();
+                            if (forestRand > 0.5) {
+                                type = 'tall_tree';
+                                size = 80 + Math.random() * 60;
+                                color = '#3d6b35';
+                            } else if (forestRand > 0.2) {
+                                type = 'tree';
+                                size = 50 + Math.random() * 40;
+                                color = '#2d8b3d';
+                            } else {
+                                type = 'bush';
+                                size = 20 + Math.random() * 15;
+                                color = '#4a9a3a';
+                            }
                             break;
                         case 'VOLCANO':
                             type = Math.random() > 0.6 ? 'rock' : 'lava';
@@ -445,24 +568,63 @@
                             color = type === 'rock' ? '#444444' : '#ff4500';
                             break;
                         case 'CITY':
-                            type = 'building';
-                            size = 60 + Math.random() * 100;
-                            color = `hsl(${200 + Math.random() * 40}, 30%, ${30 + Math.random() * 20}%)`;
+                            const cityTypeRand = Math.random();
+                            if (cityTypeRand > 0.3) {
+                                type = 'building';
+                                size = 60 + Math.random() * 80;
+                                color = `hsl(${200 + Math.random() * 40}, 30%, ${35 + Math.random() * 15}%)`;
+                            } else if (cityTypeRand > 0.15) {
+                                type = 'shop';
+                                size = 40 + Math.random() * 25;
+                                color = `hsl(${0 + Math.random() * 40}, 45%, ${50 + Math.random() * 15}%)`;
+                            } else if (cityTypeRand > 0.05) {
+                                type = 'street_lamp';
+                                size = 30 + Math.random() * 15;
+                                color = '#3a3a45';
+                            } else {
+                                type = 'car';
+                                size = 20 + Math.random() * 10;
+                                color = ['#cc4444', '#4444cc', '#44cc44', '#cccc44', '#444444'][Math.floor(Math.random() * 5)];
+                            }
                             break;
                         case 'SAND':
-                            type = Math.random() > 0.5 ? 'cactus' : 'rock';
-                            size = type === 'cactus' ? 30 + Math.random() * 25 : 20 + Math.random() * 30;
-                            color = type === 'cactus' ? '#2d5a2d' : '#c4a35a';
+                            const sandTypeRand = Math.random();
+                            if (sandTypeRand > 0.7) {
+                                type = 'palm_tree';
+                                size = 80 + Math.random() * 40;
+                                color = '#3d8b3d';
+                            } else if (sandTypeRand > 0.35) {
+                                type = 'cactus';
+                                size = 30 + Math.random() * 25;
+                                color = '#4a7c4a';
+                            } else {
+                                type = 'rock';
+                                size = 20 + Math.random() * 30;
+                                color = '#c4a35a';
+                            }
                             break;
                     }
                     
                     biomeObjects.push({ x, y, type, size, color, biome });
                 }
                 
-                // Special structures
-                for (let j = 0; j < SPECIAL_OBJECT_COUNT; j++) {
-                    const x = biomeStart + Math.random() * BIOME_WIDTH;
-                    const y = -WORLD_HEIGHT/2 + Math.random() * WORLD_HEIGHT;
+                // Special structures - with spacing check
+                let specialAttempts = 0;
+                for (let j = 0; j < SPECIAL_OBJECT_COUNT && specialAttempts < SPECIAL_OBJECT_COUNT * 3; j++) {
+                    specialAttempts++;
+                    
+                    // Random position within biome radius (radial system)
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = Math.random() * BIOME_SIZE * 0.6; // Keep special structures more central
+                    const x = center.x + Math.cos(angle) * dist;
+                    const y = center.y + Math.sin(angle) * dist;
+                    
+                    // Check minimum distance (special structures need more space, except city)
+                    const minSpacing = biome === 'CITY' ? 80 : 150;
+                    if (isTooClose(x, y, minSpacing)) {
+                        j--; // Try again
+                        continue;
+                    }
                     
                     let type, size, color;
                     
@@ -473,9 +635,16 @@
                             color = '#e8f4f8';
                             break;
                         case 'FOREST':
-                            type = 'tree';
-                            size = 80 + Math.random() * 50;
-                            color = '#1a5c1a';
+                            const forestSpecialRand = Math.random();
+                            if (forestSpecialRand > 0.5) {
+                                type = 'tall_tree';
+                                size = 120 + Math.random() * 60;
+                                color = '#2d5a2d';
+                            } else {
+                                type = 'tree';
+                                size = 90 + Math.random() * 40;
+                                color = '#3a7a3a';
+                            }
                             break;
                         case 'VOLCANO':
                             type = Math.random() > 0.7 ? 'volcano' : 'rock';
@@ -483,14 +652,44 @@
                             color = type === 'volcano' ? '#4a2520' : '#444444';
                             break;
                         case 'CITY':
-                            type = 'house';
-                            size = 100 + Math.random() * 60;
-                            color = `hsl(${200 + Math.random() * 30}, 40%, ${40 + Math.random() * 15}%)`;
+                            const cityRand = Math.random();
+                            if (cityRand > 0.7) {
+                                type = 'skyscraper';
+                                size = 200 + Math.random() * 150;
+                                color = `hsl(${210 + Math.random() * 20}, 30%, ${50 + Math.random() * 20}%)`;
+                            } else if (cityRand > 0.4) {
+                                type = 'building';
+                                size = 120 + Math.random() * 80;
+                                color = `hsl(${0 + Math.random() * 30}, 40%, ${45 + Math.random() * 15}%)`;
+                            } else if (cityRand > 0.2) {
+                                type = 'street_lamp';
+                                size = 40 + Math.random() * 10;
+                                color = '#444450';
+                            } else {
+                                type = 'shop';
+                                size = 60 + Math.random() * 30;
+                                color = `hsl(${30 + Math.random() * 30}, 50%, ${55 + Math.random() * 15}%)`;
+                            }
                             break;
                         case 'SAND':
-                            type = Math.random() > 0.8 ? 'pyramid' : (Math.random() > 0.5 ? 'oasis' : 'cactus');
-                            size = type === 'pyramid' ? 250 + Math.random() * 100 : (type === 'oasis' ? 120 : 40);
-                            color = type === 'pyramid' ? '#d4c49a' : (type === 'oasis' ? '#228b22' : '#2d5a2d');
+                            const sandRand = Math.random();
+                            if (sandRand > 0.85) {
+                                type = 'palm_tree';
+                                size = 100 + Math.random() * 50;
+                                color = '#2d5a2d';
+                            } else if (sandRand > 0.6) {
+                                type = 'pyramid';
+                                size = 250 + Math.random() * 100;
+                                color = '#d4b876';
+                            } else if (sandRand > 0.3) {
+                                type = 'oasis';
+                                size = 120 + Math.random() * 40;
+                                color = '#228b22';
+                            } else {
+                                type = 'cactus';
+                                size = 30 + Math.random() * 25;
+                                color = '#4a7c4a';
+                            }
                             break;
                     }
                     
@@ -758,8 +957,31 @@
                 const len = Math.sqrt(dx * dx + dy * dy);
                 dx /= len;
                 dy /= len;
+                
+                // Store old position for footstep check
+                const oldX = player.x;
+                const oldY = player.y;
+                
                 player.x += dx * player.speed;
                 player.y += dy * player.speed;
+                
+                // Add footstep ripple in domain (every 30 pixels moved)
+                if (playerDomain.active && playerDomain.phase !== 'expanding' && playerDomain.phase !== 'lines') {
+                    const distMoved = Math.sqrt((player.x - oldX) ** 2 + (player.y - oldY) ** 2);
+                    if (!playerDomain.footstepDistance) playerDomain.footstepDistance = 0;
+                    playerDomain.footstepDistance += distMoved;
+                    
+                    if (playerDomain.footstepDistance > 120) { // Create ripple every ~3 steps (120 pixels)
+                        playerDomain.footstepRipples.push({
+                            x: player.x,
+                            y: player.y,
+                            radius: 5,
+                            life: 60, // 1 second
+                            maxLife: 60
+                        });
+                        playerDomain.footstepDistance = 0;
+                    }
+                }
             }
             
             // Face mouse cursor
@@ -776,7 +998,7 @@
                 player.ce += 0.1;
             }
             if (player.hp < player.maxHp) {
-                player.hp += 2; // HP regen
+                player.hp += 0.3; // HP regen (slower)
             }
             
             // Iframes
@@ -784,9 +1006,11 @@
                 player.iframes--;
             }
             
-            // Update camera to follow player
-            camera.x = player.x - canvas.width / 2;
-            camera.y = player.y - canvas.height / 2;
+            // Update camera to follow player (ensure canvas dimensions are valid)
+            const cw = canvas.width || 800;
+            const ch = canvas.height || 450;
+            camera.x = player.x - cw / 2;
+            camera.y = player.y - ch / 2;
         }
         
         function getBiomeAt(x, y) {
@@ -838,7 +1062,8 @@
             
             for (let x = startX; x < endX; x += tileSize) {
                 for (let y = startY; y < endY; y += tileSize) {
-                    const colors = getBiomeColors(x + tileSize/2, y + tileSize/2);
+                    const biome = getBiomeAt(x + tileSize/2, y + tileSize/2);
+                    const colors = BIOME_COLORS[biome];
                     const screenX = x - camera.x;
                     const screenY = y - camera.y;
                     
@@ -846,23 +1071,383 @@
                     ctx.fillStyle = colors.ground;
                     ctx.fillRect(screenX, screenY, tileSize, tileSize);
                     
-                    // Add texture pattern
-                    if ((x + y) % (tileSize * 2) < tileSize) {
-                        ctx.fillStyle = colors.groundAlt;
-                        ctx.globalAlpha = 0.3;
-                        ctx.fillRect(screenX, screenY, tileSize, tileSize);
-                        ctx.globalAlpha = 1;
+                    // Sand biome - draw dune patterns
+                    if (biome === 'SAND') {
+                        drawSandDunes(x, y, screenX, screenY, tileSize, colors);
+                    } else if (biome === 'SNOW') {
+                        // Snow biome - draw snow texture
+                        drawSnowTexture(x, y, screenX, screenY, tileSize);
+                    } else if (biome === 'CITY') {
+                        // City biome - draw roads
+                        drawCityRoads(x, y, screenX, screenY, tileSize);
+                    } else if (biome === 'FOREST') {
+                        // Forest biome - draw forest ground
+                        drawForestGround(x, y, screenX, screenY, tileSize);
+                    } else if (biome === 'VOLCANO') {
+                        // Volcano biome - draw lava cracks
+                        drawVolcanoGround(x, y, screenX, screenY, tileSize);
+                    } else {
+                        // Add texture pattern for other biomes
+                        if ((x + y) % (tileSize * 2) < tileSize) {
+                            ctx.fillStyle = colors.groundAlt;
+                            ctx.globalAlpha = 0.3;
+                            ctx.fillRect(screenX, screenY, tileSize, tileSize);
+                            ctx.globalAlpha = 1;
+                        }
                     }
                 }
             }
         }
         
+        function drawSandDunes(x, y, screenX, screenY, tileSize, colors) {
+            // Draw rolling sand dune patterns
+            ctx.save();
+            
+            // Create wave-like dune patterns using sine waves
+            const waveFreq = 0.01;
+            const waveAmp = 30;
+            
+            for (let row = 0; row < 4; row++) {
+                const yOffset = row * (tileSize / 4);
+                const wavePhase = (x * waveFreq) + (row * 0.5);
+                
+                // Shadow side of dune (darker)
+                ctx.fillStyle = '#b89a60'; // Darker sand color
+                ctx.globalAlpha = 0.4;
+                ctx.beginPath();
+                ctx.moveTo(screenX, screenY + yOffset);
+                
+                for (let px = 0; px <= tileSize; px += 10) {
+                    const waveY = Math.sin((px * waveFreq) + wavePhase) * waveAmp;
+                    ctx.lineTo(screenX + px, screenY + yOffset + waveY + 15);
+                }
+                
+                ctx.lineTo(screenX + tileSize, screenY + yOffset + tileSize/4);
+                ctx.lineTo(screenX, screenY + yOffset + tileSize/4);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Light side of dune (lighter)
+                ctx.fillStyle = '#e8c888'; // Lighter sand color
+                ctx.globalAlpha = 0.3;
+                ctx.beginPath();
+                ctx.moveTo(screenX, screenY + yOffset);
+                
+                for (let px = 0; px <= tileSize; px += 10) {
+                    const waveY = Math.sin((px * waveFreq) + wavePhase) * waveAmp;
+                    ctx.lineTo(screenX + px, screenY + yOffset + waveY);
+                }
+                
+                ctx.lineTo(screenX + tileSize, screenY + yOffset);
+                ctx.lineTo(screenX, screenY + yOffset);
+                ctx.closePath();
+                ctx.fill();
+            }
+            
+            ctx.restore();
+        }
+        
+        function drawSnowTexture(x, y, screenX, screenY, tileSize) {
+            // Draw subtle snow texture with sparkle effect
+            ctx.save();
+            
+            // Random snow sparkles
+            ctx.fillStyle = '#ffffff';
+            for (let i = 0; i < 15; i++) {
+                const sx = screenX + Math.random() * tileSize;
+                const sy = screenY + Math.random() * tileSize;
+                const size = 1 + Math.random() * 2;
+                const alpha = 0.3 + Math.random() * 0.4;
+                ctx.globalAlpha = alpha;
+                ctx.beginPath();
+                ctx.arc(sx, sy, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Snow drifts (subtle curves)
+            ctx.strokeStyle = '#d0e8f0';
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.2;
+            for (let i = 0; i < 3; i++) {
+                const driftY = screenY + (i + 1) * (tileSize / 4);
+                ctx.beginPath();
+                ctx.moveTo(screenX, driftY);
+                for (let px = 0; px <= tileSize; px += 20) {
+                    const waveY = Math.sin((x + px) * 0.02 + i) * 5;
+                    ctx.lineTo(screenX + px, driftY + waveY);
+                }
+                ctx.stroke();
+            }
+            
+            ctx.restore();
+        }
+        
+        function drawCityRoads(x, y, screenX, screenY, tileSize) {
+            // Draw city road pattern with asphalt and crossroads
+            ctx.save();
+            
+            // Determine if this tile is a crossroad based on position
+            const isCrossroadX = Math.floor(x / tileSize) % 3 === 1;
+            const isCrossroadY = Math.floor(y / tileSize) % 3 === 1;
+            
+            // Base asphalt color
+            ctx.fillStyle = '#4a4a55';
+            ctx.fillRect(screenX, screenY, tileSize, tileSize);
+            
+            // Road markings (white/yellow lines)
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = 0.6;
+            
+            if (isCrossroadX && isCrossroadY) {
+                // Crossroad intersection - draw crossing lines
+                // Horizontal dashed line
+                const dashSize = 15;
+                const offsetX = (x / 2) % (dashSize * 2);
+                for (let i = -dashSize; i < tileSize + dashSize; i += dashSize * 2) {
+                    const lineX = screenX + i - offsetX;
+                    ctx.beginPath();
+                    ctx.moveTo(lineX, screenY + tileSize / 2);
+                    ctx.lineTo(lineX + dashSize, screenY + tileSize / 2);
+                    ctx.stroke();
+                }
+                // Vertical dashed line
+                const offsetY = (y / 2) % (dashSize * 2);
+                for (let i = -dashSize; i < tileSize + dashSize; i += dashSize * 2) {
+                    const lineY = screenY + i - offsetY;
+                    ctx.beginPath();
+                    ctx.moveTo(screenX + tileSize / 2, lineY);
+                    ctx.lineTo(screenX + tileSize / 2, lineY + dashSize);
+                    ctx.stroke();
+                }
+                
+                // Crosswalk markings at intersection
+                ctx.fillStyle = '#ffffff';
+                ctx.globalAlpha = 0.3;
+                // Horizontal crosswalk
+                for (let i = 0; i < 5; i++) {
+                    ctx.fillRect(screenX + i * tileSize * 0.15, screenY + tileSize * 0.42, tileSize * 0.08, tileSize * 0.16);
+                }
+                // Vertical crosswalk
+                for (let i = 0; i < 5; i++) {
+                    ctx.fillRect(screenX + tileSize * 0.42, screenY + i * tileSize * 0.15, tileSize * 0.16, tileSize * 0.08);
+                }
+            } else if (isCrossroadX) {
+                // Vertical road
+                const dashSize = 20;
+                const offsetY = (y / 2) % (dashSize * 2);
+                for (let i = -dashSize; i < tileSize + dashSize; i += dashSize * 2) {
+                    const lineY = screenY + i - offsetY;
+                    ctx.beginPath();
+                    ctx.moveTo(screenX + tileSize / 2, lineY);
+                    ctx.lineTo(screenX + tileSize / 2, lineY + dashSize);
+                    ctx.stroke();
+                }
+                // Side lines for vertical road
+                ctx.globalAlpha = 0.8;
+                ctx.beginPath();
+                ctx.moveTo(screenX + tileSize * 0.2, screenY);
+                ctx.lineTo(screenX + tileSize * 0.2, screenY + tileSize);
+                ctx.moveTo(screenX + tileSize * 0.8, screenY);
+                ctx.lineTo(screenX + tileSize * 0.8, screenY + tileSize);
+                ctx.stroke();
+            } else if (isCrossroadY) {
+                // Horizontal road
+                const dashSize = 20;
+                const offsetX = (x / 2) % (dashSize * 2);
+                for (let i = -dashSize; i < tileSize + dashSize; i += dashSize * 2) {
+                    const lineX = screenX + i - offsetX;
+                    ctx.beginPath();
+                    ctx.moveTo(lineX, screenY + tileSize / 2);
+                    ctx.lineTo(lineX + dashSize, screenY + tileSize / 2);
+                    ctx.stroke();
+                }
+                // Side lines for horizontal road
+                ctx.globalAlpha = 0.8;
+                ctx.beginPath();
+                ctx.moveTo(screenX, screenY + tileSize * 0.2);
+                ctx.lineTo(screenX + tileSize, screenY + tileSize * 0.2);
+                ctx.moveTo(screenX, screenY + tileSize * 0.8);
+                ctx.lineTo(screenX + tileSize, screenY + tileSize * 0.8);
+                ctx.stroke();
+            } else {
+                // Regular tile - just sidewalks
+                ctx.globalAlpha = 0.8;
+                ctx.beginPath();
+                ctx.moveTo(screenX, screenY + tileSize * 0.2);
+                ctx.lineTo(screenX + tileSize, screenY + tileSize * 0.2);
+                ctx.moveTo(screenX, screenY + tileSize * 0.8);
+                ctx.lineTo(screenX + tileSize, screenY + tileSize * 0.8);
+                ctx.stroke();
+            }
+            
+            // Manhole covers (only on roads)
+            if ((isCrossroadX || isCrossroadY) && (x + y) % 400 < 100) {
+                ctx.fillStyle = '#555560';
+                ctx.globalAlpha = 0.7;
+                const mhX = screenX + tileSize * 0.5;
+                const mhY = screenY + tileSize * 0.5;
+                ctx.beginPath();
+                ctx.arc(mhX, mhY, 12, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#333';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.arc(mhX, mhY, 10, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            
+            // Sidewalk edges (on non-road areas)
+            ctx.fillStyle = '#5a5a65';
+            ctx.globalAlpha = 0.5;
+            if (!isCrossroadX && !isCrossroadY) {
+                ctx.fillRect(screenX, screenY, tileSize, tileSize * 0.15);
+                ctx.fillRect(screenX, screenY + tileSize * 0.85, tileSize, tileSize * 0.15);
+            } else if (isCrossroadX && !isCrossroadY) {
+                // Vertical road - sidewalks on sides
+                ctx.fillRect(screenX, screenY, tileSize * 0.15, tileSize);
+                ctx.fillRect(screenX + tileSize * 0.85, screenY, tileSize * 0.15, tileSize);
+            } else if (!isCrossroadX && isCrossroadY) {
+                // Horizontal road - sidewalks on top/bottom
+                ctx.fillRect(screenX, screenY, tileSize, tileSize * 0.15);
+                ctx.fillRect(screenX, screenY + tileSize * 0.85, tileSize, tileSize * 0.15);
+            }
+            
+            ctx.restore();
+        }
+        
+        function drawForestGround(x, y, screenX, screenY, tileSize) {
+            // Draw forest ground with dappled sunlight and paths
+            ctx.save();
+            
+            // Base forest floor
+            ctx.fillStyle = '#3d5a35';
+            ctx.fillRect(screenX, screenY, tileSize, tileSize);
+            
+            // Deterministic seed based on position (use Math.abs to ensure positive)
+            const seed = Math.abs(Math.floor(x / tileSize) * 137 + Math.floor(y / tileSize) * 241);
+            
+            // Dappled sunlight spots (deterministic)
+            ctx.fillStyle = '#6a9a50';
+            for (let i = 0; i < 8; i++) {
+                const sx = screenX + Math.abs((seed + i * 53) % tileSize);
+                const sy = screenY + Math.abs((seed + i * 71) % tileSize);
+                const size = Math.max(1, 10 + Math.abs((seed + i * 13) % 25));
+                ctx.globalAlpha = Math.max(0.1, 0.2 + Math.abs((seed + i * 17) % 30) / 100);
+                ctx.beginPath();
+                ctx.arc(sx, sy, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Forest path (winding)
+            ctx.strokeStyle = '#5a4a3a';
+            ctx.lineWidth = 15;
+            ctx.globalAlpha = 0.4;
+            ctx.beginPath();
+            const pathOffset = (x + y) * 0.1;
+            for (let px = 0; px <= tileSize; px += 10) {
+                const py = screenY + tileSize / 2 + Math.sin((px + pathOffset) * 0.05) * 30;
+                if (px === 0) ctx.moveTo(screenX + px, py);
+                else ctx.lineTo(screenX + px, py);
+            }
+            ctx.stroke();
+            
+            // Grass tufts (deterministic)
+            ctx.fillStyle = '#4a7a3a';
+            ctx.globalAlpha = 0.5;
+            for (let i = 0; i < 12; i++) {
+                const gx = screenX + Math.abs((seed + i * 37) % tileSize);
+                const gy = screenY + Math.abs((seed + i * 43) % tileSize);
+                ctx.beginPath();
+                ctx.moveTo(gx, gy);
+                ctx.lineTo(gx - 3, gy - 8);
+                ctx.lineTo(gx + 3, gy - 8);
+                ctx.closePath();
+                ctx.fill();
+            }
+            
+            // Fallen leaves (deterministic)
+            ctx.fillStyle = '#8a6a3a';
+            ctx.globalAlpha = 0.3;
+            for (let i = 0; i < 10; i++) {
+                const lx = screenX + Math.abs((seed + i * 19) % tileSize);
+                const ly = screenY + Math.abs((seed + i * 23) % tileSize);
+                const rot = Math.abs((seed + i * 11) % 100) / 100 * Math.PI;
+                ctx.beginPath();
+                ctx.ellipse(lx, ly, Math.max(1, 3), Math.max(1, 2), rot, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            ctx.restore();
+        }
+        
+        function drawVolcanoGround(x, y, screenX, screenY, tileSize) {
+            // Draw volcanic ground with lava cracks and flows
+            ctx.save();
+            
+            // Base dark volcanic rock
+            ctx.fillStyle = '#1a1210';
+            ctx.fillRect(screenX, screenY, tileSize, tileSize);
+            
+            // Deterministic seed based on position (use Math.abs to ensure positive)
+            const crackSeed = Math.abs(Math.floor((x + y) / 100));
+            
+            // Lava cracks - glowing orange lines
+            ctx.strokeStyle = '#ff4400';
+            ctx.lineWidth = 2;
+            ctx.shadowBlur = 10;
+            ctx.shadowColor = '#ff6600';
+            ctx.globalAlpha = 0.6;
+            
+            // Deterministic crack pattern based on position
+            for (let i = 0; i < 5; i++) {
+                const startX = screenX + Math.abs((crackSeed * 137 + i * 53) % tileSize);
+                const startY = screenY + Math.abs((crackSeed * 241 + i * 71) % tileSize);
+                
+                ctx.beginPath();
+                ctx.moveTo(startX, startY);
+                
+                let cx = startX;
+                let cy = startY;
+                for (let j = 0; j < 4; j++) {
+                    cx += (Math.abs((crackSeed + j * 17) % 100) / 100 - 0.5) * 60;
+                    cy += (Math.abs((crackSeed + j * 23) % 100) / 100 - 0.5) * 60;
+                    ctx.lineTo(cx, cy);
+                }
+                ctx.stroke();
+            }
+            
+            // Larger lava pools (pulsing glow)
+            ctx.fillStyle = '#ff5500';
+            ctx.shadowBlur = 20;
+            for (let i = 0; i < 3; i++) {
+                const poolX = screenX + Math.abs((crackSeed * 89 + i * 37) % Math.max(1, tileSize - 40)) + 20;
+                const poolY = screenY + Math.abs((crackSeed * 167 + i * 43) % Math.max(1, tileSize - 40)) + 20;
+                const poolSize = Math.max(1, 8 + (crackSeed % 12));
+                ctx.globalAlpha = 0.4 + (Math.sin(Date.now() * 0.002 + i) * 0.2);
+                ctx.beginPath();
+                ctx.arc(poolX, poolY, poolSize, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Dark rock texture (deterministic)
+            ctx.fillStyle = '#0f0a08';
+            ctx.shadowBlur = 0;
+            ctx.globalAlpha = 0.3;
+            for (let i = 0; i < 15; i++) {
+                const rx = screenX + Math.abs((crackSeed + i * 13) % tileSize);
+                const ry = screenY + Math.abs((crackSeed + i * 17) % tileSize);
+                const rsize = Math.max(1, 2 + ((crackSeed + i * 7) % 6));
+                ctx.beginPath();
+                ctx.arc(rx, ry, rsize, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            ctx.restore();
+        }
+        
         function drawBiomeOverlay() {
             // Additional atmospheric overlay
-            const startX = Math.floor(camera.x / BIOME_WIDTH) * BIOME_WIDTH;
-            const endX = startX + canvas.width + BIOME_WIDTH;
-            
-            // Draw atmospheric overlay based on current biome
             const overlaySize = 400;
             const overlayStartX = Math.floor(camera.x / overlaySize) * overlaySize;
             const overlayStartY = Math.floor(camera.y / overlaySize) * overlaySize;
@@ -886,6 +1471,18 @@
         function updateCursedSpirits() {
             for (const spirit of cursedSpirits) {
                 const data = SPIRIT_GRADES[spirit.grade];
+                
+                // Check if spirit is frozen in player's domain
+                if (playerDomain.active && playerDomain.phase !== 'expanding') {
+                    const ddx = spirit.x - player.x;
+                    const ddy = spirit.y - player.y;
+                    const ddist = Math.sqrt(ddx * ddx + ddy * ddy);
+                    if (ddist < playerDomain.maxRadius) {
+                        // Spirit is frozen - don't update movement or attacks
+                        continue;
+                    }
+                }
+                
                 // Distance to player
                 const dx = player.x - spirit.x;
                 const dy = player.y - spirit.y;
@@ -1022,6 +1619,30 @@
         function updateDisasterCurse() {
             if (activeDisasterCurse) {
                 const boss = activeDisasterCurse;
+                
+                // Check if boss is frozen in player's domain
+                if (playerDomain.active && playerDomain.phase !== 'expanding') {
+                    const ddx = boss.x - player.x;
+                    const ddy = boss.y - player.y;
+                    const ddist = Math.sqrt(ddx * ddx + ddy * ddy);
+                    if (ddist < playerDomain.maxRadius) {
+                        // Boss is frozen - only update visual effects, not movement or attacks
+                        boss.domainTimer--;
+                        if (boss.domainTimer <= 0) {
+                            boss.domainActive = true;
+                            boss.domainTimer = 900;
+                        }
+                        if (boss.domainActive) {
+                            boss.domainDuration--;
+                            if (boss.domainDuration <= 0) {
+                                boss.domainActive = false;
+                                boss.domainDuration = 300;
+                            }
+                        }
+                        return; // Skip rest of update
+                    }
+                }
+                
                 const dx = player.x - boss.x;
                 const dy = player.y - boss.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
@@ -1115,7 +1736,7 @@
                 if (boss.hp <= 0) {
                     activeDisasterCurse = null;
                     disasterNotification = { text: 'DISASTER CURSE DEFEATED!', color: '#00ff00' };
-                    disasterNotifTimer = 180;
+                    disasterNotifTimer = 600; // 10 seconds at 60fps
                 }
             } else {
                 // Check for spawn
@@ -1159,7 +1780,7 @@
             };
             
             disasterNotification = { text: `${curseData.name} HAS APPEARED!`, color: '#ff0000' };
-            disasterNotifTimer = 300;
+            disasterNotifTimer = 600; // 10 seconds at 60fps
         }
         
         function drawDisasterCurse() {
@@ -1722,16 +2343,161 @@
                     case 'tree':
                     case 'pine':
                         // Trunk
-                        ctx.fillStyle = '#8b4513';
-                        ctx.fillRect(screenX - obj.size * 0.15, screenY, obj.size * 0.3, obj.size * 0.4);
-                        // Leaves (triangle)
+                        ctx.fillStyle = '#6b4423';
+                        ctx.fillRect(screenX - obj.size * 0.12, screenY, obj.size * 0.24, obj.size * 0.35);
+                        // Leaves (triangle layers)
                         ctx.fillStyle = obj.color;
+                        // Bottom layer
                         ctx.beginPath();
-                        ctx.moveTo(screenX, screenY - obj.size);
-                        ctx.lineTo(screenX - obj.size * 0.5, screenY + obj.size * 0.3);
-                        ctx.lineTo(screenX + obj.size * 0.5, screenY + obj.size * 0.3);
+                        ctx.moveTo(screenX, screenY - obj.size * 0.7);
+                        ctx.lineTo(screenX - obj.size * 0.5, screenY + obj.size * 0.2);
+                        ctx.lineTo(screenX + obj.size * 0.5, screenY + obj.size * 0.2);
                         ctx.closePath();
                         ctx.fill();
+                        // Middle layer
+                        ctx.beginPath();
+                        ctx.moveTo(screenX, screenY - obj.size * 0.9);
+                        ctx.lineTo(screenX - obj.size * 0.4, screenY - obj.size * 0.1);
+                        ctx.lineTo(screenX + obj.size * 0.4, screenY - obj.size * 0.1);
+                        ctx.closePath();
+                        ctx.fill();
+                        // Top layer
+                        ctx.beginPath();
+                        ctx.moveTo(screenX, screenY - obj.size);
+                        ctx.lineTo(screenX - obj.size * 0.3, screenY - obj.size * 0.3);
+                        ctx.lineTo(screenX + obj.size * 0.3, screenY - obj.size * 0.3);
+                        ctx.closePath();
+                        ctx.fill();
+                        break;
+                        
+                    case 'tall_tree':
+                        // Tall forest tree with thin trunk and canopy
+                        ctx.save();
+                        
+                        // Tall thin trunk
+                        ctx.fillStyle = '#4a3a2a';
+                        ctx.fillRect(screenX - obj.size * 0.06, screenY - obj.size * 0.1, obj.size * 0.12, obj.size * 1.1);
+                        
+                        // Trunk texture lines
+                        ctx.strokeStyle = '#3a2a1a';
+                        ctx.lineWidth = 1;
+                        for (let i = 0; i < 5; i++) {
+                            const ty = screenY + obj.size * 0.8 - i * obj.size * 0.2;
+                            ctx.beginPath();
+                            ctx.moveTo(screenX - obj.size * 0.04, ty);
+                            ctx.lineTo(screenX + obj.size * 0.04, ty);
+                            ctx.stroke();
+                        }
+                        
+                        // Canopy (oval shaped, like deciduous tree)
+                        ctx.fillStyle = obj.color;
+                        // Main canopy
+                        ctx.beginPath();
+                        ctx.ellipse(screenX, screenY - obj.size * 0.6, obj.size * 0.35, obj.size * 0.45, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Sunlight highlights on canopy
+                        ctx.fillStyle = '#6aba5a';
+                        ctx.globalAlpha = 0.4;
+                        ctx.beginPath();
+                        ctx.ellipse(screenX - obj.size * 0.1, screenY - obj.size * 0.7, obj.size * 0.15, obj.size * 0.2, -0.3, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Shadow under canopy
+                        ctx.fillStyle = '#1a3a1a';
+                        ctx.globalAlpha = 0.3;
+                        ctx.beginPath();
+                        ctx.ellipse(screenX, screenY + obj.size * 0.1, obj.size * 0.25, obj.size * 0.08, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        ctx.restore();
+                        break;
+                        
+                    case 'snow_pine':
+                        // Snow-covered pine tree like the reference image
+                        ctx.save();
+                        
+                        // Trunk
+                        ctx.fillStyle = '#5a3a2a';
+                        ctx.fillRect(screenX - obj.size * 0.1, screenY + obj.size * 0.1, obj.size * 0.2, obj.size * 0.3);
+                        
+                        // Tree layers (3 tiers of branches)
+                        const layers = [
+                            { y: -obj.size * 0.75, width: 0.35 },
+                            { y: -obj.size * 0.5, width: 0.5 },
+                            { y: -obj.size * 0.25, width: 0.65 }
+                        ];
+                        
+                        for (let i = 0; i < layers.length; i++) {
+                            const layer = layers[i];
+                            
+                            // Dark green base (shadowed underside)
+                            ctx.fillStyle = '#1a3d2a';
+                            ctx.beginPath();
+                            ctx.moveTo(screenX, screenY + layer.y - obj.size * 0.15);
+                            ctx.lineTo(screenX - obj.size * layer.width, screenY + layer.y + obj.size * 0.15);
+                            ctx.lineTo(screenX + obj.size * layer.width, screenY + layer.y + obj.size * 0.15);
+                            ctx.closePath();
+                            ctx.fill();
+                            
+                            // Main green body
+                            ctx.fillStyle = '#2d5a3d';
+                            ctx.beginPath();
+                            ctx.moveTo(screenX, screenY + layer.y - obj.size * 0.2);
+                            ctx.lineTo(screenX - obj.size * layer.width * 0.9, screenY + layer.y + obj.size * 0.1);
+                            ctx.lineTo(screenX + obj.size * layer.width * 0.9, screenY + layer.y + obj.size * 0.1);
+                            ctx.closePath();
+                            ctx.fill();
+                            
+                            // Snow on top (white cap)
+                            ctx.fillStyle = '#f0f8ff';
+                            ctx.beginPath();
+                            ctx.moveTo(screenX, screenY + layer.y - obj.size * 0.2);
+                            ctx.lineTo(screenX - obj.size * layer.width * 0.5, screenY + layer.y);
+                            ctx.lineTo(screenX + obj.size * layer.width * 0.5, screenY + layer.y);
+                            ctx.closePath();
+                            ctx.fill();
+                            
+                            // Snow highlights on branches
+                            ctx.fillStyle = '#ffffff';
+                            ctx.globalAlpha = 0.6;
+                            for (let j = 0; j < 5; j++) {
+                                const hx = screenX + (j - 2) * obj.size * layer.width * 0.2;
+                                const hy = screenY + layer.y + obj.size * 0.05;
+                                ctx.beginPath();
+                                ctx.arc(hx, hy, obj.size * 0.06, 0, Math.PI * 2);
+                                ctx.fill();
+                            }
+                            ctx.globalAlpha = 1;
+                        }
+                        
+                        // Tree top (point)
+                        ctx.fillStyle = '#2d5a3d';
+                        ctx.beginPath();
+                        ctx.moveTo(screenX, screenY - obj.size);
+                        ctx.lineTo(screenX - obj.size * 0.2, screenY - obj.size * 0.75);
+                        ctx.lineTo(screenX + obj.size * 0.2, screenY - obj.size * 0.75);
+                        ctx.closePath();
+                        ctx.fill();
+                        
+                        // Snow on tree top
+                        ctx.fillStyle = '#f0f8ff';
+                        ctx.beginPath();
+                        ctx.moveTo(screenX, screenY - obj.size);
+                        ctx.lineTo(screenX - obj.size * 0.12, screenY - obj.size * 0.8);
+                        ctx.lineTo(screenX + obj.size * 0.12, screenY - obj.size * 0.8);
+                        ctx.closePath();
+                        ctx.fill();
+                        
+                        // Snow at base of tree
+                        ctx.fillStyle = '#ffffff';
+                        ctx.globalAlpha = 0.4;
+                        ctx.beginPath();
+                        ctx.ellipse(screenX, screenY + obj.size * 0.35, obj.size * 0.4, obj.size * 0.12, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.globalAlpha = 1;
+                        
+                        ctx.restore();
                         break;
                         
                     case 'bush':
@@ -1779,6 +2545,110 @@
                                 );
                             }
                         }
+                        break;
+                        
+                    case 'skyscraper':
+                        // Tall skyscraper with many windows
+                        ctx.fillStyle = obj.color;
+                        ctx.fillRect(screenX - obj.size * 0.25, screenY - obj.size, obj.size * 0.5, obj.size);
+                        // Skyscraper windows (grid pattern)
+                        ctx.fillStyle = '#aaddff';
+                        const floors = Math.floor(obj.size / 15);
+                        const windowsPerFloor = 3;
+                        for (let fy = 0; fy < floors; fy++) {
+                            for (let wx = 0; wx < windowsPerFloor; wx++) {
+                                if (Math.random() > 0.3) { // Some lights on, some off
+                                    ctx.fillRect(
+                                        screenX - obj.size * 0.2 + wx * obj.size * 0.13,
+                                        screenY - obj.size + fy * 15 + 5,
+                                        obj.size * 0.08,
+                                        obj.size * 0.06
+                                    );
+                                }
+                            }
+                        }
+                        // Antenna on top
+                        ctx.strokeStyle = '#666';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(screenX, screenY - obj.size);
+                        ctx.lineTo(screenX, screenY - obj.size - 20);
+                        ctx.stroke();
+                        break;
+                        
+                    case 'shop':
+                        // Storefront with awning
+                        ctx.fillStyle = obj.color;
+                        ctx.fillRect(screenX - obj.size * 0.4, screenY - obj.size * 0.6, obj.size * 0.8, obj.size * 0.6);
+                        // Awning
+                        ctx.fillStyle = '#cc4444';
+                        ctx.beginPath();
+                        ctx.moveTo(screenX - obj.size * 0.45, screenY - obj.size * 0.6);
+                        ctx.lineTo(screenX + obj.size * 0.45, screenY - obj.size * 0.6);
+                        ctx.lineTo(screenX + obj.size * 0.4, screenY - obj.size * 0.75);
+                        ctx.lineTo(screenX - obj.size * 0.4, screenY - obj.size * 0.75);
+                        ctx.closePath();
+                        ctx.fill();
+                        // Shop window
+                        ctx.fillStyle = '#88ccff';
+                        ctx.fillRect(screenX - obj.size * 0.25, screenY - obj.size * 0.45, obj.size * 0.5, obj.size * 0.35);
+                        // Door
+                        ctx.fillStyle = '#5a4a3a';
+                        ctx.fillRect(screenX - obj.size * 0.08, screenY - obj.size * 0.25, obj.size * 0.16, obj.size * 0.25);
+                        break;
+                        
+                    case 'street_lamp':
+                        // Lamp post
+                        ctx.fillStyle = '#2a2a35';
+                        ctx.fillRect(screenX - 2, screenY - obj.size, 4, obj.size);
+                        // Lamp head
+                        ctx.fillStyle = '#3a3a45';
+                        ctx.beginPath();
+                        ctx.arc(screenX, screenY - obj.size, 8, 0, Math.PI * 2);
+                        ctx.fill();
+                        // Light glow
+                        ctx.fillStyle = '#ffdd88';
+                        ctx.shadowBlur = 20;
+                        ctx.shadowColor = '#ffaa44';
+                        ctx.globalAlpha = 0.8;
+                        ctx.beginPath();
+                        ctx.arc(screenX, screenY - obj.size, 5, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                        ctx.globalAlpha = 1;
+                        // Light cone on ground
+                        ctx.fillStyle = 'rgba(255, 220, 150, 0.15)';
+                        ctx.beginPath();
+                        ctx.moveTo(screenX - obj.size * 0.3, screenY + obj.size * 0.2);
+                        ctx.lineTo(screenX + obj.size * 0.3, screenY + obj.size * 0.2);
+                        ctx.lineTo(screenX, screenY - obj.size);
+                        ctx.closePath();
+                        ctx.fill();
+                        break;
+                        
+                    case 'car':
+                        // Car body
+                        ctx.fillStyle = obj.color;
+                        ctx.fillRect(screenX - obj.size, screenY - obj.size * 0.4, obj.size * 2, obj.size * 0.5);
+                        // Car roof
+                        ctx.fillRect(screenX - obj.size * 0.6, screenY - obj.size * 0.7, obj.size * 1.2, obj.size * 0.4);
+                        // Windows
+                        ctx.fillStyle = '#88ccff';
+                        ctx.fillRect(screenX - obj.size * 0.5, screenY - obj.size * 0.65, obj.size * 0.4, obj.size * 0.25);
+                        ctx.fillRect(screenX + obj.size * 0.1, screenY - obj.size * 0.65, obj.size * 0.4, obj.size * 0.25);
+                        // Wheels
+                        ctx.fillStyle = '#222';
+                        ctx.beginPath();
+                        ctx.arc(screenX - obj.size * 0.6, screenY + obj.size * 0.1, obj.size * 0.2, 0, Math.PI * 2);
+                        ctx.arc(screenX + obj.size * 0.6, screenY + obj.size * 0.1, obj.size * 0.2, 0, Math.PI * 2);
+                        ctx.fill();
+                        // Headlights
+                        ctx.fillStyle = '#ffffcc';
+                        ctx.globalAlpha = 0.6;
+                        ctx.beginPath();
+                        ctx.arc(screenX + obj.size * 0.9, screenY - obj.size * 0.2, obj.size * 0.1, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.globalAlpha = 1;
                         break;
                         
                     case 'cactus':
@@ -1921,6 +2791,347 @@
                             }
                             ctx.fillStyle = '#8b4513';
                         }
+                        break;
+                        
+                    case 'palm_tree':
+                        // Palm tree with curved trunk and fan leaves
+                        ctx.save();
+                        
+                        // Trunk - curved
+                        ctx.fillStyle = '#8b5a2b';
+                        ctx.beginPath();
+                        ctx.moveTo(screenX - obj.size * 0.08, screenY + obj.size * 0.3);
+                        ctx.quadraticCurveTo(
+                            screenX + obj.size * 0.05, screenY,
+                            screenX, screenY - obj.size * 0.6
+                        );
+                        ctx.lineTo(screenX + obj.size * 0.05, screenY - obj.size * 0.6);
+                        ctx.quadraticCurveTo(
+                            screenX + obj.size * 0.12, screenY,
+                            screenX + obj.size * 0.08, screenY + obj.size * 0.3
+                        );
+                        ctx.closePath();
+                        ctx.fill();
+                        
+                        // Trunk texture lines
+                        ctx.strokeStyle = '#6b4423';
+                        ctx.lineWidth = 1;
+                        for (let i = 0; i < 5; i++) {
+                            const ty = screenY + obj.size * 0.25 - i * obj.size * 0.15;
+                            ctx.beginPath();
+                            ctx.moveTo(screenX - obj.size * 0.05, ty);
+                            ctx.lineTo(screenX + obj.size * 0.05, ty);
+                            ctx.stroke();
+                        }
+                        
+                        // Palm fronds (leaves) - fanning out from top
+                        const frondCount = 7;
+                        ctx.strokeStyle = '#3d8b3d';
+                        ctx.lineWidth = 3;
+                        ctx.lineCap = 'round';
+                        
+                        for (let i = 0; i < frondCount; i++) {
+                            const angle = -Math.PI / 2 + (i - frondCount/2) * 0.35;
+                            const frondLen = obj.size * 0.7;
+                            
+                            // Main frond stem
+                            ctx.beginPath();
+                            ctx.moveTo(screenX, screenY - obj.size * 0.6);
+                            
+                            // Curved frond
+                            const cpX = screenX + Math.cos(angle) * frondLen * 0.5;
+                            const cpY = screenY - obj.size * 0.6 + Math.sin(angle) * frondLen * 0.5 - obj.size * 0.1;
+                            const endX = screenX + Math.cos(angle) * frondLen;
+                            const endY = screenY - obj.size * 0.6 + Math.sin(angle) * frondLen * 0.7;
+                            
+                            ctx.quadraticCurveTo(cpX, cpY, endX, endY);
+                            ctx.stroke();
+                            
+                            // Frond leaflets
+                            ctx.strokeStyle = '#4a9a4a';
+                            ctx.lineWidth = 1.5;
+                            for (let j = 1; j < 8; j++) {
+                                const t = j / 8;
+                                const lx = screenX + Math.cos(angle) * frondLen * t;
+                                const ly = screenY - obj.size * 0.6 + Math.sin(angle) * frondLen * t * 0.7 - Math.sin(t * Math.PI) * obj.size * 0.1;
+                                const leafletAngle = angle + (j % 2 === 0 ? 0.3 : -0.3);
+                                
+                                ctx.beginPath();
+                                ctx.moveTo(lx, ly);
+                                ctx.lineTo(lx + Math.cos(leafletAngle) * obj.size * 0.15, ly + Math.sin(leafletAngle) * obj.size * 0.15);
+                                ctx.stroke();
+                            }
+                            ctx.strokeStyle = '#3d8b3d';
+                            ctx.lineWidth = 3;
+                        }
+                        
+                        // Shadow at base
+                        ctx.fillStyle = 'rgba(0, 0, 0, 0.2)';
+                        ctx.beginPath();
+                        ctx.ellipse(screenX, screenY + obj.size * 0.3, obj.size * 0.2, obj.size * 0.08, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        ctx.restore();
+                        break;
+                        
+                    // Boss structure types - menacing and unique
+                    case 'obsidian_pillar':
+                        // Jagged obsidian pillar
+                        ctx.fillStyle = obj.color;
+                        ctx.shadowColor = '#000';
+                        ctx.shadowBlur = 10;
+                        // Main pillar with jagged edges
+                        ctx.beginPath();
+                        ctx.moveTo(screenX - obj.size * 0.3, screenY + obj.size);
+                        ctx.lineTo(screenX - obj.size * 0.15, screenY - obj.size);
+                        ctx.lineTo(screenX + obj.size * 0.1, screenY - obj.size * 0.9);
+                        ctx.lineTo(screenX + obj.size * 0.25, screenY + obj.size);
+                        ctx.closePath();
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                        // Cracks/glow
+                        ctx.strokeStyle = '#440000';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(screenX, screenY - obj.size * 0.5);
+                        ctx.lineTo(screenX - obj.size * 0.1, screenY);
+                        ctx.lineTo(screenX + obj.size * 0.05, screenY + obj.size * 0.5);
+                        ctx.stroke();
+                        break;
+                        
+                    case 'volcanic_vent':
+                        // Volcanic vent with glowing center
+                        ctx.fillStyle = '#2a1a1a';
+                        ctx.beginPath();
+                        ctx.ellipse(screenX, screenY, obj.size, obj.size * 0.6, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        // Glowing center
+                        ctx.fillStyle = obj.color;
+                        ctx.shadowColor = '#ff4400';
+                        ctx.shadowBlur = 20;
+                        ctx.beginPath();
+                        ctx.ellipse(screenX, screenY, obj.size * 0.5, obj.size * 0.3, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                        // Smoke particles
+                        ctx.fillStyle = 'rgba(100, 100, 100, 0.5)';
+                        for (let i = 0; i < 3; i++) {
+                            const sy = screenY - obj.size - i * 15;
+                            ctx.beginPath();
+                            ctx.arc(screenX + Math.sin(Date.now() * 0.002 + i) * 5, sy, 5 + i * 2, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                        break;
+                        
+                    case 'ancient_tree':
+                        // Twisted ancient tree
+                        ctx.fillStyle = obj.color;
+                        // Trunk
+                        ctx.fillRect(screenX - obj.size * 0.1, screenY - obj.size * 0.3, obj.size * 0.2, obj.size * 0.8);
+                        // Twisted branches
+                        ctx.strokeStyle = obj.color;
+                        ctx.lineWidth = obj.size * 0.08;
+                        ctx.lineCap = 'round';
+                        for (let i = 0; i < 5; i++) {
+                            const angle = -Math.PI / 2 + (i - 2) * 0.4;
+                            const len = obj.size * (0.4 + Math.random() * 0.2);
+                            ctx.beginPath();
+                            ctx.moveTo(screenX, screenY - obj.size * 0.2);
+                            ctx.quadraticCurveTo(
+                                screenX + Math.cos(angle) * len * 0.5,
+                                screenY - obj.size * 0.3 + Math.sin(angle) * len * 0.3,
+                                screenX + Math.cos(angle) * len,
+                                screenY - obj.size * 0.4 + Math.sin(angle) * len
+                            );
+                            ctx.stroke();
+                        }
+                        break;
+                        
+                    case 'corrupted_grove':
+                        // Corrupted purple grove
+                        ctx.fillStyle = obj.color;
+                        ctx.shadowColor = '#660066';
+                        ctx.shadowBlur = 15;
+                        // Spiky growths
+                        for (let i = 0; i < 5; i++) {
+                            const angle = (i / 5) * Math.PI * 2;
+                            const dist = obj.size * 0.4;
+                            const gx = screenX + Math.cos(angle) * dist;
+                            const gy = screenY + Math.sin(angle) * dist * 0.5;
+                            ctx.beginPath();
+                            ctx.moveTo(gx, gy + obj.size * 0.3);
+                            ctx.lineTo(gx, gy - obj.size * 0.5);
+                            ctx.lineTo(gx + obj.size * 0.1, gy + obj.size * 0.3);
+                            ctx.fill();
+                        }
+                        // Center glow
+                        ctx.fillStyle = '#880088';
+                        ctx.beginPath();
+                        ctx.arc(screenX, screenY, obj.size * 0.2, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                        break;
+                        
+                    case 'ruined_tower':
+                        // Ruined skyscraper
+                        ctx.fillStyle = obj.color;
+                        // Main structure
+                        ctx.fillRect(screenX - obj.size * 0.25, screenY - obj.size, obj.size * 0.5, obj.size * 1.3);
+                        // Broken top
+                        ctx.beginPath();
+                        ctx.moveTo(screenX - obj.size * 0.25, screenY - obj.size);
+                        ctx.lineTo(screenX - obj.size * 0.1, screenY - obj.size * 1.2);
+                        ctx.lineTo(screenX + obj.size * 0.15, screenY - obj.size * 0.9);
+                        ctx.lineTo(screenX + obj.size * 0.25, screenY - obj.size);
+                        ctx.fill();
+                        // Windows (some broken)
+                        ctx.fillStyle = '#1a1a2e';
+                        for (let wy = 0; wy < 4; wy++) {
+                            for (let wx = 0; wx < 2; wx++) {
+                                if (Math.random() > 0.3) { // Some windows intact
+                                    ctx.fillRect(
+                                        screenX - obj.size * 0.15 + wx * obj.size * 0.15,
+                                        screenY - obj.size * 0.8 + wy * obj.size * 0.25,
+                                        obj.size * 0.08,
+                                        obj.size * 0.12
+                                    );
+                                }
+                            }
+                        }
+                        break;
+                        
+                    case 'industrial_pillar':
+                        // Industrial metal pillar
+                        ctx.fillStyle = obj.color;
+                        ctx.fillRect(screenX - obj.size * 0.15, screenY - obj.size, obj.size * 0.3, obj.size * 1.2);
+                        // Metal bands
+                        ctx.fillStyle = '#1a1a1a';
+                        ctx.fillRect(screenX - obj.size * 0.18, screenY - obj.size * 0.7, obj.size * 0.36, obj.size * 0.08);
+                        ctx.fillRect(screenX - obj.size * 0.18, screenY - obj.size * 0.2, obj.size * 0.36, obj.size * 0.08);
+                        // Warning stripes
+                        ctx.fillStyle = '#ffaa00';
+                        for (let i = 0; i < 3; i++) {
+                            ctx.fillRect(screenX - obj.size * 0.15 + i * obj.size * 0.1, screenY + obj.size * 0.1, obj.size * 0.05, obj.size * 0.15);
+                        }
+                        break;
+                        
+                    case 'menhir':
+                        // Standing stone
+                        ctx.fillStyle = obj.color;
+                        ctx.beginPath();
+                        ctx.ellipse(screenX, screenY, obj.size * 0.25, obj.size * 0.8, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        // Rune markings
+                        ctx.strokeStyle = '#1a1a1a';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.moveTo(screenX, screenY - obj.size * 0.4);
+                        ctx.lineTo(screenX, screenY + obj.size * 0.4);
+                        ctx.moveTo(screenX - obj.size * 0.1, screenY - obj.size * 0.2);
+                        ctx.lineTo(screenX + obj.size * 0.1, screenY - obj.size * 0.2);
+                        ctx.stroke();
+                        break;
+                        
+                    // Central boss structures
+                    case 'lava_altar':
+                        // Massive lava altar
+                        ctx.fillStyle = '#1a0a0a';
+                        ctx.fillRect(screenX - obj.size * 0.4, screenY - obj.size * 0.3, obj.size * 0.8, obj.size * 0.5);
+                        // Lava pool
+                        ctx.fillStyle = obj.color;
+                        ctx.shadowColor = '#ff4400';
+                        ctx.shadowBlur = 30;
+                        ctx.beginPath();
+                        ctx.ellipse(screenX, screenY, obj.size * 0.3, obj.size * 0.15, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                        // Pillars around altar
+                        ctx.fillStyle = '#0a0505';
+                        for (let i = 0; i < 4; i++) {
+                            const angle = (i / 4) * Math.PI * 2;
+                            const px = screenX + Math.cos(angle) * obj.size * 0.5;
+                            const py = screenY + Math.sin(angle) * obj.size * 0.2;
+                            ctx.fillRect(px - obj.size * 0.05, py - obj.size * 0.4, obj.size * 0.1, obj.size * 0.4);
+                        }
+                        break;
+                        
+                    case 'corrupted_shrine':
+                        // Corrupted forest shrine
+                        ctx.fillStyle = '#0a1a0a';
+                        // Stone base
+                        ctx.beginPath();
+                        ctx.moveTo(screenX - obj.size * 0.4, screenY + obj.size * 0.2);
+                        ctx.lineTo(screenX, screenY - obj.size * 0.3);
+                        ctx.lineTo(screenX + obj.size * 0.4, screenY + obj.size * 0.2);
+                        ctx.closePath();
+                        ctx.fill();
+                        // Corruption glow
+                        ctx.fillStyle = obj.color;
+                        ctx.shadowColor = '#660066';
+                        ctx.shadowBlur = 25;
+                        ctx.beginPath();
+                        ctx.arc(screenX, screenY - obj.size * 0.1, obj.size * 0.2, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                        // Twisted roots
+                        ctx.strokeStyle = '#2a0044';
+                        ctx.lineWidth = 3;
+                        for (let i = 0; i < 6; i++) {
+                            const angle = (i / 6) * Math.PI * 2;
+                            ctx.beginPath();
+                            ctx.moveTo(screenX, screenY);
+                            ctx.quadraticCurveTo(
+                                screenX + Math.cos(angle) * obj.size * 0.3,
+                                screenY + Math.sin(angle) * obj.size * 0.2,
+                                screenX + Math.cos(angle) * obj.size * 0.5,
+                                screenY + Math.sin(angle) * obj.size * 0.3
+                            );
+                            ctx.stroke();
+                        }
+                        break;
+                        
+                    case 'ruined_cathedral':
+                        // Massive ruined cathedral
+                        ctx.fillStyle = obj.color;
+                        // Main structure
+                        ctx.fillRect(screenX - obj.size * 0.4, screenY - obj.size * 0.8, obj.size * 0.8, obj.size);
+                        // Broken spires
+                        ctx.beginPath();
+                        ctx.moveTo(screenX - obj.size * 0.3, screenY - obj.size * 0.8);
+                        ctx.lineTo(screenX - obj.size * 0.2, screenY - obj.size * 1.1);
+                        ctx.lineTo(screenX - obj.size * 0.1, screenY - obj.size * 0.8);
+                        ctx.fill();
+                        ctx.beginPath();
+                        ctx.moveTo(screenX + obj.size * 0.1, screenY - obj.size * 0.8);
+                        ctx.lineTo(screenX + obj.size * 0.25, screenY - obj.size);
+                        ctx.lineTo(screenX + obj.size * 0.35, screenY - obj.size * 0.8);
+                        ctx.fill();
+                        // Broken windows
+                        ctx.fillStyle = '#0a0a1a';
+                        ctx.beginPath();
+                        ctx.arc(screenX, screenY - obj.size * 0.3, obj.size * 0.15, 0, Math.PI * 2);
+                        ctx.fill();
+                        // Debris
+                        ctx.fillStyle = '#2a2a3a';
+                        for (let i = 0; i < 5; i++) {
+                            const dx = screenX + (Math.random() - 0.5) * obj.size;
+                            const dy = screenY + obj.size * 0.2 + Math.random() * obj.size * 0.2;
+                            ctx.fillRect(dx, dy, obj.size * 0.08, obj.size * 0.08);
+                        }
+                        break;
+                        
+                    case 'dark_altar':
+                        // Generic dark altar
+                        ctx.fillStyle = '#1a1a1a';
+                        ctx.fillRect(screenX - obj.size * 0.3, screenY - obj.size * 0.2, obj.size * 0.6, obj.size * 0.3);
+                        // Glowing center
+                        ctx.fillStyle = obj.color;
+                        ctx.shadowColor = '#444';
+                        ctx.shadowBlur = 20;
+                        ctx.beginPath();
+                        ctx.ellipse(screenX, screenY - obj.size * 0.1, obj.size * 0.15, obj.size * 0.08, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
                         break;
                 }
                 
@@ -2186,6 +3397,90 @@
                         hollowPurple.blueOrb.angle = 0;
                         hollowPurple.redOrb.angle = Math.PI;
                     }
+                } else if (index === 3) { // Domain Expansion
+                    if (!playerDomain.active) {
+                        activateDomain();
+                    }
+                }
+            }
+        }
+        
+        function activateDomain() {
+            playerDomain.active = true;
+            playerDomain.phase = 'expanding';
+            playerDomain.phaseTimer = 90; // 1.5 seconds to expand
+            playerDomain.radius = 0;
+            playerDomain.duration = 1800; // 30 seconds
+            playerDomain.frozenEnemies = [];
+            
+            // Store fixed domain center at player position when cast
+            playerDomain.centerX = player.x;
+            playerDomain.centerY = player.y;
+            
+            // Initialize dramatic speed lines (more intense, radiating from center)
+            playerDomain.lines = [];
+            for (let i = 0; i < 150; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 100 + Math.random() * 500;
+                playerDomain.lines.push({
+                    angle: angle,
+                    dist: dist,
+                    z: Math.random() * 800,
+                    speed: 30 + Math.random() * 40,
+                    color: ['#4488ff', '#ff4444', '#aa44ff', '#ffffff', '#44ffff'][Math.floor(Math.random() * 5)],
+                    length: 100 + Math.random() * 200,
+                    width: 2 + Math.random() * 4
+                });
+            }
+            
+            // Initialize stars (more numerous, deeper space feel)
+            playerDomain.stars = [];
+            for (let i = 0; i < 300; i++) {
+                playerDomain.stars.push({
+                    x: (Math.random() - 0.5) * 2500,
+                    y: (Math.random() - 0.5) * 2500,
+                    size: 0.5 + Math.random() * 2.5,
+                    twinkle: Math.random() * Math.PI * 2,
+                    brightness: 0.3 + Math.random() * 0.7
+                });
+            }
+            
+            // Initialize galaxies (more dramatic)
+            playerDomain.galaxies = [];
+            for (let i = 0; i < 6; i++) {
+                playerDomain.galaxies.push({
+                    x: (Math.random() - 0.5) * 2000,
+                    y: (Math.random() - 0.5) * 2000,
+                    size: 150 + Math.random() * 200,
+                    rotation: Math.random() * Math.PI * 2,
+                    rotationSpeed: (Math.random() - 0.5) * 0.003,
+                    color: `hsl(${Math.random() * 80 + 220}, 80%, 65%)`,
+                    brightness: 0.6 + Math.random() * 0.4
+                });
+            }
+            
+            // Initialize paint splats (empty initially)
+            playerDomain.paintSplats = [];
+            
+            // Initialize footstep ripples
+            playerDomain.footstepRipples = [];
+            playerDomain.footstepDistance = 0;
+            
+            // Japanese text for Unlimited Void
+            playerDomain.domainText = {
+                japanese: '無量空処',
+                english: 'UNLIMITED VOID',
+                opacity: 0,
+                showTime: 0
+            };
+            
+            // Freeze all enemies currently in range
+            for (const spirit of cursedSpirits) {
+                const dx = spirit.x - player.x;
+                const dy = spirit.y - player.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < playerDomain.maxRadius) {
+                    playerDomain.frozenEnemies.push(spirit);
                 }
             }
         }
@@ -2494,6 +3789,8 @@
                     hollowPurple.vy = 0;
                     hollowPurple.life = hollowPurple.maxLife;
                     hollowPurple.hitEnemies = [];
+                    hollowPurple.blueOrb = { x: 0, y: 0, angle: 0 };
+                    hollowPurple.redOrb = { x: 0, y: 0, angle: Math.PI };
                 }
                 return;
             }
@@ -2528,15 +3825,15 @@
                 const dy = hollowPurple.y - spirit.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
-                // Check if already hit this enemy
-                const alreadyHit = hollowPurple.hitEnemies.includes(spirit);
+                // Check if already hit this enemy (use spirit id for reliability)
+                const alreadyHit = hollowPurple.hitEnemies.includes(spirit.id || i);
                 
                 if (dist < hollowPurple.radius + spirit.size && !alreadyHit) {
                     spirit.hp -= hollowPurple.damage;
                     addDamageCounter(hollowPurple.damage);
                     addDamageNumber(spirit.x, spirit.y, hollowPurple.damage);
                     addHitEffect(spirit.x, spirit.y, 'purple');
-                    hollowPurple.hitEnemies.push(spirit);
+                    hollowPurple.hitEnemies.push(spirit.id || i);
                     
                     if (spirit.hp <= 0) {
                         addKillEffect(spirit.x, spirit.y, 'purple');
@@ -2597,6 +3894,450 @@
                 hollowPurple.active = false;
                 hollowPurple.fused = false;
             }
+        }
+        
+        function updatePlayerDomain() {
+            if (!playerDomain.active) return;
+            
+            playerDomain.duration--;
+            
+            // Phase management
+            switch(playerDomain.phase) {
+                case 'expanding':
+                    // Expand black circle
+                    playerDomain.radius += (playerDomain.maxRadius - playerDomain.radius) * 0.05;
+                    playerDomain.phaseTimer--;
+                    if (playerDomain.phaseTimer <= 0 || playerDomain.radius > playerDomain.maxRadius * 0.95) {
+                        playerDomain.phase = 'lines';
+                        playerDomain.phaseTimer = 180; // 3 seconds of speed lines
+                    }
+                    break;
+                    
+                case 'lines':
+                    // Update speed lines
+                    playerDomain.phaseTimer--;
+                    for (const line of playerDomain.lines) {
+                        line.z -= line.speed;
+                        if (line.z <= 0) {
+                            line.z = 1000;
+                            line.x = (Math.random() - 0.5) * canvas.width * 2;
+                            line.y = (Math.random() - 0.5) * canvas.height * 2;
+                        }
+                    }
+                    if (playerDomain.phaseTimer <= 0) {
+                        playerDomain.phase = 'cosmic';
+                        playerDomain.phaseTimer = 90; // 1.5 seconds of paint
+                    }
+                    break;
+                    
+                case 'cosmic':
+                    // Generate paint splats during this phase
+                    playerDomain.phaseTimer--;
+                    if (playerDomain.phaseTimer > 0 && Math.random() < 0.3) {
+                        playerDomain.paintSplats.push({
+                            x: (Math.random() - 0.5) * canvas.width,
+                            y: (Math.random() - 0.5) * canvas.height,
+                            size: 20 + Math.random() * 80,
+                            life: 90, // 1.5 seconds
+                            maxLife: 90
+                        });
+                    }
+                    if (playerDomain.phaseTimer <= 0) {
+                        playerDomain.phase = 'active';
+                    }
+                    break;
+                    
+                case 'active':
+                    // Domain is active, just update effects
+                    break;
+            }
+            
+            // Update galaxies rotation
+            for (const galaxy of playerDomain.galaxies) {
+                galaxy.rotation += galaxy.rotationSpeed;
+            }
+            
+            // Update black hole
+            playerDomain.blackHole.angle += 0.02;
+            playerDomain.blackHole.accretionRadius = 60 + Math.sin(Date.now() * 0.002) * 10;
+            
+            // Update paint splats
+            for (let i = playerDomain.paintSplats.length - 1; i >= 0; i--) {
+                playerDomain.paintSplats[i].life--;
+                if (playerDomain.paintSplats[i].life <= 0) {
+                    playerDomain.paintSplats.splice(i, 1);
+                }
+            }
+            
+            // End domain
+            if (playerDomain.duration <= 0) {
+                playerDomain.active = false;
+                playerDomain.frozenEnemies = [];
+            }
+        }
+        
+        function drawPlayerDomainBackground() {
+            if (!playerDomain.active) return;
+            
+            // Calculate domain center on screen (fixed world position)
+            const domainScreenX = playerDomain.centerX - camera.x;
+            const domainScreenY = playerDomain.centerY - camera.y;
+            
+            // Only draw if domain is visible on screen
+            const distFromCenter = Math.sqrt(
+                Math.pow(domainScreenX - canvas.width/2, 2) + 
+                Math.pow(domainScreenY - canvas.height/2, 2)
+            );
+            if (distFromCenter > playerDomain.maxRadius + Math.max(canvas.width, canvas.height)) {
+                return; // Domain is off-screen
+            }
+            
+            ctx.save();
+            
+            // Create domain mask - only draw inside the domain circle at fixed position
+            ctx.beginPath();
+            ctx.arc(domainScreenX, domainScreenY, playerDomain.radius, 0, Math.PI * 2);
+            ctx.clip();
+            
+            // Fill with infinite void - darker at edges, deep purple-black center
+            const voidGrad = ctx.createRadialGradient(domainScreenX, domainScreenY, 0, domainScreenX, domainScreenY, playerDomain.radius);
+            voidGrad.addColorStop(0, '#0d0020');
+            voidGrad.addColorStop(0.3, '#080014');
+            voidGrad.addColorStop(0.7, '#030008');
+            voidGrad.addColorStop(1, '#000000');
+            ctx.fillStyle = voidGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Draw water ripple footsteps (relative to domain center)
+            if (playerDomain.phase !== 'expanding' && playerDomain.phase !== 'lines') {
+                ctx.save();
+                // Translate so domain center is at origin, then draw ripples at their world positions
+                ctx.translate(domainScreenX - playerDomain.centerX, domainScreenY - playerDomain.centerY);
+                
+                // Draw existing ripples
+                for (let i = playerDomain.footstepRipples.length - 1; i >= 0; i--) {
+                    const ripple = playerDomain.footstepRipples[i];
+                    ripple.life--;
+                    ripple.radius += 2; // Expand outward
+                    
+                    if (ripple.life <= 0) {
+                        playerDomain.footstepRipples.splice(i, 1);
+                        continue;
+                    }
+                    
+                    const alpha = (ripple.life / ripple.maxLife) * 0.6;
+                    ctx.strokeStyle = `rgba(150, 100, 200, ${alpha})`;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(ripple.x, ripple.y, ripple.radius, 0, Math.PI * 2);
+                    ctx.stroke();
+                    
+                    // Secondary ripple ring
+                    if (ripple.radius > 10) {
+                        ctx.strokeStyle = `rgba(100, 70, 150, ${alpha * 0.5})`;
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.arc(ripple.x, ripple.y, ripple.radius * 0.7, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+                }
+                
+                ctx.restore();
+            }
+            
+            // Draw dramatic speed lines during lines/expanding phase
+            if (playerDomain.phase === 'lines' || playerDomain.phase === 'expanding') {
+                ctx.save();
+                ctx.translate(domainScreenX, domainScreenY);
+                
+                // Draw radiating speed lines from center
+                for (const line of playerDomain.lines) {
+                    // Calculate 3D perspective position
+                    const perspective = 500 / (line.z + 100);
+                    const x = Math.cos(line.angle) * line.dist * perspective;
+                    const y = Math.sin(line.angle) * line.dist * perspective;
+                    
+                    // Line extends outward from center
+                    const length = line.length * perspective;
+                    const width = line.width * perspective;
+                    
+                    ctx.strokeStyle = line.color;
+                    ctx.lineWidth = width;
+                    ctx.globalAlpha = Math.min(1, perspective * 0.5);
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = line.color;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(x * 0.1, y * 0.1); // Start near center
+                    ctx.lineTo(x + Math.cos(line.angle) * length, y + Math.sin(line.angle) * length);
+                    ctx.stroke();
+                    ctx.shadowBlur = 0;
+                }
+                
+                // Central vortex effect during lines phase
+                if (playerDomain.phase === 'lines') {
+                    ctx.globalAlpha = 0.3;
+                    for (let i = 0; i < 20; i++) {
+                        const angle = (Date.now() * 0.002) + (i / 20) * Math.PI * 2;
+                        const r = 50 + i * 15;
+                        ctx.strokeStyle = i % 2 === 0 ? '#4444ff' : '#ff4444';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.arc(0, 0, r, angle, angle + Math.PI * 0.3);
+                        ctx.stroke();
+                    }
+                }
+                
+                ctx.restore();
+            }
+            
+            // Draw cosmic background (stars and galaxies) - ONLY after speed lines phase
+            if (playerDomain.phase === 'cosmic' || playerDomain.phase === 'active') {
+                ctx.save();
+                ctx.translate(domainScreenX, domainScreenY);
+                
+                // Draw distant stars with parallax effect
+                for (const star of playerDomain.stars) {
+                    const twinkle = Math.sin(Date.now() * 0.003 + star.twinkle) * 0.5 + 0.5;
+                    const brightness = star.brightness * (0.5 + twinkle * 0.5);
+                    ctx.fillStyle = `rgba(255, 255, 255, ${brightness})`;
+                    ctx.shadowBlur = star.size * 2;
+                    ctx.shadowColor = '#ffffff';
+                    ctx.beginPath();
+                    ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Draw galaxies
+                for (const galaxy of playerDomain.galaxies) {
+                    ctx.save();
+                    ctx.translate(galaxy.x, galaxy.y);
+                    ctx.rotate(galaxy.rotation);
+                    
+                    // Galaxy core
+                    const coreGrad = ctx.createRadialGradient(0, 0, 0, 0, 0, galaxy.size * 0.3);
+                    coreGrad.addColorStop(0, 'rgba(255, 255, 255, 0.8)');
+                    coreGrad.addColorStop(0.5, galaxy.color);
+                    coreGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                    ctx.fillStyle = coreGrad;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, galaxy.size, galaxy.size * 0.3, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Spiral arms
+                    for (let arm = 0; arm < 2; arm++) {
+                        ctx.strokeStyle = galaxy.color;
+                        ctx.lineWidth = galaxy.size * 0.05;
+                        ctx.globalAlpha = 0.4;
+                        ctx.beginPath();
+                        for (let t = 0; t < 20; t++) {
+                            const angle = (arm * Math.PI) + t * 0.3;
+                            const r = t * galaxy.size * 0.04;
+                            const x = Math.cos(angle) * r;
+                            const y = Math.sin(angle) * r * 0.3;
+                            if (t === 0) ctx.moveTo(x, y);
+                            else ctx.lineTo(x, y);
+                        }
+                        ctx.stroke();
+                    }
+                    
+                    ctx.restore();
+                }
+                
+                // Draw black hole at center - Clean Gojo-style
+                const bh = playerDomain.blackHole;
+                
+                // Wispy accretion disk (subtle, rotating)
+                ctx.save();
+                ctx.rotate(bh.angle * 0.3);
+                ctx.globalAlpha = 0.4;
+                
+                // Top wisp
+                const wispGrad = ctx.createRadialGradient(-30, -60, 0, -30, -60, 80);
+                wispGrad.addColorStop(0, 'rgba(200, 220, 255, 0.6)');
+                wispGrad.addColorStop(0.5, 'rgba(150, 180, 220, 0.3)');
+                wispGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = wispGrad;
+                ctx.beginPath();
+                ctx.ellipse(-30, -60, 60, 25, -0.3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Bottom wisp
+                const wispGrad2 = ctx.createRadialGradient(30, 60, 0, 30, 60, 80);
+                wispGrad2.addColorStop(0, 'rgba(200, 220, 255, 0.5)');
+                wispGrad2.addColorStop(0.5, 'rgba(150, 180, 220, 0.25)');
+                wispGrad2.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = wispGrad2;
+                ctx.beginPath();
+                ctx.ellipse(30, 60, 55, 22, 0.3, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.restore();
+                
+                // Main bright photon ring (the iconic white/blue glow)
+                ctx.shadowBlur = 60;
+                ctx.shadowColor = '#88aaff';
+                ctx.strokeStyle = '#ccddff';
+                ctx.lineWidth = 12;
+                ctx.globalAlpha = 0.9;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 110, 45, bh.angle * 0.2, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Inner bright ring
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 6;
+                ctx.shadowBlur = 40;
+                ctx.shadowColor = '#aaccff';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 100, 40, bh.angle * 0.2, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Event horizon (pure black center)
+                ctx.fillStyle = '#000000';
+                ctx.shadowBlur = 0;
+                ctx.globalAlpha = 1;
+                ctx.beginPath();
+                ctx.arc(0, 0, 85, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Subtle inner edge glow
+                ctx.strokeStyle = '#4466aa';
+                ctx.lineWidth = 2;
+                ctx.globalAlpha = 0.5;
+                ctx.beginPath();
+                ctx.arc(0, 0, 83, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                ctx.restore();
+            }
+            
+            // Draw white paint splats
+            if (playerDomain.paintSplats.length > 0) {
+                ctx.save();
+                ctx.translate(domainScreenX, domainScreenY);
+                for (const splat of playerDomain.paintSplats) {
+                    const alpha = splat.life / splat.maxLife;
+                    ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.9})`;
+                    ctx.beginPath();
+                    // Irregular splat shape
+                    for (let i = 0; i < 8; i++) {
+                        const angle = (i / 8) * Math.PI * 2;
+                        const r = splat.size * (0.7 + Math.random() * 0.6);
+                        const x = splat.x + Math.cos(angle) * r;
+                        const y = splat.y + Math.sin(angle) * r;
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    }
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Drips
+                    ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.7})`;
+                    for (let i = 0; i < 3; i++) {
+                        const dx = splat.x + (Math.random() - 0.5) * splat.size;
+                        const dy = splat.y + Math.random() * splat.size * 0.8;
+                        ctx.beginPath();
+                        ctx.arc(dx, dy, splat.size * 0.1, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+                ctx.restore();
+            }
+            
+            ctx.restore();
+        }
+        
+        function drawPlayerDomainForeground() {
+            if (!playerDomain.active) return;
+            
+            // Calculate domain center on screen (fixed world position)
+            const domainScreenX = playerDomain.centerX - camera.x;
+            const domainScreenY = playerDomain.centerY - camera.y;
+            
+            // Only draw if domain is visible on screen
+            const distFromCenter = Math.sqrt(
+                Math.pow(domainScreenX - canvas.width/2, 2) + 
+                Math.pow(domainScreenY - canvas.height/2, 2)
+            );
+            if (distFromCenter > playerDomain.maxRadius + Math.max(canvas.width, canvas.height)) {
+                return; // Domain is off-screen
+            }
+            
+            ctx.save();
+            
+            // Draw Unlimited Void text - only for first 3 seconds of cosmic phase
+            const domainTimeElapsed = 1800 - playerDomain.duration;
+            const textDisplayDuration = 180; // 3 seconds at 60fps
+            if (playerDomain.phase !== 'expanding' && playerDomain.phase !== 'lines' && domainTimeElapsed < textDisplayDuration) {
+                ctx.save();
+                ctx.translate(domainScreenX, domainScreenY);
+                
+                // Fade in then fade out
+                let textAlpha;
+                if (domainTimeElapsed < 30) {
+                    textAlpha = domainTimeElapsed / 30; // Fade in
+                } else if (domainTimeElapsed > textDisplayDuration - 30) {
+                    textAlpha = (textDisplayDuration - domainTimeElapsed) / 30; // Fade out
+                } else {
+                    textAlpha = 1;
+                }
+                textAlpha *= 0.9;
+                
+                // Japanese text - 無量空処 (Muryōkūsho - Unlimited Void)
+                ctx.fillStyle = `rgba(255, 255, 255, ${textAlpha})`;
+                ctx.font = 'bold 56px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.shadowBlur = 40;
+                ctx.shadowColor = '#aa44ff';
+                ctx.fillText('無量空処', 0, -35);
+                
+                // English subtitle
+                ctx.font = 'bold 20px "Segoe UI", sans-serif';
+                ctx.fillStyle = `rgba(200, 200, 255, ${textAlpha * 0.8})`;
+                ctx.fillText('UNLIMITED VOID', 0, 20);
+                
+                // Decorative lines
+                ctx.strokeStyle = `rgba(170, 68, 255, ${textAlpha * 0.5})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(-140, 40);
+                ctx.lineTo(140, 40);
+                ctx.stroke();
+                
+                ctx.shadowBlur = 0;
+                ctx.restore();
+            }
+            
+            // Draw domain border - glowing purple barrier at fixed position
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#660066';
+            ctx.strokeStyle = '#440044';
+            ctx.lineWidth = 4;
+            ctx.globalAlpha = 0.9;
+            ctx.beginPath();
+            ctx.arc(domainScreenX, domainScreenY, playerDomain.radius, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Inner pulsing border
+            const pulse = Math.sin(Date.now() * 0.005) * 0.3 + 0.7;
+            ctx.strokeStyle = '#aa44ff';
+            ctx.lineWidth = 2;
+            ctx.globalAlpha = pulse * 0.6;
+            ctx.beginPath();
+            ctx.arc(domainScreenX, domainScreenY, playerDomain.radius - 8, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Outer glow ring
+            ctx.strokeStyle = '#440066';
+            ctx.lineWidth = 1;
+            ctx.globalAlpha = pulse * 0.3;
+            ctx.beginPath();
+            ctx.arc(domainScreenX, domainScreenY, playerDomain.radius + 10, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            ctx.shadowBlur = 0;
+            ctx.restore();
         }
         
         function drawHollowPurple() {
@@ -2818,36 +4559,118 @@
                     ctx.restore();
                 }
                 
-                // Energy particles being pulled to center
+                // Swirling energy vortex between orbs
+                if (fusionProgress > 0.15) {
+                    ctx.save();
+                    ctx.translate(centerX, centerY);
+                    const vortexIntensity = (fusionProgress - 0.15) / 0.85;
+                    
+                    // Outer spiral arms
+                    for (let arm = 0; arm < 3; arm++) {
+                        ctx.save();
+                        ctx.rotate(time * (2 + arm * 0.5) + arm * (Math.PI * 2 / 3));
+                        ctx.strokeStyle = `rgba(200, 100, 255, ${vortexIntensity * 0.6})`;
+                        ctx.lineWidth = 3;
+                        ctx.shadowBlur = 15;
+                        ctx.shadowColor = '#aa44ff';
+                        ctx.beginPath();
+                        for (let i = 0; i < 20; i++) {
+                            const r = 10 + i * 3;
+                            const a = i * 0.3;
+                            const x = Math.cos(a) * r;
+                            const y = Math.sin(a) * r;
+                            if (i === 0) ctx.moveTo(x, y);
+                            else ctx.lineTo(x, y);
+                        }
+                        ctx.stroke();
+                        ctx.restore();
+                    }
+                    
+                    // Inner energy swirl
+                    ctx.rotate(-time * 4);
+                    ctx.strokeStyle = `rgba(255, 200, 255, ${vortexIntensity * 0.8})`;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    for (let i = 0; i < 30; i++) {
+                        const r = 5 + i * 1.5;
+                        const a = i * 0.5;
+                        const x = Math.cos(a) * r;
+                        const y = Math.sin(a) * r;
+                        if (i === 0) ctx.moveTo(x, y);
+                        else ctx.lineTo(x, y);
+                    }
+                    ctx.stroke();
+                    ctx.restore();
+                }
+                
+                // Energy particles being pulled to center with trails
                 if (fusionProgress > 0.2) {
-                    ctx.shadowBlur = 15;
-                    const particleCount = Math.floor(fusionProgress * 20);
+                    const particleCount = Math.floor(fusionProgress * 30);
                     for (let i = 0; i < particleCount; i++) {
-                        const angle = (time * 2 + i * 0.3) % (Math.PI * 2);
-                        const dist = 25 * (1 - fusionProgress) + 3;
+                        const angle = (time * 3 + i * 0.2) % (Math.PI * 2);
+                        const dist = 35 * (1 - fusionProgress * 0.8) + 5;
                         const px = centerX + Math.cos(angle) * dist;
                         const py = centerY + Math.sin(angle) * dist;
+                        const trailLength = 8 + fusionProgress * 10;
+                        
                         const color = i % 3 === 0 ? '#ffffff' : (i % 3 === 1 ? '#8888ff' : '#ff8888');
+                        
+                        // Particle trail
+                        ctx.strokeStyle = color;
+                        ctx.lineWidth = 2;
+                        ctx.globalAlpha = 0.6;
+                        ctx.beginPath();
+                        ctx.moveTo(px, py);
+                        ctx.lineTo(px - Math.cos(angle) * trailLength, py - Math.sin(angle) * trailLength);
+                        ctx.stroke();
+                        ctx.globalAlpha = 1;
+                        
+                        // Particle head
+                        ctx.shadowBlur = 10;
+                        ctx.shadowColor = color;
                         ctx.fillStyle = color;
                         ctx.beginPath();
-                        ctx.arc(px, py, 1.5 + pulse * 2, 0, Math.PI * 2);
+                        ctx.arc(px, py, 2 + pulse * 2, 0, Math.PI * 2);
                         ctx.fill();
                     }
                 }
                 
-                // Draw fusion percentage with glow
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = '#aa44ff';
+                // Screen shake intensity based on fusion progress
+                if (fusionProgress > 0.5) {
+                    const shakeIntensity = (fusionProgress - 0.5) * 8;
+                    ctx.translate((Math.random() - 0.5) * shakeIntensity, (Math.random() - 0.5) * shakeIntensity);
+                }
+                
+                // Draw fusion percentage with intense glow
+                const glowIntensity = 10 + fusionProgress * 30;
+                ctx.shadowBlur = glowIntensity;
+                ctx.shadowColor = '#ff00ff';
                 ctx.fillStyle = '#fff';
-                ctx.font = 'bold 18px "Segoe UI", sans-serif';
+                ctx.font = 'bold 20px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
                 const percentText = Math.floor(fusionProgress * 100) + '%';
-                ctx.fillText(percentText, centerX, centerY - 45);
+                ctx.fillText(percentText, centerX, centerY - 50);
                 
-                // Shake effect when nearly fused
-                if (fusionProgress > 0.75) {
-                    const shake = (fusionProgress - 0.75) * 5;
-                    ctx.translate((Math.random() - 0.5) * shake, (Math.random() - 0.5) * shake);
+                // IMAGINARY TECHNIQUE / KYOSHIKI text when close
+                if (fusionProgress > 0.7) {
+                    ctx.shadowBlur = 20 + fastPulse * 20;
+                    ctx.shadowColor = '#ff00ff';
+                    ctx.fillStyle = `rgba(255, 0, 255, ${0.5 + fastPulse * 0.5})`;
+                    ctx.font = 'bold 12px "Segoe UI", sans-serif';
+                    ctx.fillText('IMAGINARY TECHNIQUE', centerX, centerY - 75);
+                    ctx.font = 'bold 16px "Segoe UI", sans-serif';
+                    ctx.fillText('虚式', centerX, centerY - 55);
+                }
+                
+                // HOLLOW PURPLE / MURASAKI text when almost ready
+                if (fusionProgress > 0.9) {
+                    ctx.shadowBlur = 30;
+                    ctx.shadowColor = '#ffffff';
+                    ctx.fillStyle = `rgba(255, 255, 255, ${fastPulse})`;
+                    ctx.font = 'bold 14px "Segoe UI", sans-serif';
+                    ctx.fillText('HOLLOW PURPLE', centerX, centerY + 55);
+                    ctx.font = 'bold 18px "Segoe UI", sans-serif';
+                    ctx.fillText('紫', centerX, centerY + 75);
                 }
                 
                 ctx.restore();
@@ -2862,42 +4685,96 @@
             
             // Draw hold phase effects
             if (hollowPurple.holdTime > 0) {
-                const holdProgress = 1 - (hollowPurple.holdTime / 90);
+                const holdProgress = 1 - (hollowPurple.holdTime / 180);
                 const pulse = Math.sin(time * 3) * 0.5 + 0.5;
+                const fastPulse = Math.sin(time * 6) * 0.5 + 0.5;
                 
                 ctx.save();
                 
-                // Expanding warning rings
-                ctx.strokeStyle = `rgba(180, 50, 255, ${0.5 + pulse * 0.3})`;
-                ctx.lineWidth = 3;
-                ctx.shadowColor = '#aa44ff';
-                ctx.shadowBlur = 30;
-                for (let i = 0; i < 3; i++) {
-                    const ringSize = 30 + i * 15 + holdProgress * 20 + pulse * 10;
-                    ctx.globalAlpha = 0.7 - i * 0.15;
+                // Expanding warning rings with more intensity
+                ctx.strokeStyle = `rgba(255, 100, 255, ${0.6 + pulse * 0.4})`;
+                ctx.lineWidth = 4;
+                ctx.shadowColor = '#ff00ff';
+                ctx.shadowBlur = 40;
+                for (let i = 0; i < 5; i++) {
+                    const ringSize = 25 + i * 12 + holdProgress * 25 + pulse * 15;
+                    ctx.globalAlpha = 0.8 - i * 0.12;
                     ctx.beginPath();
                     ctx.arc(screenX, screenY, ringSize, 0, Math.PI * 2);
                     ctx.stroke();
                 }
                 ctx.globalAlpha = 1;
                 
-                // Intense pulsing orb
-                for (let i = 4; i >= 0; i--) {
-                    ctx.shadowBlur = 40 + i * 10;
-                    ctx.shadowColor = '#cc66ff';
-                    const size = (25 + holdProgress * 5) * (0.8 + pulse * 0.4) - i * 3;
-                    const alpha = 0.9 - i * 0.12;
-                    ctx.fillStyle = `rgba(${200 + i * 10}, ${100 + i * 30}, 255, ${alpha})`;
+                // Dual rotating energy rings
+                ctx.save();
+                ctx.translate(screenX, screenY);
+                
+                // Outer ring (clockwise)
+                ctx.rotate(time * 3);
+                ctx.strokeStyle = `rgba(255, 150, 255, ${0.6 + pulse * 0.4})`;
+                ctx.lineWidth = 3;
+                ctx.shadowBlur = 25;
+                ctx.beginPath();
+                ctx.arc(0, 0, 45 + holdProgress * 15, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Inner ring (counter-clockwise)
+                ctx.rotate(-time * 6);
+                ctx.strokeStyle = `rgba(200, 100, 255, ${0.5 + fastPulse * 0.4})`;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(0, 0, 35 + holdProgress * 10, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Energy spikes
+                ctx.rotate(time * 4);
+                ctx.strokeStyle = `rgba(255, 200, 255, ${0.7 + pulse * 0.3})`;
+                ctx.lineWidth = 2;
+                for (let i = 0; i < 12; i++) {
+                    const angle = (i / 12) * Math.PI * 2;
+                    const spikeLen = 15 + holdProgress * 20 + pulse * 10;
+                    ctx.beginPath();
+                    ctx.moveTo(Math.cos(angle) * 30, Math.sin(angle) * 30);
+                    ctx.lineTo(Math.cos(angle) * (30 + spikeLen), Math.sin(angle) * (30 + spikeLen));
+                    ctx.stroke();
+                }
+                ctx.restore();
+                
+                // Ultra-intense pulsing orb core
+                for (let i = 7; i >= 0; i--) {
+                    ctx.shadowBlur = 60 + i * 20;
+                    ctx.shadowColor = '#ff00ff';
+                    const size = (35 + holdProgress * 12) * (0.8 + pulse * 0.5) - i * 3;
+                    const alpha = 0.95 - i * 0.08;
+                    ctx.fillStyle = `rgba(${230 + i * 3}, ${60 + i * 30}, 255, ${alpha})`;
                     ctx.beginPath();
                     ctx.arc(screenX, screenY, Math.max(0, size), 0, Math.PI * 2);
                     ctx.fill();
                 }
                 
-                // White core
-                ctx.fillStyle = `rgba(255, 255, 255, ${0.7 + pulse * 0.3})`;
+                // White hot center with intense pulse
+                ctx.shadowBlur = 60;
+                ctx.shadowColor = '#ffffff';
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.9 + pulse * 0.1})`;
                 ctx.beginPath();
-                ctx.arc(screenX, screenY, 10 + holdProgress * 3, 0, Math.PI * 2);
+                ctx.arc(screenX, screenY, 15 + holdProgress * 6 + pulse * 5, 0, Math.PI * 2);
                 ctx.fill();
+                
+                // Deep violet inner core
+                ctx.fillStyle = `rgba(150, 50, 255, ${1})`;
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, 8, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // HOLLOW PURPLE / 紫 text overlay
+                ctx.shadowBlur = 30;
+                ctx.shadowColor = '#ff00ff';
+                ctx.fillStyle = `rgba(255, 255, 255, ${0.8 + fastPulse * 0.2})`;
+                ctx.font = 'bold 12px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('HOLLOW PURPLE', screenX, screenY - 50);
+                ctx.font = 'bold 20px "Segoe UI", sans-serif';
+                ctx.fillText('紫', screenX, screenY + 65);
                 
                 ctx.restore();
                 return;
@@ -2905,47 +4782,97 @@
             
             ctx.save();
             
-            // Purple orb with swirling energy
-            ctx.shadowBlur = 30;
-            ctx.shadowColor = '#aa44ff';
+            // Polished Purple orb with multi-layered effects
+            const pulse = Math.sin(time * 2) * 0.3 + 0.7;
+            const fastPulse = Math.sin(time * 4) * 0.5 + 0.5;
             
-            // Outer swirling ring
-            ctx.strokeStyle = '#aa44ff';
-            ctx.lineWidth = 4;
+            // Outer glow halo
+            ctx.shadowBlur = 50 + pulse * 30;
+            ctx.shadowColor = '#ff00ff';
+            ctx.fillStyle = `rgba(255, 0, 255, ${0.1 + pulse * 0.1})`;
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, hollowPurple.radius * 2.5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Rotating energy rings (3 layers, different speeds)
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = '#cc66ff';
             for (let i = 0; i < 3; i++) {
+                const rotation = time * (1 + i * 0.5) + i * (Math.PI * 2 / 3);
+                const ringRadius = hollowPurple.radius + 15 + i * 10;
+                ctx.strokeStyle = `rgba(200, 100, 255, ${0.4 + fastPulse * 0.3})`;
+                ctx.lineWidth = 2 + i;
                 ctx.beginPath();
-                const offset = (time + i * 2) % (Math.PI * 2);
-                ctx.arc(screenX, screenY, hollowPurple.radius + i * 8, offset, offset + Math.PI * 1.5);
+                ctx.arc(screenX, screenY, ringRadius, rotation, rotation + Math.PI * 1.8);
                 ctx.stroke();
             }
             
-            // Main purple orb
-            const gradient = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, hollowPurple.radius);
+            // Main orb body with rich gradient
+            const gradient = ctx.createRadialGradient(
+                screenX - 5, screenY - 5, 0,
+                screenX, screenY, hollowPurple.radius
+            );
             gradient.addColorStop(0, '#ffffff');
-            gradient.addColorStop(0.3, '#cc88ff');
-            gradient.addColorStop(0.7, '#8844cc');
-            gradient.addColorStop(1, '#442266');
+            gradient.addColorStop(0.15, '#ffccff');
+            gradient.addColorStop(0.35, '#dd88ff');
+            gradient.addColorStop(0.6, '#aa44dd');
+            gradient.addColorStop(0.85, '#6622aa');
+            gradient.addColorStop(1, '#331155');
             
+            ctx.shadowBlur = 40;
+            ctx.shadowColor = '#aa44ff';
             ctx.fillStyle = gradient;
             ctx.beginPath();
             ctx.arc(screenX, screenY, hollowPurple.radius, 0, Math.PI * 2);
             ctx.fill();
             
-            // Inner core
-            ctx.fillStyle = '#ffffff';
+            // Inner energy core (pulsing)
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = '#ffffff';
+            ctx.fillStyle = `rgba(255, 255, 255, ${0.8 + fastPulse * 0.2})`;
             ctx.beginPath();
-            ctx.arc(screenX, screenY, 8, 0, Math.PI * 2);
+            ctx.arc(screenX, screenY, 10 + fastPulse * 4, 0, Math.PI * 2);
             ctx.fill();
             
-            // Energy trail
-            ctx.globalAlpha = 0.5;
-            for (let i = 1; i <= 5; i++) {
-                const trailX = screenX - hollowPurple.vx * i * 2;
-                const trailY = screenY - hollowPurple.vy * i * 2;
-                ctx.fillStyle = `rgba(180, 50, 255, ${0.5 - i * 0.1})`;
+            // Hot center
+            ctx.fillStyle = `rgba(200, 150, 255, ${0.9})`;
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, 5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Energy particles orbiting
+            ctx.shadowBlur = 15;
+            for (let i = 0; i < 6; i++) {
+                const angle = time * 3 + i * (Math.PI / 3);
+                const dist = hollowPurple.radius + 20 + Math.sin(time * 2 + i) * 5;
+                const px = screenX + Math.cos(angle) * dist;
+                const py = screenY + Math.sin(angle) * dist;
+                ctx.fillStyle = i % 2 === 0 ? '#ff88ff' : '#aa66ff';
                 ctx.beginPath();
-                ctx.arc(trailX, trailY, hollowPurple.radius * (1 - i * 0.15), 0, Math.PI * 2);
+                ctx.arc(px, py, 2 + fastPulse * 2, 0, Math.PI * 2);
                 ctx.fill();
+            }
+            
+            // Enhanced energy trail
+            ctx.shadowBlur = 0;
+            for (let i = 1; i <= 8; i++) {
+                const trailX = screenX - hollowPurple.vx * i * 1.5;
+                const trailY = screenY - hollowPurple.vy * i * 1.5;
+                const alpha = (0.6 - i * 0.07) * (0.5 + fastPulse * 0.3);
+                const size = hollowPurple.radius * (1 - i * 0.1);
+                
+                ctx.fillStyle = `rgba(180, 80, 255, ${alpha})`;
+                ctx.beginPath();
+                ctx.arc(trailX, trailY, Math.max(0, size), 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Trail sparkles
+                if (i % 2 === 0) {
+                    ctx.fillStyle = `rgba(255, 200, 255, ${alpha * 1.5})`;
+                    ctx.beginPath();
+                    ctx.arc(trailX + (Math.random() - 0.5) * 10, trailY + (Math.random() - 0.5) * 10, 1, 0, Math.PI * 2);
+                    ctx.fill();
+                }
             }
             
             ctx.restore();
@@ -3193,16 +5120,54 @@
         }
         
         function drawGame() {
+            // Always ensure canvas matches window size
+            if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            
+            // Ensure canvas has valid dimensions
+            if (canvas.width < 100 || canvas.height < 100) {
+                canvas.width = window.innerWidth || 800;
+                canvas.height = window.innerHeight || 450;
+                ctx.fillStyle = '#1a0a2e';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#fff';
+                ctx.font = '20px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Loading...', canvas.width / 2, canvas.height / 2);
+                return;
+            }
+            
             // Clear with dark background
             ctx.fillStyle = '#0a0a0a';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
+            // DEBUG - after clear so it's visible
+            ctx.fillStyle = '#ff0000';
+            ctx.font = 'bold 20px "Segoe UI", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText('GAME IS RUNNING', 20, 30);
+            
             updatePlayer();
+            
+            // DEBUG camera info
+            ctx.fillStyle = '#00ff00';
+            ctx.fillText(`CAM: ${Math.floor(camera.x)}, ${Math.floor(camera.y)}`, 20, 55);
+            ctx.fillText(`PLAYER: ${Math.floor(player.x)}, ${Math.floor(player.y)}`, 20, 80);
+            ctx.fillText(`CANVAS: ${canvas.width}x${canvas.height}`, 20, 105);
+            
+            // Validate camera values
+            if (!isFinite(camera.x) || !isFinite(camera.y)) {
+                camera.x = 0;
+                camera.y = 0;
+            }
             updateAbilities();
             updateCursedSpirits();
             updateMaxBlue();
             updateReversalRed();
             updateHollowPurple();
+            updatePlayerDomain();
             updateDamageCounter();
             updateDamageNumbers();
             updateHitEffects();
@@ -3225,9 +5190,11 @@
             drawBiomeOverlay();
             drawBiomeObjects();
             drawSpiritProjectiles();
-            drawCursedSpirits();
+            drawPlayerDomainBackground(); // Draw domain void/bg FIRST
+            drawCursedSpirits(); // Enemies on top of domain background
             drawDisasterCurse();
             drawPlayer();
+            drawPlayerDomainForeground(); // Domain border/text on top of everything
             drawBossHealthBar();
             drawDamageCounter();
             drawMaxBlue();
@@ -3240,6 +5207,15 @@
             drawAbilityBar();
             drawMinimap();
             drawPlayerBars();
+            
+            // DEBUG: Show camera and player info
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+            ctx.font = 'bold 16px "Segoe UI", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(`CAM: ${Math.floor(camera.x)}, ${Math.floor(camera.y)}`, 20, 200);
+            ctx.fillText(`PLAYER: ${Math.floor(player.x)}, ${Math.floor(player.y)}`, 20, 220);
+            ctx.fillText(`CANVAS: ${canvas.width}x${canvas.height}`, 20, 240);
+            ctx.fillText(`BIOME: ${getBiomeAt(player.x, player.y)}`, 20, 260);
             
             // UI - Coordinates and current biome
             const currentBiome = getBiomeAt(player.x, player.y);
@@ -3516,41 +5492,120 @@
         
         function drawMinimap() {
             const mapWidth = 200;
-            const mapHeight = 120;
+            const mapHeight = 140;
             const mapX = canvas.width - mapWidth - 20;
             const mapY = 20;
-            const scaleX = mapWidth / WORLD_WIDTH;
-            const scaleY = mapHeight / WORLD_HEIGHT;
             
             // Background
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
             ctx.fillRect(mapX, mapY, mapWidth, mapHeight);
             
-            // Biome zones
-            for (let i = 0; i < 5; i++) {
-                const biomeX = mapX + (i * BIOME_WIDTH) * scaleX;
-                const biomeWidth = BIOME_WIDTH * scaleX;
-                const colors = BIOME_COLORS[BIOMES[i]];
+            // Center point (Forest)
+            const centerX = mapX + mapWidth / 2;
+            const centerY = mapY + mapHeight / 2;
+            const mapRadius = Math.min(mapWidth, mapHeight) / 2 - 10;
+            
+            // Draw connected biome zones - overlapping large circles for seamless coverage
+            const mapScale = mapRadius / (BIOME_SIZE * 1.2);
+            const biomeRadius = mapRadius * 0.65; // Large enough to overlap
+            
+            // Draw outer biomes first (larger, overlapping circles)
+            for (const biome of BIOMES) {
+                if (biome === 'FOREST') continue;
+                
+                const center = BIOME_CENTERS[biome];
+                const colors = BIOME_COLORS[biome];
+                const bx = centerX + center.x * mapScale;
+                const by = centerY + center.y * mapScale;
+                
+                // Large overlapping biome zone
                 ctx.fillStyle = colors.ground;
-                ctx.fillRect(biomeX, mapY, biomeWidth, mapHeight);
+                ctx.globalAlpha = 0.35;
+                ctx.beginPath();
+                ctx.arc(bx, by, biomeRadius, 0, Math.PI * 2);
+                ctx.fill();
             }
             
-            // Disaster curse spawn locations
+            // Draw biome borders (arcs where circles meet)
+            ctx.globalAlpha = 0.6;
+            ctx.lineWidth = 2;
+            for (const biome of BIOMES) {
+                if (biome === 'FOREST') continue;
+                
+                const center = BIOME_CENTERS[biome];
+                const colors = BIOME_COLORS[biome];
+                const bx = centerX + center.x * mapScale;
+                const by = centerY + center.y * mapScale;
+                
+                ctx.strokeStyle = colors.grid;
+                ctx.beginPath();
+                ctx.arc(bx, by, biomeRadius * 0.7, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+            
+            // Draw Forest center (covers the overlap in the middle)
+            ctx.fillStyle = BIOME_COLORS.FOREST.ground;
+            ctx.globalAlpha = 0.6;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, mapRadius * 0.45, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.globalAlpha = 0.9;
+            ctx.strokeStyle = BIOME_COLORS.FOREST.grid;
+            ctx.lineWidth = 2;
+            ctx.stroke();
+            
+            // Labels for outer biomes (positioned near edges)
+            ctx.globalAlpha = 1;
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 9px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            const labelOffset = mapRadius * 0.75;
+            ctx.fillText('VOLCANO', centerX - labelOffset * 0.7, centerY - labelOffset * 0.7);
+            ctx.fillText('SAND', centerX + labelOffset * 0.7, centerY - labelOffset * 0.7);
+            ctx.fillText('CITY', centerX + labelOffset * 0.7, centerY + labelOffset * 0.7);
+            ctx.fillText('SNOW', centerX - labelOffset * 0.7, centerY + labelOffset * 0.7);
+            
+            // Forest label
+            ctx.font = 'bold 8px "Segoe UI", sans-serif';
+            ctx.fillText('FOREST', centerX, centerY);
+            
+            // Scale already defined above
+            
+            // Disaster curse spawn locations (skull icons)
             for (const curse of Object.values(DISASTER_CURSES)) {
                 for (const loc of curse.spawnLocations) {
-                    const locX = mapX + (loc.x + WORLD_WIDTH/2) * scaleX;
-                    const locY = mapY + (loc.y + WORLD_HEIGHT/2) * scaleY;
-                    ctx.fillStyle = 'rgba(255, 0, 0, 0.5)';
+                    const locX = centerX + loc.x * mapScale;
+                    const locY = centerY + loc.y * mapScale;
+                    
+                    // Skull icon background
+                    ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
                     ctx.beginPath();
-                    ctx.arc(locX, locY, 3, 0, Math.PI * 2);
+                    ctx.arc(locX, locY, 5, 0, Math.PI * 2);
                     ctx.fill();
+                    
+                    // Skull icon
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 8px "Segoe UI", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.textBaseline = 'middle';
+                    ctx.fillText('☠', locX, locY);
                 }
             }
             
-            // Active disaster curse
+            // Active disaster curse (pulsing red dot)
             if (activeDisasterCurse) {
-                const bossX = mapX + (activeDisasterCurse.x + WORLD_WIDTH/2) * scaleX;
-                const bossY = mapY + (activeDisasterCurse.y + WORLD_HEIGHT/2) * scaleY;
+                const bossX = centerX + activeDisasterCurse.x * mapScale;
+                const bossY = centerY + activeDisasterCurse.y * mapScale;
+                
+                // Pulsing glow
+                const pulse = Math.sin(Date.now() * 0.01) * 0.5 + 0.5;
+                ctx.fillStyle = `rgba(255, 0, 0, ${0.5 + pulse * 0.5})`;
+                ctx.beginPath();
+                ctx.arc(bossX, bossY, 8 + pulse * 4, 0, Math.PI * 2);
+                ctx.fill();
+                
                 ctx.fillStyle = '#ff0000';
                 ctx.shadowColor = '#ff0000';
                 ctx.shadowBlur = 10;
@@ -3561,8 +5616,8 @@
             }
             
             // Player dot
-            const playerMapX = mapX + (player.x + WORLD_WIDTH/2) * scaleX;
-            const playerMapY = mapY + (player.y + WORLD_HEIGHT/2) * scaleY;
+            const playerMapX = centerX + player.x * mapScale;
+            const playerMapY = centerY + player.y * mapScale;
             
             ctx.fillStyle = '#00ff00';
             ctx.shadowColor = '#00ff00';
@@ -3587,6 +5642,11 @@
         function loop() {
             frame++;
             
+            // DEBUG: Show current screen state
+            if (frame % 60 === 0) {
+                console.log('Screen:', screen, 'Canvas:', canvas.width, 'x', canvas.height);
+            }
+            
             if (screen === 'title') {
                 drawMenu(titleOptions);
             } else if (screen === 'modes') {
@@ -3597,6 +5657,13 @@
                 drawMenu(customOptions, 'CUSTOMISATION');
             } else if (screen === 'game') {
                 drawGame();
+            } else {
+                // Unknown screen state
+                ctx.fillStyle = '#ff00ff';
+                ctx.fillRect(0, 0, 100, 100);
+                ctx.fillStyle = '#fff';
+                ctx.font = '20px sans-serif';
+                ctx.fillText('BAD SCREEN: ' + screen, 10, 50);
             }
             
             requestAnimationFrame(loop);
@@ -3607,6 +5674,13 @@
             
             if (screen === 'title') {
                 if (option === 'PLAY') {
+                    // Force canvas resize before entering game
+                    resize();
+                    // Reset player to center
+                    player.x = 0;
+                    player.y = 0;
+                    camera.x = 0;
+                    camera.y = 0;
                     screen = 'game';
                 } else if (option === 'MODES') {
                     screen = 'modes';
@@ -3666,7 +5740,27 @@
 
         canvas.addEventListener('click', (e) => {
             if (screen === 'game') return;
-            handleSelect();
+            
+            // Check if mouse is actually over a button before selecting
+            const rect = canvas.getBoundingClientRect();
+            const clickX = (e.clientX - rect.left) * (canvas.width / rect.width);
+            const clickY = (e.clientY - rect.top) * (canvas.height / rect.height);
+            
+            let clickedButton = false;
+            for (let i = 0; i < menuItemRects.length; i++) {
+                const btn = menuItemRects[i];
+                if (clickX >= btn.x && clickX <= btn.x + btn.width &&
+                    clickY >= btn.y && clickY <= btn.y + btn.height) {
+                    selectedOption = i;
+                    clickedButton = true;
+                    break;
+                }
+            }
+            
+            // Only handle select if actually clicked on a button
+            if (clickedButton) {
+                handleSelect();
+            }
         });
 
         // Keyboard still works
