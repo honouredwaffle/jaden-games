@@ -5117,6 +5117,12 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
             updatePlayer();
+            
+            // Validate camera values
+            if (!isFinite(camera.x) || !isFinite(camera.y)) {
+                camera.x = 0;
+                camera.y = 0;
+            }
             updateAbilities();
             updateCursedSpirits();
             updateMaxBlue();
@@ -5162,6 +5168,15 @@
             drawAbilityBar();
             drawMinimap();
             drawPlayerBars();
+            
+            // DEBUG: Show camera and player info
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+            ctx.font = 'bold 16px "Segoe UI", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(`CAM: ${Math.floor(camera.x)}, ${Math.floor(camera.y)}`, 20, 200);
+            ctx.fillText(`PLAYER: ${Math.floor(player.x)}, ${Math.floor(player.y)}`, 20, 220);
+            ctx.fillText(`CANVAS: ${canvas.width}x${canvas.height}`, 20, 240);
+            ctx.fillText(`BIOME: ${getBiomeAt(player.x, player.y)}`, 20, 260);
             
             // UI - Coordinates and current biome
             const currentBiome = getBiomeAt(player.x, player.y);
