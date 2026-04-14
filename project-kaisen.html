@@ -21,9 +21,9 @@
         }
         #game-container {
             position: relative;
-            width: 100%;
-            max-width: 1200px;
-            aspect-ratio: 16/9;
+            width: 100vw;
+            height: 100vh;
+            max-width: none;
         }
         canvas {
             display: block;
@@ -44,15 +44,33 @@
         function resize() {
             const container = document.getElementById('game-container');
             const rect = container.getBoundingClientRect();
-            // Ensure minimum dimensions to prevent black screen
-            canvas.width = Math.max(rect.width, 800);
-            canvas.height = Math.max(rect.height, 450);
+            
+            // Get actual display size
+            const displayWidth = Math.floor(rect.width);
+            const displayHeight = Math.floor(rect.height);
+            
+            // Only resize if dimensions are valid and different
+            if (displayWidth > 0 && displayHeight > 0) {
+                if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+                    canvas.width = displayWidth;
+                    canvas.height = displayHeight;
+                }
+            } else {
+                // Fallback to window size if container has no size
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
         }
-        // Resize immediately and again after a short delay to ensure proper dimensions
+        
+        // Resize immediately and multiple times to ensure proper dimensions
         resize();
-        setTimeout(resize, 100);
-        setTimeout(resize, 500);
         window.addEventListener('resize', resize);
+        
+        // Also resize on load and after short delays
+        window.addEventListener('load', resize);
+        setTimeout(resize, 50);
+        setTimeout(resize, 200);
+        setTimeout(resize, 500);
         
         // Initial clear to prevent black screen on load
         ctx.fillStyle = '#1a0a2e';
