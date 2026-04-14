@@ -3,7 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>JJK Game</title>
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
+    <title>JJK Game v2</title>
     <style>
         * {
             margin: 0;
@@ -1317,6 +1320,9 @@
         }
         
         function drawForestGround(x, y, screenX, screenY, tileSize) {
+            // Safety check for valid parameters
+            if (tileSize <= 0) tileSize = 200;
+            
             // Draw forest ground with dappled sunlight and paths
             ctx.save();
             
@@ -1332,7 +1338,7 @@
             for (let i = 0; i < 8; i++) {
                 const sx = screenX + Math.abs((seed + i * 53) % tileSize);
                 const sy = screenY + Math.abs((seed + i * 71) % tileSize);
-                const size = Math.max(1, 10 + Math.abs((seed + i * 13) % 25));
+                const size = Math.max(5, 10 + Math.abs((seed + i * 13) % 25));
                 ctx.globalAlpha = Math.max(0.1, 0.2 + Math.abs((seed + i * 17) % 30) / 100);
                 ctx.beginPath();
                 ctx.arc(sx, sy, size, 0, Math.PI * 2);
