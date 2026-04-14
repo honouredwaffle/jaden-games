@@ -5100,12 +5100,6 @@
         }
         
         function drawGame() {
-            // DEBUG FIRST - before anything else
-            ctx.fillStyle = '#ff0000';
-            ctx.font = 'bold 20px "Segoe UI", sans-serif';
-            ctx.textAlign = 'left';
-            ctx.fillText('GAME IS RUNNING', 20, 30);
-            
             // Ensure canvas has valid dimensions
             if (canvas.width < 100 || canvas.height < 100) {
                 resize();
@@ -5121,6 +5115,12 @@
             // Clear with dark background
             ctx.fillStyle = '#0a0a0a';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // DEBUG - after clear so it's visible
+            ctx.fillStyle = '#ff0000';
+            ctx.font = 'bold 20px "Segoe UI", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText('GAME IS RUNNING', 20, 30);
             
             updatePlayer();
             
@@ -5609,6 +5609,11 @@
         function loop() {
             frame++;
             
+            // DEBUG: Show current screen state
+            if (frame % 60 === 0) {
+                console.log('Screen:', screen, 'Canvas:', canvas.width, 'x', canvas.height);
+            }
+            
             if (screen === 'title') {
                 drawMenu(titleOptions);
             } else if (screen === 'modes') {
@@ -5619,6 +5624,13 @@
                 drawMenu(customOptions, 'CUSTOMISATION');
             } else if (screen === 'game') {
                 drawGame();
+            } else {
+                // Unknown screen state
+                ctx.fillStyle = '#ff00ff';
+                ctx.fillRect(0, 0, 100, 100);
+                ctx.fillStyle = '#fff';
+                ctx.font = '20px sans-serif';
+                ctx.fillText('BAD SCREEN: ' + screen, 10, 50);
             }
             
             requestAnimationFrame(loop);
