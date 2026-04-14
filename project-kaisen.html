@@ -48,8 +48,10 @@
             canvas.width = Math.max(rect.width, 800);
             canvas.height = Math.max(rect.height, 450);
         }
-        // Delay initial resize to ensure container is rendered
+        // Resize immediately and again after a short delay to ensure proper dimensions
+        resize();
         setTimeout(resize, 100);
+        setTimeout(resize, 500);
         window.addEventListener('resize', resize);
         
         // Initial clear to prevent black screen on load
@@ -984,9 +986,11 @@
                 player.iframes--;
             }
             
-            // Update camera to follow player
-            camera.x = player.x - canvas.width / 2;
-            camera.y = player.y - canvas.height / 2;
+            // Update camera to follow player (ensure canvas dimensions are valid)
+            const cw = canvas.width || 800;
+            const ch = canvas.height || 450;
+            camera.x = player.x - cw / 2;
+            camera.y = player.y - ch / 2;
         }
         
         function getBiomeAt(x, y) {
@@ -5096,6 +5100,18 @@
         }
         
         function drawGame() {
+            // Ensure canvas has valid dimensions
+            if (canvas.width < 100 || canvas.height < 100) {
+                resize();
+                ctx.fillStyle = '#1a0a2e';
+                ctx.fillRect(0, 0, canvas.width || 800, canvas.height || 450);
+                ctx.fillStyle = '#fff';
+                ctx.font = '20px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Loading...', (canvas.width || 800) / 2, (canvas.height || 450) / 2);
+                return;
+            }
+            
             // Clear with dark background
             ctx.fillStyle = '#0a0a0a';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
