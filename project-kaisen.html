@@ -1330,12 +1330,12 @@
             // Dappled sunlight spots (deterministic)
             ctx.fillStyle = '#6a9a50';
             for (let i = 0; i < 8; i++) {
-                const sx = screenX + ((seed + i * 53) % tileSize);
-                const sy = screenY + ((seed + i * 71) % tileSize);
-                const size = 10 + ((seed + i * 13) % 25);
-                ctx.globalAlpha = 0.2 + ((seed + i * 17) % 30) / 100;
+                const sx = screenX + Math.abs((seed + i * 53) % tileSize);
+                const sy = screenY + Math.abs((seed + i * 71) % tileSize);
+                const size = Math.max(1, 10 + Math.abs((seed + i * 13) % 25));
+                ctx.globalAlpha = Math.max(0.1, 0.2 + Math.abs((seed + i * 17) % 30) / 100);
                 ctx.beginPath();
-                ctx.arc(sx, sy, Math.max(1, size), 0, Math.PI * 2);
+                ctx.arc(sx, sy, size, 0, Math.PI * 2);
                 ctx.fill();
             }
             
@@ -1356,8 +1356,8 @@
             ctx.fillStyle = '#4a7a3a';
             ctx.globalAlpha = 0.5;
             for (let i = 0; i < 12; i++) {
-                const gx = screenX + ((seed + i * 37) % tileSize);
-                const gy = screenY + ((seed + i * 43) % tileSize);
+                const gx = screenX + Math.abs((seed + i * 37) % tileSize);
+                const gy = screenY + Math.abs((seed + i * 43) % tileSize);
                 ctx.beginPath();
                 ctx.moveTo(gx, gy);
                 ctx.lineTo(gx - 3, gy - 8);
@@ -1370,11 +1370,11 @@
             ctx.fillStyle = '#8a6a3a';
             ctx.globalAlpha = 0.3;
             for (let i = 0; i < 10; i++) {
-                const lx = screenX + ((seed + i * 19) % tileSize);
-                const ly = screenY + ((seed + i * 23) % tileSize);
-                const rot = ((seed + i * 11) % 100) / 100 * Math.PI;
+                const lx = screenX + Math.abs((seed + i * 19) % tileSize);
+                const ly = screenY + Math.abs((seed + i * 23) % tileSize);
+                const rot = Math.abs((seed + i * 11) % 100) / 100 * Math.PI;
                 ctx.beginPath();
-                ctx.ellipse(lx, ly, 3, 2, rot, 0, Math.PI * 2);
+                ctx.ellipse(lx, ly, Math.max(1, 3), Math.max(1, 2), rot, 0, Math.PI * 2);
                 ctx.fill();
             }
             
@@ -1401,8 +1401,8 @@
             
             // Deterministic crack pattern based on position
             for (let i = 0; i < 5; i++) {
-                const startX = screenX + ((crackSeed * 137 + i * 53) % tileSize);
-                const startY = screenY + ((crackSeed * 241 + i * 71) % tileSize);
+                const startX = screenX + Math.abs((crackSeed * 137 + i * 53) % tileSize);
+                const startY = screenY + Math.abs((crackSeed * 241 + i * 71) % tileSize);
                 
                 ctx.beginPath();
                 ctx.moveTo(startX, startY);
@@ -1410,8 +1410,8 @@
                 let cx = startX;
                 let cy = startY;
                 for (let j = 0; j < 4; j++) {
-                    cx += (((crackSeed + j * 17) % 100) / 100 - 0.5) * 60;
-                    cy += (((crackSeed + j * 23) % 100) / 100 - 0.5) * 60;
+                    cx += (Math.abs((crackSeed + j * 17) % 100) / 100 - 0.5) * 60;
+                    cy += (Math.abs((crackSeed + j * 23) % 100) / 100 - 0.5) * 60;
                     ctx.lineTo(cx, cy);
                 }
                 ctx.stroke();
@@ -1421,9 +1421,9 @@
             ctx.fillStyle = '#ff5500';
             ctx.shadowBlur = 20;
             for (let i = 0; i < 3; i++) {
-                const poolX = screenX + ((crackSeed * 89 + i * 37) % (tileSize - 40)) + 20;
-                const poolY = screenY + ((crackSeed * 167 + i * 43) % (tileSize - 40)) + 20;
-                const poolSize = 8 + (crackSeed % 12);
+                const poolX = screenX + Math.abs((crackSeed * 89 + i * 37) % Math.max(1, tileSize - 40)) + 20;
+                const poolY = screenY + Math.abs((crackSeed * 167 + i * 43) % Math.max(1, tileSize - 40)) + 20;
+                const poolSize = Math.max(1, 8 + (crackSeed % 12));
                 ctx.globalAlpha = 0.4 + (Math.sin(Date.now() * 0.002 + i) * 0.2);
                 ctx.beginPath();
                 ctx.arc(poolX, poolY, poolSize, 0, Math.PI * 2);
@@ -1435,9 +1435,9 @@
             ctx.shadowBlur = 0;
             ctx.globalAlpha = 0.3;
             for (let i = 0; i < 15; i++) {
-                const rx = screenX + ((crackSeed + i * 13) % tileSize);
-                const ry = screenY + ((crackSeed + i * 17) % tileSize);
-                const rsize = 2 + ((crackSeed + i * 7) % 6);
+                const rx = screenX + Math.abs((crackSeed + i * 13) % tileSize);
+                const ry = screenY + Math.abs((crackSeed + i * 17) % tileSize);
+                const rsize = Math.max(1, 2 + ((crackSeed + i * 7) % 6));
                 ctx.beginPath();
                 ctx.arc(rx, ry, rsize, 0, Math.PI * 2);
                 ctx.fill();
