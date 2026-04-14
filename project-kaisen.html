@@ -5124,6 +5124,12 @@
             
             updatePlayer();
             
+            // DEBUG camera info
+            ctx.fillStyle = '#00ff00';
+            ctx.fillText(`CAM: ${Math.floor(camera.x)}, ${Math.floor(camera.y)}`, 20, 55);
+            ctx.fillText(`PLAYER: ${Math.floor(player.x)}, ${Math.floor(player.y)}`, 20, 80);
+            ctx.fillText(`CANVAS: ${canvas.width}x${canvas.height}`, 20, 105);
+            
             // Validate camera values
             if (!isFinite(camera.x) || !isFinite(camera.y)) {
                 camera.x = 0;
