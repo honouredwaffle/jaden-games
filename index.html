@@ -805,12 +805,110 @@
             });
         }
 
+        // Background fight animation for title screen
+        let titleFighters = [];
+        function initTitleFighters() {
+            titleFighters = [];
+            for (let i = 0; i < 6; i++) {
+                titleFighters.push({
+                    x: Math.random() * canvas.width,
+                    y: Math.random() * canvas.height,
+                    vx: (Math.random() - 0.5) * 3,
+                    vy: (Math.random() - 0.5) * 3,
+                    color: Math.random() > 0.5 ? '#00aaff' : '#ff2244',
+                    size: 8 + Math.random() * 6,
+                    attacking: false,
+                    attackTimer: 0
+                });
+            }
+        }
+        
+        function updateTitleFighters() {
+            if (titleFighters.length === 0) initTitleFighters();
+            
+            for (let i = 0; i < titleFighters.length; i++) {
+                const f = titleFighters[i];
+                
+                // Move
+                f.x += f.vx;
+                f.y += f.vy;
+                
+                // Bounce off edges
+                if (f.x < 0 || f.x > canvas.width) f.vx *= -1;
+                if (f.y < 0 || f.y > canvas.height) f.vy *= -1;
+                
+                // Random attacks
+                f.attackTimer--;
+                if (f.attackTimer <= 0) {
+                    f.attacking = !f.attacking;
+                    f.attackTimer = 20 + Math.random() * 40;
+                }
+                
+                // Find nearby fighter to attack
+                if (f.attacking) {
+                    for (let j = 0; j < titleFighters.length; j++) {
+                        if (i !== j) {
+                            const other = titleFighters[j];
+                            const dist = Math.hypot(other.x - f.x, other.y - f.y);
+                            if (dist < 100) {
+                                // Dash toward enemy
+                                const angle = Math.atan2(other.y - f.y, other.x - f.x);
+                                f.vx += Math.cos(angle) * 0.5;
+                                f.vy += Math.sin(angle) * 0.5;
+                            }
+                        }
+                    }
+                }
+                
+                // Limit speed
+                const speed = Math.hypot(f.vx, f.vy);
+                if (speed > 4) {
+                    f.vx = (f.vx / speed) * 4;
+                    f.vy = (f.vy / speed) * 4;
+                }
+            }
+        }
+        
+        function drawTitleFighters() {
+            for (const f of titleFighters) {
+                // Trail effect
+                ctx.fillStyle = f.color + '33'; // 20% opacity
+                ctx.beginPath();
+                ctx.arc(f.x - f.vx * 3, f.y - f.vy * 3, f.size * 0.7, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Fighter body
+                ctx.fillStyle = f.color;
+                ctx.beginPath();
+                ctx.arc(f.x, f.y, f.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Attack effect
+                if (f.attacking) {
+                    ctx.strokeStyle = f.color;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    const angle = Math.atan2(f.vy, f.vx);
+                    ctx.moveTo(f.x, f.y);
+                    ctx.lineTo(
+                        f.x + Math.cos(angle) * (f.size + 15),
+                        f.y + Math.sin(angle) * (f.size + 15)
+                    );
+                    ctx.stroke();
+                }
+            }
+        }
+
         function drawTitle() {
-            // Simple dark background
+            // Dark background
             ctx.fillStyle = '#1a1a2e';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Main title - no glow
+            // Update and draw background fighters
+            updateTitleFighters();
+            drawTitleFighters();
+            
+            // Main title
             ctx.fillStyle = '#fff';
             ctx.font = 'bold 80px "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
@@ -879,11 +977,11 @@
                 ctx.fillText(title, canvas.width / 2, 240);
             }
             
-            // Position buttons at bottom of screen
+            // Position buttons in middle of screen
             const buttonWidth = 280;
             const buttonHeight = 50;
             const spacing = 65;
-            const startY = canvas.height - (options.length * spacing + 80);
+            const startY = canvas.height / 2 + 50;
             
             options.forEach((option, i) => {
                 const y = startY + i * spacing;
