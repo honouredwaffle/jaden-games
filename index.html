@@ -4084,8 +4084,8 @@
                     // MASSIVE EXPLOSION
                     const explosionX = fuga.arrow.x;
                     const explosionY = fuga.arrow.y;
-                    const explosionRadius = 250;
-                    const explosionDamage = 800;
+                    const explosionRadius = 350;
+                    const explosionDamage = 1000;
                     
                     // Damage all enemies in explosion radius
                     for (let i = cursedSpirits.length - 1; i >= 0; i--) {
@@ -4146,7 +4146,7 @@
                 y: y,
                 life: 80,
                 maxLife: 80,
-                radius: 40
+                radius: 60
             };
             fugaExplosions.push(explosion);
             
@@ -4194,7 +4194,7 @@
                 const ex = fugaExplosions[i];
                 ex.life--;
                 const progress = 1 - (ex.life / ex.maxLife);
-                const currentRadius = ex.radius + progress * 210; // Expand to 250
+                const currentRadius = ex.radius + progress * 290; // Expand to 350
                 const alpha = 1 - progress;
                 
                 // Outer fire ring
@@ -4289,32 +4289,6 @@
             if (fuga.charging) {
                 const chargePercent = fuga.chargeTime / fuga.maxChargeTime;
                 const intensity = chargePercent < 0.5 ? chargePercent * 2 : 1; // Ramps up to full
-                
-                // Pulsing fire aura with heat distortion effect (smaller, around hands only)
-                const pulse = Math.sin(Date.now() / 50) * 0.1 + 1;
-                const auraSize = 40 + chargePercent * 15 * pulse;
-                
-                // Smaller outer glow around player center
-                const outerGradient = ctx.createRadialGradient(
-                    player.x - camera.x, player.y - camera.y, 0,
-                    player.x - camera.x, player.y - camera.y, auraSize
-                );
-                outerGradient.addColorStop(0, `rgba(255, 60, 0, ${0.2 + chargePercent * 0.15})`);
-                outerGradient.addColorStop(0.5, `rgba(255, 100, 0, ${0.1 + chargePercent * 0.08})`);
-                outerGradient.addColorStop(1, 'rgba(255, 50, 0, 0)');
-                ctx.fillStyle = outerGradient;
-                ctx.beginPath();
-                ctx.arc(player.x - camera.x, player.y - camera.y, auraSize, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Inner fire core (smaller)
-                ctx.fillStyle = `rgba(255, ${80 + chargePercent * 100}, 0, ${0.3 + chargePercent * 0.2})`;
-                ctx.shadowColor = '#ff4400';
-                ctx.shadowBlur = 20 + chargePercent * 10;
-                ctx.beginPath();
-                ctx.arc(player.x - camera.x, player.y - camera.y, auraSize * 0.5, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.shadowBlur = 0;
                 
                 // Hand positions - clapping motion
                 const handOffset = 25;
@@ -4948,6 +4922,24 @@
             const ability = abilities[index];
             const ceCost = selectedCharacter === 'SUKUNA' ? [15, 25, 40, 80] : [20, 30, 50, 80];
             
+            // Fuga special handling - only cost CE when starting charge, not when firing
+            if (selectedCharacter === 'SUKUNA' && index === 2) {
+                if (fuga.charging || fuga.charged) {
+                    // Already charging or charged, just fire (no CE cost)
+                    activateFuga();
+                    return;
+                }
+                // Starting charge - check CE and cooldown
+                if (ability.cooldown === 0 && player.ce >= ceCost[index]) {
+                    ability.cooldown = ability.maxCooldown;
+                    player.ce -= ceCost[index];
+                    activateFuga();
+                } else if (player.ce < ceCost[index]) {
+                    showNotif('Not enough CE!');
+                }
+                return;
+            }
+            
             if (ability.cooldown === 0 && player.ce >= ceCost[index]) {
                 ability.cooldown = ability.maxCooldown;
                 player.ce -= ceCost[index];
@@ -4958,8 +4950,6 @@
                         activateDismantle();
                     } else if (index === 1) {
                         activateCleave();
-                    } else if (index === 2) {
-                        activateFuga();
                     } else if (index === 3) showNotif('Malevolent Shrine!');
                 } else {
                     // Gojo's abilities
