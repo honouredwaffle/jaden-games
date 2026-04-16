@@ -3624,6 +3624,14 @@
                 { grade: 'Special Grade', hp: 400, color: '#ff00ff', size: 35, x: 0, y: 0 }
             ];
             
+            const gradeMap = {
+                'Grade 4': 'GRADE_4',
+                'Grade 3': 'GRADE_3',
+                'Grade 2': 'GRADE_2',
+                'Grade 1': 'GRADE_1',
+                'Special Grade': 'SPECIAL'
+            };
+            
             for (const type of spiritTypes) {
                 cursedSpirits.push({
                     x: type.x,
@@ -3632,7 +3640,7 @@
                     maxHp: type.hp,
                     color: type.color,
                     size: type.size,
-                    grade: type.grade,
+                    grade: gradeMap[type.grade] || type.grade,
                     stationary: true, // Flag to prevent movement
                     attackCooldown: 0,
                     state: 'idle'
@@ -3655,7 +3663,18 @@
             console.log('Position found:', pos);
             if (pos) {
                 setTimeout(() => {
-                    console.log('Actually respawning', grade, 'at', pos.x, pos.y);
+                    // Convert grade format for drawing function
+                    const gradeMap = {
+                        'Grade 4': 'GRADE_4',
+                        'Grade 3': 'GRADE_3',
+                        'Grade 2': 'GRADE_2',
+                        'Grade 1': 'GRADE_1',
+                        'Special Grade': 'SPECIAL'
+                    };
+                    const drawGrade = gradeMap[grade] || grade;
+                    
+                    // Spawn at original position (relative to world origin, not player)
+                    console.log('Actually respawning', grade, 'as', drawGrade, 'at', pos.x, pos.y);
                     cursedSpirits.push({
                         x: pos.x,
                         y: pos.y,
@@ -3663,7 +3682,7 @@
                         maxHp: pos.hp,
                         color: pos.color,
                         size: pos.size,
-                        grade: grade,
+                        grade: drawGrade,
                         stationary: true,
                         attackCooldown: 0,
                         state: 'idle'
