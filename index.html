@@ -108,13 +108,14 @@
         
         // Menu options
         const titleOptions = ['PLAY', 'MODES', 'CHARACTER', 'CUSTOMISATION'];
-        const modeOptions = ['STORY MODE', 'OPEN WORLD', 'BACK'];
+        const modeOptions = ['STORY MODE', 'OPEN WORLD', 'TESTING MODE', 'BACK'];
         const characterOptions = ['GOJO', 'SUKUNA', 'YUKI', 'BACK'];
         const customOptions = ['OUTFIT', 'ABILITY COLOUR', 'BACK'];
         
         let currentMenu = titleOptions;
         let selectedCharacter = 'GOJO';
         let gameMode = 'STORY';
+        let testingMode = false;
         
         // Player
         const player = {
@@ -1548,7 +1549,7 @@
                         
                     case 'ATTACK':
                         // Close range melee attack
-                        if (dist < data.closeRange && spirit.attackCooldown <= 0) {
+                        if (dist < data.closeRange && spirit.attackCooldown <= 0 && !testingMode) {
                             // Melee damage
                             if (player.iframes <= 0) {
                                 player.hp -= data.damage * 1.5; // Melee does more damage
@@ -1557,7 +1558,7 @@
                             spirit.attackCooldown = data.attackCooldown;
                         }
                         // Mid range projectile
-                        else if (dist < data.attackRange && dist >= data.closeRange && spirit.attackCooldown <= 0) {
+                        else if (dist < data.attackRange && dist >= data.closeRange && spirit.attackCooldown <= 0 && !testingMode) {
                             spiritProjectiles.push({
                                 x: spirit.x,
                                 y: spirit.y,
@@ -1748,7 +1749,7 @@
                     boss.domainActive = true;
                     boss.domainTimer = 900; // Reset
                     // AOE damage to player if in range
-                    if (dist < 400 && player.iframes <= 0) {
+                    if (dist < 400 && player.iframes <= 0 && !testingMode) {
                         player.hp -= boss.damage * 3;
                         player.iframes = 120;
                     }
@@ -1949,7 +1950,7 @@
                 const dy = player.y - proj.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
-                if (dist < player.radius + proj.size && player.iframes <= 0) {
+                if (dist < player.radius + proj.size && player.iframes <= 0 && !testingMode) {
                     player.hp -= proj.damage;
                     player.iframes = 60;
                     spiritProjectiles.splice(i, 1);
@@ -5352,6 +5353,16 @@
             drawPlayerBars();
             drawMenuButton();
             
+            // Testing mode indicator
+            if (testingMode) {
+                ctx.fillStyle = '#ffff00';
+                ctx.font = 'bold 20px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('TESTING MODE', canvas.width / 2, 30);
+                ctx.font = '14px "Segoe UI", sans-serif';
+                ctx.fillText('Enemies will not attack', canvas.width / 2, 50);
+            }
+            
             // DEBUG: Show camera and player info
             ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
             ctx.font = 'bold 16px "Segoe UI", sans-serif';
@@ -5880,7 +5891,16 @@
                     screen = 'title';
                     currentMenu = titleOptions;
                     selectedOption = 0;
+                } else if (option === 'TESTING MODE') {
+                    testingMode = true;
+                    gameMode = 'OPEN_WORLD';
+                    // Reset player position
+                    player.x = 0;
+                    player.y = 0;
+                    screen = 'game';
+                    showNotif('TESTING MODE - Enemies will not attack!');
                 } else {
+                    testingMode = false;
                     gameMode = option === 'OPEN WORLD' ? 'OPEN_WORLD' : 'STORY';
                     // Reset player position
                     player.x = 0;
