@@ -188,13 +188,24 @@
         let disasterNotification = null;
         let disasterNotifTimer = 0;
         
-        // Abilities
-        const abilities = [
-            { name: 'BLUE', key: '1', cooldown: 0, maxCooldown: 120, active: false },
-            { name: 'RED', key: '2', cooldown: 0, maxCooldown: 180, active: false },
-            { name: 'PURPLE', key: '3', cooldown: 0, maxCooldown: 300, active: false },
-            { name: 'DOMAIN', key: '4', cooldown: 0, maxCooldown: 600, active: false }
-        ];
+        // Character abilities
+        const CHARACTER_ABILITIES = {
+            'GOJO': [
+                { name: 'BLUE', key: '1', cooldown: 0, maxCooldown: 120, active: false },
+                { name: 'RED', key: '2', cooldown: 0, maxCooldown: 180, active: false },
+                { name: 'PURPLE', key: '3', cooldown: 0, maxCooldown: 300, active: false },
+                { name: 'DOMAIN', key: '4', cooldown: 0, maxCooldown: 600, active: false }
+            ],
+            'SUKUNA': [
+                { name: 'DISMANTLE', key: '1', cooldown: 0, maxCooldown: 80, active: false },
+                { name: 'CLEAVE', key: '2', cooldown: 0, maxCooldown: 120, active: false },
+                { name: 'FUGA', key: '3', cooldown: 0, maxCooldown: 200, active: false },
+                { name: 'MALEVOLENT SHRINE', key: '4', cooldown: 0, maxCooldown: 600, active: false }
+            ]
+        };
+        
+        // Current abilities (set based on selected character)
+        let abilities = CHARACTER_ABILITIES['GOJO'];
         
         // Max Blue state
         let maxBlue = {
@@ -3335,11 +3346,11 @@
         }
         
         function drawAbilityBar() {
-            const barWidth = 400;
+            const barWidth = 500;
             const barHeight = 60;
             const barX = (canvas.width - barWidth) / 2;
             const barY = canvas.height - barHeight - 20;
-            const slotWidth = barWidth / 4;
+            const slotWidth = barWidth / 5; // 5 slots now (M1 + 4 abilities)
             
             // Background
             ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
@@ -3350,10 +3361,30 @@
             ctx.lineWidth = 2;
             ctx.strokeRect(barX, barY, barWidth, barHeight);
             
+            // Draw M1 slot first
+            const m1SlotX = barX;
+            const m1CenterX = m1SlotX + slotWidth / 2;
+            const centerY = barY + barHeight / 2;
+            
+            // M1 slot background
+            ctx.fillStyle = 'rgba(100, 100, 100, 0.5)';
+            ctx.fillRect(m1SlotX + 2, barY + 2, slotWidth - 4, barHeight - 4);
+            
+            // M1 name
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 14px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('M1', m1CenterX, barY + 20);
+            
+            // M1 key
+            ctx.fillStyle = '#e94560';
+            ctx.font = 'bold 16px "Segoe UI", sans-serif';
+            ctx.fillText('M', m1CenterX, barY + barHeight - 8);
+            
+            // Draw abilities (offset by 1 slot)
             abilities.forEach((ability, i) => {
-                const slotX = barX + i * slotWidth;
+                const slotX = barX + (i + 1) * slotWidth;
                 const centerX = slotX + slotWidth / 2;
-                const centerY = barY + barHeight / 2;
                 
                 // Slot background
                 if (ability.cooldown === 0) {
@@ -3378,9 +3409,9 @@
                 
                 // Ability name
                 ctx.fillStyle = ability.cooldown === 0 ? '#fff' : '#888';
-                ctx.font = 'bold 14px "Segoe UI", sans-serif';
+                ctx.font = 'bold 12px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText(ability.name, centerX, barY + 20);
+                ctx.fillText(ability.name, centerX, barY + 18);
                 
                 // Key number
                 ctx.fillStyle = '#e94560';
@@ -3389,36 +3420,53 @@
             });
         }
         
+        function useM1() {
+            // Basic attack - low cost, quick slash
+            if (player.ce >= 5) {
+                player.ce -= 5;
+                // TODO: Implement basic attack visual
+                showNotif('M1 Attack!');
+            }
+        }
+        
         function useAbility(index) {
             const ability = abilities[index];
-            const ceCost = [20, 30, 50, 80][index]; // Blue, Red, Purple, Domain costs
+            const ceCost = selectedCharacter === 'SUKUNA' ? [15, 25, 40, 80] : [20, 30, 50, 80];
             
-            if (ability.cooldown === 0 && player.ce >= ceCost) {
+            if (ability.cooldown === 0 && player.ce >= ceCost[index]) {
                 ability.cooldown = ability.maxCooldown;
-                player.ce -= ceCost;
+                player.ce -= ceCost[index];
                 
-                // Activate abilities
-                if (index === 0) { // Max Blue
-                    if (!reversalRed.active && !reversalRed.charging) {
-                        maxBlue.active = true;
-                        maxBlue.timer = maxBlue.duration;
-                    }
-                } else if (index === 1) { // Reversal Red
-                    if (!reversalRed.active && !reversalRed.charging && !maxBlue.active && !hollowPurple.active && !hollowPurple.charging) {
-                        reversalRed.charging = true;
-                        reversalRed.chargeTime = reversalRed.maxChargeTime;
-                    }
-                } else if (index === 2) { // Hollow Purple
-                    if (!hollowPurple.active && !hollowPurple.charging && !maxBlue.active && !reversalRed.active && !reversalRed.charging) {
-                        hollowPurple.charging = true;
-                        hollowPurple.fusing = true;
-                        hollowPurple.chargeTime = hollowPurple.maxChargeTime;
-                        hollowPurple.blueOrb.angle = 0;
-                        hollowPurple.redOrb.angle = Math.PI;
-                    }
-                } else if (index === 3) { // Domain Expansion
-                    if (!playerDomain.active) {
-                        activateDomain();
+                if (selectedCharacter === 'SUKUNA') {
+                    // Sukuna's abilities (placeholder - just notifications for now)
+                    if (index === 0) showNotif('Dismantle!');
+                    else if (index === 1) showNotif('Cleave!');
+                    else if (index === 2) showNotif('Fuga!');
+                    else if (index === 3) showNotif('Malevolent Shrine!');
+                } else {
+                    // Gojo's abilities
+                    if (index === 0) { // Max Blue
+                        if (!reversalRed.active && !reversalRed.charging) {
+                            maxBlue.active = true;
+                            maxBlue.timer = maxBlue.duration;
+                        }
+                    } else if (index === 1) { // Reversal Red
+                        if (!reversalRed.active && !reversalRed.charging && !maxBlue.active && !hollowPurple.active && !hollowPurple.charging) {
+                            reversalRed.charging = true;
+                            reversalRed.chargeTime = reversalRed.maxChargeTime;
+                        }
+                    } else if (index === 2) { // Hollow Purple
+                        if (!hollowPurple.active && !hollowPurple.charging && !maxBlue.active && !reversalRed.active && !reversalRed.charging) {
+                            hollowPurple.charging = true;
+                            hollowPurple.fusing = true;
+                            hollowPurple.chargeTime = hollowPurple.maxChargeTime;
+                            hollowPurple.blueOrb.angle = 0;
+                            hollowPurple.redOrb.angle = Math.PI;
+                        }
+                    } else if (index === 3) { // Domain Expansion
+                        if (!playerDomain.active) {
+                            activateDomain();
+                        }
                     }
                 }
             }
@@ -5760,6 +5808,8 @@
                     selectedOption = 0;
                 } else {
                     selectedCharacter = option;
+                    // Update abilities based on selected character
+                    abilities = CHARACTER_ABILITIES[selectedCharacter] || CHARACTER_ABILITIES['GOJO'];
                     screen = 'title';
                     currentMenu = titleOptions;
                     selectedOption = 0;
@@ -5825,8 +5875,10 @@
             keys[e.key] = true;
             
             if (screen === 'game') {
+                // M1 - Basic attack
+                if (e.key === 'm' || e.key === 'M') useM1();
                 // Ability keys
-                if (e.key === '1') useAbility(0);
+                else if (e.key === '1') useAbility(0);
                 else if (e.key === '2') useAbility(1);
                 else if (e.key === '3') useAbility(2);
                 else if (e.key === '4') useAbility(3);
