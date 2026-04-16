@@ -1002,12 +1002,12 @@
             player.x = Math.max(-WORLD_WIDTH/2, Math.min(WORLD_WIDTH/2, player.x));
             player.y = Math.max(-WORLD_HEIGHT/2, Math.min(WORLD_HEIGHT/2, player.y));
             
-            // Regen CE and HP (slower HP regen)
+            // Regen CE and HP (much slower)
             if (player.ce < player.maxCe) {
-                player.ce += 0.1;
+                player.ce += 0.03; // Slower CE regen
             }
             if (player.hp < player.maxHp) {
-                player.hp += 0.3; // HP regen (slower)
+                player.hp += 0.05; // Much slower HP regen
             }
             
             // Iframes
