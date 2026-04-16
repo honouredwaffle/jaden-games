@@ -4328,87 +4328,101 @@
                 const rightHandX = player.x + Math.cos(player.facing) * rightHandDist - camera.x;
                 const rightHandY = player.y + Math.sin(player.facing) * rightHandDist - camera.y;
                 
-                // Spawn embers and sparks around hands
+                // Spawn embers and sparks around hands only (not in front of player)
                 if (Math.random() < 0.3 + chargePercent * 0.5) {
                     spawnFugaParticle(
-                        player.x + Math.cos(player.facing) * handOffset + (Math.random() - 0.5) * 40,
-                        player.y + Math.sin(player.facing) * handOffset + (Math.random() - 0.5) * 40,
+                        leftHandX + camera.x + (Math.random() - 0.5) * 20,
+                        leftHandY + camera.y + (Math.random() - 0.5) * 20,
                         'ember'
                     );
                 }
                 if (Math.random() < 0.2 + chargePercent * 0.3) {
                     spawnFugaParticle(
-                        player.x + Math.cos(player.facing) * handOffset,
-                        player.y + Math.sin(player.facing) * handOffset,
+                        rightHandX + camera.x + (Math.random() - 0.5) * 20,
+                        rightHandY + camera.y + (Math.random() - 0.5) * 20,
                         'spark'
                     );
                 }
                 
                 if (!fuga.charged) {
-                    // CHARGING PHASE - hands coming together with building flames
-                    const wobble = Math.sin(Date.now() / 80) * 4;
-                    const flameIntensity = 8 + Math.floor(chargePercent * 12);
+                    // CHARGING PHASE - intense fire building between hands
+                    const time = Date.now() / 100;
+                    const pulse = Math.sin(time) * 0.3 + 0.7;
                     
-                    for (let i = 0; i < flameIntensity; i++) {
-                        const flameSize = 8 + chargePercent * 10 + Math.random() * 8;
-                        const flameDistance = (Math.random() - 0.5) * (12 + chargePercent * 15);
-                        
-                        ctx.fillStyle = `rgba(255, ${40 + Math.random() * 100}, 0, ${0.6 + Math.random() * 0.3})`;
-                        ctx.shadowColor = Math.random() > 0.5 ? '#ff2200' : '#ff6600';
-                        ctx.shadowBlur = 12 + chargePercent * 8;
-                        
-                        // Left hand flames - more chaotic as charge builds
-                        ctx.beginPath();
-                        ctx.arc(
-                            leftHandX + wobble + (Math.random() - 0.5) * (10 + chargePercent * 12),
-                            leftHandY + (Math.random() - 0.5) * (10 + chargePercent * 12) - Math.random() * chargePercent * 12,
-                            flameSize, 0, Math.PI * 2
-                        );
-                        ctx.fill();
-                        
-                        // Right hand flames
-                        ctx.beginPath();
-                        ctx.arc(
-                            rightHandX - wobble + (Math.random() - 0.5) * (10 + chargePercent * 12),
-                            rightHandY + (Math.random() - 0.5) * (15 + chargePercent * 20) - Math.random() * chargePercent * 20,
-                            flameSize, 0, Math.PI * 2
-                        );
-                        ctx.fill();
-                    }
+                    // Fire orb growing between hands
+                    const midX = (leftHandX + rightHandX) / 2;
+                    const midY = (leftHandY + rightHandY) / 2;
+                    const orbSize = 15 + chargePercent * 25 * pulse;
                     
-                    // Flame tongues reaching upward between hands
-                    for (let i = 0; i < 3 + chargePercent * 5; i++) {
-                        const midX = (leftHandX + rightHandX) / 2 + (Math.random() - 0.5) * 30;
-                        const midY = (leftHandY + rightHandY) / 2;
-                        const tongueHeight = 30 + chargePercent * 50 + Math.random() * 20;
-                        
-                        ctx.fillStyle = `rgba(255, ${100 + Math.random() * 100}, ${Math.random() * 50}, ${0.5 + chargePercent * 0.3})`;
-                        ctx.shadowColor = '#ff4400';
-                        ctx.shadowBlur = 15;
-                        ctx.beginPath();
-                        ctx.moveTo(midX - 8, midY);
-                        ctx.quadraticCurveTo(
-                            midX + (Math.random() - 0.5) * 20,
-                            midY - tongueHeight / 2,
-                            midX + (Math.random() - 0.5) * 10,
-                            midY - tongueHeight
-                        );
-                        ctx.quadraticCurveTo(
-                            midX + (Math.random() - 0.5) * 15,
-                            midY - tongueHeight / 2,
-                            midX + 8, midY
-                        );
-                        ctx.fill();
-                    }
+                    // Outer fire orb glow
+                    const orbGradient = ctx.createRadialGradient(midX, midY, 0, midX, midY, orbSize * 2);
+                    orbGradient.addColorStop(0, `rgba(255, ${100 + chargePercent * 100}, 0, ${0.5 + chargePercent * 0.3})`);
+                    orbGradient.addColorStop(0.5, `rgba(255, 60, 0, ${0.3 + chargePercent * 0.2})`);
+                    orbGradient.addColorStop(1, 'rgba(255, 30, 0, 0)');
+                    ctx.fillStyle = orbGradient;
+                    ctx.beginPath();
+                    ctx.arc(midX, midY, orbSize * 2, 0, Math.PI * 2);
+                    ctx.fill();
                     
-                    // Charging text with pulsing effect
-                    const textPulse = Math.sin(Date.now() / 100) * 0.3 + 0.7;
-                    ctx.fillStyle = `rgba(255, ${100 + chargePercent * 100}, 0, ${textPulse})`;
-                    ctx.font = 'bold 18px "Segoe UI", sans-serif';
-                    ctx.textAlign = 'center';
+                    // Inner intense core
+                    ctx.fillStyle = `rgba(255, ${150 + chargePercent * 105}, ${chargePercent * 100}, ${0.7 + chargePercent * 0.3})`;
                     ctx.shadowColor = '#ff4400';
-                    ctx.shadowBlur = 10;
-                    ctx.fillText(`FUGA CHARGING... ${Math.floor(chargePercent * 100)}%`, player.x - camera.x, player.y - camera.y - 80);
+                    ctx.shadowBlur = 20 + chargePercent * 15;
+                    ctx.beginPath();
+                    ctx.arc(midX, midY, orbSize, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                    
+                    // Swirling flames around the orb
+                    for (let i = 0; i < 8 + chargePercent * 8; i++) {
+                        const angle = time * 2 + (i / 16) * Math.PI * 2;
+                        const dist = orbSize * 0.8 + Math.sin(time * 3 + i) * 10;
+                        const fx = midX + Math.cos(angle) * dist;
+                        const fy = midY + Math.sin(angle) * dist;
+                        const fsize = 6 + chargePercent * 8 + Math.random() * 5;
+                        
+                        ctx.fillStyle = `rgba(255, ${60 + Math.random() * 100}, 0, ${0.6 + Math.random() * 0.4})`;
+                        ctx.shadowColor = '#ff2200';
+                        ctx.shadowBlur = 10 + chargePercent * 8;
+                        ctx.beginPath();
+                        ctx.arc(fx, fy, fsize, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    
+                    // Hand flames - intense fire on both hands
+                    for (let i = 0; i < 10 + chargePercent * 10; i++) {
+                        const flameSize = 8 + chargePercent * 12 + Math.random() * 8;
+                        
+                        // Left hand fire
+                        ctx.fillStyle = `rgba(255, ${40 + Math.random() * 100}, 0, ${0.7 + Math.random() * 0.3})`;
+                        ctx.shadowColor = Math.random() > 0.5 ? '#ff2200' : '#ff6600';
+                        ctx.shadowBlur = 15 + chargePercent * 10;
+                        ctx.beginPath();
+                        ctx.arc(
+                            leftHandX + (Math.random() - 0.5) * 15,
+                            leftHandY + (Math.random() - 0.5) * 15 - Math.random() * 10,
+                            flameSize, 0, Math.PI * 2
+                        );
+                        ctx.fill();
+                        
+                        // Right hand fire
+                        ctx.beginPath();
+                        ctx.arc(
+                            rightHandX + (Math.random() - 0.5) * 15,
+                            rightHandY + (Math.random() - 0.5) * 15 - Math.random() * 10,
+                            flameSize, 0, Math.PI * 2
+                        );
+                        ctx.fill();
+                    }
+                    
+                    // Charging text with intense pulsing
+                    const textPulse = Math.sin(time * 2) * 0.4 + 0.6;
+                    ctx.fillStyle = `rgba(255, ${100 + chargePercent * 100}, 0, ${textPulse})`;
+                    ctx.font = 'bold 20px "Segoe UI", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.shadowColor = '#ff0000';
+                    ctx.shadowBlur = 15 + chargePercent * 10;
+                    ctx.fillText(`FUGA CHARGING... ${Math.floor(chargePercent * 100)}%`, player.x - camera.x, player.y - camera.y - 90);
                     ctx.shadowBlur = 0;
                     
                 } else {
