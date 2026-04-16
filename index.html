@@ -4072,10 +4072,10 @@
                     }
                 }
                 
-                // Also check collision with disaster curse
-                if (!hitSomething && disasterCurse.active && disasterCurse.current) {
-                    const dist = Math.hypot(disasterCurse.current.x - fuga.arrow.x, disasterCurse.current.y - fuga.arrow.y);
-                    if (dist < disasterCurse.current.size + 30) {
+                // Also check collision with active disaster curse
+                if (!hitSomething && activeDisasterCurse) {
+                    const dist = Math.hypot(activeDisasterCurse.x - fuga.arrow.x, activeDisasterCurse.y - fuga.arrow.y);
+                    if (dist < activeDisasterCurse.size + 30) {
                         hitSomething = true;
                     }
                 }
@@ -4108,16 +4108,16 @@
                         }
                     }
                     
-                    // Damage disaster curse
-                    if (disasterCurse.active && disasterCurse.current) {
-                        const dist = Math.hypot(disasterCurse.current.x - explosionX, disasterCurse.current.y - explosionY);
-                        if (dist < explosionRadius + disasterCurse.current.size) {
-                            const damageMultiplier = 1 - (dist / (explosionRadius + disasterCurse.current.size));
+                    // Damage active disaster curse
+                    if (activeDisasterCurse) {
+                        const dist = Math.hypot(activeDisasterCurse.x - explosionX, activeDisasterCurse.y - explosionY);
+                        if (dist < explosionRadius + activeDisasterCurse.size) {
+                            const damageMultiplier = 1 - (dist / (explosionRadius + activeDisasterCurse.size));
                             const actualDamage = Math.floor(explosionDamage * damageMultiplier);
-                            disasterCurse.current.hp -= actualDamage;
-                            addDamageNumber(disasterCurse.current.x, disasterCurse.current.y - 40, actualDamage);
+                            activeDisasterCurse.hp -= actualDamage;
+                            addDamageNumber(activeDisasterCurse.x, activeDisasterCurse.y - 40, actualDamage);
                             
-                            if (disasterCurse.current.hp <= 0) {
+                            if (activeDisasterCurse.hp <= 0) {
                                 defeatDisasterCurse();
                             }
                         }
