@@ -967,12 +967,18 @@
                 dx /= len;
                 dy /= len;
                 
+                // Get current biome for speed modifier
+                const currentBiome = getBiomeAt(player.x, player.y);
+                let speedMultiplier = 1;
+                if (currentBiome === 'VOLCANO') speedMultiplier = 1.3; // 30% faster in volcano
+                else if (currentBiome === 'SNOW') speedMultiplier = 0.7; // 30% slower in snow
+                
                 // Store old position for footstep check
                 const oldX = player.x;
                 const oldY = player.y;
                 
-                player.x += dx * player.speed;
-                player.y += dy * player.speed;
+                player.x += dx * player.speed * speedMultiplier;
+                player.y += dy * player.speed * speedMultiplier;
                 
                 // Add footstep ripple in domain (every 30 pixels moved)
                 if (playerDomain.active && playerDomain.phase !== 'expanding' && playerDomain.phase !== 'lines') {
