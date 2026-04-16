@@ -4092,91 +4092,136 @@
         function drawFuga() {
             if (fuga.charging) {
                 const chargePercent = fuga.chargeTime / fuga.maxChargeTime;
-                const time = Date.now() * 0.01;
+                const time = Date.now() * 0.008;
                 
-                // Massive fire gathering effect around player
-                ctx.fillStyle = `rgba(255, ${50 + chargePercent * 100}, 0, ${0.1 + chargePercent * 0.2})`;
+                // Fixed size fire aura (doesn't expand)
+                ctx.fillStyle = `rgba(255, 80, 0, ${0.15 + chargePercent * 0.15})`;
                 ctx.beginPath();
-                ctx.arc(player.x - camera.x, player.y - camera.y, 60 + chargePercent * 40, 0, Math.PI * 2);
+                ctx.arc(player.x - camera.x, player.y - camera.y, 70, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Fire particles swirling into hands
-                for (let i = 0; i < 20; i++) {
-                    const angle = time + (i / 20) * Math.PI * 2;
-                    const dist = 80 - chargePercent * 60 + Math.sin(time * 2 + i) * 10;
+                // Fire particles swirling into center
+                for (let i = 0; i < 15; i++) {
+                    const angle = time + (i / 15) * Math.PI * 2;
+                    const dist = 60 + Math.sin(time * 3 + i) * 15;
                     const px = player.x + Math.cos(angle) * dist - camera.x;
                     const py = player.y + Math.sin(angle) * dist - camera.y;
-                    const size = 5 + chargePercent * 10;
+                    const size = 4 + chargePercent * 6;
                     
-                    ctx.fillStyle = `rgba(255, ${100 + Math.random() * 100}, 0, ${0.5 + chargePercent * 0.5})`;
+                    ctx.fillStyle = `rgba(255, ${80 + Math.random() * 80}, 0, ${0.4 + chargePercent * 0.4})`;
                     ctx.shadowColor = '#ff4400';
-                    ctx.shadowBlur = 15;
+                    ctx.shadowBlur = 10;
                     ctx.beginPath();
                     ctx.arc(px, py, size, 0, Math.PI * 2);
                     ctx.fill();
                 }
                 
-                // Hands creating fire
-                const handDist = 40;
-                const leftHandX = player.x + Math.cos(player.facing - 0.3) * handDist - camera.x;
-                const leftHandY = player.y + Math.sin(player.facing - 0.3) * handDist - camera.y;
-                const rightHandX = player.x + Math.cos(player.facing + 0.3) * handDist - camera.x;
-                const rightHandY = player.y + Math.sin(player.facing + 0.3) * handDist - camera.y;
-                
-                // Intense flames at hands
-                for (let i = 0; i < 8; i++) {
-                    const flameSize = 15 + chargePercent * 25 + Math.random() * 15;
-                    ctx.fillStyle = `rgba(255, ${50 + Math.random() * 100}, 0, 0.8)`;
-                    ctx.beginPath();
-                    ctx.arc(leftHandX + (Math.random() - 0.5) * 20, leftHandY + (Math.random() - 0.5) * 20, flameSize, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.beginPath();
-                    ctx.arc(rightHandX + (Math.random() - 0.5) * 20, rightHandY + (Math.random() - 0.5) * 20, flameSize, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                
                 ctx.shadowBlur = 0;
                 
-                // Draw forming massive fire arrow when charged
-                if (fuga.charged) {
-                    const arrowX = player.x + Math.cos(player.facing) * 60 - camera.x;
-                    const arrowY = player.y + Math.sin(player.facing) * 60 - camera.y;
+                // Hand positions - clapping motion
+                const handOffset = 25;
+                const clapOffset = chargePercent < 0.3 ? (0.3 - chargePercent) * 60 : 0; // Hands come together
+                const pullBack = chargePercent > 0.5 ? (chargePercent - 0.5) * 80 : 0; // Right hand pulls back
+                
+                // Left hand stays forward
+                const leftHandX = player.x + Math.cos(player.facing) * (handOffset + clapOffset) - camera.x;
+                const leftHandY = player.y + Math.sin(player.facing) * (handOffset + clapOffset) - camera.y;
+                
+                // Right hand claps then pulls back
+                const rightHandDist = handOffset + clapOffset - pullBack;
+                const rightHandX = player.x + Math.cos(player.facing) * rightHandDist - camera.x;
+                const rightHandY = player.y + Math.sin(player.facing) * rightHandDist - camera.y;
+                
+                // Hand movement wobble
+                const wobble = Math.sin(time * 4) * 3;
+                
+                // Draw hands with flames
+                if (!fuga.charged) {
+                    // Charging - hands coming together
+                    for (let i = 0; i < 6; i++) {
+                        const flameSize = 12 + chargePercent * 15 + Math.random() * 10;
+                        ctx.fillStyle = `rgba(255, ${60 + Math.random() * 80}, 0, 0.7)`;
+                        ctx.shadowColor = '#ff4400';
+                        ctx.shadowBlur = 15;
+                        
+                        // Left hand flames
+                        ctx.beginPath();
+                        ctx.arc(leftHandX + wobble + (Math.random() - 0.5) * 15, leftHandY + (Math.random() - 0.5) * 15, flameSize, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        // Right hand flames
+                        ctx.beginPath();
+                        ctx.arc(rightHandX - wobble + (Math.random() - 0.5) * 15, rightHandY + (Math.random() - 0.5) * 15, flameSize, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    
+                    // Charging text
+                    ctx.fillStyle = `rgba(255, ${100 + chargePercent * 100}, 0, 0.9)`;
+                    ctx.font = 'bold 16px "Segoe UI", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`FUGA CHARGING... ${Math.floor(chargePercent * 100)}%`, player.x - camera.x, player.y - camera.y - 70);
+                } else {
+                    // Charged - right hand pulled back with arrow
+                    // Left hand forward with fire
+                    for (let i = 0; i < 5; i++) {
+                        const flameSize = 15 + Math.random() * 12;
+                        ctx.fillStyle = `rgba(255, ${80 + Math.random() * 60}, 0, 0.8)`;
+                        ctx.shadowColor = '#ff4400';
+                        ctx.shadowBlur = 20;
+                        ctx.beginPath();
+                        ctx.arc(leftHandX + (Math.random() - 0.5) * 12, leftHandY + (Math.random() - 0.5) * 12, flameSize, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    
+                    // Right hand pulled back - holding fire arrow
+                    const arrowX = rightHandX;
+                    const arrowY = rightHandY;
                     
                     ctx.save();
                     ctx.translate(arrowX, arrowY);
                     ctx.rotate(player.facing);
                     
-                    // Massive glowing fire arrow
+                    // Fire arrow forming in right hand
                     ctx.shadowColor = '#ff2200';
-                    ctx.shadowBlur = 50;
+                    ctx.shadowBlur = 40;
                     
-                    // Outer fire aura
-                    ctx.fillStyle = 'rgba(255, 100, 0, 0.4)';
+                    // Arrow glow
+                    ctx.fillStyle = 'rgba(255, 100, 0, 0.5)';
                     ctx.beginPath();
-                    ctx.moveTo(80, 0);
-                    ctx.lineTo(-30, -40);
-                    ctx.lineTo(-20, 0);
-                    ctx.lineTo(-30, 40);
+                    ctx.moveTo(70, 0);
+                    ctx.lineTo(-25, -35);
+                    ctx.lineTo(-15, 0);
+                    ctx.lineTo(-25, 35);
                     ctx.closePath();
                     ctx.fill();
                     
                     // Main arrow
-                    ctx.fillStyle = '#ff6600';
+                    ctx.fillStyle = '#ff5500';
                     ctx.beginPath();
-                    ctx.moveTo(60, 0);
-                    ctx.lineTo(-20, -25);
-                    ctx.lineTo(-10, 0);
-                    ctx.lineTo(-20, 25);
+                    ctx.moveTo(55, 0);
+                    ctx.lineTo(-15, -22);
+                    ctx.lineTo(-8, 0);
+                    ctx.lineTo(-15, 22);
                     ctx.closePath();
                     ctx.fill();
                     
                     // Inner core
+                    ctx.fillStyle = '#ff8800';
+                    ctx.beginPath();
+                    ctx.moveTo(35, 0);
+                    ctx.lineTo(-8, -12);
+                    ctx.lineTo(-3, 0);
+                    ctx.lineTo(-8, 12);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Hot center
                     ctx.fillStyle = '#ffaa00';
                     ctx.beginPath();
-                    ctx.moveTo(40, 0);
-                    ctx.lineTo(-10, -15);
-                    ctx.lineTo(-5, 0);
-                    ctx.lineTo(-10, 15);
+                    ctx.moveTo(20, 0);
+                    ctx.lineTo(-5, -6);
+                    ctx.lineTo(-2, 0);
+                    ctx.lineTo(-5, 6);
                     ctx.closePath();
                     ctx.fill();
                     
@@ -4187,13 +4232,7 @@
                     ctx.fillStyle = '#ff4400';
                     ctx.font = 'bold 18px "Segoe UI", sans-serif';
                     ctx.textAlign = 'center';
-                    ctx.fillText('FUGA READY! Press 3', player.x - camera.x, player.y - camera.y - 80);
-                } else {
-                    // Charging text
-                    ctx.fillStyle = `rgba(255, ${100 + chargePercent * 100}, 0, 0.9)`;
-                    ctx.font = 'bold 16px "Segoe UI", sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(`FUGA CHARGING... ${Math.floor(chargePercent * 100)}%`, player.x - camera.x, player.y - camera.y - 60);
+                    ctx.fillText('FUGA READY! Press 3', player.x - camera.x, player.y - camera.y - 90);
                 }
             }
             
