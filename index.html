@@ -1064,9 +1064,15 @@
             const faceDy = mouseWorldY - player.y;
             player.facing = Math.atan2(faceDy, faceDx);
             
-            // Keep player in world bounds
-            player.x = Math.max(-WORLD_WIDTH/2, Math.min(WORLD_WIDTH/2, player.x));
-            player.y = Math.max(-WORLD_HEIGHT/2, Math.min(WORLD_HEIGHT/2, player.y));
+            // Keep player in world bounds (smaller bounds in testing mode)
+            if (testingMode) {
+                // Small testing arena - 800x600
+                player.x = Math.max(-400, Math.min(400, player.x));
+                player.y = Math.max(-300, Math.min(300, player.y));
+            } else {
+                player.x = Math.max(-WORLD_WIDTH/2, Math.min(WORLD_WIDTH/2, player.x));
+                player.y = Math.max(-WORLD_HEIGHT/2, Math.min(WORLD_HEIGHT/2, player.y));
+            }
             
             // Regen CE and HP
             if (player.ce < player.maxCe) {
@@ -1857,7 +1863,7 @@
                 disasterSpawnTimer++;
                 if (disasterSpawnTimer >= disasterSpawnCheckInterval) {
                     disasterSpawnTimer = 0;
-                    if (Math.random() < 0.2) { // 20% chance
+                    if (Math.random() < 0.2 && !testingMode) { // 20% chance (disabled in testing)
                         spawnDisasterCurse();
                     }
                 }
@@ -3615,12 +3621,12 @@
             // Clear existing spirits
             cursedSpirits.length = 0;
             
-            // Spawn one of each grade at fixed positions around player spawn
+            // Spawn one of each grade at fixed positions around player spawn (within 800x600 arena)
             const spiritTypes = [
-                { grade: 'Grade 4', hp: 30, color: '#44bb44', size: 15, x: -150, y: -100 },
-                { grade: 'Grade 3', hp: 60, color: '#44ccaa', size: 18, x: 150, y: -100 },
-                { grade: 'Grade 2', hp: 120, color: '#9955cc', size: 22, x: -150, y: 100 },
-                { grade: 'Grade 1', hp: 200, color: '#ff4444', size: 28, x: 150, y: 100 },
+                { grade: 'Grade 4', hp: 30, color: '#44bb44', size: 15, x: -200, y: -150 },
+                { grade: 'Grade 3', hp: 60, color: '#44ccaa', size: 18, x: 200, y: -150 },
+                { grade: 'Grade 2', hp: 120, color: '#9955cc', size: 22, x: -200, y: 150 },
+                { grade: 'Grade 1', hp: 200, color: '#ff4444', size: 28, x: 200, y: 150 },
                 { grade: 'Special Grade', hp: 400, color: '#ff00ff', size: 35, x: 0, y: 0 }
             ];
             
@@ -3652,10 +3658,10 @@
             console.log('respawnTestingSpirit called for', grade);
             // Respawn the same grade spirit at its original position
             const spiritPositions = {
-                'GRADE_4': { x: -150, y: -100, hp: 30, color: '#44bb44', size: 15 },
-                'GRADE_3': { x: 150, y: -100, hp: 60, color: '#44ccaa', size: 18 },
-                'GRADE_2': { x: -150, y: 100, hp: 120, color: '#9955cc', size: 22 },
-                'GRADE_1': { x: 150, y: 100, hp: 200, color: '#ff4444', size: 28 },
+                'GRADE_4': { x: -200, y: -150, hp: 30, color: '#44bb44', size: 15 },
+                'GRADE_3': { x: 200, y: -150, hp: 60, color: '#44ccaa', size: 18 },
+                'GRADE_2': { x: -200, y: 150, hp: 120, color: '#9955cc', size: 22 },
+                'GRADE_1': { x: 200, y: 150, hp: 200, color: '#ff4444', size: 28 },
                 'SPECIAL': { x: 0, y: 0, hp: 400, color: '#ff00ff', size: 35 }
             };
             
@@ -5519,9 +5525,11 @@
             }
             
             drawBiomeGround();
-            drawGrid();
-            drawBiomeOverlay();
-            drawBiomeObjects();
+            if (!testingMode) {
+                drawGrid();
+                drawBiomeOverlay();
+                drawBiomeObjects();
+            }
             drawSpiritProjectiles();
             drawPlayerDomainBackground(); // Draw domain void/bg FIRST
             drawCursedSpirits(); // Enemies on top of domain background
@@ -5540,7 +5548,9 @@
             drawNotifications();
             drawDisasterNotification();
             drawAbilityBar();
-            drawMinimap();
+            if (!testingMode) {
+                drawMinimap();
+            }
             drawPlayerBars();
             drawMenuButton();
             
@@ -5554,27 +5564,29 @@
                 ctx.fillText('Enemies will not attack', canvas.width / 2, 50);
             }
             
-            // DEBUG: Show camera and player info
-            ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
-            ctx.font = 'bold 16px "Segoe UI", sans-serif';
-            ctx.textAlign = 'left';
-            ctx.fillText(`CAM: ${Math.floor(camera.x)}, ${Math.floor(camera.y)}`, 20, 200);
-            ctx.fillText(`PLAYER: ${Math.floor(player.x)}, ${Math.floor(player.y)}`, 20, 220);
-            ctx.fillText(`CANVAS: ${canvas.width}x${canvas.height}`, 20, 240);
-            ctx.fillText(`BIOME: ${getBiomeAt(player.x, player.y)}`, 20, 260);
-            
-            // UI - Coordinates and current biome
-            const currentBiome = getBiomeAt(player.x, player.y);
-            
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-            ctx.fillRect(10, 70, 200, 60);
-            
-            ctx.fillStyle = '#fff';
-            ctx.font = '14px "Segoe UI", sans-serif';
-            ctx.textAlign = 'left';
-            ctx.fillText(`X: ${Math.floor(player.x)} Y: ${Math.floor(player.y)}`, 20, 95);
-            ctx.fillStyle = BIOME_COLORS[currentBiome].grid.replace('0.15', '1');
-            ctx.fillText(`BIOME: ${currentBiome}`, 20, 118);
+            // DEBUG: Show camera and player info (disabled in testing mode)
+            if (!testingMode) {
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+                ctx.font = 'bold 16px "Segoe UI", sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText(`CAM: ${Math.floor(camera.x)}, ${Math.floor(camera.y)}`, 20, 200);
+                ctx.fillText(`PLAYER: ${Math.floor(player.x)}, ${Math.floor(player.y)}`, 20, 220);
+                ctx.fillText(`CANVAS: ${canvas.width}x${canvas.height}`, 20, 240);
+                ctx.fillText(`BIOME: ${getBiomeAt(player.x, player.y)}`, 20, 260);
+                
+                // UI - Coordinates and current biome
+                const currentBiome = getBiomeAt(player.x, player.y);
+                
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                ctx.fillRect(10, 70, 200, 60);
+                
+                ctx.fillStyle = '#fff';
+                ctx.font = '14px "Segoe UI", sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText(`X: ${Math.floor(player.x)} Y: ${Math.floor(player.y)}`, 20, 95);
+                ctx.fillStyle = BIOME_COLORS[currentBiome].grid.replace('0.15', '1');
+                ctx.fillText(`BIOME: ${currentBiome}`, 20, 118);
+            }
         }
         
         function addDamageCounter(damage) {
