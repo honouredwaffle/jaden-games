@@ -3947,6 +3947,18 @@
                 return;
             }
             
+            // Check if enemy is close enough - if not, teleport to them
+            const distToEnemy = Math.hypot(grabbedEnemy.x - player.x, grabbedEnemy.y - player.y);
+            if (distToEnemy > 80) {
+                // Teleport behind the enemy
+                player.x = grabbedEnemy.x - Math.cos(player.facing) * 60;
+                player.y = grabbedEnemy.y - Math.sin(player.facing) * 60;
+                // Add teleport effect
+                for (let i = 0; i < 10; i++) {
+                    addHitEffect(player.x + (Math.random() - 0.5) * 40, player.y + (Math.random() - 0.5) * 40, 'red');
+                }
+            }
+            
             // Pull enemy to player
             grabbedEnemy.x = player.x + Math.cos(player.facing) * 50;
             grabbedEnemy.y = player.y + Math.sin(player.facing) * 50;
@@ -4079,113 +4091,164 @@
         
         function drawFuga() {
             if (fuga.charging) {
-                // Draw charging flames on hands
                 const chargePercent = fuga.chargeTime / fuga.maxChargeTime;
-                const handOffset = 30;
+                const time = Date.now() * 0.01;
                 
-                // Left hand flames
-                for (let i = 0; i < 5; i++) {
-                    const flameSize = 10 + chargePercent * 20 + Math.random() * 10;
-                    const angle = player.facing - 0.5 + (i / 5) * 1.0;
-                    const fx = player.x + Math.cos(angle) * handOffset - camera.x;
-                    const fy = player.y + Math.sin(angle) * handOffset - camera.y;
+                // Massive fire gathering effect around player
+                ctx.fillStyle = `rgba(255, ${50 + chargePercent * 100}, 0, ${0.1 + chargePercent * 0.2})`;
+                ctx.beginPath();
+                ctx.arc(player.x - camera.x, player.y - camera.y, 60 + chargePercent * 40, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Fire particles swirling into hands
+                for (let i = 0; i < 20; i++) {
+                    const angle = time + (i / 20) * Math.PI * 2;
+                    const dist = 80 - chargePercent * 60 + Math.sin(time * 2 + i) * 10;
+                    const px = player.x + Math.cos(angle) * dist - camera.x;
+                    const py = player.y + Math.sin(angle) * dist - camera.y;
+                    const size = 5 + chargePercent * 10;
                     
-                    ctx.fillStyle = `rgba(255, ${100 + chargePercent * 100}, 0, ${0.6 + chargePercent * 0.4})`;
+                    ctx.fillStyle = `rgba(255, ${100 + Math.random() * 100}, 0, ${0.5 + chargePercent * 0.5})`;
                     ctx.shadowColor = '#ff4400';
-                    ctx.shadowBlur = 20 * chargePercent;
+                    ctx.shadowBlur = 15;
                     ctx.beginPath();
-                    ctx.arc(fx, fy, flameSize, 0, Math.PI * 2);
+                    ctx.arc(px, py, size, 0, Math.PI * 2);
                     ctx.fill();
                 }
                 
-                // Right hand flames
-                for (let i = 0; i < 5; i++) {
-                    const flameSize = 10 + chargePercent * 20 + Math.random() * 10;
-                    const angle = player.facing + 0.5 - (i / 5) * 1.0;
-                    const fx = player.x + Math.cos(angle) * handOffset - camera.x;
-                    const fy = player.y + Math.sin(angle) * handOffset - camera.y;
-                    
-                    ctx.fillStyle = `rgba(255, ${100 + chargePercent * 100}, 0, ${0.6 + chargePercent * 0.4})`;
+                // Hands creating fire
+                const handDist = 40;
+                const leftHandX = player.x + Math.cos(player.facing - 0.3) * handDist - camera.x;
+                const leftHandY = player.y + Math.sin(player.facing - 0.3) * handDist - camera.y;
+                const rightHandX = player.x + Math.cos(player.facing + 0.3) * handDist - camera.x;
+                const rightHandY = player.y + Math.sin(player.facing + 0.3) * handDist - camera.y;
+                
+                // Intense flames at hands
+                for (let i = 0; i < 8; i++) {
+                    const flameSize = 15 + chargePercent * 25 + Math.random() * 15;
+                    ctx.fillStyle = `rgba(255, ${50 + Math.random() * 100}, 0, 0.8)`;
                     ctx.beginPath();
-                    ctx.arc(fx, fy, flameSize, 0, Math.PI * 2);
+                    ctx.arc(leftHandX + (Math.random() - 0.5) * 20, leftHandY + (Math.random() - 0.5) * 20, flameSize, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.beginPath();
+                    ctx.arc(rightHandX + (Math.random() - 0.5) * 20, rightHandY + (Math.random() - 0.5) * 20, flameSize, 0, Math.PI * 2);
                     ctx.fill();
                 }
                 
                 ctx.shadowBlur = 0;
                 
-                // Draw forming arrow when charged
+                // Draw forming massive fire arrow when charged
                 if (fuga.charged) {
-                    const arrowX = player.x + Math.cos(player.facing) * 50 - camera.x;
-                    const arrowY = player.y + Math.sin(player.facing) * 50 - camera.y;
-                    
-                    // Glowing arrow
-                    ctx.fillStyle = '#ff6600';
-                    ctx.shadowColor = '#ff2200';
-                    ctx.shadowBlur = 30;
+                    const arrowX = player.x + Math.cos(player.facing) * 60 - camera.x;
+                    const arrowY = player.y + Math.sin(player.facing) * 60 - camera.y;
                     
                     ctx.save();
                     ctx.translate(arrowX, arrowY);
                     ctx.rotate(player.facing);
                     
-                    // Arrow head
+                    // Massive glowing fire arrow
+                    ctx.shadowColor = '#ff2200';
+                    ctx.shadowBlur = 50;
+                    
+                    // Outer fire aura
+                    ctx.fillStyle = 'rgba(255, 100, 0, 0.4)';
                     ctx.beginPath();
-                    ctx.moveTo(30, 0);
+                    ctx.moveTo(80, 0);
+                    ctx.lineTo(-30, -40);
+                    ctx.lineTo(-20, 0);
+                    ctx.lineTo(-30, 40);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Main arrow
+                    ctx.fillStyle = '#ff6600';
+                    ctx.beginPath();
+                    ctx.moveTo(60, 0);
+                    ctx.lineTo(-20, -25);
+                    ctx.lineTo(-10, 0);
+                    ctx.lineTo(-20, 25);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Inner core
+                    ctx.fillStyle = '#ffaa00';
+                    ctx.beginPath();
+                    ctx.moveTo(40, 0);
                     ctx.lineTo(-10, -15);
                     ctx.lineTo(-5, 0);
                     ctx.lineTo(-10, 15);
                     ctx.closePath();
                     ctx.fill();
                     
-                    // Arrow shaft (flame trail)
-                    ctx.fillStyle = '#ffaa00';
-                    ctx.fillRect(-40, -5, 35, 10);
-                    
                     ctx.restore();
                     ctx.shadowBlur = 0;
                     
                     // Ready text
                     ctx.fillStyle = '#ff4400';
-                    ctx.font = 'bold 16px "Segoe UI", sans-serif';
+                    ctx.font = 'bold 18px "Segoe UI", sans-serif';
                     ctx.textAlign = 'center';
-                    ctx.fillText('READY! Press 3 to fire', player.x - camera.x, player.y - camera.y - 60);
+                    ctx.fillText('FUGA READY! Press 3', player.x - camera.x, player.y - camera.y - 80);
                 } else {
                     // Charging text
-                    ctx.fillStyle = `rgba(255, ${100 + chargePercent * 100}, 0, 0.8)`;
-                    ctx.font = 'bold 14px "Segoe UI", sans-serif';
+                    ctx.fillStyle = `rgba(255, ${100 + chargePercent * 100}, 0, 0.9)`;
+                    ctx.font = 'bold 16px "Segoe UI", sans-serif';
                     ctx.textAlign = 'center';
-                    ctx.fillText(`Charging... ${Math.floor(chargePercent * 100)}%`, player.x - camera.x, player.y - camera.y - 50);
+                    ctx.fillText(`FUGA CHARGING... ${Math.floor(chargePercent * 100)}%`, player.x - camera.x, player.y - camera.y - 60);
                 }
             }
             
-            // Draw fired arrow
+            // Draw fired arrow - massive fire projectile
             if (fuga.arrow) {
                 const ax = fuga.arrow.x - camera.x;
                 const ay = fuga.arrow.y - camera.y;
                 const angle = Math.atan2(fuga.arrow.vy, fuga.arrow.vx);
+                const lifePercent = fuga.arrow.life / fuga.arrow.maxLife;
                 
                 ctx.save();
                 ctx.translate(ax, ay);
                 ctx.rotate(angle);
                 
-                // Fire trail
-                ctx.fillStyle = 'rgba(255, 100, 0, 0.6)';
-                for (let i = 0; i < 5; i++) {
-                    const trailSize = 15 - i * 2;
-                    const trailX = -20 - i * 15;
+                // Massive fire trail
+                ctx.shadowColor = '#ff2200';
+                ctx.shadowBlur = 40;
+                for (let i = 0; i < 10; i++) {
+                    const trailSize = 25 - i * 2;
+                    const trailX = -30 - i * 20;
+                    const alpha = (0.7 - i * 0.06) * lifePercent;
+                    ctx.fillStyle = `rgba(255, ${80 + i * 15}, 0, ${alpha})`;
                     ctx.beginPath();
                     ctx.arc(trailX, 0, trailSize, 0, Math.PI * 2);
                     ctx.fill();
                 }
                 
-                // Arrow head
+                // Massive arrow head
                 ctx.fillStyle = '#ff4400';
-                ctx.shadowColor = '#ff0000';
-                ctx.shadowBlur = 25;
+                ctx.shadowBlur = 60;
                 ctx.beginPath();
-                ctx.moveTo(40, 0);
-                ctx.lineTo(-15, -20);
+                ctx.moveTo(70, 0);
+                ctx.lineTo(-30, -35);
+                ctx.lineTo(-15, 0);
+                ctx.lineTo(-30, 35);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Inner core
+                ctx.fillStyle = '#ff8800';
+                ctx.beginPath();
+                ctx.moveTo(50, 0);
+                ctx.lineTo(-20, -25);
+                ctx.lineTo(-10, 0);
+                ctx.lineTo(-20, 25);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Hot center
+                ctx.fillStyle = '#ffff00';
+                ctx.beginPath();
+                ctx.moveTo(30, 0);
+                ctx.lineTo(-10, -12);
                 ctx.lineTo(-5, 0);
-                ctx.lineTo(-15, 20);
+                ctx.lineTo(-10, 12);
                 ctx.closePath();
                 ctx.fill();
                 
