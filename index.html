@@ -372,6 +372,11 @@
         function generateCursedSpirits() {
             cursedSpirits.length = 0;
             
+            // Don't spawn normal spirits in testing mode
+            if (testingMode) {
+                return;
+            }
+            
             for (let i = 0; i < SPIRIT_COUNT; i++) {
                 const rand = Math.random();
                 let grade = 'GRADE_4';
@@ -1081,6 +1086,30 @@
         }
         
         function drawBiomeGround() {
+            // Testing mode - grey empty map
+            if (testingMode) {
+                ctx.fillStyle = '#2a2a2a';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw grid lines
+                ctx.strokeStyle = '#3a3a3a';
+                ctx.lineWidth = 1;
+                const gridSize = 100;
+                for (let x = 0; x < canvas.width; x += gridSize) {
+                    ctx.beginPath();
+                    ctx.moveTo(x, 0);
+                    ctx.lineTo(x, canvas.height);
+                    ctx.stroke();
+                }
+                for (let y = 0; y < canvas.height; y += gridSize) {
+                    ctx.beginPath();
+                    ctx.moveTo(0, y);
+                    ctx.lineTo(canvas.width, y);
+                    ctx.stroke();
+                }
+                return;
+            }
+            
             // Draw biome ground based on closest biome center (radial system)
             const tileSize = 200;
             const startX = Math.floor(camera.x / tileSize) * tileSize;
@@ -1500,8 +1529,23 @@
         }
         
         function updateCursedSpirits() {
-            for (const spirit of cursedSpirits) {
+            for (let i = cursedSpirits.length - 1; i >= 0; i--) {
+                const spirit = cursedSpirits[i];
                 const data = SPIRIT_GRADES[spirit.grade];
+                
+                // Check if spirit is dead (for respawn logic)
+                if (spirit.hp <= 0) {
+                    if (testingMode && spirit.grade) {
+                        respawnTestingSpirit(spirit.grade);
+                    }
+                    cursedSpirits.splice(i, 1);
+                    continue;
+                }
+                
+                // Stationary spirits don't move (testing mode)
+                if (spirit.stationary) {
+                    continue;
+                }
                 
                 // Check if spirit is frozen in player's domain
                 if (playerDomain.active && playerDomain.phase !== 'expanding') {
@@ -3503,6 +3547,64 @@
             }
             
             showNotif('Dismantle!');
+        }
+        
+        function spawnTestingSpirits() {
+            // Clear existing spirits
+            cursedSpirits.length = 0;
+            
+            // Spawn one of each grade at fixed positions around player spawn
+            const spiritTypes = [
+                { grade: 'Grade 4', hp: 30, color: '#44bb44', size: 15, x: -150, y: -100 },
+                { grade: 'Grade 3', hp: 60, color: '#44ccaa', size: 18, x: 150, y: -100 },
+                { grade: 'Grade 2', hp: 120, color: '#9955cc', size: 22, x: -150, y: 100 },
+                { grade: 'Grade 1', hp: 200, color: '#ff4444', size: 28, x: 150, y: 100 },
+                { grade: 'Special Grade', hp: 400, color: '#ff00ff', size: 35, x: 0, y: 0 }
+            ];
+            
+            for (const type of spiritTypes) {
+                cursedSpirits.push({
+                    x: type.x,
+                    y: type.y,
+                    hp: type.hp,
+                    maxHp: type.hp,
+                    color: type.color,
+                    size: type.size,
+                    grade: type.grade,
+                    stationary: true, // Flag to prevent movement
+                    attackCooldown: 0,
+                    state: 'idle'
+                });
+            }
+        }
+        
+        function respawnTestingSpirit(grade) {
+            // Respawn the same grade spirit at its original position
+            const spiritPositions = {
+                'Grade 4': { x: -150, y: -100, hp: 30, color: '#44bb44', size: 15 },
+                'Grade 3': { x: 150, y: -100, hp: 60, color: '#44ccaa', size: 18 },
+                'Grade 2': { x: -150, y: 100, hp: 120, color: '#9955cc', size: 22 },
+                'Grade 1': { x: 150, y: 100, hp: 200, color: '#ff4444', size: 28 },
+                'Special Grade': { x: 0, y: 0, hp: 400, color: '#ff00ff', size: 35 }
+            };
+            
+            const pos = spiritPositions[grade];
+            if (pos) {
+                setTimeout(() => {
+                    cursedSpirits.push({
+                        x: pos.x,
+                        y: pos.y,
+                        hp: pos.hp,
+                        maxHp: pos.hp,
+                        color: pos.color,
+                        size: pos.size,
+                        grade: grade,
+                        stationary: true,
+                        attackCooldown: 0,
+                        state: 'idle'
+                    });
+                }, 2000); // Respawn after 2 seconds
+            }
         }
         
         function useAbility(index) {
@@ -5897,8 +5999,10 @@
                     // Reset player position
                     player.x = 0;
                     player.y = 0;
+                    // Spawn testing spirits
+                    spawnTestingSpirits();
                     screen = 'game';
-                    showNotif('TESTING MODE - Enemies will not attack!');
+                    showNotif('TESTING MODE - Practice on stationary targets!');
                 } else {
                     testingMode = false;
                     gameMode = option === 'OPEN WORLD' ? 'OPEN_WORLD' : 'STORY';
