@@ -5803,6 +5803,16 @@
         function loop() {
             frame++;
             
+            // Ensure canvas is properly sized
+            if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
+                canvas.width = window.innerWidth;
+                canvas.height = window.innerHeight;
+            }
+            
+            // Clear canvas at start of each frame
+            ctx.fillStyle = '#0a0a0a';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
             // DEBUG: Show current screen state
             if (frame % 60 === 0) {
                 console.log('Screen:', screen, 'Canvas:', canvas.width, 'x', canvas.height);
