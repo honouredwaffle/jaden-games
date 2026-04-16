@@ -910,30 +910,104 @@
         const BG_ROTATION_INTERVAL = 600; // 10 seconds at 60fps
         
         function drawTitle() {
-            // Dark background with subtle gradient
-            const gradient = ctx.createRadialGradient(
-                canvas.width / 2, canvas.height / 2, 0,
-                canvas.width / 2, canvas.height / 2, canvas.width
-            );
-            gradient.addColorStop(0, '#2a1a3e');
-            gradient.addColorStop(1, '#0a0a1a');
-            ctx.fillStyle = gradient;
+            // Dark background
+            ctx.fillStyle = '#0a0505';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Animated domain expansion hands effect (subtle)
-            const time = frame * 0.02;
-            ctx.strokeStyle = 'rgba(233, 69, 96, 0.1)';
-            ctx.lineWidth = 2;
+            const time = frame * 0.03;
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
             
-            // Draw subtle hand silhouette outlines
-            for (let i = 0; i < 4; i++) {
-                const angle = (i / 4) * Math.PI * 2 + time * 0.1;
-                const x = canvas.width / 2 + Math.cos(angle) * 150;
-                const y = canvas.height / 2 + Math.sin(angle) * 100;
+            // Glowing red aura from center
+            const auraGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 400);
+            auraGradient.addColorStop(0, 'rgba(139, 0, 0, 0.3)');
+            auraGradient.addColorStop(0.5, 'rgba(100, 0, 0, 0.15)');
+            auraGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = auraGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Multiple pairs of hands in prayer position
+            for (let pair = 0; pair < 3; pair++) {
+                const scale = 0.5 + pair * 0.3;
+                const offset = pair * 80;
+                const pulse = Math.sin(time + pair) * 0.1 + 1;
                 
+                ctx.save();
+                ctx.translate(centerX, centerY + 100 + offset);
+                ctx.scale(scale * pulse, scale * pulse);
+                
+                // Hand glow
+                ctx.shadowColor = '#ff2200';
+                ctx.shadowBlur = 30;
+                
+                // Left hand
+                ctx.fillStyle = `rgba(200, 50, 30, ${0.4 - pair * 0.1})`;
                 ctx.beginPath();
-                ctx.arc(x, y, 30 + Math.sin(time + i) * 5, 0, Math.PI * 2);
-                ctx.stroke();
+                ctx.ellipse(-40, 0, 35, 80, -0.2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Right hand
+                ctx.beginPath();
+                ctx.ellipse(40, 0, 35, 80, 0.2, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Fingers detail
+                ctx.fillStyle = `rgba(255, 80, 50, ${0.6 - pair * 0.15})`;
+                for (let i = 0; i < 4; i++) {
+                    // Left fingers
+                    ctx.beginPath();
+                    ctx.ellipse(-55 + i * 8, -60 + i * 5, 6, 25, -0.3 + i * 0.1, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Right fingers
+                    ctx.beginPath();
+                    ctx.ellipse(25 + i * 8, -60 + i * 5, 6, 25, 0.3 - i * 0.1, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                ctx.restore();
+            }
+            
+            // Floating nails/shards (like in Sukuna's domain)
+            ctx.shadowColor = '#ff4400';
+            ctx.shadowBlur = 10;
+            for (let i = 0; i < 12; i++) {
+                const angle = (i / 12) * Math.PI * 2 + time * 0.2;
+                const dist = 250 + Math.sin(time * 2 + i) * 30;
+                const x = centerX + Math.cos(angle) * dist;
+                const y = centerY + Math.sin(angle) * dist * 0.6;
+                const rotation = angle + Math.PI / 2;
+                
+                ctx.save();
+                ctx.translate(x, y);
+                ctx.rotate(rotation);
+                
+                // Nail shape
+                ctx.fillStyle = `rgba(180, 40, 20, ${0.5 + Math.sin(time + i) * 0.3})`;
+                ctx.beginPath();
+                ctx.moveTo(0, -20);
+                ctx.lineTo(6, 15);
+                ctx.lineTo(0, 20);
+                ctx.lineTo(-6, 15);
+                ctx.closePath();
+                ctx.fill();
+                
+                ctx.restore();
+            }
+            
+            // Smoke/cloud effects
+            ctx.shadowBlur = 0;
+            for (let i = 0; i < 5; i++) {
+                const x = centerX + Math.sin(time * 0.5 + i * 1.5) * 300;
+                const y = centerY + Math.cos(time * 0.3 + i * 1.2) * 150;
+                const size = 80 + Math.sin(time + i) * 20;
+                
+                const smokeGrad = ctx.createRadialGradient(x, y, 0, x, y, size);
+                smokeGrad.addColorStop(0, 'rgba(100, 20, 10, 0.2)');
+                smokeGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+                ctx.fillStyle = smokeGrad;
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fill();
             }
             
             // Main title
