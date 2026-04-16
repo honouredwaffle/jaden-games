@@ -144,6 +144,44 @@
         // Slash effects (for Dismantle)
         let slashEffects = [];
         
+        // Notification system
+        let notifications = [];
+        
+        function showNotif(text) {
+            notifications.push({
+                text: text,
+                life: 120, // 2 seconds at 60fps
+                maxLife: 120
+            });
+        }
+        
+        function updateNotifications() {
+            for (let i = notifications.length - 1; i >= 0; i--) {
+                notifications[i].life--;
+                if (notifications[i].life <= 0) {
+                    notifications.splice(i, 1);
+                }
+            }
+        }
+        
+        function drawNotifications() {
+            for (let i = 0; i < notifications.length; i++) {
+                const notif = notifications[i];
+                const alpha = notif.life / notif.maxLife;
+                const y = 100 + i * 30;
+                
+                ctx.save();
+                ctx.globalAlpha = alpha;
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 18px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.shadowColor = '#000';
+                ctx.shadowBlur = 4;
+                ctx.fillText(notif.text, canvas.width / 2, y);
+                ctx.restore();
+            }
+        }
+        
         // Kill effects (when enemies die)
         let killEffects = [];
         
@@ -5427,6 +5465,7 @@
             updateHitEffects();
             updateKillEffects();
             updateSlashEffects();
+            updateNotifications();
             updateSpiritProjectiles();
             updateDisasterCurse();
             
@@ -5459,6 +5498,7 @@
             drawHitEffects();
             drawKillEffects();
             drawSlashEffects();
+            drawNotifications();
             drawDisasterNotification();
             drawAbilityBar();
             drawMinimap();
