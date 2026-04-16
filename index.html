@@ -4095,6 +4095,11 @@
         let fugaParticles = [];
         
         function spawnFugaParticle(x, y, type) {
+            // Limit total particles to prevent performance issues
+            if (fugaParticles.length > 200) {
+                fugaParticles.shift(); // Remove oldest particle
+            }
+            
             const particle = {
                 x: x,
                 y: y,
@@ -4487,7 +4492,10 @@
                 ctx.shadowBlur = 0;
             }
             
-            // Update and draw particles
+        }
+        
+        // Update and draw particles (called separately from game loop)
+        function updateAndDrawFugaParticles() {
             updateFugaParticles();
             drawFugaParticles();
         }
@@ -6415,6 +6423,7 @@
             drawReversalRed();
             drawHollowPurple();
             drawFuga();
+            updateAndDrawFugaParticles();
             drawDamageNumbers();
             drawHitEffects();
             drawKillEffects();
