@@ -4422,7 +4422,7 @@
                     ctx.shadowBlur = 60 - layer * 15;
                     
                     for (let i = 0; i < 12; i++) {
-                        const trailSize = (30 - layer * 5) - i * 2;
+                        const trailSize = Math.max(2, (30 - layer * 5) - i * 2); // Ensure minimum size of 2
                         const trailX = -40 - i * 25 - layer * 10;
                         const alpha = (0.8 - layer * 0.15 - i * 0.05) * lifePercent;
                         const offsetY = (Math.random() - 0.5) * (10 + i * 2);
