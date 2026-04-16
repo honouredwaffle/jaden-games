@@ -3452,6 +3452,58 @@
             }
         }
         
+        function activateDismantle() {
+            // Dismantle - barrage of slashes at nearby enemies
+            const dismantleRange = 200;
+            const slashCount = 8;
+            
+            // Find enemies in range
+            const targets = [];
+            for (const enemy of cursedSpirits) {
+                const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
+                if (dist < dismantleRange) {
+                    targets.push(enemy);
+                }
+            }
+            
+            // Cancel if no enemies in range
+            if (targets.length === 0) {
+                showNotif('No targets in range!');
+                // Refund the cooldown and CE
+                abilities[0].cooldown = 0;
+                player.ce += 15;
+                return;
+            }
+            
+            // Perform slashes
+            for (let i = 0; i < slashCount; i++) {
+                setTimeout(() => {
+                    if (targets.length > 0) {
+                        // Hit random target in range
+                        const target = targets[Math.floor(Math.random() * targets.length)];
+                        const damage = 25;
+                        target.hp -= damage;
+                        
+                        // Slash visual effect
+                        addHitEffect(target.x + (Math.random() - 0.5) * 40, target.y + (Math.random() - 0.5) * 40, 'red');
+                        addDamageNumber(target.x, target.y, damage);
+                        
+                        // Check if enemy died
+                        if (target.hp <= 0) {
+                            addKillEffect(target.x, target.y, 'red');
+                            const idx = cursedSpirits.indexOf(target);
+                            if (idx > -1) cursedSpirits.splice(idx, 1);
+                            // Remove from targets too
+                            const targetIdx = targets.indexOf(target);
+                            if (targetIdx > -1) targets.splice(targetIdx, 1);
+                        }
+                    }
+                }, i * 100); // 100ms between slashes
+            }
+            
+            showNotif('Dismantle!');
+        }
+        
         function useAbility(index) {
             const ability = abilities[index];
             const ceCost = selectedCharacter === 'SUKUNA' ? [15, 25, 40, 80] : [20, 30, 50, 80];
@@ -3557,49 +3609,6 @@
             playerDomain.footstepRipples = [];
             playerDomain.footstepDistance = 0;
             
-        function activateDismantle() {
-            // Dismantle - barrage of slashes at nearby enemies
-            const dismantleRange = 200;
-            const slashCount = 8;
-            
-            // Find enemies in range
-            const targets = [];
-            for (const enemy of cursedSpirits) {
-                const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
-                if (dist < dismantleRange) {
-                    targets.push(enemy);
-                }
-            }
-            
-            // Perform slashes
-            for (let i = 0; i < slashCount; i++) {
-                setTimeout(() => {
-                    if (targets.length > 0) {
-                        // Hit random target in range
-                        const target = targets[Math.floor(Math.random() * targets.length)];
-                        const damage = 25;
-                        target.hp -= damage;
-                        
-                        // Slash visual effect
-                        addHitEffect(target.x + (Math.random() - 0.5) * 40, target.y + (Math.random() - 0.5) * 40, 'red');
-                        addDamageNumber(target.x, target.y, damage);
-                        
-                        // Check if enemy died
-                        if (target.hp <= 0) {
-                            addKillEffect(target.x, target.y, 'red');
-                            const idx = cursedSpirits.indexOf(target);
-                            if (idx > -1) cursedSpirits.splice(idx, 1);
-                            // Remove from targets too
-                            const targetIdx = targets.indexOf(target);
-                            if (targetIdx > -1) targets.splice(targetIdx, 1);
-                        }
-                    }
-                }, i * 100); // 100ms between slashes
-            }
-            
-            showNotif('Dismantle!');
-        }
-        
             // Japanese text for Unlimited Void
             playerDomain.domainText = {
                 japanese: '無量空処',
