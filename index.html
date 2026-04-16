@@ -4092,7 +4092,6 @@
         function drawFuga() {
             if (fuga.charging) {
                 const chargePercent = fuga.chargeTime / fuga.maxChargeTime;
-                const time = Date.now() * 0.008;
                 
                 // Fixed size fire aura (doesn't expand)
                 ctx.fillStyle = `rgba(255, 80, 0, ${0.15 + chargePercent * 0.15})`;
@@ -4100,40 +4099,21 @@
                 ctx.arc(player.x - camera.x, player.y - camera.y, 70, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Fire particles swirling into center
-                for (let i = 0; i < 15; i++) {
-                    const angle = time + (i / 15) * Math.PI * 2;
-                    const dist = 60 + Math.sin(time * 3 + i) * 15;
-                    const px = player.x + Math.cos(angle) * dist - camera.x;
-                    const py = player.y + Math.sin(angle) * dist - camera.y;
-                    const size = 4 + chargePercent * 6;
-                    
-                    ctx.fillStyle = `rgba(255, ${80 + Math.random() * 80}, 0, ${0.4 + chargePercent * 0.4})`;
-                    ctx.shadowColor = '#ff4400';
-                    ctx.shadowBlur = 10;
-                    ctx.beginPath();
-                    ctx.arc(px, py, size, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                
                 ctx.shadowBlur = 0;
                 
                 // Hand positions - clapping motion
                 const handOffset = 25;
                 const clapOffset = chargePercent < 0.3 ? (0.3 - chargePercent) * 60 : 0; // Hands come together
-                const pullBack = chargePercent > 0.5 ? (chargePercent - 0.5) * 80 : 0; // Right hand pulls back
+                const pullBack = chargePercent > 0.5 ? (chargePercent - 0.5) * 100 : 0; // Right hand pulls back more
                 
                 // Left hand stays forward
                 const leftHandX = player.x + Math.cos(player.facing) * (handOffset + clapOffset) - camera.x;
                 const leftHandY = player.y + Math.sin(player.facing) * (handOffset + clapOffset) - camera.y;
                 
-                // Right hand claps then pulls back
+                // Right hand claps then pulls back (fixed position when charged)
                 const rightHandDist = handOffset + clapOffset - pullBack;
                 const rightHandX = player.x + Math.cos(player.facing) * rightHandDist - camera.x;
                 const rightHandY = player.y + Math.sin(player.facing) * rightHandDist - camera.y;
-                
-                // Hand movement wobble
-                const wobble = Math.sin(time * 4) * 3;
                 
                 // Draw hands with flames
                 if (!fuga.charged) {
@@ -4161,7 +4141,7 @@
                     ctx.textAlign = 'center';
                     ctx.fillText(`FUGA CHARGING... ${Math.floor(chargePercent * 100)}%`, player.x - camera.x, player.y - camera.y - 70);
                 } else {
-                    // Charged - right hand pulled back with arrow
+                    // Charged - right hand pulled back with arrow (fixed position)
                     // Left hand forward with fire
                     for (let i = 0; i < 5; i++) {
                         const flameSize = 15 + Math.random() * 12;
@@ -4173,12 +4153,9 @@
                         ctx.fill();
                     }
                     
-                    // Right hand pulled back - holding fire arrow
-                    const arrowX = rightHandX;
-                    const arrowY = rightHandY;
-                    
+                    // Right hand pulled back - holding fire arrow (static position)
                     ctx.save();
-                    ctx.translate(arrowX, arrowY);
+                    ctx.translate(rightHandX, rightHandY);
                     ctx.rotate(player.facing);
                     
                     // Fire arrow forming in right hand
