@@ -4045,6 +4045,8 @@
                 fuga.chargeTime++;
                 if (fuga.chargeTime >= fuga.maxChargeTime) {
                     fuga.charged = true;
+                    // Cap charge time to prevent issues
+                    fuga.chargeTime = fuga.maxChargeTime;
                 }
             }
             
