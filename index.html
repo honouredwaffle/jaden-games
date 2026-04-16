@@ -3641,6 +3641,7 @@
         }
         
         function respawnTestingSpirit(grade) {
+            console.log('respawnTestingSpirit called for', grade);
             // Respawn the same grade spirit at its original position
             const spiritPositions = {
                 'Grade 4': { x: -150, y: -100, hp: 30, color: '#44bb44', size: 15 },
@@ -3651,8 +3652,10 @@
             };
             
             const pos = spiritPositions[grade];
+            console.log('Position found:', pos);
             if (pos) {
                 setTimeout(() => {
+                    console.log('Actually respawning', grade, 'at', pos.x, pos.y);
                     cursedSpirits.push({
                         x: pos.x,
                         y: pos.y,
@@ -3665,6 +3668,7 @@
                         attackCooldown: 0,
                         state: 'idle'
                     });
+                    console.log('Spirit count after respawn:', cursedSpirits.length);
                 }, 2000); // Respawn after 2 seconds
             }
         }
