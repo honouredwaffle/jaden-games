@@ -7,6 +7,7 @@
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
     <title>JJK Game v4 - Fixed</title>
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
     <script>
         // Force cache bust on load
         if (!window.location.search.includes('nocache')) {
@@ -3486,10 +3487,16 @@
         
         function killSpirit(index, type) {
             const spirit = cursedSpirits[index];
-            if (!spirit) return;
+            if (!spirit) {
+                console.log('killSpirit: no spirit at index', index);
+                return;
+            }
+            
+            console.log('killSpirit:', spirit.grade, 'testingMode:', testingMode);
             
             // Respawn in testing mode
             if (testingMode && spirit.grade) {
+                console.log('Respawning', spirit.grade);
                 respawnTestingSpirit(spirit.grade);
             }
             
