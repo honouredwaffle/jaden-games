@@ -899,14 +899,42 @@
             }
         }
 
+        // Background images for title screen (placeholder - replace with your image URLs)
+        const titleBackgrounds = [
+            // Add your image URLs here like:
+            // 'https://i.imgur.com/yourimage1.jpg',
+            // 'https://i.imgur.com/yourimage2.jpg',
+        ];
+        let currentBgIndex = 0;
+        let bgRotationTimer = 0;
+        const BG_ROTATION_INTERVAL = 600; // 10 seconds at 60fps
+        
         function drawTitle() {
-            // Dark background
-            ctx.fillStyle = '#1a1a2e';
+            // Dark background with subtle gradient
+            const gradient = ctx.createRadialGradient(
+                canvas.width / 2, canvas.height / 2, 0,
+                canvas.width / 2, canvas.height / 2, canvas.width
+            );
+            gradient.addColorStop(0, '#2a1a3e');
+            gradient.addColorStop(1, '#0a0a1a');
+            ctx.fillStyle = gradient;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Update and draw background fighters
-            updateTitleFighters();
-            drawTitleFighters();
+            // Animated domain expansion hands effect (subtle)
+            const time = frame * 0.02;
+            ctx.strokeStyle = 'rgba(233, 69, 96, 0.1)';
+            ctx.lineWidth = 2;
+            
+            // Draw subtle hand silhouette outlines
+            for (let i = 0; i < 4; i++) {
+                const angle = (i / 4) * Math.PI * 2 + time * 0.1;
+                const x = canvas.width / 2 + Math.cos(angle) * 150;
+                const y = canvas.height / 2 + Math.sin(angle) * 100;
+                
+                ctx.beginPath();
+                ctx.arc(x, y, 30 + Math.sin(time + i) * 5, 0, Math.PI * 2);
+                ctx.stroke();
+            }
             
             // Main title
             ctx.fillStyle = '#fff';
