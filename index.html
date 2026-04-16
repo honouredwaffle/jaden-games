@@ -1574,12 +1574,9 @@
                 const spirit = cursedSpirits[i];
                 const data = SPIRIT_GRADES[spirit.grade];
                 
-                // Check if spirit is dead (for respawn logic)
+                // Check if spirit is dead
                 if (spirit.hp <= 0) {
-                    if (testingMode && spirit.grade) {
-                        respawnTestingSpirit(spirit.grade);
-                    }
-                    cursedSpirits.splice(i, 1);
+                    killSpirit(i, 'normal');
                     continue;
                 }
                 
@@ -3487,6 +3484,18 @@
             });
         }
         
+        function killSpirit(index, type) {
+            const spirit = cursedSpirits[index];
+            if (!spirit) return;
+            
+            // Respawn in testing mode
+            if (testingMode && spirit.grade) {
+                respawnTestingSpirit(spirit.grade);
+            }
+            
+            cursedSpirits.splice(index, 1);
+        }
+        
         function useM1() {
             // Basic punch attack - no CE cost
             const isBlackFlash = Math.random() < 0.05; // 5% chance
@@ -3522,7 +3531,7 @@
                     
                     if (enemy.hp <= 0) {
                         addKillEffect(enemy.x, enemy.y, isBlackFlash ? 'purple' : 'blue');
-                        cursedSpirits.splice(i, 1);
+                        killSpirit(i, isBlackFlash ? 'purple' : 'blue');
                     }
                     
                     break; // Only hit one enemy per punch
@@ -3818,7 +3827,7 @@
                     addDamageCounter(reversalRed.damage);
                     addDamageNumber(spirit.x, spirit.y, reversalRed.damage);
                     if (spirit.hp <= 0) {
-                        cursedSpirits.splice(i, 1);
+                        killSpirit(i, 'red');
                     }
                     reversalRed.active = false;
                     return;
@@ -4129,7 +4138,7 @@
                     
                     if (spirit.hp <= 0) {
                         addKillEffect(spirit.x, spirit.y, 'purple');
-                        cursedSpirits.splice(i, 1);
+                        killSpirit(i, 'purple');
                     }
                 }
             }
@@ -4166,7 +4175,7 @@
                         addDamageCounter(100);
                         if (spirit.hp <= 0) {
                             addKillEffect(spirit.x, spirit.y, 'purple');
-                            cursedSpirits.splice(i, 1);
+                            killSpirit(i, 'purple');
                         }
                     }
                 }
@@ -5203,7 +5212,7 @@
                     }
                     if (spirit.hp <= 0) {
                         addKillEffect(spirit.x, spirit.y, 'blue');
-                        cursedSpirits.splice(i, 1);
+                        killSpirit(i, 'blue');
                         continue;
                     }
                     // Only show damage number occasionally to avoid spam
