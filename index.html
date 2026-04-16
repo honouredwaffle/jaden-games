@@ -300,6 +300,15 @@
             redOrb: { x: 0, y: 0, angle: Math.PI }
         };
         
+        // Fuga (Sukuna's fire arrow)
+        let fuga = {
+            charging: false,
+            charged: false,
+            chargeTime: 0,
+            maxChargeTime: 120, // 2 seconds to charge
+            arrow: null, // { x, y, vx, vy, damage }
+        };
+        
         // Domain Expansion state
         let playerDomain = {
             active: false,
@@ -3972,6 +3981,219 @@
             }
         }
         
+        function activateFuga() {
+            // Fuga - charge up fire arrow
+            if (fuga.charging || fuga.charged) {
+                // Already charging or charged, fire the arrow
+                fireFugaArrow();
+                return;
+            }
+            
+            // Start charging
+            fuga.charging = true;
+            fuga.chargeTime = 0;
+            showNotif('Fuga charging...');
+        }
+        
+        function fireFugaArrow() {
+            if (!fuga.charged) {
+                // Cancel if not fully charged
+                fuga.charging = false;
+                fuga.chargeTime = 0;
+                showNotif('Fuga cancelled!');
+                // Refund
+                abilities[2].cooldown = 0;
+                player.ce += 30;
+                return;
+            }
+            
+            // Fire the arrow
+            const arrowSpeed = 15;
+            const arrowDamage = 300;
+            
+            fuga.arrow = {
+                x: player.x + Math.cos(player.facing) * 40,
+                y: player.y + Math.sin(player.facing) * 40,
+                vx: Math.cos(player.facing) * arrowSpeed,
+                vy: Math.sin(player.facing) * arrowSpeed,
+                damage: arrowDamage,
+                life: 90, // 1.5 seconds
+                maxLife: 90,
+                hitEnemies: []
+            };
+            
+            fuga.charging = false;
+            fuga.charged = false;
+            fuga.chargeTime = 0;
+            showNotif('FUGA!');
+        }
+        
+        function updateFuga() {
+            if (fuga.charging) {
+                fuga.chargeTime++;
+                if (fuga.chargeTime >= fuga.maxChargeTime) {
+                    fuga.charged = true;
+                }
+            }
+            
+            if (fuga.arrow) {
+                // Move arrow
+                fuga.arrow.x += fuga.arrow.vx;
+                fuga.arrow.y += fuga.arrow.vy;
+                fuga.arrow.life--;
+                
+                // Check collisions with enemies
+                for (let i = cursedSpirits.length - 1; i >= 0; i--) {
+                    const enemy = cursedSpirits[i];
+                    if (fuga.arrow.hitEnemies.includes(enemy)) continue;
+                    
+                    const dist = Math.hypot(enemy.x - fuga.arrow.x, enemy.y - fuga.arrow.y);
+                    if (dist < enemy.size + 20) {
+                        // Hit enemy
+                        enemy.hp -= fuga.arrow.damage;
+                        fuga.arrow.hitEnemies.push(enemy);
+                        
+                        // Fire explosion effect
+                        for (let j = 0; j < 8; j++) {
+                            addHitEffect(
+                                enemy.x + (Math.random() - 0.5) * 60,
+                                enemy.y + (Math.random() - 0.5) * 60,
+                                'red'
+                            );
+                        }
+                        addDamageNumber(enemy.x, enemy.y, fuga.arrow.damage);
+                        
+                        if (enemy.hp <= 0) {
+                            addKillEffect(enemy.x, enemy.y, 'red');
+                            killSpirit(i, 'red');
+                        }
+                    }
+                }
+                
+                // Remove arrow when life ends
+                if (fuga.arrow.life <= 0) {
+                    fuga.arrow = null;
+                }
+            }
+        }
+        
+        function drawFuga() {
+            if (fuga.charging) {
+                // Draw charging flames on hands
+                const chargePercent = fuga.chargeTime / fuga.maxChargeTime;
+                const handOffset = 30;
+                
+                // Left hand flames
+                for (let i = 0; i < 5; i++) {
+                    const flameSize = 10 + chargePercent * 20 + Math.random() * 10;
+                    const angle = player.facing - 0.5 + (i / 5) * 1.0;
+                    const fx = player.x + Math.cos(angle) * handOffset - camera.x;
+                    const fy = player.y + Math.sin(angle) * handOffset - camera.y;
+                    
+                    ctx.fillStyle = `rgba(255, ${100 + chargePercent * 100}, 0, ${0.6 + chargePercent * 0.4})`;
+                    ctx.shadowColor = '#ff4400';
+                    ctx.shadowBlur = 20 * chargePercent;
+                    ctx.beginPath();
+                    ctx.arc(fx, fy, flameSize, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Right hand flames
+                for (let i = 0; i < 5; i++) {
+                    const flameSize = 10 + chargePercent * 20 + Math.random() * 10;
+                    const angle = player.facing + 0.5 - (i / 5) * 1.0;
+                    const fx = player.x + Math.cos(angle) * handOffset - camera.x;
+                    const fy = player.y + Math.sin(angle) * handOffset - camera.y;
+                    
+                    ctx.fillStyle = `rgba(255, ${100 + chargePercent * 100}, 0, ${0.6 + chargePercent * 0.4})`;
+                    ctx.beginPath();
+                    ctx.arc(fx, fy, flameSize, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                ctx.shadowBlur = 0;
+                
+                // Draw forming arrow when charged
+                if (fuga.charged) {
+                    const arrowX = player.x + Math.cos(player.facing) * 50 - camera.x;
+                    const arrowY = player.y + Math.sin(player.facing) * 50 - camera.y;
+                    
+                    // Glowing arrow
+                    ctx.fillStyle = '#ff6600';
+                    ctx.shadowColor = '#ff2200';
+                    ctx.shadowBlur = 30;
+                    
+                    ctx.save();
+                    ctx.translate(arrowX, arrowY);
+                    ctx.rotate(player.facing);
+                    
+                    // Arrow head
+                    ctx.beginPath();
+                    ctx.moveTo(30, 0);
+                    ctx.lineTo(-10, -15);
+                    ctx.lineTo(-5, 0);
+                    ctx.lineTo(-10, 15);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Arrow shaft (flame trail)
+                    ctx.fillStyle = '#ffaa00';
+                    ctx.fillRect(-40, -5, 35, 10);
+                    
+                    ctx.restore();
+                    ctx.shadowBlur = 0;
+                    
+                    // Ready text
+                    ctx.fillStyle = '#ff4400';
+                    ctx.font = 'bold 16px "Segoe UI", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('READY! Press 3 to fire', player.x - camera.x, player.y - camera.y - 60);
+                } else {
+                    // Charging text
+                    ctx.fillStyle = `rgba(255, ${100 + chargePercent * 100}, 0, 0.8)`;
+                    ctx.font = 'bold 14px "Segoe UI", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(`Charging... ${Math.floor(chargePercent * 100)}%`, player.x - camera.x, player.y - camera.y - 50);
+                }
+            }
+            
+            // Draw fired arrow
+            if (fuga.arrow) {
+                const ax = fuga.arrow.x - camera.x;
+                const ay = fuga.arrow.y - camera.y;
+                const angle = Math.atan2(fuga.arrow.vy, fuga.arrow.vx);
+                
+                ctx.save();
+                ctx.translate(ax, ay);
+                ctx.rotate(angle);
+                
+                // Fire trail
+                ctx.fillStyle = 'rgba(255, 100, 0, 0.6)';
+                for (let i = 0; i < 5; i++) {
+                    const trailSize = 15 - i * 2;
+                    const trailX = -20 - i * 15;
+                    ctx.beginPath();
+                    ctx.arc(trailX, 0, trailSize, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Arrow head
+                ctx.fillStyle = '#ff4400';
+                ctx.shadowColor = '#ff0000';
+                ctx.shadowBlur = 25;
+                ctx.beginPath();
+                ctx.moveTo(40, 0);
+                ctx.lineTo(-15, -20);
+                ctx.lineTo(-5, 0);
+                ctx.lineTo(-15, 20);
+                ctx.closePath();
+                ctx.fill();
+                
+                ctx.restore();
+                ctx.shadowBlur = 0;
+            }
+        }
+        
         function spawnTestingSpirits() {
             // Clear existing spirits
             cursedSpirits.length = 0;
@@ -4071,8 +4293,9 @@
                         activateDismantle();
                     } else if (index === 1) {
                         activateCleave();
-                    } else if (index === 2) showNotif('Fuga!');
-                    else if (index === 3) showNotif('Malevolent Shrine!');
+                    } else if (index === 2) {
+                        activateFuga();
+                    } else if (index === 3) showNotif('Malevolent Shrine!');
                 } else {
                     // Gojo's abilities
                     if (index === 0) { // Max Blue
@@ -5852,6 +6075,7 @@
             updateMaxBlue();
             updateReversalRed();
             updateHollowPurple();
+            updateFuga();
             updatePlayerDomain();
             updateDamageCounter();
             updateDamageNumbers();
@@ -5892,6 +6116,7 @@
             drawMaxBlue();
             drawReversalRed();
             drawHollowPurple();
+            drawFuga();
             drawDamageNumbers();
             drawHitEffects();
             drawKillEffects();
