@@ -4118,6 +4118,7 @@
                 // Draw hands with flames
                 if (!fuga.charged) {
                     // Charging - hands coming together
+                    const wobble = Math.sin(Date.now() / 100) * 3; // Subtle hand wobble
                     for (let i = 0; i < 6; i++) {
                         const flameSize = 12 + chargePercent * 15 + Math.random() * 10;
                         ctx.fillStyle = `rgba(255, ${60 + Math.random() * 80}, 0, 0.7)`;
