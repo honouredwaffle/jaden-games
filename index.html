@@ -2108,6 +2108,9 @@
                     case 'SPECIAL':
                         drawSpecialGradeSpirit(ctx, screenX, screenY, spirit, time);
                         break;
+                    case 'DISASTER_CURSE':
+                        drawDisasterCurseTest(ctx, screenX, screenY, spirit, time);
+                        break;
                 }
                 
                 // Charging indicator
@@ -2435,6 +2438,73 @@
             ctx.arc(x, y, spirit.size * 0.08, 0, Math.PI * 2);
             ctx.fill();
             ctx.shadowBlur = 0;
+        }
+        
+        function drawDisasterCurseTest(ctx, x, y, spirit, time) {
+            // Disaster Curse appearance for testing
+            const pulse = Math.sin(time * 2) * 0.3 + 0.7;
+            
+            // Outer flame aura
+            ctx.fillStyle = `rgba(255, 50, 0, ${0.3 * pulse})`;
+            ctx.shadowColor = '#ff3300';
+            ctx.shadowBlur = 40 * pulse;
+            ctx.beginPath();
+            ctx.arc(x, y, spirit.size * 1.5 + Math.sin(time * 3) * 5, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Main body - volcanic rock texture
+            ctx.fillStyle = spirit.color;
+            ctx.shadowColor = '#ff5500';
+            ctx.shadowBlur = 20;
+            ctx.beginPath();
+            const points = 8;
+            for (let i = 0; i < points; i++) {
+                const angle = (i / points) * Math.PI * 2 + time * 0.2;
+                const r = spirit.size + Math.sin(time * 2 + i) * 5;
+                const px = x + Math.cos(angle) * r;
+                const py = y + Math.sin(angle) * r;
+                if (i === 0) ctx.moveTo(px, py);
+                else ctx.lineTo(px, py);
+            }
+            ctx.closePath();
+            ctx.fill();
+            
+            // Lava cracks
+            ctx.strokeStyle = '#ffaa00';
+            ctx.lineWidth = 2;
+            ctx.shadowColor = '#ffaa00';
+            ctx.shadowBlur = 10;
+            for (let i = 0; i < 4; i++) {
+                const angle = (i / 4) * Math.PI * 2 + time;
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+                ctx.lineTo(
+                    x + Math.cos(angle) * spirit.size * 0.8,
+                    y + Math.sin(angle) * spirit.size * 0.8
+                );
+                ctx.stroke();
+            }
+            
+            // Central eye - intense glow
+            ctx.fillStyle = '#ffff00';
+            ctx.shadowColor = '#ffff00';
+            ctx.shadowBlur = 30;
+            ctx.beginPath();
+            ctx.arc(x, y, spirit.size * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Pupil
+            ctx.fillStyle = '#ff0000';
+            ctx.beginPath();
+            ctx.arc(x, y, spirit.size * 0.15, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            
+            // Label
+            ctx.fillStyle = '#fff';
+            ctx.font = '12px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('DISASTER', x, y - spirit.size - 10);
         }
         
         function drawBiomeObjects() {
@@ -3617,17 +3687,86 @@
             showNotif('Dismantle!');
         }
         
+        function activateCleave() {
+            // Cleave - grab enemy in front and barrage of quick slashes
+            const grabRange = 100;
+            let grabbedEnemy = null;
+            let grabbedIndex = -1;
+            
+            // Find enemy in front of player
+            for (let i = 0; i < cursedSpirits.length; i++) {
+                const enemy = cursedSpirits[i];
+                const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
+                
+                if (dist < grabRange) {
+                    // Check if enemy is in front (within 60 degree cone)
+                    const angleToEnemy = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+                    const angleDiff = Math.abs(angleToEnemy - player.facing);
+                    const normalizedDiff = Math.min(angleDiff, Math.PI * 2 - angleDiff);
+                    
+                    if (normalizedDiff < Math.PI / 3) { // 60 degree cone
+                        grabbedEnemy = enemy;
+                        grabbedIndex = i;
+                        break;
+                    }
+                }
+            }
+            
+            // Cancel if no enemy to grab
+            if (!grabbedEnemy) {
+                showNotif('No enemy to grab!');
+                // Refund the cooldown and CE
+                abilities[1].cooldown = 0;
+                player.ce += 25;
+                return;
+            }
+            
+            // Pull enemy to player
+            grabbedEnemy.x = player.x + Math.cos(player.facing) * 50;
+            grabbedEnemy.y = player.y + Math.sin(player.facing) * 50;
+            
+            showNotif('Cleave!');
+            
+            // Barrage of quick slashes
+            const slashCount = 12;
+            for (let i = 0; i < slashCount; i++) {
+                setTimeout(() => {
+                    if (grabbedEnemy && cursedSpirits.includes(grabbedEnemy)) {
+                        const damage = 20;
+                        grabbedEnemy.hp -= damage;
+                        
+                        // Quick slash visual effects
+                        for (let j = 0; j < 2; j++) {
+                            addSlashEffect(
+                                grabbedEnemy.x + (Math.random() - 0.5) * 40,
+                                grabbedEnemy.y + (Math.random() - 0.5) * 40
+                            );
+                        }
+                        addHitEffect(grabbedEnemy.x, grabbedEnemy.y, 'red');
+                        addDamageNumber(grabbedEnemy.x, grabbedEnemy.y, damage);
+                        
+                        // Check if enemy died
+                        if (grabbedEnemy.hp <= 0) {
+                            addKillEffect(grabbedEnemy.x, grabbedEnemy.y, 'red');
+                            killSpirit(grabbedIndex, 'red');
+                        }
+                    }
+                }, i * 50); // 50ms between slashes (faster than Dismantle)
+            }
+        }
+        
         function spawnTestingSpirits() {
             // Clear existing spirits
             cursedSpirits.length = 0;
             
             // Spawn one of each grade at fixed positions around player spawn (within 800x600 arena)
             const spiritTypes = [
-                { grade: 'Grade 4', hp: 30, color: '#44bb44', size: 15, x: -200, y: -150 },
-                { grade: 'Grade 3', hp: 60, color: '#44ccaa', size: 18, x: 200, y: -150 },
-                { grade: 'Grade 2', hp: 120, color: '#9955cc', size: 22, x: -200, y: 150 },
-                { grade: 'Grade 1', hp: 200, color: '#ff4444', size: 28, x: 200, y: 150 },
-                { grade: 'Special Grade', hp: 400, color: '#ff00ff', size: 35, x: 0, y: 0 }
+                { grade: 'Grade 4', hp: 30, color: '#44bb44', size: 15, x: -250, y: -100 },
+                { grade: 'Grade 3', hp: 60, color: '#44ccaa', size: 18, x: 250, y: -100 },
+                { grade: 'Grade 2', hp: 120, color: '#9955cc', size: 22, x: -250, y: 100 },
+                { grade: 'Grade 1', hp: 200, color: '#ff4444', size: 28, x: 250, y: 100 },
+                { grade: 'Special Grade', hp: 400, color: '#ff00ff', size: 35, x: 0, y: -200 },
+                { grade: 'Disaster Curse', hp: 1000, color: '#ff3300', size: 50, x: 0, y: 200, isBoss: true }
             ];
             
             const gradeMap = {
@@ -3635,7 +3774,8 @@
                 'Grade 3': 'GRADE_3',
                 'Grade 2': 'GRADE_2',
                 'Grade 1': 'GRADE_1',
-                'Special Grade': 'SPECIAL'
+                'Special Grade': 'SPECIAL',
+                'Disaster Curse': 'DISASTER_CURSE'
             };
             
             for (const type of spiritTypes) {
@@ -3658,11 +3798,12 @@
             console.log('respawnTestingSpirit called for', grade);
             // Respawn the same grade spirit at its original position
             const spiritPositions = {
-                'GRADE_4': { x: -200, y: -150, hp: 30, color: '#44bb44', size: 15 },
-                'GRADE_3': { x: 200, y: -150, hp: 60, color: '#44ccaa', size: 18 },
-                'GRADE_2': { x: -200, y: 150, hp: 120, color: '#9955cc', size: 22 },
-                'GRADE_1': { x: 200, y: 150, hp: 200, color: '#ff4444', size: 28 },
-                'SPECIAL': { x: 0, y: 0, hp: 400, color: '#ff00ff', size: 35 }
+                'GRADE_4': { x: -250, y: -100, hp: 30, color: '#44bb44', size: 15 },
+                'GRADE_3': { x: 250, y: -100, hp: 60, color: '#44ccaa', size: 18 },
+                'GRADE_2': { x: -250, y: 100, hp: 120, color: '#9955cc', size: 22 },
+                'GRADE_1': { x: 250, y: 100, hp: 200, color: '#ff4444', size: 28 },
+                'SPECIAL': { x: 0, y: -200, hp: 400, color: '#ff00ff', size: 35 },
+                'DISASTER_CURSE': { x: 0, y: 200, hp: 1000, color: '#ff3300', size: 50, isBoss: true }
             };
             
             const pos = spiritPositions[grade];
@@ -3675,7 +3816,8 @@
                         'Grade 3': 'GRADE_3',
                         'Grade 2': 'GRADE_2',
                         'Grade 1': 'GRADE_1',
-                        'Special Grade': 'SPECIAL'
+                        'Special Grade': 'SPECIAL',
+                        'Disaster Curse': 'DISASTER_CURSE'
                     };
                     const drawGrade = gradeMap[grade] || grade;
                     
@@ -3710,8 +3852,9 @@
                     // Sukuna's abilities
                     if (index === 0) { // Dismantle - barrage of slashes
                         activateDismantle();
-                    } else if (index === 1) showNotif('Cleave!');
-                    else if (index === 2) showNotif('Fuga!');
+                    } else if (index === 1) {
+                        activateCleave();
+                    } else if (index === 2) showNotif('Fuga!');
                     else if (index === 3) showNotif('Malevolent Shrine!');
                 } else {
                     // Gojo's abilities
