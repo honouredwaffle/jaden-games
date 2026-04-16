@@ -4466,67 +4466,103 @@
                         ctx.fill();
                     }
                     
-                    // THE FIRE ARROW - proper shape with shaft and head
-                    ctx.shadowColor = '#ff0000';
-                    ctx.shadowBlur = 30;
+                    // THE FIRE ARROW - flames on the arrow
+                    ctx.save();
                     
-                    // ARROW SHAFT
-                    // Outer shaft glow
-                    ctx.fillStyle = 'rgba(255, 80, 0, 0.6)';
+                    // Flames along the shaft
+                    for (let f = 0; f < 15; f++) {
+                        const flameX = -40 + f * 5 + (Math.random() - 0.5) * 6;
+                        const flameY = (Math.random() - 0.5) * 8;
+                        const flameSize = 3 + Math.random() * 6;
+                        
+                        ctx.fillStyle = `rgba(255, ${60 + Math.random() * 100}, 0, ${0.6 + Math.random() * 0.3})`;
+                        ctx.shadowColor = Math.random() > 0.5 ? '#ff2200' : '#ff6600';
+                        ctx.shadowBlur = 8 + Math.random() * 6;
+                        ctx.beginPath();
+                        ctx.arc(flameX, flameY, flameSize, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    
+                    // Flames on the arrowhead
+                    for (let f = 0; f < 10; f++) {
+                        const flameX = 25 + Math.random() * 25;
+                        const flameY = (Math.random() - 0.5) * 14;
+                        const flameSize = 4 + Math.random() * 7;
+                        
+                        ctx.fillStyle = `rgba(255, ${40 + Math.random() * 80}, 0, ${0.7 + Math.random() * 0.3})`;
+                        ctx.shadowColor = '#ff0000';
+                        ctx.shadowBlur = 12 + Math.random() * 8;
+                        ctx.beginPath();
+                        ctx.arc(flameX, flameY, flameSize, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    
+                    ctx.restore();
+                    ctx.shadowBlur = 0;
+                    
+                    // ARROW SHAFT (charred wood)
+                    ctx.shadowColor = '#ff4400';
+                    ctx.shadowBlur = 20;
+                    
+                    // Outer shaft
+                    ctx.fillStyle = 'rgba(80, 30, 10, 0.9)';
                     ctx.beginPath();
                     ctx.moveTo(25, 0);
-                    ctx.lineTo(-50, -4);
+                    ctx.lineTo(-50, -3);
                     ctx.lineTo(-55, 0);
-                    ctx.lineTo(-50, 4);
+                    ctx.lineTo(-50, 3);
                     ctx.closePath();
                     ctx.fill();
                     
                     // Main shaft
-                    ctx.fillStyle = '#ff5500';
+                    ctx.fillStyle = '#4a2010';
                     ctx.beginPath();
                     ctx.moveTo(22, 0);
-                    ctx.lineTo(-45, -3);
+                    ctx.lineTo(-45, -2);
                     ctx.lineTo(-50, 0);
-                    ctx.lineTo(-45, 3);
+                    ctx.lineTo(-45, 2);
                     ctx.closePath();
                     ctx.fill();
                     
-                    // Inner shaft (hot core)
-                    ctx.fillStyle = '#ff8800';
+                    // Inner shaft (glowing)
+                    ctx.fillStyle = '#ff4400';
                     ctx.beginPath();
                     ctx.moveTo(18, 0);
-                    ctx.lineTo(-35, -1.5);
+                    ctx.lineTo(-35, -1);
                     ctx.lineTo(-40, 0);
-                    ctx.lineTo(-35, 1.5);
+                    ctx.lineTo(-35, 1);
                     ctx.closePath();
                     ctx.fill();
                     
-                    // ARROWHEAD
+                    // ARROWHEAD (heated metal)
+                    ctx.shadowColor = '#ff0000';
+                    ctx.shadowBlur = 25;
+                    
                     // Outer arrowhead
-                    ctx.fillStyle = 'rgba(255, 30, 0, 0.8)';
+                    ctx.fillStyle = 'rgba(255, 60, 0, 0.9)';
                     ctx.beginPath();
                     ctx.moveTo(55, 0);      // Tip
-                    ctx.lineTo(20, -18);    // Back of head top
+                    ctx.lineTo(20, -15);    // Back of head top
                     ctx.lineTo(25, 0);      // Center
-                    ctx.lineTo(20, 18);     // Back of head bottom
+                    ctx.lineTo(20, 15);     // Back of head bottom
                     ctx.closePath();
                     ctx.fill();
                     
                     // Main arrowhead
-                    ctx.fillStyle = '#ff3300';
+                    ctx.fillStyle = '#5a3a30';
                     ctx.beginPath();
                     ctx.moveTo(48, 0);
-                    ctx.lineTo(18, -13);
+                    ctx.lineTo(18, -10);
                     ctx.lineTo(22, 0);
-                    ctx.lineTo(18, 13);
+                    ctx.lineTo(18, 10);
                     ctx.closePath();
                     ctx.fill();
                     
                     // Inner arrowhead
-                    ctx.fillStyle = '#ff6600';
+                    ctx.fillStyle = '#aa3300';
                     ctx.beginPath();
                     ctx.moveTo(40, 0);
-                    ctx.lineTo(16, -9);
+                    ctx.lineTo(16, -7);
                     ctx.lineTo(19, 0);
                     ctx.lineTo(16, 9);
                     ctx.closePath();
@@ -4633,115 +4669,163 @@
                     }
                 }
                 
-                // ARROW SHAFT - long and thin with fire
+                // FLAMES ENVELOPING THE ARROW
+                ctx.save();
+                
+                // Random flames along the entire arrow
+                for (let f = 0; f < 25; f++) {
+                    const flameX = -70 + f * 6 + (Math.random() - 0.5) * 8;
+                    const flameY = (Math.random() - 0.5) * 12;
+                    const flameSize = 4 + Math.random() * 8;
+                    
+                    ctx.fillStyle = `rgba(255, ${60 + Math.random() * 100}, 0, ${0.6 + Math.random() * 0.3})`;
+                    ctx.shadowColor = Math.random() > 0.5 ? '#ff2200' : '#ff6600';
+                    ctx.shadowBlur = 10 + Math.random() * 8;
+                    ctx.beginPath();
+                    ctx.arc(flameX, flameY, flameSize, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Larger flames on the arrowhead
+                for (let f = 0; f < 15; f++) {
+                    const flameX = 30 + Math.random() * 40;
+                    const flameY = (Math.random() - 0.5) * 20;
+                    const flameSize = 6 + Math.random() * 10;
+                    
+                    ctx.fillStyle = `rgba(255, ${40 + Math.random() * 80}, 0, ${0.7 + Math.random() * 0.3})`;
+                    ctx.shadowColor = '#ff0000';
+                    ctx.shadowBlur = 15 + Math.random() * 10;
+                    ctx.beginPath();
+                    ctx.arc(flameX, flameY, flameSize, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Flames on the fletching
+                for (let f = 0; f < 10; f++) {
+                    const flameX = -85 - Math.random() * 15;
+                    const flameY = (Math.random() - 0.5) * 16;
+                    const flameSize = 5 + Math.random() * 7;
+                    
+                    ctx.fillStyle = `rgba(255, ${80 + Math.random() * 100}, 0, ${0.6 + Math.random() * 0.3})`;
+                    ctx.shadowColor = '#ff4400';
+                    ctx.shadowBlur = 12;
+                    ctx.beginPath();
+                    ctx.arc(flameX, flameY, flameSize, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                ctx.restore();
+                ctx.shadowBlur = 0;
+                
+                // ARROW SHAFT - long and thin (drawn BEHIND the flames)
                 ctx.shadowColor = '#ff4400';
-                ctx.shadowBlur = 25;
+                ctx.shadowBlur = 20;
                 
                 // Outer shaft glow
-                ctx.fillStyle = 'rgba(255, 80, 0, 0.6)';
+                ctx.fillStyle = 'rgba(100, 30, 0, 0.8)';
                 ctx.beginPath();
                 ctx.moveTo(40, 0);
-                ctx.lineTo(-80, -6);
+                ctx.lineTo(-80, -5);
                 ctx.lineTo(-85, 0);
-                ctx.lineTo(-80, 6);
+                ctx.lineTo(-80, 5);
                 ctx.closePath();
                 ctx.fill();
                 
-                // Main shaft
-                ctx.fillStyle = '#ff5500';
+                // Main shaft (darker, charred wood look)
+                ctx.fillStyle = '#4a2010';
                 ctx.beginPath();
                 ctx.moveTo(35, 0);
-                ctx.lineTo(-75, -4);
+                ctx.lineTo(-75, -3);
                 ctx.lineTo(-80, 0);
-                ctx.lineTo(-75, 4);
+                ctx.lineTo(-75, 3);
                 ctx.closePath();
                 ctx.fill();
                 
-                // Inner shaft (hot core)
-                ctx.fillStyle = '#ff8800';
+                // Inner shaft (glowing hot center)
+                ctx.fillStyle = '#ff4400';
                 ctx.beginPath();
                 ctx.moveTo(30, 0);
-                ctx.lineTo(-60, -2);
+                ctx.lineTo(-60, -1.5);
                 ctx.lineTo(-65, 0);
-                ctx.lineTo(-60, 2);
+                ctx.lineTo(-60, 1.5);
                 ctx.closePath();
                 ctx.fill();
                 
-                // ARROWHEAD - defined shape pointing forward
+                // ARROWHEAD - metal head heated by fire
                 ctx.shadowColor = '#ff0000';
-                ctx.shadowBlur = 40;
+                ctx.shadowBlur = 30;
                 
-                // Outer arrowhead (broad)
-                ctx.fillStyle = 'rgba(255, 30, 0, 0.8)';
+                // Outer arrowhead (heated metal glow)
+                ctx.fillStyle = 'rgba(255, 60, 0, 0.9)';
                 ctx.beginPath();
                 ctx.moveTo(80, 0);      // Tip
-                ctx.lineTo(30, -25);    // Back of head top
+                ctx.lineTo(30, -22);    // Back of head top
                 ctx.lineTo(35, 0);      // Center notch
-                ctx.lineTo(30, 25);     // Back of head bottom
+                ctx.lineTo(30, 22);     // Back of head bottom
                 ctx.closePath();
                 ctx.fill();
                 
-                // Main arrowhead
-                ctx.fillStyle = '#ff3300';
+                // Main arrowhead (iron)
+                ctx.fillStyle = '#5a3a30';
                 ctx.beginPath();
                 ctx.moveTo(70, 0);
-                ctx.lineTo(28, -18);
+                ctx.lineTo(28, -15);
                 ctx.lineTo(32, 0);
-                ctx.lineTo(28, 18);
+                ctx.lineTo(28, 15);
                 ctx.closePath();
                 ctx.fill();
                 
-                // Inner arrowhead
-                ctx.fillStyle = '#ff6600';
+                // Inner arrowhead (heated)
+                ctx.fillStyle = '#aa3300';
                 ctx.beginPath();
                 ctx.moveTo(60, 0);
-                ctx.lineTo(25, -12);
+                ctx.lineTo(25, -10);
                 ctx.lineTo(28, 0);
-                ctx.lineTo(25, 12);
+                ctx.lineTo(25, 10);
                 ctx.closePath();
                 ctx.fill();
                 
                 // Hot core of arrowhead
-                ctx.fillStyle = '#ffaa00';
+                ctx.fillStyle = '#ff6600';
                 ctx.beginPath();
                 ctx.moveTo(50, 0);
-                ctx.lineTo(22, -7);
+                ctx.lineTo(22, -6);
                 ctx.lineTo(25, 0);
-                ctx.lineTo(22, 7);
+                ctx.lineTo(22, 6);
                 ctx.closePath();
                 ctx.fill();
                 
                 // White hot tip
-                ctx.fillStyle = '#ffffcc';
+                ctx.fillStyle = '#ffccaa';
                 ctx.beginPath();
                 ctx.moveTo(40, 0);
-                ctx.lineTo(20, -4);
+                ctx.lineTo(20, -3);
                 ctx.lineTo(22, 0);
-                ctx.lineTo(20, 4);
+                ctx.lineTo(20, 3);
                 ctx.closePath();
                 ctx.fill();
                 
-                // Fletching (feathers) at back - on fire
-                ctx.shadowColor = '#ff6600';
-                ctx.shadowBlur = 20;
+                // Fletching (feathers) - burning
+                ctx.shadowColor = '#ff4400';
+                ctx.shadowBlur = 15;
                 
-                // Top fletching
-                ctx.fillStyle = 'rgba(255, 100, 0, 0.8)';
+                // Top fletching (charred)
+                ctx.fillStyle = '#3a2010';
                 ctx.beginPath();
                 ctx.moveTo(-80, -2);
-                ctx.lineTo(-100, -15);
-                ctx.lineTo(-95, -5);
-                ctx.lineTo(-105, -8);
+                ctx.lineTo(-100, -12);
+                ctx.lineTo(-95, -4);
+                ctx.lineTo(-105, -6);
                 ctx.lineTo(-90, 0);
                 ctx.closePath();
                 ctx.fill();
                 
-                // Bottom fletching
+                // Bottom fletching (charred)
                 ctx.beginPath();
                 ctx.moveTo(-80, 2);
-                ctx.lineTo(-100, 15);
-                ctx.lineTo(-95, 5);
-                ctx.lineTo(-105, 8);
+                ctx.lineTo(-100, 12);
+                ctx.lineTo(-95, 4);
+                ctx.lineTo(-105, 6);
                 ctx.lineTo(-90, 0);
                 ctx.closePath();
                 ctx.fill();
