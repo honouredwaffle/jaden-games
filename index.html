@@ -806,53 +806,107 @@
         }
 
         function drawTitle() {
-            drawBackground();
+            // Animated gradient background
+            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+            const hue1 = (frame * 0.2) % 360;
+            const hue2 = (hue1 + 60) % 360;
+            gradient.addColorStop(0, `hsla(${hue1}, 70%, 10%, 1)`);
+            gradient.addColorStop(0.5, `hsla(${hue2}, 60%, 15%, 1)`);
+            gradient.addColorStop(1, `hsla(${hue1}, 70%, 10%, 1)`);
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Animated particles in background
+            for (let i = 0; i < 30; i++) {
+                const px = (frame * 0.5 + i * 137) % canvas.width;
+                const py = (frame * 0.3 + i * 89) % canvas.height;
+                const size = 2 + Math.sin(frame * 0.1 + i) * 1;
+                const alpha = 0.3 + Math.sin(frame * 0.05 + i) * 0.2;
+                ctx.fillStyle = `rgba(233, 69, 96, ${alpha})`;
+                ctx.beginPath();
+                ctx.arc(px, py, size, 0, Math.PI * 2);
+                ctx.fill();
+            }
             
             const pulse = Math.sin(frame * 0.05) * 0.3 + 0.7;
             
+            // Main title with glow
             ctx.save();
             ctx.shadowColor = '#e94560';
-            ctx.shadowBlur = 30 * pulse;
+            ctx.shadowBlur = 50 * pulse;
             ctx.fillStyle = '#fff';
-            ctx.font = 'bold 80px "Segoe UI", sans-serif';
+            ctx.font = 'bold 100px "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('JJK', canvas.width / 2, 100);
+            ctx.fillText('PROJECT', canvas.width / 2, 80);
+            ctx.fillStyle = '#e94560';
+            ctx.font = 'bold 120px "Segoe UI", sans-serif';
+            ctx.fillText('KAISEN', canvas.width / 2, 180);
             ctx.restore();
 
-            ctx.fillStyle = '#e94560';
-            ctx.font = '36px "Segoe UI", sans-serif';
+            // Subtitle
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+            ctx.font = 'italic 24px "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('CURSED ARENA', canvas.width / 2, 160);
+            ctx.fillText('Jujutsu Kaisen Fan Game', canvas.width / 2, 220);
 
+            // Decorative line
             ctx.strokeStyle = '#e94560';
-            ctx.lineWidth = 2;
+            ctx.lineWidth = 3;
+            ctx.shadowColor = '#e94560';
+            ctx.shadowBlur = 10;
             ctx.beginPath();
-            ctx.moveTo(canvas.width / 2 - 180, 180);
-            ctx.lineTo(canvas.width / 2 + 180, 180);
+            ctx.moveTo(canvas.width / 2 - 200, 240);
+            ctx.lineTo(canvas.width / 2 - 50, 240);
+            ctx.moveTo(canvas.width / 2 + 50, 240);
+            ctx.lineTo(canvas.width / 2 + 200, 240);
             ctx.stroke();
+            ctx.shadowBlur = 0;
+            
+            // Selected character display
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.font = '16px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText(`Selected: ${selectedCharacter}`, canvas.width / 2, canvas.height - 40);
         }
 
         function drawButton(text, x, y, width, height, isHovered, isSelected) {
             const hover = isHovered || isSelected;
             
-            // Button background
+            // Button background with gradient
             ctx.save();
             if (hover) {
+                const grad = ctx.createLinearGradient(x - width/2, y - height/2, x - width/2, y + height/2);
+                grad.addColorStop(0, 'rgba(233, 69, 96, 0.3)');
+                grad.addColorStop(0.5, 'rgba(233, 69, 96, 0.5)');
+                grad.addColorStop(1, 'rgba(233, 69, 96, 0.3)');
+                ctx.fillStyle = grad;
                 ctx.shadowColor = '#e94560';
-                ctx.shadowBlur = 15;
-                ctx.fillStyle = 'rgba(233, 69, 96, 0.2)';
+                ctx.shadowBlur = 20;
+                ctx.fillRect(x - width/2, y - height/2, width, height);
+            } else {
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
                 ctx.fillRect(x - width/2, y - height/2, width, height);
             }
             ctx.restore();
             
-            // Border
-            ctx.strokeStyle = hover ? '#e94560' : 'rgba(255, 255, 255, 0.3)';
-            ctx.lineWidth = hover ? 2 : 1;
+            // Border with glow
+            ctx.strokeStyle = hover ? '#e94560' : 'rgba(233, 69, 96, 0.5)';
+            ctx.lineWidth = hover ? 3 : 2;
+            if (hover) {
+                ctx.shadowColor = '#e94560';
+                ctx.shadowBlur = 10;
+            }
             ctx.strokeRect(x - width/2, y - height/2, width, height);
+            ctx.shadowBlur = 0;
             
-            // Text
-            ctx.fillStyle = hover ? '#e94560' : 'rgba(255, 255, 255, 0.8)';
-            ctx.font = hover ? 'bold 24px "Segoe UI", sans-serif' : '20px "Segoe UI", sans-serif';
+            // Text with icon for PLAY
+            if (text === 'PLAY' && hover) {
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 26px "Segoe UI", sans-serif';
+            } else {
+                ctx.fillStyle = hover ? '#fff' : 'rgba(255, 255, 255, 0.8)';
+                ctx.font = hover ? 'bold 22px "Segoe UI", sans-serif' : '20px "Segoe UI", sans-serif';
+            }
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(text, x, y);
@@ -1039,6 +1093,11 @@
                 
                 player.x += dx * player.speed * speedMultiplier;
                 player.y += dy * player.speed * speedMultiplier;
+                
+                // Add footstep effect in testing mode
+                if (testingMode && frame % 15 === 0) {
+                    addFootstepEffect(player.x, player.y + 15);
+                }
                 
                 // Add footstep ripple in domain (every 30 pixels moved)
                 if (playerDomain.active && playerDomain.phase !== 'expanding' && playerDomain.phase !== 'lines') {
@@ -5668,6 +5727,9 @@
             }
             
             drawBiomeGround();
+            if (testingMode) {
+                drawFootstepEffects();
+            }
             if (!testingMode) {
                 drawGrid();
                 drawBiomeOverlay();
@@ -5691,7 +5753,9 @@
             drawNotifications();
             drawDisasterNotification();
             drawAbilityBar();
-            if (!testingMode) {
+            if (testingMode) {
+                drawTestingMinimap();
+            } else {
                 drawMinimap();
             }
             drawPlayerBars();
@@ -6218,6 +6282,95 @@
             
             // Store button position for click detection
             window.menuButton = { x: btnX, y: btnY, width: btnWidth, height: btnHeight };
+        }
+
+        function drawTestingMinimap() {
+            const mapWidth = 180;
+            const mapHeight = 135;
+            const mapX = canvas.width - mapWidth - 20;
+            const mapY = 20;
+            
+            // Background - grey
+            ctx.fillStyle = 'rgba(40, 40, 40, 0.9)';
+            ctx.fillRect(mapX, mapY, mapWidth, mapHeight);
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(mapX, mapY, mapWidth, mapHeight);
+            
+            // Arena bounds (800x600)
+            const arenaWidth = 800;
+            const arenaHeight = 600;
+            const scale = Math.min((mapWidth - 20) / arenaWidth, (mapHeight - 20) / arenaHeight);
+            const centerX = mapX + mapWidth / 2;
+            const centerY = mapY + mapHeight / 2;
+            
+            // Draw arena outline
+            ctx.strokeStyle = '#888';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(
+                centerX - arenaWidth * scale / 2,
+                centerY - arenaHeight * scale / 2,
+                arenaWidth * scale,
+                arenaHeight * scale
+            );
+            
+            // Draw player (green dot)
+            const playerMapX = centerX + player.x * scale;
+            const playerMapY = centerY + player.y * scale;
+            ctx.fillStyle = '#0f0';
+            ctx.beginPath();
+            ctx.arc(playerMapX, playerMapY, 4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw enemies (red dots)
+            for (const spirit of cursedSpirits) {
+                const spiritMapX = centerX + spirit.x * scale;
+                const spiritMapY = centerY + spirit.y * scale;
+                ctx.fillStyle = spirit.color || '#f00';
+                ctx.beginPath();
+                ctx.arc(spiritMapX, spiritMapY, 3, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Label
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 10px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('TESTING ARENA', mapX + mapWidth / 2, mapY + mapHeight - 5);
+        }
+
+        // Footstep effects for testing mode
+        let footstepEffects = [];
+        function addFootstepEffect(x, y) {
+            footstepEffects.push({
+                x: x,
+                y: y,
+                life: 30,
+                maxLife: 30
+            });
+        }
+        
+        function drawFootstepEffects() {
+            for (let i = footstepEffects.length - 1; i >= 0; i--) {
+                const effect = footstepEffects[i];
+                const alpha = effect.life / effect.maxLife;
+                
+                ctx.fillStyle = `rgba(200, 200, 200, ${alpha * 0.3})`;
+                ctx.beginPath();
+                ctx.ellipse(
+                    effect.x - camera.x,
+                    effect.y - camera.y + 10,
+                    15 * (1 - alpha * 0.5),
+                    8 * (1 - alpha * 0.5),
+                    0, 0, Math.PI * 2
+                );
+                ctx.fill();
+                
+                effect.life--;
+                if (effect.life <= 0) {
+                    footstepEffects.splice(i, 1);
+                }
+            }
         }
 
         function loop() {
