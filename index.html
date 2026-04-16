@@ -977,11 +977,11 @@
                 ctx.fillText(title, canvas.width / 2, 240);
             }
             
-            // Position buttons in middle of screen
+            // Position buttons in middle of screen (higher up)
             const buttonWidth = 280;
             const buttonHeight = 50;
             const spacing = 65;
-            const startY = canvas.height / 2 + 50;
+            const startY = canvas.height / 2 - 20;
             
             options.forEach((option, i) => {
                 const y = startY + i * spacing;
