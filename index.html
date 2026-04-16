@@ -4157,29 +4157,29 @@
                 const chargePercent = fuga.chargeTime / fuga.maxChargeTime;
                 const intensity = chargePercent < 0.5 ? chargePercent * 2 : 1; // Ramps up to full
                 
-                // Pulsing fire aura with heat distortion effect
+                // Pulsing fire aura with heat distortion effect (smaller, around hands only)
                 const pulse = Math.sin(Date.now() / 50) * 0.1 + 1;
-                const auraSize = 70 + chargePercent * 30 * pulse;
+                const auraSize = 40 + chargePercent * 15 * pulse;
                 
-                // Outer glow
+                // Smaller outer glow around player center
                 const outerGradient = ctx.createRadialGradient(
                     player.x - camera.x, player.y - camera.y, 0,
-                    player.x - camera.x, player.y - camera.y, auraSize * 1.5
+                    player.x - camera.x, player.y - camera.y, auraSize
                 );
-                outerGradient.addColorStop(0, `rgba(255, 60, 0, ${0.3 + chargePercent * 0.2})`);
-                outerGradient.addColorStop(0.5, `rgba(255, 100, 0, ${0.15 + chargePercent * 0.1})`);
+                outerGradient.addColorStop(0, `rgba(255, 60, 0, ${0.2 + chargePercent * 0.15})`);
+                outerGradient.addColorStop(0.5, `rgba(255, 100, 0, ${0.1 + chargePercent * 0.08})`);
                 outerGradient.addColorStop(1, 'rgba(255, 50, 0, 0)');
                 ctx.fillStyle = outerGradient;
                 ctx.beginPath();
-                ctx.arc(player.x - camera.x, player.y - camera.y, auraSize * 1.5, 0, Math.PI * 2);
+                ctx.arc(player.x - camera.x, player.y - camera.y, auraSize, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Inner intense fire core
-                ctx.fillStyle = `rgba(255, ${80 + chargePercent * 100}, 0, ${0.4 + chargePercent * 0.3})`;
+                // Inner fire core (smaller)
+                ctx.fillStyle = `rgba(255, ${80 + chargePercent * 100}, 0, ${0.3 + chargePercent * 0.2})`;
                 ctx.shadowColor = '#ff4400';
-                ctx.shadowBlur = 30 + chargePercent * 20;
+                ctx.shadowBlur = 20 + chargePercent * 10;
                 ctx.beginPath();
-                ctx.arc(player.x - camera.x, player.y - camera.y, auraSize * 0.6, 0, Math.PI * 2);
+                ctx.arc(player.x - camera.x, player.y - camera.y, auraSize * 0.5, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.shadowBlur = 0;
                 
@@ -4217,18 +4217,18 @@
                     const flameIntensity = 8 + Math.floor(chargePercent * 12);
                     
                     for (let i = 0; i < flameIntensity; i++) {
-                        const flameSize = 15 + chargePercent * 20 + Math.random() * 15;
-                        const flameDistance = (Math.random() - 0.5) * (20 + chargePercent * 30);
+                        const flameSize = 8 + chargePercent * 10 + Math.random() * 8;
+                        const flameDistance = (Math.random() - 0.5) * (12 + chargePercent * 15);
                         
                         ctx.fillStyle = `rgba(255, ${40 + Math.random() * 100}, 0, ${0.6 + Math.random() * 0.3})`;
                         ctx.shadowColor = Math.random() > 0.5 ? '#ff2200' : '#ff6600';
-                        ctx.shadowBlur = 20 + chargePercent * 15;
+                        ctx.shadowBlur = 12 + chargePercent * 8;
                         
                         // Left hand flames - more chaotic as charge builds
                         ctx.beginPath();
                         ctx.arc(
-                            leftHandX + wobble + (Math.random() - 0.5) * (15 + chargePercent * 20),
-                            leftHandY + (Math.random() - 0.5) * (15 + chargePercent * 20) - Math.random() * chargePercent * 20,
+                            leftHandX + wobble + (Math.random() - 0.5) * (10 + chargePercent * 12),
+                            leftHandY + (Math.random() - 0.5) * (10 + chargePercent * 12) - Math.random() * chargePercent * 12,
                             flameSize, 0, Math.PI * 2
                         );
                         ctx.fill();
@@ -4236,7 +4236,7 @@
                         // Right hand flames
                         ctx.beginPath();
                         ctx.arc(
-                            rightHandX - wobble + (Math.random() - 0.5) * (15 + chargePercent * 20),
+                            rightHandX - wobble + (Math.random() - 0.5) * (10 + chargePercent * 12),
                             rightHandY + (Math.random() - 0.5) * (15 + chargePercent * 20) - Math.random() * chargePercent * 20,
                             flameSize, 0, Math.PI * 2
                         );
@@ -4279,104 +4279,104 @@
                     ctx.shadowBlur = 0;
                     
                 } else {
-                    // CHARGED PHASE - maximum intensity
+                    // CHARGED PHASE - maximum intensity (scaled down)
                     
-                    // Left hand - intense fire
-                    for (let i = 0; i < 15; i++) {
-                        const flameSize = 20 + Math.random() * 20;
+                    // Left hand - intense fire (smaller)
+                    for (let i = 0; i < 10; i++) {
+                        const flameSize = 12 + Math.random() * 12;
                         ctx.fillStyle = `rgba(255, ${Math.random() * 80}, 0, ${0.7 + Math.random() * 0.3})`;
                         ctx.shadowColor = '#ff2200';
-                        ctx.shadowBlur = 25 + Math.random() * 15;
+                        ctx.shadowBlur = 15 + Math.random() * 10;
                         ctx.beginPath();
                         ctx.arc(
-                            leftHandX + (Math.random() - 0.5) * 25,
-                            leftHandY + (Math.random() - 0.5) * 25 - Math.random() * 15,
+                            leftHandX + (Math.random() - 0.5) * 18,
+                            leftHandY + (Math.random() - 0.5) * 18 - Math.random() * 10,
                             flameSize, 0, Math.PI * 2
                         );
                         ctx.fill();
                     }
                     
-                    // Right hand - forming the arrow with massive flames
+                    // Right hand - forming the arrow with flames (scaled down)
                     ctx.save();
                     ctx.translate(rightHandX, rightHandY);
                     ctx.rotate(player.facing);
                     
-                    // Massive flame aura around the arrow
+                    // Flame aura around the arrow (smaller)
                     for (let ring = 0; ring < 3; ring++) {
                         ctx.fillStyle = `rgba(255, ${60 + ring * 40}, 0, ${0.3 - ring * 0.08})`;
                         ctx.shadowColor = '#ff2200';
-                        ctx.shadowBlur = 50 - ring * 10;
+                        ctx.shadowBlur = 30 - ring * 8;
                         ctx.beginPath();
-                        ctx.ellipse(30, 0, 60 + ring * 15, 40 + ring * 10, 0, 0, Math.PI * 2);
+                        ctx.ellipse(20, 0, 35 + ring * 10, 25 + ring * 6, 0, 0, Math.PI * 2);
                         ctx.fill();
                     }
                     
-                    // Rotating flame spirals around the arrow
+                    // Rotating flame spirals around the arrow (smaller)
                     const spiralTime = Date.now() / 100;
                     for (let s = 0; s < 4; s++) {
                         const angle = spiralTime + (s * Math.PI / 2);
-                        const sx = 20 + Math.cos(angle) * 25;
-                        const sy = Math.sin(angle) * 15;
+                        const sx = 15 + Math.cos(angle) * 15;
+                        const sy = Math.sin(angle) * 10;
                         
                         ctx.fillStyle = `rgba(255, ${100 + Math.random() * 100}, 0, 0.8)`;
                         ctx.shadowColor = '#ff6600';
-                        ctx.shadowBlur = 20;
+                        ctx.shadowBlur = 12;
                         ctx.beginPath();
-                        ctx.arc(sx, sy, 8 + Math.random() * 6, 0, Math.PI * 2);
+                        ctx.arc(sx, sy, 5 + Math.random() * 4, 0, Math.PI * 2);
                         ctx.fill();
                     }
                     
-                    // The arrow itself - glowing hot
+                    // The arrow itself - glowing hot (scaled down)
                     ctx.shadowColor = '#ff0000';
-                    ctx.shadowBlur = 60;
+                    ctx.shadowBlur = 40;
                     
                     // Outer flame shell
                     ctx.fillStyle = 'rgba(255, 50, 0, 0.6)';
                     ctx.beginPath();
-                    ctx.moveTo(90, 0);
-                    ctx.lineTo(-30, -45);
-                    ctx.lineTo(-20, 0);
-                    ctx.lineTo(-30, 45);
+                    ctx.moveTo(60, 0);
+                    ctx.lineTo(-20, -30);
+                    ctx.lineTo(-12, 0);
+                    ctx.lineTo(-20, 30);
                     ctx.closePath();
                     ctx.fill();
                     
-                    // Main arrow body
+                    // Main arrow body (scaled down)
                     ctx.fillStyle = '#ff3300';
                     ctx.beginPath();
-                    ctx.moveTo(70, 0);
-                    ctx.lineTo(-25, -35);
-                    ctx.lineTo(-15, 0);
-                    ctx.lineTo(-25, 35);
+                    ctx.moveTo(45, 0);
+                    ctx.lineTo(-18, -25);
+                    ctx.lineTo(-10, 0);
+                    ctx.lineTo(-18, 25);
                     ctx.closePath();
                     ctx.fill();
                     
-                    // Inner core
+                    // Inner core (scaled down)
                     ctx.fillStyle = '#ff7700';
                     ctx.beginPath();
-                    ctx.moveTo(50, 0);
-                    ctx.lineTo(-20, -25);
-                    ctx.lineTo(-10, 0);
-                    ctx.lineTo(-20, 25);
+                    ctx.moveTo(32, 0);
+                    ctx.lineTo(-14, -18);
+                    ctx.lineTo(-6, 0);
+                    ctx.lineTo(-14, 18);
                     ctx.closePath();
                     ctx.fill();
                     
-                    // White hot center
+                    // White hot center (scaled down)
                     ctx.fillStyle = '#ffdd00';
                     ctx.beginPath();
-                    ctx.moveTo(30, 0);
-                    ctx.lineTo(-10, -12);
-                    ctx.lineTo(-5, 0);
-                    ctx.lineTo(-10, 12);
+                    ctx.moveTo(18, 0);
+                    ctx.lineTo(-8, -9);
+                    ctx.lineTo(-3, 0);
+                    ctx.lineTo(-8, 9);
                     ctx.closePath();
                     ctx.fill();
                     
-                    // Intense core glow
+                    // Intense core glow (scaled down)
                     ctx.fillStyle = '#ffffff';
                     ctx.beginPath();
-                    ctx.moveTo(15, 0);
-                    ctx.lineTo(-5, -5);
-                    ctx.lineTo(-2, 0);
-                    ctx.lineTo(-5, 5);
+                    ctx.moveTo(10, 0);
+                    ctx.lineTo(-4, -4);
+                    ctx.lineTo(-1, 0);
+                    ctx.lineTo(-4, 4);
                     ctx.closePath();
                     ctx.fill();
                     
@@ -4417,15 +4417,16 @@
                 }
                 
                 // Massive fire trail with multiple layers
+                // Smaller fire trail
                 for (let layer = 0; layer < 3; layer++) {
                     ctx.shadowColor = layer === 0 ? '#ff0000' : layer === 1 ? '#ff4400' : '#ff8800';
-                    ctx.shadowBlur = 60 - layer * 15;
+                    ctx.shadowBlur = 40 - layer * 10;
                     
-                    for (let i = 0; i < 12; i++) {
-                        const trailSize = Math.max(2, (30 - layer * 5) - i * 2); // Ensure minimum size of 2
-                        const trailX = -40 - i * 25 - layer * 10;
-                        const alpha = (0.8 - layer * 0.15 - i * 0.05) * lifePercent;
-                        const offsetY = (Math.random() - 0.5) * (10 + i * 2);
+                    for (let i = 0; i < 10; i++) {
+                        const trailSize = Math.max(2, (20 - layer * 4) - i * 1.5);
+                        const trailX = -25 - i * 18 - layer * 8;
+                        const alpha = (0.8 - layer * 0.15 - i * 0.06) * lifePercent;
+                        const offsetY = (Math.random() - 0.5) * (8 + i * 1.5);
                         
                         ctx.fillStyle = `rgba(255, ${layer === 0 ? 30 : layer === 1 ? 80 : 140}, 0, ${alpha})`;
                         ctx.beginPath();
@@ -4434,57 +4435,57 @@
                     }
                 }
                 
-                // Main arrow head - enormous
+                // Main arrow head - scaled down
                 ctx.shadowColor = '#ff0000';
-                ctx.shadowBlur = 80;
+                ctx.shadowBlur = 50;
                 
                 // Outer flame
                 ctx.fillStyle = 'rgba(255, 30, 0, 0.7)';
                 ctx.beginPath();
-                ctx.moveTo(100, 0);
-                ctx.lineTo(-40, -55);
-                ctx.lineTo(-25, 0);
-                ctx.lineTo(-40, 55);
+                ctx.moveTo(65, 0);
+                ctx.lineTo(-25, -35);
+                ctx.lineTo(-15, 0);
+                ctx.lineTo(-25, 35);
                 ctx.closePath();
                 ctx.fill();
                 
                 // Main body
                 ctx.fillStyle = '#ff3300';
                 ctx.beginPath();
-                ctx.moveTo(80, 0);
-                ctx.lineTo(-35, -45);
-                ctx.lineTo(-20, 0);
-                ctx.lineTo(-35, 45);
+                ctx.moveTo(50, 0);
+                ctx.lineTo(-22, -30);
+                ctx.lineTo(-12, 0);
+                ctx.lineTo(-22, 30);
                 ctx.closePath();
                 ctx.fill();
                 
                 // Inner layer
                 ctx.fillStyle = '#ff6600';
                 ctx.beginPath();
-                ctx.moveTo(60, 0);
-                ctx.lineTo(-25, -32);
-                ctx.lineTo(-12, 0);
-                ctx.lineTo(-25, 32);
+                ctx.moveTo(38, 0);
+                ctx.lineTo(-18, -22);
+                ctx.lineTo(-8, 0);
+                ctx.lineTo(-18, 22);
                 ctx.closePath();
                 ctx.fill();
                 
                 // Hot core
                 ctx.fillStyle = '#ffaa00';
                 ctx.beginPath();
-                ctx.moveTo(40, 0);
-                ctx.lineTo(-15, -20);
-                ctx.lineTo(-5, 0);
-                ctx.lineTo(-15, 20);
+                ctx.moveTo(25, 0);
+                ctx.lineTo(-10, -14);
+                ctx.lineTo(-3, 0);
+                ctx.lineTo(-10, 14);
                 ctx.closePath();
                 ctx.fill();
                 
                 // White hot tip
                 ctx.fillStyle = '#ffffaa';
                 ctx.beginPath();
-                ctx.moveTo(20, 0);
-                ctx.lineTo(-8, -10);
-                ctx.lineTo(-2, 0);
-                ctx.lineTo(-8, 10);
+                ctx.moveTo(12, 0);
+                ctx.lineTo(-5, -7);
+                ctx.lineTo(-1, 0);
+                ctx.lineTo(-5, 7);
                 ctx.closePath();
                 ctx.fill();
                 
