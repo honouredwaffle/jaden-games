@@ -4023,11 +4023,14 @@
             const arrowSpeed = 15;
             const arrowDamage = 300;
             
-            // Fire arrow toward mouse position
+            // Fire arrow toward mouse position, spawned from right side of player
             const mouseAngle = Math.atan2(mouseWorldY - player.y, mouseWorldX - player.x);
+            const rightOffsetAngle = player.facing + Math.PI / 2;
+            const spawnX = player.x + Math.cos(rightOffsetAngle) * 20;
+            const spawnY = player.y + Math.sin(rightOffsetAngle) * 20;
             fuga.arrow = {
-                x: player.x + Math.cos(mouseAngle) * 30,
-                y: player.y + Math.sin(mouseAngle) * 30,
+                x: spawnX + Math.cos(mouseAngle) * 20,
+                y: spawnY + Math.sin(mouseAngle) * 20,
                 vx: Math.cos(mouseAngle) * arrowSpeed,
                 vy: Math.sin(mouseAngle) * arrowSpeed,
                 damage: arrowDamage,
@@ -4298,11 +4301,16 @@
                         ctx.fill();
                     }
                     
+                    // Right hand position - offset to the right of player
+                    const rightOffsetAngle = player.facing + Math.PI / 2;
+                    const arrowHandX = player.x + Math.cos(rightOffsetAngle) * 25 - camera.x;
+                    const arrowHandY = player.y + Math.sin(rightOffsetAngle) * 25 - camera.y;
+                    
                     // Right hand - forming the arrow with flames (scaled down)
                     // Arrow points toward mouse
                     const mouseAngle = Math.atan2(mouseWorldY - player.y, mouseWorldX - player.x);
                     ctx.save();
-                    ctx.translate(rightHandX, rightHandY);
+                    ctx.translate(arrowHandX, arrowHandY);
                     ctx.rotate(mouseAngle);
                     
                     // Flame aura around the arrow (smaller)
