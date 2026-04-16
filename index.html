@@ -806,107 +806,60 @@
         }
 
         function drawTitle() {
-            // Animated gradient background
-            const gradient = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
-            const hue1 = (frame * 0.2) % 360;
-            const hue2 = (hue1 + 60) % 360;
-            gradient.addColorStop(0, `hsla(${hue1}, 70%, 10%, 1)`);
-            gradient.addColorStop(0.5, `hsla(${hue2}, 60%, 15%, 1)`);
-            gradient.addColorStop(1, `hsla(${hue1}, 70%, 10%, 1)`);
-            ctx.fillStyle = gradient;
+            // Simple dark background
+            ctx.fillStyle = '#1a1a2e';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Animated particles in background
-            for (let i = 0; i < 30; i++) {
-                const px = (frame * 0.5 + i * 137) % canvas.width;
-                const py = (frame * 0.3 + i * 89) % canvas.height;
-                const size = 2 + Math.sin(frame * 0.1 + i) * 1;
-                const alpha = 0.3 + Math.sin(frame * 0.05 + i) * 0.2;
-                ctx.fillStyle = `rgba(233, 69, 96, ${alpha})`;
-                ctx.beginPath();
-                ctx.arc(px, py, size, 0, Math.PI * 2);
-                ctx.fill();
-            }
-            
-            const pulse = Math.sin(frame * 0.05) * 0.3 + 0.7;
-            
-            // Main title with glow
-            ctx.save();
-            ctx.shadowColor = '#e94560';
-            ctx.shadowBlur = 50 * pulse;
+            // Main title - no glow
             ctx.fillStyle = '#fff';
-            ctx.font = 'bold 100px "Segoe UI", sans-serif';
+            ctx.font = 'bold 80px "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('PROJECT', canvas.width / 2, 80);
+            ctx.fillText('PROJECT', canvas.width / 2, 100);
             ctx.fillStyle = '#e94560';
-            ctx.font = 'bold 120px "Segoe UI", sans-serif';
-            ctx.fillText('KAISEN', canvas.width / 2, 180);
-            ctx.restore();
+            ctx.font = 'bold 100px "Segoe UI", sans-serif';
+            ctx.fillText('KAISEN', canvas.width / 2, 190);
 
             // Subtitle
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
-            ctx.font = 'italic 24px "Segoe UI", sans-serif';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.font = 'italic 20px "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText('Jujutsu Kaisen Fan Game', canvas.width / 2, 220);
+            ctx.fillText('Jujutsu Kaisen Fan Game', canvas.width / 2, 240);
 
-            // Decorative line
+            // Simple line
             ctx.strokeStyle = '#e94560';
-            ctx.lineWidth = 3;
-            ctx.shadowColor = '#e94560';
-            ctx.shadowBlur = 10;
+            ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.moveTo(canvas.width / 2 - 200, 240);
-            ctx.lineTo(canvas.width / 2 - 50, 240);
-            ctx.moveTo(canvas.width / 2 + 50, 240);
-            ctx.lineTo(canvas.width / 2 + 200, 240);
+            ctx.moveTo(canvas.width / 2 - 150, 260);
+            ctx.lineTo(canvas.width / 2 + 150, 260);
             ctx.stroke();
-            ctx.shadowBlur = 0;
             
-            // Selected character display
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
-            ctx.font = '16px "Segoe UI", sans-serif';
+            // Selected character display at bottom
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.font = '14px "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(`Selected: ${selectedCharacter}`, canvas.width / 2, canvas.height - 40);
+            ctx.fillText(`Selected Character: ${selectedCharacter}`, canvas.width / 2, canvas.height - 30);
         }
 
         function drawButton(text, x, y, width, height, isHovered, isSelected) {
             const hover = isHovered || isSelected;
             
-            // Button background with gradient
-            ctx.save();
+            // Simple button background
             if (hover) {
-                const grad = ctx.createLinearGradient(x - width/2, y - height/2, x - width/2, y + height/2);
-                grad.addColorStop(0, 'rgba(233, 69, 96, 0.3)');
-                grad.addColorStop(0.5, 'rgba(233, 69, 96, 0.5)');
-                grad.addColorStop(1, 'rgba(233, 69, 96, 0.3)');
-                ctx.fillStyle = grad;
-                ctx.shadowColor = '#e94560';
-                ctx.shadowBlur = 20;
+                ctx.fillStyle = 'rgba(233, 69, 96, 0.3)';
                 ctx.fillRect(x - width/2, y - height/2, width, height);
             } else {
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
                 ctx.fillRect(x - width/2, y - height/2, width, height);
             }
-            ctx.restore();
             
-            // Border with glow
-            ctx.strokeStyle = hover ? '#e94560' : 'rgba(233, 69, 96, 0.5)';
-            ctx.lineWidth = hover ? 3 : 2;
-            if (hover) {
-                ctx.shadowColor = '#e94560';
-                ctx.shadowBlur = 10;
-            }
+            // Simple border
+            ctx.strokeStyle = hover ? '#e94560' : 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = hover ? 2 : 1;
             ctx.strokeRect(x - width/2, y - height/2, width, height);
-            ctx.shadowBlur = 0;
             
-            // Text with icon for PLAY
-            if (text === 'PLAY' && hover) {
-                ctx.fillStyle = '#fff';
-                ctx.font = 'bold 26px "Segoe UI", sans-serif';
-            } else {
-                ctx.fillStyle = hover ? '#fff' : 'rgba(255, 255, 255, 0.8)';
-                ctx.font = hover ? 'bold 22px "Segoe UI", sans-serif' : '20px "Segoe UI", sans-serif';
-            }
+            // Text
+            ctx.fillStyle = hover ? '#fff' : 'rgba(255, 255, 255, 0.8)';
+            ctx.font = hover ? 'bold 22px "Segoe UI", sans-serif' : '20px "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(text, x, y);
@@ -926,10 +879,11 @@
                 ctx.fillText(title, canvas.width / 2, 240);
             }
             
-            const startY = title ? 280 : 260;
+            // Position buttons at bottom of screen
             const buttonWidth = 280;
             const buttonHeight = 50;
             const spacing = 65;
+            const startY = canvas.height - (options.length * spacing + 80);
             
             options.forEach((option, i) => {
                 const y = startY + i * spacing;
