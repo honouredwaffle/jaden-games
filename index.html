@@ -3362,6 +3362,7 @@
             ctx.strokeRect(barX, barY, barWidth, barHeight);
             
             // Draw abilities
+            const centerY = barY + barHeight / 2;
             abilities.forEach((ability, i) => {
                 const slotX = barX + i * slotWidth;
                 const centerX = slotX + slotWidth / 2;
@@ -3408,8 +3409,8 @@
             const punchRange = 80;
             let hitEnemy = false;
             
-            for (let i = enemies.length - 1; i >= 0; i--) {
-                const enemy = enemies[i];
+            for (let i = cursedSpirits.length - 1; i >= 0; i--) {
+                const enemy = cursedSpirits[i];
                 const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
                 
                 if (dist < punchRange) {
@@ -3435,7 +3436,7 @@
                     
                     if (enemy.hp <= 0) {
                         addKillEffect(enemy.x, enemy.y, isBlackFlash ? 'purple' : 'blue');
-                        enemies.splice(i, 1);
+                        cursedSpirits.splice(i, 1);
                     }
                     
                     break; // Only hit one enemy per punch
@@ -3560,11 +3561,10 @@
             // Dismantle - barrage of slashes at nearby enemies
             const dismantleRange = 200;
             const slashCount = 8;
-            let hitAny = false;
             
             // Find enemies in range
             const targets = [];
-            for (const enemy of enemies) {
+            for (const enemy of cursedSpirits) {
                 const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
                 if (dist < dismantleRange) {
                     targets.push(enemy);
@@ -3587,8 +3587,8 @@
                         // Check if enemy died
                         if (target.hp <= 0) {
                             addKillEffect(target.x, target.y, 'red');
-                            const idx = enemies.indexOf(target);
-                            if (idx > -1) enemies.splice(idx, 1);
+                            const idx = cursedSpirits.indexOf(target);
+                            if (idx > -1) cursedSpirits.splice(idx, 1);
                             // Remove from targets too
                             const targetIdx = targets.indexOf(target);
                             if (targetIdx > -1) targets.splice(targetIdx, 1);
