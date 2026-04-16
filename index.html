@@ -3844,38 +3844,42 @@
         }
         
         function activateDismantle() {
-            // Dismantle - barrage of slashes at nearby enemies
-            const dismantleRange = 200;
+            // Dismantle - barrage of slashes at mouse position
+            const dismantleRange = 250;
             const slashCount = 8;
             
-            // Find enemies in range
+            // Target position is where mouse is pointing
+            const targetX = mouseWorldX;
+            const targetY = mouseWorldY;
+            
+            // Find enemies near mouse position
             const targets = [];
             for (const enemy of cursedSpirits) {
-                const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
+                const dist = Math.hypot(enemy.x - targetX, enemy.y - targetY);
                 if (dist < dismantleRange) {
                     targets.push(enemy);
                 }
             }
             
-            // Cancel if no enemies in range
+            // Cancel if no enemies in range of mouse
             if (targets.length === 0) {
-                showNotif('No targets in range!');
+                showNotif('No targets at mouse position!');
                 // Refund the cooldown and CE
                 abilities[0].cooldown = 0;
                 player.ce += 15;
                 return;
             }
             
-            // Perform slashes
+            // Perform slashes at mouse area
             for (let i = 0; i < slashCount; i++) {
                 setTimeout(() => {
                     if (targets.length > 0) {
-                        // Hit random target in range
+                        // Hit random target near mouse
                         const target = targets[Math.floor(Math.random() * targets.length)];
                         const damage = 25;
                         target.hp -= damage;
                         
-                        // Multiple slash visual effects
+                        // Multiple slash visual effects around target
                         for (let j = 0; j < 3; j++) {
                             setTimeout(() => {
                                 addSlashEffect(target.x + (Math.random() - 0.5) * 60, target.y + (Math.random() - 0.5) * 60);
@@ -3888,7 +3892,7 @@
                         if (target.hp <= 0) {
                             addKillEffect(target.x, target.y, 'red');
                             const idx = cursedSpirits.indexOf(target);
-                            if (idx > -1) cursedSpirits.splice(idx, 1);
+                            if (idx > -1) killSpirit(idx, 'red');
                             // Remove from targets too
                             const targetIdx = targets.indexOf(target);
                             if (targetIdx > -1) targets.splice(targetIdx, 1);
@@ -3902,7 +3906,7 @@
         
         function activateCleave() {
             // Cleave - grab enemy in front and barrage of quick slashes
-            const grabRange = 100;
+            const grabRange = 180;
             let grabbedEnemy = null;
             let grabbedIndex = -1;
             
@@ -5836,19 +5840,7 @@
             ctx.fillStyle = '#0a0a0a';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // DEBUG - after clear so it's visible
-            ctx.fillStyle = '#ff0000';
-            ctx.font = 'bold 20px "Segoe UI", sans-serif';
-            ctx.textAlign = 'left';
-            ctx.fillText('GAME IS RUNNING', 20, 30);
-            
             updatePlayer();
-            
-            // DEBUG camera info
-            ctx.fillStyle = '#00ff00';
-            ctx.fillText(`CAM: ${Math.floor(camera.x)}, ${Math.floor(camera.y)}`, 20, 55);
-            ctx.fillText(`PLAYER: ${Math.floor(player.x)}, ${Math.floor(player.y)}`, 20, 80);
-            ctx.fillText(`CANVAS: ${canvas.width}x${canvas.height}`, 20, 105);
             
             // Validate camera values
             if (!isFinite(camera.x) || !isFinite(camera.y)) {
