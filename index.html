@@ -5226,6 +5226,7 @@
             drawAbilityBar();
             drawMinimap();
             drawPlayerBars();
+            drawMenuButton();
             
             // DEBUG: Show camera and player info
             ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
@@ -5658,6 +5659,32 @@
             ctx.fillText('MAP', mapX, mapY - 8);
         }
 
+        function drawMenuButton() {
+            const btnWidth = 60;
+            const btnHeight = 30;
+            const btnX = canvas.width - btnWidth - 20;
+            const btnY = canvas.height - btnHeight - 20;
+            
+            // Button background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(btnX, btnY, btnWidth, btnHeight);
+            
+            // Button border
+            ctx.strokeStyle = '#e94560';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(btnX, btnY, btnWidth, btnHeight);
+            
+            // Button text
+            ctx.fillStyle = '#fff';
+            ctx.font = '14px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('MENU', btnX + btnWidth / 2, btnY + btnHeight / 2);
+            
+            // Store button position for click detection
+            window.menuButton = { x: btnX, y: btnY, width: btnWidth, height: btnHeight };
+        }
+
         function loop() {
             frame++;
             
@@ -5758,13 +5785,24 @@
         });
 
         canvas.addEventListener('click', (e) => {
-            if (screen === 'game') return;
-            
-            // Check if mouse is actually over a button before selecting
             const rect = canvas.getBoundingClientRect();
             const clickX = (e.clientX - rect.left) * (canvas.width / rect.width);
             const clickY = (e.clientY - rect.top) * (canvas.height / rect.height);
             
+            // Check for menu button click in game screen
+            if (screen === 'game' && window.menuButton) {
+                const btn = window.menuButton;
+                if (clickX >= btn.x && clickX <= btn.x + btn.width &&
+                    clickY >= btn.y && clickY <= btn.y + btn.height) {
+                    screen = 'title';
+                    currentMenu = titleOptions;
+                    selectedOption = 0;
+                    return;
+                }
+                return;
+            }
+            
+            // Check if mouse is actually over a button before selecting (menu screens)
             let clickedButton = false;
             for (let i = 0; i < menuItemRects.length; i++) {
                 const btn = menuItemRects[i];
