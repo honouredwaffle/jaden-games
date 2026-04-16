@@ -194,7 +194,7 @@
                 { name: 'BLUE', key: '1', cooldown: 0, maxCooldown: 120, active: false },
                 { name: 'RED', key: '2', cooldown: 0, maxCooldown: 180, active: false },
                 { name: 'PURPLE', key: '3', cooldown: 0, maxCooldown: 300, active: false },
-                { name: 'DOMAIN', key: '4', cooldown: 0, maxCooldown: 600, active: false }
+                { name: 'UNLIMITED VOID', key: '4', cooldown: 0, maxCooldown: 600, active: false }
             ],
             'SUKUNA': [
                 { name: 'DISMANTLE', key: '1', cooldown: 0, maxCooldown: 80, active: false },
@@ -3346,11 +3346,11 @@
         }
         
         function drawAbilityBar() {
-            const barWidth = 500;
+            const barWidth = 400;
             const barHeight = 60;
             const barX = (canvas.width - barWidth) / 2;
             const barY = canvas.height - barHeight - 20;
-            const slotWidth = barWidth / 5; // 5 slots now (M1 + 4 abilities)
+            const slotWidth = barWidth / 4; // 4 ability slots
             
             // Background
             ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
@@ -3361,29 +3361,9 @@
             ctx.lineWidth = 2;
             ctx.strokeRect(barX, barY, barWidth, barHeight);
             
-            // Draw M1 slot first
-            const m1SlotX = barX;
-            const m1CenterX = m1SlotX + slotWidth / 2;
-            const centerY = barY + barHeight / 2;
-            
-            // M1 slot background
-            ctx.fillStyle = 'rgba(100, 100, 100, 0.5)';
-            ctx.fillRect(m1SlotX + 2, barY + 2, slotWidth - 4, barHeight - 4);
-            
-            // M1 name
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 14px "Segoe UI", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('M1', m1CenterX, barY + 20);
-            
-            // M1 key
-            ctx.fillStyle = '#e94560';
-            ctx.font = 'bold 16px "Segoe UI", sans-serif';
-            ctx.fillText('M', m1CenterX, barY + barHeight - 8);
-            
-            // Draw abilities (offset by 1 slot)
+            // Draw abilities
             abilities.forEach((ability, i) => {
-                const slotX = barX + (i + 1) * slotWidth;
+                const slotX = barX + i * slotWidth;
                 const centerX = slotX + slotWidth / 2;
                 
                 // Slot background
@@ -3421,11 +3401,53 @@
         }
         
         function useM1() {
-            // Basic attack - low cost, quick slash
-            if (player.ce >= 5) {
-                player.ce -= 5;
-                // TODO: Implement basic attack visual
-                showNotif('M1 Attack!');
+            // Basic punch attack - no CE cost
+            const isBlackFlash = Math.random() < 0.05; // 5% chance
+            
+            // Find nearby enemies to punch
+            const punchRange = 80;
+            let hitEnemy = false;
+            
+            for (let i = enemies.length - 1; i >= 0; i--) {
+                const enemy = enemies[i];
+                const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
+                
+                if (dist < punchRange) {
+                    hitEnemy = true;
+                    const damage = isBlackFlash ? 150 : 20;
+                    enemy.hp -= damage;
+                    
+                    // Knockback
+                    const knockbackDir = Math.atan2(enemy.y - player.y, enemy.x - player.x);
+                    enemy.x += Math.cos(knockbackDir) * (isBlackFlash ? 50 : 20);
+                    enemy.y += Math.sin(knockbackDir) * (isBlackFlash ? 50 : 20);
+                    
+                    // Visual effect
+                    addHitEffect(enemy.x, enemy.y, isBlackFlash ? 'purple' : 'blue');
+                    addDamageNumber(enemy.x, enemy.y, damage);
+                    
+                    if (isBlackFlash) {
+                        showNotif('BLACK FLASH!');
+                        // Screen shake effect
+                        camera.x += (Math.random() - 0.5) * 20;
+                        camera.y += (Math.random() - 0.5) * 20;
+                    }
+                    
+                    if (enemy.hp <= 0) {
+                        addKillEffect(enemy.x, enemy.y, isBlackFlash ? 'purple' : 'blue');
+                        enemies.splice(i, 1);
+                    }
+                    
+                    break; // Only hit one enemy per punch
+                }
+            }
+            
+            // Punch visual effect even if no enemy hit
+            if (!hitEnemy) {
+                // Create a small punch effect in front of player
+                const punchX = player.x + Math.cos(player.facing) * 40;
+                const punchY = player.y + Math.sin(player.facing) * 40;
+                addHitEffect(punchX, punchY, 'blue');
             }
         }
         
@@ -3438,9 +3460,10 @@
                 player.ce -= ceCost[index];
                 
                 if (selectedCharacter === 'SUKUNA') {
-                    // Sukuna's abilities (placeholder - just notifications for now)
-                    if (index === 0) showNotif('Dismantle!');
-                    else if (index === 1) showNotif('Cleave!');
+                    // Sukuna's abilities
+                    if (index === 0) { // Dismantle - barrage of slashes
+                        activateDismantle();
+                    } else if (index === 1) showNotif('Cleave!');
                     else if (index === 2) showNotif('Fuga!');
                     else if (index === 3) showNotif('Malevolent Shrine!');
                 } else {
@@ -3533,6 +3556,50 @@
             playerDomain.footstepRipples = [];
             playerDomain.footstepDistance = 0;
             
+        function activateDismantle() {
+            // Dismantle - barrage of slashes at nearby enemies
+            const dismantleRange = 200;
+            const slashCount = 8;
+            let hitAny = false;
+            
+            // Find enemies in range
+            const targets = [];
+            for (const enemy of enemies) {
+                const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
+                if (dist < dismantleRange) {
+                    targets.push(enemy);
+                }
+            }
+            
+            // Perform slashes
+            for (let i = 0; i < slashCount; i++) {
+                setTimeout(() => {
+                    if (targets.length > 0) {
+                        // Hit random target in range
+                        const target = targets[Math.floor(Math.random() * targets.length)];
+                        const damage = 25;
+                        target.hp -= damage;
+                        
+                        // Slash visual effect
+                        addHitEffect(target.x + (Math.random() - 0.5) * 40, target.y + (Math.random() - 0.5) * 40, 'red');
+                        addDamageNumber(target.x, target.y, damage);
+                        
+                        // Check if enemy died
+                        if (target.hp <= 0) {
+                            addKillEffect(target.x, target.y, 'red');
+                            const idx = enemies.indexOf(target);
+                            if (idx > -1) enemies.splice(idx, 1);
+                            // Remove from targets too
+                            const targetIdx = targets.indexOf(target);
+                            if (targetIdx > -1) targets.splice(targetIdx, 1);
+                        }
+                    }
+                }, i * 100); // 100ms between slashes
+            }
+            
+            showNotif('Dismantle!');
+        }
+        
             // Japanese text for Unlimited Void
             playerDomain.domainText = {
                 japanese: '無量空処',
@@ -5849,6 +5916,8 @@
                     selectedOption = 0;
                     return;
                 }
+                // M1 punch on left click (not on menu button)
+                useM1();
                 return;
             }
             
@@ -5875,8 +5944,7 @@
             keys[e.key] = true;
             
             if (screen === 'game') {
-                // M1 - Basic attack
-                if (e.key === 'm' || e.key === 'M') useM1();
+    
                 // Ability keys
                 else if (e.key === '1') useAbility(0);
                 else if (e.key === '2') useAbility(1);
