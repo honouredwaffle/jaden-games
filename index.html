@@ -8859,26 +8859,73 @@
                 ctx.lineTo(canvas.width - marginX, 140);
                 ctx.stroke();
                 
-                // Full content (wrapped)
+                // Full content (wrapped, respecting newlines for bullet points)
                 ctx.fillStyle = '#ddd';
                 ctx.font = '18px "Segoe UI", sans-serif';
-                const words = entry.content.split(' ');
-                let line = '';
                 let lineY = 180;
                 const lineHeight = 28;
                 
-                for (let w = 0; w < words.length; w++) {
-                    const testLine = line + words[w] + ' ';
-                    const metrics = ctx.measureText(testLine);
-                    if (metrics.width > contentWidth && w > 0) {
-                        ctx.fillText(line, marginX, lineY);
-                        line = words[w] + ' ';
+                // Split by newlines first to preserve bullet point separation
+                const bulletLines = entry.content.split('\n');
+                
+                for (let b = 0; b < bulletLines.length; b++) {
+                    const bulletLine = bulletLines[b].trim();
+                    if (!bulletLine) continue;
+                    
+                    // Check if this is a bullet point line
+                    const isBullet = bulletLine.startsWith('•');
+                    
+                    if (isBullet) {
+                        // Split long bullet points that exceed width
+                        const words = bulletLine.split(' ');
+                        let line = '';
+                        let firstLine = true;
+                        
+                        for (let w = 0; w < words.length; w++) {
+                            const testLine = line + words[w] + ' ';
+                            const metrics = ctx.measureText(testLine);
+                            
+                            // Check if we need to wrap
+                            const effectiveWidth = firstLine ? contentWidth : contentWidth - 30; // Indent continuation lines
+                            if (metrics.width > effectiveWidth && w > 0) {
+                                const drawX = firstLine ? marginX : marginX + 30;
+                                ctx.fillText(line.trim(), drawX, lineY);
+                                line = words[w] + ' ';
+                                lineY += lineHeight;
+                                firstLine = false;
+                            } else {
+                                line = testLine;
+                            }
+                        }
+                        // Draw the last part of the bullet
+                        const drawX = firstLine ? marginX : marginX + 30;
+                        ctx.fillText(line.trim(), drawX, lineY);
                         lineY += lineHeight;
                     } else {
-                        line = testLine;
+                        // Regular text (not a bullet)
+                        const words = bulletLine.split(' ');
+                        let line = '';
+                        
+                        for (let w = 0; w < words.length; w++) {
+                            const testLine = line + words[w] + ' ';
+                            const metrics = ctx.measureText(testLine);
+                            if (metrics.width > contentWidth && w > 0) {
+                                ctx.fillText(line.trim(), marginX, lineY);
+                                line = words[w] + ' ';
+                                lineY += lineHeight;
+                            } else {
+                                line = testLine;
+                            }
+                        }
+                        ctx.fillText(line.trim(), marginX, lineY);
+                        lineY += lineHeight;
+                    }
+                    
+                    // Add extra spacing between bullet points
+                    if (isBullet && b < bulletLines.length - 1) {
+                        lineY += 8;
                     }
                 }
-                ctx.fillText(line, marginX, lineY);
                 
                 // Instructions
                 ctx.fillStyle = '#666';
@@ -8936,29 +8983,38 @@
                     ctx.font = 'bold 18px "Segoe UI", sans-serif';
                     ctx.fillText(entry.title, marginX + 15, y + 50);
                     
-                    // Content preview (wrapped, max 2 lines)
+                    // Content preview (first 2 bullet points)
                     ctx.fillStyle = '#ccc';
                     ctx.font = '14px "Segoe UI", sans-serif';
                     const maxWidth = entryWidth - 30;
-                    const words = entry.content.split(' ');
-                    let line = '';
+                    const bulletLines = entry.content.split('\n').filter(l => l.trim().startsWith('•'));
                     let lineY = y + 75;
                     let lines = 0;
                     
-                    for (let w = 0; w < words.length && lines < 2; w++) {
-                        const testLine = line + words[w] + ' ';
-                        const metrics = ctx.measureText(testLine);
-                        if (metrics.width > maxWidth && w > 0) {
-                            ctx.fillText(line, marginX + 15, lineY);
-                            line = words[w] + ' ';
-                            lineY += 20;
-                            lines++;
-                        } else {
-                            line = testLine;
+                    for (let b = 0; b < bulletLines.length && lines < 2; b++) {
+                        const bulletLine = bulletLines[b].trim();
+                        const words = bulletLine.split(' ');
+                        let line = '';
+                        
+                        for (let w = 0; w < words.length; w++) {
+                            const testLine = line + words[w] + ' ';
+                            const metrics = ctx.measureText(testLine);
+                            if (metrics.width > maxWidth && w > 0) {
+                                ctx.fillText(line.trim(), marginX + 15, lineY);
+                                line = words[w] + ' ';
+                                lineY += 18;
+                                lines++;
+                                if (lines >= 2) break;
+                            } else {
+                                line = testLine;
+                            }
                         }
-                    }
-                    if (lines < 2) {
-                        ctx.fillText(line, marginX + 15, lineY);
+                        if (lines < 2 && line.trim()) {
+                            ctx.fillText(line.trim(), marginX + 15, lineY);
+                            lineY += 18;
+                            lines++;
+                        }
+                        if (lines >= 2) break;
                     }
                     
                     // "Read more" hint
