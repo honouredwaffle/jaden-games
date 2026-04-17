@@ -2069,23 +2069,29 @@
                 
                 // Find which spawn location this boss is at
                 const curseData = DISASTER_CURSES[boss.name];
-                let spawnDist = 999999;
+                let nearestSpawn = curseData.spawnLocations[0];
+                let spawnDistToBoss = 999999;
                 for (const loc of curseData.spawnLocations) {
                     const sdx = loc.x - boss.x;
                     const sdy = loc.y - boss.y;
                     const sdist = Math.sqrt(sdx * sdx + sdy * sdy);
-                    if (sdist < spawnDist) spawnDist = sdist;
+                    if (sdist < spawnDistToBoss) {
+                        spawnDistToBoss = sdist;
+                        nearestSpawn = loc;
+                    }
                 }
                 
-                // Only active when player is near boss structure (within 600px)
+                // Only active when player is near boss structure (within 600px of spawn location)
                 const activationRadius = 600;
-                const isPlayerNear = dist < activationRadius;
+                const pdx = player.x - nearestSpawn.x;
+                const pdy = player.y - nearestSpawn.y;
+                const playerDistToSpawn = Math.sqrt(pdx * pdx + pdy * pdy);
+                const isPlayerNear = playerDistToSpawn < activationRadius;
                 
                 if (!isPlayerNear) {
                     // Return to spawn and idle
-                    const spawnLoc = curseData.spawnLocations[0];
-                    const sdx = spawnLoc.x - boss.x;
-                    const sdy = spawnLoc.y - boss.y;
+                    const sdx = nearestSpawn.x - boss.x;
+                    const sdy = nearestSpawn.y - boss.y;
                     const sdist = Math.sqrt(sdx * sdx + sdy * sdy);
                     if (sdist > 50) {
                         boss.vx += (sdx / sdist) * boss.speed * 0.02;
@@ -2328,6 +2334,13 @@
         }
         
         function updateSpiritProjectiles() {
+            // If domain is active (not expanding), all enemy projectiles are frozen/negated
+            if (playerDomain.active && playerDomain.phase !== 'expanding') {
+                // Clear all enemy projectiles during domain
+                spiritProjectiles.length = 0;
+                return;
+            }
+            
             for (let i = spiritProjectiles.length - 1; i >= 0; i--) {
                 const proj = spiritProjectiles[i];
                 proj.x += proj.vx;
