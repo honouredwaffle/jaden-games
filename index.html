@@ -120,6 +120,7 @@
             { date: '2026-04-17', title: 'Visual Effects Update', content: 'Improved fire circle with segmented rings and orbiting orbs. Enhanced explosion effects with shockwaves and debris.' },
             { date: '2026-04-16', title: 'Initial Release', content: 'First version of JJK Game with Gojo and Sukuna playable characters.' }
         ];
+        let blogSelectedEntry = -1; // -1 = list view, 0+ = entry index
         
         let currentMenu = titleOptions;
         let selectedCharacter = 'GOJO';
@@ -7371,70 +7372,146 @@
             ctx.fillStyle = bgGrad;
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            // Title
-            ctx.fillStyle = '#e94560';
-            ctx.font = 'bold 36px "Segoe UI", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('UPDATE BLOG', canvas.width / 2, 60);
-            
-            // Draw blog entries
-            const entryHeight = 100;
-            const entrySpacing = 20;
-            const startY = 100;
-            const marginX = 50;
-            const entryWidth = canvas.width - marginX * 2;
-            
-            for (let i = 0; i < updateBlog.length; i++) {
-                const entry = updateBlog[i];
-                const y = startY + i * (entryHeight + entrySpacing);
-                
-                // Entry background
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-                ctx.fillRect(marginX, y, entryWidth, entryHeight);
-                
-                // Entry border
-                ctx.strokeStyle = 'rgba(233, 69, 96, 0.3)';
-                ctx.lineWidth = 1;
-                ctx.strokeRect(marginX, y, entryWidth, entryHeight);
+            if (blogSelectedEntry >= 0) {
+                // VIEWING SINGLE ENTRY
+                const entry = updateBlog[blogSelectedEntry];
+                const marginX = 80;
+                const contentWidth = canvas.width - marginX * 2;
                 
                 // Date
                 ctx.fillStyle = '#888';
-                ctx.font = '14px "Segoe UI", sans-serif';
+                ctx.font = '18px "Segoe UI", sans-serif';
                 ctx.textAlign = 'left';
-                ctx.fillText(entry.date, marginX + 15, y + 25);
+                ctx.fillText(entry.date, marginX, 80);
                 
                 // Title
                 ctx.fillStyle = '#e94560';
-                ctx.font = 'bold 18px "Segoe UI", sans-serif';
-                ctx.fillText(entry.title, marginX + 15, y + 50);
+                ctx.font = 'bold 32px "Segoe UI", sans-serif';
+                ctx.fillText(entry.title, marginX, 120);
                 
-                // Content (wrapped)
-                ctx.fillStyle = '#ccc';
-                ctx.font = '14px "Segoe UI", sans-serif';
-                const maxWidth = entryWidth - 30;
+                // Divider line
+                ctx.strokeStyle = 'rgba(233, 69, 96, 0.3)';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(marginX, 140);
+                ctx.lineTo(canvas.width - marginX, 140);
+                ctx.stroke();
+                
+                // Full content (wrapped)
+                ctx.fillStyle = '#ddd';
+                ctx.font = '18px "Segoe UI", sans-serif';
                 const words = entry.content.split(' ');
                 let line = '';
-                let lineY = y + 75;
+                let lineY = 180;
+                const lineHeight = 28;
                 
                 for (let w = 0; w < words.length; w++) {
                     const testLine = line + words[w] + ' ';
                     const metrics = ctx.measureText(testLine);
-                    if (metrics.width > maxWidth && w > 0) {
-                        ctx.fillText(line, marginX + 15, lineY);
+                    if (metrics.width > contentWidth && w > 0) {
+                        ctx.fillText(line, marginX, lineY);
                         line = words[w] + ' ';
-                        lineY += 20;
+                        lineY += lineHeight;
                     } else {
                         line = testLine;
                     }
                 }
-                ctx.fillText(line, marginX + 15, lineY);
+                ctx.fillText(line, marginX, lineY);
+                
+                // Instructions
+                ctx.fillStyle = '#666';
+                ctx.font = '16px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Press ENTER or CLICK to go back', canvas.width / 2, canvas.height - 50);
+                
+            } else {
+                // LIST VIEW
+                // Title
+                ctx.fillStyle = '#e94560';
+                ctx.font = 'bold 36px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('UPDATE BLOG', canvas.width / 2, 60);
+                
+                // Draw blog entries
+                const entryHeight = 100;
+                const entrySpacing = 20;
+                const startY = 100;
+                const marginX = 50;
+                const entryWidth = canvas.width - marginX * 2;
+                
+                // Store entry positions for click detection
+                window.blogEntryRects = [];
+                
+                for (let i = 0; i < updateBlog.length; i++) {
+                    const entry = updateBlog[i];
+                    const y = startY + i * (entryHeight + entrySpacing);
+                    
+                    // Store position
+                    window.blogEntryRects.push({ x: marginX, y: y, width: entryWidth, height: entryHeight, index: i });
+                    
+                    // Entry background (highlight if hovered)
+                    if (i === selectedOption) {
+                        ctx.fillStyle = 'rgba(233, 69, 96, 0.15)';
+                        ctx.fillRect(marginX, y, entryWidth, entryHeight);
+                    } else {
+                        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                        ctx.fillRect(marginX, y, entryWidth, entryHeight);
+                    }
+                    
+                    // Entry border
+                    ctx.strokeStyle = i === selectedOption ? 'rgba(233, 69, 96, 0.6)' : 'rgba(233, 69, 96, 0.3)';
+                    ctx.lineWidth = i === selectedOption ? 2 : 1;
+                    ctx.strokeRect(marginX, y, entryWidth, entryHeight);
+                    
+                    // Date
+                    ctx.fillStyle = '#888';
+                    ctx.font = '14px "Segoe UI", sans-serif';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(entry.date, marginX + 15, y + 25);
+                    
+                    // Title
+                    ctx.fillStyle = '#e94560';
+                    ctx.font = 'bold 18px "Segoe UI", sans-serif';
+                    ctx.fillText(entry.title, marginX + 15, y + 50);
+                    
+                    // Content preview (wrapped, max 2 lines)
+                    ctx.fillStyle = '#ccc';
+                    ctx.font = '14px "Segoe UI", sans-serif';
+                    const maxWidth = entryWidth - 30;
+                    const words = entry.content.split(' ');
+                    let line = '';
+                    let lineY = y + 75;
+                    let lines = 0;
+                    
+                    for (let w = 0; w < words.length && lines < 2; w++) {
+                        const testLine = line + words[w] + ' ';
+                        const metrics = ctx.measureText(testLine);
+                        if (metrics.width > maxWidth && w > 0) {
+                            ctx.fillText(line, marginX + 15, lineY);
+                            line = words[w] + ' ';
+                            lineY += 20;
+                            lines++;
+                        } else {
+                            line = testLine;
+                        }
+                    }
+                    if (lines < 2) {
+                        ctx.fillText(line, marginX + 15, lineY);
+                    }
+                    
+                    // "Read more" hint
+                    ctx.fillStyle = '#666';
+                    ctx.font = '12px "Segoe UI", sans-serif';
+                    ctx.textAlign = 'right';
+                    ctx.fillText('Click or ENTER to read', marginX + entryWidth - 15, y + entryHeight - 10);
+                }
+                
+                // Instructions
+                ctx.fillStyle = '#666';
+                ctx.font = '16px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('UP/DOWN to select • ENTER/CLICK to read • ESC to return', canvas.width / 2, canvas.height - 30);
             }
-            
-            // Back instruction
-            ctx.fillStyle = '#666';
-            ctx.font = '16px "Segoe UI", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('Press ESC or BACKSPACE to return', canvas.width / 2, canvas.height - 30);
         }
 
         function drawTestingMinimap() {
@@ -7598,10 +7675,20 @@
                     selectedOption = 0;
                 }
             } else if (screen === 'blog') {
-                if (option === 'BACK' || keys['Escape'] || keys['Backspace']) {
-                    screen = 'title';
-                    currentMenu = titleOptions;
-                    selectedOption = 0;
+                if (keys['Escape'] || keys['Backspace']) {
+                    if (blogSelectedEntry >= 0) {
+                        blogSelectedEntry = -1; // Go back to list
+                    } else {
+                        screen = 'title';
+                        currentMenu = titleOptions;
+                        selectedOption = 0;
+                    }
+                } else if (keys['Enter']) {
+                    if (blogSelectedEntry >= 0) {
+                        blogSelectedEntry = -1; // Go back to list
+                    } else if (selectedOption >= 0 && selectedOption < updateBlog.length) {
+                        blogSelectedEntry = selectedOption; // View selected entry
+                    }
                 }
             } else if (screen === 'modes') {
                 if (option === 'BACK') {
@@ -7702,6 +7789,24 @@
             if (clickedButton) {
                 handleSelect();
             }
+            
+            // Blog entry click handling
+            if (screen === 'blog') {
+                if (blogSelectedEntry >= 0) {
+                    // Click anywhere to go back to list
+                    blogSelectedEntry = -1;
+                } else if (window.blogEntryRects) {
+                    // Check if clicked on an entry
+                    for (const entryRect of window.blogEntryRects) {
+                        if (clickX >= entryRect.x && clickX <= entryRect.x + entryRect.width &&
+                            clickY >= entryRect.y && clickY <= entryRect.y + entryRect.height) {
+                            blogSelectedEntry = entryRect.index;
+                            selectedOption = entryRect.index;
+                            break;
+                        }
+                    }
+                }
+            }
         });
 
         // Keyboard still works
@@ -7718,6 +7823,28 @@
                     screen = 'title';
                     currentMenu = titleOptions;
                     selectedOption = 0;
+                }
+            } else if (screen === 'blog') {
+                if (blogSelectedEntry >= 0) {
+                    // Viewing single entry
+                    if (e.key === 'Enter' || e.key === 'Escape' || e.key === 'Backspace') {
+                        blogSelectedEntry = -1;
+                    }
+                } else {
+                    // List view
+                    if (e.key === 'ArrowUp') {
+                        selectedOption = (selectedOption - 1 + updateBlog.length) % updateBlog.length;
+                    } else if (e.key === 'ArrowDown') {
+                        selectedOption = (selectedOption + 1) % updateBlog.length;
+                    } else if (e.key === 'Enter') {
+                        if (selectedOption >= 0 && selectedOption < updateBlog.length) {
+                            blogSelectedEntry = selectedOption;
+                        }
+                    } else if (e.key === 'Escape') {
+                        screen = 'title';
+                        currentMenu = titleOptions;
+                        selectedOption = 0;
+                    }
                 }
             } else {
                 if (e.key === 'ArrowUp') {
