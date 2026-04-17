@@ -5376,7 +5376,7 @@
                     });
                     
                     if (spirit.hp <= 0) {
-                        cursedSpirits.splice(i, 1);
+                        killSpirit(i, 'domain');
                     }
                 }
             }
@@ -5459,96 +5459,108 @@
                 ctx.restore();
             }
             
-            // Draw shrine
+            // Draw shrine (2D side view - behind player)
             const shrineScale = sukunaDomain.shrine.scale;
             const pulse = 1 + Math.sin(sukunaDomain.shrine.pulse) * 0.05;
             
             ctx.save();
-            ctx.translate(screenX, screenY);
+            // Position shrine behind player (offset by 80px)
+            const shrineX = screenX - Math.cos(player.facing) * 80;
+            const shrineY = screenY - Math.sin(player.facing) * 80;
+            ctx.translate(shrineX, shrineY);
+            // Rotate to face same direction as player
+            ctx.rotate(player.facing + Math.PI); // Face opposite to player (behind them)
             ctx.scale(shrineScale * pulse, shrineScale * pulse);
             
-            // Draw skulls at base
-            for (const skull of sukunaDomain.shrine.skulls) {
-                const sx = Math.cos(skull.angle) * skull.distance;
-                const sy = Math.sin(skull.angle) * skull.distance;
+            // Draw skulls at base (2D view - arranged horizontally at bottom)
+            const skullCount = sukunaDomain.shrine.skulls.length;
+            for (let i = 0; i < skullCount; i++) {
+                const skull = sukunaDomain.shrine.skulls[i];
+                // Arrange skulls in a row at the base
+                const sx = (i - skullCount/2 + 0.5) * 25;
+                const sy = 35; // At the base
                 
                 ctx.save();
                 ctx.translate(sx, sy);
                 ctx.scale(skull.scale, skull.scale);
                 
                 // Skull glow
-                const glowIntensity = 0.3 + Math.sin(sukunaDomain.shrine.pulse * 2 + skull.angle) * 0.2;
+                const glowIntensity = 0.3 + Math.sin(sukunaDomain.shrine.pulse * 2 + i) * 0.2;
                 ctx.shadowBlur = 15;
                 ctx.shadowColor = `rgba(255, 50, 0, ${glowIntensity})`;
                 
-                // Skull base
+                // Skull base (2D view - skull shape)
                 ctx.fillStyle = '#2a1a1a';
                 ctx.beginPath();
-                ctx.arc(0, 0, 12, 0, Math.PI * 2);
+                // Skull head
+                ctx.arc(0, -5, 10, 0, Math.PI * 2);
                 ctx.fill();
+                // Jaw
+                ctx.fillRect(-6, 2, 12, 8);
                 
                 // Skull highlight
                 ctx.fillStyle = '#4a2a2a';
                 ctx.beginPath();
-                ctx.arc(-3, -3, 6, 0, Math.PI * 2);
+                ctx.arc(-3, -8, 4, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Eye sockets
+                // Eye sockets (glowing red)
                 ctx.fillStyle = '#ff2200';
                 ctx.shadowBlur = 10;
                 ctx.beginPath();
-                ctx.arc(-4, 0, 3, 0, Math.PI * 2);
-                ctx.arc(4, 0, 3, 0, Math.PI * 2);
+                ctx.arc(-3, -5, 2.5, 0, Math.PI * 2);
+                ctx.arc(3, -5, 2.5, 0, Math.PI * 2);
                 ctx.fill();
                 
                 ctx.restore();
             }
             
-            // Draw central shrine structure
+            // Draw central shrine structure (2D view - pillar/platform)
             ctx.shadowBlur = 30;
             ctx.shadowColor = 'rgba(139, 0, 0, 0.8)';
             
-            // Main shrine body
+            // Main shrine platform base
             ctx.fillStyle = '#1a0a0a';
-            ctx.beginPath();
-            ctx.arc(0, 0, 40, 0, Math.PI * 2);
-            ctx.fill();
+            ctx.fillRect(-50, 20, 100, 20);
             
-            // Shrine border
+            // Main shrine pillar
+            ctx.fillStyle = '#0f0505';
+            ctx.fillRect(-30, -40, 60, 60);
+            
+            // Shrine border/glow
             ctx.strokeStyle = '#8b0000';
             ctx.lineWidth = 3;
-            ctx.beginPath();
-            ctx.arc(0, 0, 40, 0, Math.PI * 2);
-            ctx.stroke();
+            ctx.strokeRect(-30, -40, 60, 60);
+            ctx.strokeRect(-50, 20, 100, 20);
             
-            // Inner glow
-            const innerGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, 35);
-            innerGlow.addColorStop(0, 'rgba(139, 0, 0, 0.6)');
-            innerGlow.addColorStop(1, 'rgba(139, 0, 0, 0)');
-            ctx.fillStyle = innerGlow;
-            ctx.beginPath();
-            ctx.arc(0, 0, 35, 0, Math.PI * 2);
-            ctx.fill();
+            // Inner glow on pillar
+            const pillarGlow = ctx.createLinearGradient(-30, -40, -30, 20);
+            pillarGlow.addColorStop(0, 'rgba(139, 0, 0, 0.4)');
+            pillarGlow.addColorStop(0.5, 'rgba(139, 0, 0, 0.1)');
+            pillarGlow.addColorStop(1, 'rgba(139, 0, 0, 0.3)');
+            ctx.fillStyle = pillarGlow;
+            ctx.fillRect(-25, -35, 50, 50);
             
-            // Draw 4 mouths
-            for (let i = 0; i < sukunaDomain.shrine.mouths.length; i++) {
+            // Draw 4 mouths (2D view - arranged vertically on the pillar)
+            const mouthSpacing = 18;
+            const startY = -25;
+            
+            for (let i = 0; i < 4; i++) {
                 const mouth = sukunaDomain.shrine.mouths[i];
-                const mx = Math.cos(mouth.angle) * 50;
-                const my = Math.sin(mouth.angle) * 50;
+                const my = startY + i * mouthSpacing;
                 
                 ctx.save();
-                ctx.translate(mx, my);
-                ctx.rotate(mouth.angle);
+                ctx.translate(0, my);
                 
                 // Mouth glow
                 ctx.shadowBlur = 20;
                 ctx.shadowColor = 'rgba(255, 0, 0, 0.9)';
                 
-                // Mouth opening
-                const openSize = 15 * mouth.openAmount;
+                // Mouth opening (horizontal ellipse in 2D)
+                const openSize = 8 * mouth.openAmount;
                 ctx.fillStyle = '#000';
                 ctx.beginPath();
-                ctx.ellipse(0, 0, 20, openSize, 0, 0, Math.PI * 2);
+                ctx.ellipse(0, 0, 15, openSize, 0, 0, Math.PI * 2);
                 ctx.fill();
                 
                 // Mouth interior glow
@@ -5558,34 +5570,69 @@
                     mouthGlow.addColorStop(1, 'rgba(139, 0, 0, 0)');
                     ctx.fillStyle = mouthGlow;
                     ctx.beginPath();
-                    ctx.ellipse(0, 0, 18, openSize * 0.8, 0, 0, Math.PI * 2);
+                    ctx.ellipse(0, 0, 13, openSize * 0.8, 0, 0, Math.PI * 2);
                     ctx.fill();
                 }
                 
-                // Teeth
+                // Teeth (top and bottom rows)
                 ctx.fillStyle = '#fff';
                 ctx.shadowBlur = 5;
-                for (let t = -2; t <= 2; t++) {
-                    const tx = t * 8;
+                const teethCount = 4;
+                for (let t = 0; t < teethCount; t++) {
+                    const tx = (t - teethCount/2 + 0.5) * 7;
+                    // Top teeth
                     ctx.beginPath();
-                    ctx.moveTo(tx, -openSize * 0.7);
-                    ctx.lineTo(tx + 4, -openSize * 0.9);
-                    ctx.lineTo(tx + 8, -openSize * 0.7);
+                    ctx.moveTo(tx - 2, -openSize * 0.6);
+                    ctx.lineTo(tx, -openSize * 0.9);
+                    ctx.lineTo(tx + 2, -openSize * 0.6);
                     ctx.fill();
                     
+                    // Bottom teeth
                     ctx.beginPath();
-                    ctx.moveTo(tx, openSize * 0.7);
-                    ctx.lineTo(tx + 4, openSize * 0.9);
-                    ctx.lineTo(tx + 8, openSize * 0.7);
+                    ctx.moveTo(tx - 2, openSize * 0.6);
+                    ctx.lineTo(tx, openSize * 0.9);
+                    ctx.lineTo(tx + 2, openSize * 0.6);
                     ctx.fill();
                 }
                 
                 ctx.restore();
             }
             
+            // Top ornament (horns/spikes)
+            ctx.fillStyle = '#1a0a0a';
+            ctx.strokeStyle = '#8b0000';
+            ctx.lineWidth = 2;
+            
+            // Left horn
+            ctx.beginPath();
+            ctx.moveTo(-20, -40);
+            ctx.lineTo(-35, -70);
+            ctx.lineTo(-15, -40);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            
+            // Right horn
+            ctx.beginPath();
+            ctx.moveTo(20, -40);
+            ctx.lineTo(35, -70);
+            ctx.lineTo(15, -40);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            
+            // Center spike
+            ctx.beginPath();
+            ctx.moveTo(-5, -40);
+            ctx.lineTo(0, -80);
+            ctx.lineTo(5, -40);
+            ctx.closePath();
+            ctx.fill();
+            ctx.stroke();
+            
             ctx.restore(); // End shrine transform
             
-            // Draw domain text
+            // Draw domain text (screen space, not world space)
             if (sukunaDomain.domainText.opacity > 0) {
                 ctx.save();
                 ctx.globalAlpha = sukunaDomain.domainText.opacity;
