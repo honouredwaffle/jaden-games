@@ -2046,6 +2046,13 @@
                     const ddy = boss.y - player.y;
                     const ddist = Math.sqrt(ddx * ddx + ddy * ddy);
                     if (ddist < playerDomain.maxRadius) {
+                        // Check if boss died while frozen
+                        if (boss.hp <= 0) {
+                            activeDisasterCurse = null;
+                            disasterNotification = { text: 'DISASTER CURSE DEFEATED!', color: '#00ff00' };
+                            disasterNotifTimer = 600;
+                            return;
+                        }
                         // Boss is frozen - only update visual effects, not movement or attacks
                         boss.domainTimer--;
                         if (boss.domainTimer <= 0) {
@@ -5467,6 +5474,13 @@
                     activeDisasterCurse.hp -= bossDamage;
                     addDamageCounter(bossDamage);
                     addDamageNumber(activeDisasterCurse.x, activeDisasterCurse.y - activeDisasterCurse.size, bossDamage);
+                    
+                    // Check if boss died from domain damage
+                    if (activeDisasterCurse.hp <= 0) {
+                        activeDisasterCurse = null;
+                        disasterNotification = { text: 'DISASTER CURSE DEFEATED!', color: '#00ff00' };
+                        disasterNotifTimer = 600;
+                    }
                 }
             }
         }
@@ -8855,6 +8869,10 @@
                     // Reset player position
                     player.x = 0;
                     player.y = 0;
+                    // Clear disaster curse and notification
+                    activeDisasterCurse = null;
+                    disasterNotification = null;
+                    disasterNotifTimer = 0;
                     // Spawn testing spirits
                     spawnTestingSpirits();
                     screen = 'game';
