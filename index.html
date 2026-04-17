@@ -112,6 +112,9 @@
         const modeOptions = ['STORY MODE', 'OPEN WORLD', 'TESTING MODE', 'BACK'];
         const characterOptions = ['GOJO', 'SUKUNA', 'YUKI', 'BACK'];
         const customOptions = ['OUTFIT', 'ABILITY COLOUR', 'BACK'];
+        const settingsOptions = ['CONTROL MODE: COMPUTER', 'BACK'];
+        
+        let mobileMode = false;
         
         // Update blog entries
         const updateBlog = [
@@ -1056,6 +1059,32 @@
             ctx.font = '14px "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText(`Selected Character: ${selectedCharacter}`, canvas.width / 2, canvas.height - 30);
+            
+            // Settings button at top right
+            const settingsBtnSize = 40;
+            const settingsX = canvas.width - settingsBtnSize - 20;
+            const settingsY = 20;
+            
+            // Settings icon (gear)
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(settingsX + settingsBtnSize/2, settingsY + settingsBtnSize/2, 12, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Gear teeth
+            for (let i = 0; i < 8; i++) {
+                const angle = (i / 8) * Math.PI * 2;
+                const innerR = 14;
+                const outerR = 18;
+                ctx.beginPath();
+                ctx.moveTo(settingsX + settingsBtnSize/2 + Math.cos(angle) * innerR, settingsY + settingsBtnSize/2 + Math.sin(angle) * innerR);
+                ctx.lineTo(settingsX + settingsBtnSize/2 + Math.cos(angle) * outerR, settingsY + settingsBtnSize/2 + Math.sin(angle) * outerR);
+                ctx.stroke();
+            }
+            
+            // Store settings button position
+            window.settingsButton = { x: settingsX, y: settingsY, width: settingsBtnSize, height: settingsBtnSize };
         }
 
         function drawButton(text, x, y, width, height, isHovered, isSelected) {
@@ -6841,6 +6870,11 @@
             drawPlayerBars();
             drawMenuButton();
             
+            // Mobile controls
+            if (mobileMode) {
+                drawMobileControls();
+            }
+            
             // Testing mode indicator
             if (testingMode) {
                 ctx.fillStyle = '#ffff00';
@@ -7364,6 +7398,87 @@
             window.menuButton = { x: btnX, y: btnY, width: btnWidth, height: btnHeight };
         }
 
+        function drawMobileControls() {
+            // Virtual joystick on left side
+            const joystickX = 80;
+            const joystickY = canvas.height - 120;
+            const joystickRadius = 50;
+            
+            // Joystick base
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(joystickX, joystickY, joystickRadius, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            
+            // Joystick handle
+            let handleX = joystickX;
+            let handleY = joystickY;
+            
+            if (window.joystickActive && window.joystickDelta) {
+                const deltaLen = Math.sqrt(window.joystickDelta.x ** 2 + window.joystickDelta.y ** 2);
+                const maxDist = joystickRadius * 0.6;
+                const scale = Math.min(deltaLen, maxDist) / deltaLen;
+                handleX = joystickX + window.joystickDelta.x * scale;
+                handleY = joystickY + window.joystickDelta.y * scale;
+            }
+            
+            ctx.fillStyle = 'rgba(233, 69, 96, 0.6)';
+            ctx.shadowColor = '#e94560';
+            ctx.shadowBlur = 10;
+            ctx.beginPath();
+            ctx.arc(handleX, handleY, 20, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.shadowBlur = 0;
+            
+            // Store joystick position
+            window.joystick = { x: joystickX, y: joystickY, radius: joystickRadius };
+            
+            // Ability buttons on right side
+            const btnSize = 50;
+            const btnSpacing = 60;
+            const btnStartX = canvas.width - 80;
+            const btnStartY = canvas.height - 200;
+            
+            // Ability 1 (Punch/M1)
+            drawMobileButton(btnStartX, btnStartY, btnSize, 'M1', '#e94560');
+            
+            // Ability 2 (Blue)
+            drawMobileButton(btnStartX - btnSpacing, btnStartY + 40, btnSize, '1', '#00aaff');
+            
+            // Ability 3 (Red/Fuga)
+            drawMobileButton(btnStartX, btnStartY + btnSpacing, btnSize, '2', '#ff4444');
+            
+            // Ability 4 (Purple/Domain)
+            drawMobileButton(btnStartX - btnSpacing, btnStartY + btnSpacing + 40, btnSize, '3', '#aa00ff');
+            
+            // Store button positions
+            window.mobileButtons = [
+                { x: btnStartX - btnSize/2, y: btnStartY - btnSize/2, width: btnSize, height: btnSize, ability: 0 },
+                { x: btnStartX - btnSpacing - btnSize/2, y: btnStartY + 40 - btnSize/2, width: btnSize, height: btnSize, ability: 1 },
+                { x: btnStartX - btnSize/2, y: btnStartY + btnSpacing - btnSize/2, width: btnSize, height: btnSize, ability: 2 },
+                { x: btnStartX - btnSpacing - btnSize/2, y: btnStartY + btnSpacing + 40 - btnSize/2, width: btnSize, height: btnSize, ability: 3 }
+            ];
+        }
+
+        function drawMobileButton(x, y, size, label, color) {
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(x, y, size/2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            
+            ctx.fillStyle = color;
+            ctx.font = 'bold 16px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(label, x, y);
+        }
+
         function drawBlog() {
             // Background
             const bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -7631,6 +7746,8 @@
                 drawMenu(customOptions, 'CUSTOMISATION');
             } else if (screen === 'blog') {
                 drawBlog();
+            } else if (screen === 'settings') {
+                drawMenu(settingsOptions, 'SETTINGS');
             } else if (screen === 'game') {
                 drawGame();
             } else {
@@ -7673,6 +7790,16 @@
                 } else if (option === 'UPDATE BLOG') {
                     screen = 'blog';
                     selectedOption = 0;
+                }
+            } else if (screen === 'settings') {
+                if (option === 'BACK') {
+                    screen = 'title';
+                    currentMenu = titleOptions;
+                    selectedOption = 0;
+                } else if (option.startsWith('CONTROL MODE:')) {
+                    mobileMode = !mobileMode;
+                    settingsOptions[0] = mobileMode ? 'CONTROL MODE: MOBILE' : 'CONTROL MODE: COMPUTER';
+                    showNotif(mobileMode ? 'Mobile mode enabled!' : 'Computer mode enabled!');
                 }
             } else if (screen === 'blog') {
                 if (keys['Escape'] || keys['Backspace']) {
@@ -7737,6 +7864,110 @@
             }
         }
 
+        // Touch/Mouse events for mobile controls
+        let activeTouches = {};
+        
+        function handleTouchStart(e) {
+            if (!mobileMode || screen !== 'game') return;
+            e.preventDefault();
+            
+            const rect = canvas.getBoundingClientRect();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                const touchX = (touch.clientX - rect.left) * (canvas.width / rect.width);
+                const touchY = (touch.clientY - rect.top) * (canvas.height / rect.height);
+                
+                // Check joystick
+                if (window.joystick) {
+                    const dx = touchX - window.joystick.x;
+                    const dy = touchY - window.joystick.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    
+                    if (dist < window.joystick.radius * 1.5) {
+                        activeTouches[touch.identifier] = { type: 'joystick', startX: touchX, startY: touchY };
+                        window.joystickActive = true;
+                        window.joystickDelta = { x: dx, y: dy };
+                        updateMobileMovement();
+                        continue;
+                    }
+                }
+                
+                // Check ability buttons
+                if (window.mobileButtons) {
+                    for (const btn of window.mobileButtons) {
+                        if (touchX >= btn.x && touchX <= btn.x + btn.width &&
+                            touchY >= btn.y && touchY <= btn.y + btn.height) {
+                            activeTouches[touch.identifier] = { type: 'button', ability: btn.ability };
+                            useAbility(btn.ability);
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        
+        function handleTouchMove(e) {
+            if (!mobileMode || screen !== 'game') return;
+            e.preventDefault();
+            
+            const rect = canvas.getBoundingClientRect();
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                const touchData = activeTouches[touch.identifier];
+                
+                if (touchData && touchData.type === 'joystick') {
+                    const touchX = (touch.clientX - rect.left) * (canvas.width / rect.width);
+                    const touchY = (touch.clientY - rect.top) * (canvas.height / rect.height);
+                    
+                    const dx = touchX - window.joystick.x;
+                    const dy = touchY - window.joystick.y;
+                    window.joystickDelta = { x: dx, y: dy };
+                    updateMobileMovement();
+                }
+            }
+        }
+        
+        function handleTouchEnd(e) {
+            if (!mobileMode) return;
+            
+            for (let i = 0; i < e.changedTouches.length; i++) {
+                const touch = e.changedTouches[i];
+                const touchData = activeTouches[touch.identifier];
+                
+                if (touchData && touchData.type === 'joystick') {
+                    window.joystickActive = false;
+                    window.joystickDelta = null;
+                    // Stop movement
+                    keys['w'] = false;
+                    keys['a'] = false;
+                    keys['s'] = false;
+                    keys['d'] = false;
+                }
+                
+                delete activeTouches[touch.identifier];
+            }
+        }
+        
+        function updateMobileMovement() {
+            if (!window.joystickDelta) return;
+            
+            const maxDist = 30;
+            const dx = Math.max(-maxDist, Math.min(maxDist, window.joystickDelta.x));
+            const dy = Math.max(-maxDist, Math.min(maxDist, window.joystickDelta.y));
+            
+            // Convert to WASD keys
+            keys['w'] = dy < -10;
+            keys['s'] = dy > 10;
+            keys['a'] = dx < -10;
+            keys['d'] = dx > 10;
+        }
+        
+        // Add touch listeners
+        canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
+        canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
+        canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
+        canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false });
+        
         // Mouse events
         canvas.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
@@ -7752,6 +7983,18 @@
             const rect = canvas.getBoundingClientRect();
             const clickX = (e.clientX - rect.left) * (canvas.width / rect.width);
             const clickY = (e.clientY - rect.top) * (canvas.height / rect.height);
+            
+            // Check for settings button on title screen
+            if (screen === 'title' && window.settingsButton) {
+                const btn = window.settingsButton;
+                if (clickX >= btn.x && clickX <= btn.x + btn.width &&
+                    clickY >= btn.y && clickY <= btn.y + btn.height) {
+                    screen = 'settings';
+                    currentMenu = settingsOptions;
+                    selectedOption = 0;
+                    return;
+                }
+            }
             
             // Check for menu button click in game screen
             if (screen === 'game' && window.menuButton) {
