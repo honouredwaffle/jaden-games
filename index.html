@@ -118,6 +118,7 @@
         
         // Update blog entries
         const updateBlog = [
+            { date: '2026-04-17', title: 'Domain Visual Effects Overhaul', content: 'Added improved visual effects to Malevolent Shrine: pulsing crimson slash waves that expand outward, red mist particles floating throughout domain, cursed energy sparks falling like embers, enhanced cleave/dismantle slashes with glow effects. Black-crimson-purple oppressive atmosphere.' },
             { date: '2026-04-17', title: 'Anime-Accurate Malevolent Shrine', content: 'Completely redesigned shrine to match anime reference: Japanese pagoda-style roof with curved eaves, two large curved horns on top, single central mouth with teeth, red pillars with glowing eyes, skull mound base, dark interior with red glow.' },
             { date: '2026-04-17', title: 'Shrine Orientation Fix', content: 'Fixed slanted shrine issue. Shrine now stands upright regardless of player facing direction. Removed rotation dependency on player angle.' },
             { date: '2026-04-17', title: 'Shrine Visual Overhaul', content: 'Fixed upside-down shrine orientation. Completely redesigned shrine with improved visuals: detailed skulls with proper anatomy, tapered pillar with decorative lines, pointed teeth on mouths, crown ornament with horns and glowing red gem, gradient shading throughout, stronger glow effects.' },
@@ -363,6 +364,9 @@
                 pulse: 0
             },
             slices: [], // Visual slice effects
+            slashWaves: [], // Pulsing crimson slash waves
+            redMist: [], // Red mist particles
+            cursedSparks: [], // Cursed energy sparks
             damageTimer: 0, // For continuous damage
             sureHitTargets: [], // Enemies being hit
             domainText: {
@@ -5323,6 +5327,21 @@
                     spawnSliceEffect();
                 }
                 
+                // Spawn pulsing crimson slash waves
+                if (Math.random() < 0.15) {
+                    spawnSlashWave();
+                }
+                
+                // Spawn red mist particles
+                if (Math.random() < 0.4) {
+                    spawnRedMist();
+                }
+                
+                // Spawn cursed sparks
+                if (Math.random() < 0.25) {
+                    spawnCursedSpark();
+                }
+                
                 // Update slices
                 for (let i = sukunaDomain.slices.length - 1; i >= 0; i--) {
                     const slice = sukunaDomain.slices[i];
@@ -5331,6 +5350,40 @@
                     slice.y += slice.vy;
                     if (slice.life <= 0) {
                         sukunaDomain.slices.splice(i, 1);
+                    }
+                }
+                
+                // Update slash waves (expand and fade)
+                for (let i = sukunaDomain.slashWaves.length - 1; i >= 0; i--) {
+                    const wave = sukunaDomain.slashWaves[i];
+                    wave.radius += wave.expansionRate;
+                    wave.life--;
+                    wave.opacity = wave.life / wave.maxLife;
+                    if (wave.life <= 0) {
+                        sukunaDomain.slashWaves.splice(i, 1);
+                    }
+                }
+                
+                // Update red mist (float upward and fade)
+                for (let i = sukunaDomain.redMist.length - 1; i >= 0; i--) {
+                    const mist = sukunaDomain.redMist[i];
+                    mist.y += mist.vy;
+                    mist.x += Math.sin(mist.life * 0.1) * 0.5;
+                    mist.life--;
+                    if (mist.life <= 0) {
+                        sukunaDomain.redMist.splice(i, 1);
+                    }
+                }
+                
+                // Update cursed sparks (fall and fade)
+                for (let i = sukunaDomain.cursedSparks.length - 1; i >= 0; i--) {
+                    const spark = sukunaDomain.cursedSparks[i];
+                    spark.x += spark.vx;
+                    spark.y += spark.vy;
+                    spark.vy += 0.1; // gravity
+                    spark.life--;
+                    if (spark.life <= 0) {
+                        sukunaDomain.cursedSparks.splice(i, 1);
                     }
                 }
                 
@@ -5421,6 +5474,55 @@
             });
         }
         
+        function spawnSlashWave() {
+            // Pulsing crimson slash wave that expands from shrine
+            sukunaDomain.slashWaves.push({
+                x: sukunaDomain.centerX,
+                y: sukunaDomain.centerY,
+                radius: 20 + Math.random() * 30,
+                maxRadius: sukunaDomain.maxRadius * (0.3 + Math.random() * 0.5),
+                expansionRate: 8 + Math.random() * 6,
+                life: 40 + Math.random() * 20,
+                maxLife: 40 + Math.random() * 20,
+                opacity: 1,
+                color: Math.random() > 0.5 ? '#ff0000' : '#cc0000'
+            });
+        }
+        
+        function spawnRedMist() {
+            // Red mist particles that float upward
+            const angle = Math.random() * Math.PI * 2;
+            const dist = Math.random() * sukunaDomain.maxRadius * 0.9;
+            
+            sukunaDomain.redMist.push({
+                x: sukunaDomain.centerX + Math.cos(angle) * dist,
+                y: sukunaDomain.centerY + Math.sin(angle) * dist,
+                vx: (Math.random() - 0.5) * 0.5,
+                vy: -0.5 - Math.random() * 1, // Float upward
+                size: 5 + Math.random() * 15,
+                life: 60 + Math.random() * 40,
+                maxLife: 60 + Math.random() * 40,
+                opacity: 0.3 + Math.random() * 0.4
+            });
+        }
+        
+        function spawnCursedSpark() {
+            // Cursed energy sparks that fall like embers
+            const angle = Math.random() * Math.PI * 2;
+            const dist = Math.random() * sukunaDomain.maxRadius * 0.8;
+            
+            sukunaDomain.cursedSparks.push({
+                x: sukunaDomain.centerX + Math.cos(angle) * dist,
+                y: sukunaDomain.centerY + Math.sin(angle) * dist - 50, // Start slightly above
+                vx: (Math.random() - 0.5) * 2,
+                vy: -1 - Math.random() * 2, // Initial upward velocity
+                size: 2 + Math.random() * 4,
+                life: 30 + Math.random() * 30,
+                maxLife: 30 + Math.random() * 30,
+                color: Math.random() > 0.5 ? '#ff4400' : '#ff6600'
+            });
+        }
+        
         function drawSukunaDomain() {
             if (!sukunaDomain.active) return;
             
@@ -5437,6 +5539,81 @@
             ctx.stroke();
             ctx.setLineDash([]);
             
+            // Draw pulsing crimson slash waves
+            for (const wave of sukunaDomain.slashWaves) {
+                const wx = wave.x - camera.x;
+                const wy = wave.y - camera.y;
+                
+                ctx.save();
+                ctx.strokeStyle = wave.color;
+                ctx.globalAlpha = wave.opacity * 0.6;
+                ctx.lineWidth = 3;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = wave.color;
+                
+                // Draw expanding circle
+                ctx.beginPath();
+                ctx.arc(wx, wy, wave.radius, 0, Math.PI * 2);
+                ctx.stroke();
+                
+                // Inner glow
+                ctx.globalAlpha = wave.opacity * 0.2;
+                ctx.fillStyle = wave.color;
+                ctx.beginPath();
+                ctx.arc(wx, wy, wave.radius * 0.9, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
+            }
+            
+            // Draw red mist particles
+            for (const mist of sukunaDomain.redMist) {
+                const mx = mist.x - camera.x;
+                const my = mist.y - camera.y;
+                
+                ctx.save();
+                const mistAlpha = (mist.life / mist.maxLife) * mist.opacity;
+                ctx.globalAlpha = mistAlpha;
+                ctx.fillStyle = '#8b0000';
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = 'rgba(139, 0, 0, 0.5)';
+                
+                // Draw mist blob
+                ctx.beginPath();
+                ctx.arc(mx, my, mist.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
+            }
+            
+            // Draw cursed sparks
+            for (const spark of sukunaDomain.cursedSparks) {
+                const sx = spark.x - camera.x;
+                const sy = spark.y - camera.y;
+                
+                ctx.save();
+                const sparkAlpha = spark.life / spark.maxLife;
+                ctx.globalAlpha = sparkAlpha;
+                ctx.fillStyle = spark.color;
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = spark.color;
+                
+                // Draw spark
+                ctx.beginPath();
+                ctx.arc(sx, sy, spark.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Spark trail
+                ctx.strokeStyle = spark.color;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(sx, sy);
+                ctx.lineTo(sx - spark.vx * 3, sy - spark.vy * 3);
+                ctx.stroke();
+                
+                ctx.restore();
+            }
+            
             // Draw slice effects
             for (const slice of sukunaDomain.slices) {
                 const sx = slice.x - camera.x;
@@ -5447,17 +5624,21 @@
                 ctx.rotate(slice.angle);
                 
                 if (slice.type === 'cleave') {
-                    // Cleave - curved slash
+                    // Cleave - curved slash with glow
                     ctx.strokeStyle = `rgba(255, 50, 50, ${slice.life / 15})`;
                     ctx.lineWidth = 3;
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = 'rgba(255, 0, 0, 0.8)';
                     ctx.beginPath();
                     ctx.moveTo(-slice.length / 2, 0);
                     ctx.quadraticCurveTo(0, -10, slice.length / 2, 0);
                     ctx.stroke();
                 } else {
-                    // Dismantle - straight slash
+                    // Dismantle - straight slash with glow
                     ctx.strokeStyle = `rgba(200, 0, 0, ${slice.life / 15})`;
                     ctx.lineWidth = 2;
+                    ctx.shadowBlur = 8;
+                    ctx.shadowColor = 'rgba(200, 0, 0, 0.6)';
                     ctx.beginPath();
                     ctx.moveTo(-slice.length / 2, 0);
                     ctx.lineTo(slice.length / 2, 0);
