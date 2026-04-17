@@ -8452,28 +8452,28 @@
             const btnStartX = canvas.width - 70;
             const btnStartY = canvas.height - 180;
             
-            // Ability 1 (Punch/M1) - top right
+            // M1 (Basic Attack/Punch) - top right
             drawMobileButton(btnStartX, btnStartY, btnSize, 'M1', '#e94560');
             
-            // Ability 2 (Blue/Fuga) - top left
+            // Ability 1 (Dismantle/Blue) - top left
             drawMobileButton(btnStartX - btnSpacing, btnStartY, btnSize, '1', '#00aaff');
             
-            // Ability 3 (Red) - bottom right
+            // Ability 2 (Cleave/Red) - bottom right
             drawMobileButton(btnStartX, btnStartY + btnSpacing, btnSize, '2', '#ff4444');
             
-            // Ability 4 (Purple/Domain) - bottom left
+            // Ability 3 (Fuga/Purple) - bottom left
             drawMobileButton(btnStartX - btnSpacing, btnStartY + btnSpacing, btnSize, '3', '#aa00ff');
             
-            // Ability 5 (4th ability) - extra button below
+            // Ability 4 (Domain) - extra button below
             drawMobileButton(btnStartX - btnSpacing/2, btnStartY + btnSpacing * 1.8, btnSize * 0.9, '4', '#ff8800');
             
             // Store button positions
             window.mobileButtons = [
-                { x: btnStartX - btnSize/2, y: btnStartY - btnSize/2, width: btnSize, height: btnSize, ability: 0 },
-                { x: btnStartX - btnSpacing - btnSize/2, y: btnStartY - btnSize/2, width: btnSize, height: btnSize, ability: 1 },
-                { x: btnStartX - btnSize/2, y: btnStartY + btnSpacing - btnSize/2, width: btnSize, height: btnSize, ability: 2 },
-                { x: btnStartX - btnSpacing - btnSize/2, y: btnStartY + btnSpacing - btnSize/2, width: btnSize, height: btnSize, ability: 3 },
-                { x: btnStartX - btnSpacing/2 - btnSize*0.45, y: btnStartY + btnSpacing * 1.8 - btnSize*0.45, width: btnSize * 0.9, height: btnSize * 0.9, ability: 4 }
+                { x: btnStartX - btnSize/2, y: btnStartY - btnSize/2, width: btnSize, height: btnSize, ability: 'm1' },
+                { x: btnStartX - btnSpacing - btnSize/2, y: btnStartY - btnSize/2, width: btnSize, height: btnSize, ability: 0 },
+                { x: btnStartX - btnSize/2, y: btnStartY + btnSpacing - btnSize/2, width: btnSize, height: btnSize, ability: 1 },
+                { x: btnStartX - btnSpacing - btnSize/2, y: btnStartY + btnSpacing - btnSize/2, width: btnSize, height: btnSize, ability: 2 },
+                { x: btnStartX - btnSpacing/2 - btnSize*0.45, y: btnStartY + btnSpacing * 1.8 - btnSize*0.45, width: btnSize * 0.9, height: btnSize * 0.9, ability: 3 }
             ];
         }
 
@@ -8912,7 +8912,12 @@
                         if (touchX >= btn.x && touchX <= btn.x + btn.width &&
                             touchY >= btn.y && touchY <= btn.y + btn.height) {
                             activeTouches[touch.identifier] = { type: 'button', ability: btn.ability };
-                            useAbility(btn.ability);
+                            // Handle M1 (basic attack) separately from abilities
+                            if (btn.ability === 'm1') {
+                                useM1();
+                            } else {
+                                useAbility(btn.ability);
+                            }
                             break;
                         }
                     }
