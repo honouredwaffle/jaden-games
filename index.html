@@ -136,6 +136,8 @@
         let selectedCharacter = 'GOJO';
         let gameMode = 'STORY';
         let testingMode = false;
+        let selectedModeIndex = 1; // Default to OPEN WORLD (index 1)
+        let selectedCharacterIndex = 0; // Default to GOJO (index 0)
         
         // Player
         const player = {
@@ -1128,11 +1130,15 @@
             window.settingsButton = { x: settingsX, y: settingsY, width: settingsBtnSize, height: settingsBtnSize };
         }
 
-        function drawButton(text, x, y, width, height, isHovered, isSelected) {
+        function drawButton(text, x, y, width, height, isHovered, isSelected, isModeSelected = false) {
             const hover = isHovered || isSelected;
             
             // Simple button background
-            if (hover) {
+            if (isModeSelected) {
+                // Selected mode gets a distinct color
+                ctx.fillStyle = 'rgba(0, 200, 100, 0.25)';
+                ctx.fillRect(x - width/2, y - height/2, width, height);
+            } else if (hover) {
                 ctx.fillStyle = 'rgba(233, 69, 96, 0.3)';
                 ctx.fillRect(x - width/2, y - height/2, width, height);
             } else {
@@ -1141,16 +1147,28 @@
             }
             
             // Simple border
-            ctx.strokeStyle = hover ? '#e94560' : 'rgba(255, 255, 255, 0.3)';
-            ctx.lineWidth = hover ? 2 : 1;
+            if (isModeSelected) {
+                ctx.strokeStyle = '#00c864';
+                ctx.lineWidth = 3;
+            } else {
+                ctx.strokeStyle = hover ? '#e94560' : 'rgba(255, 255, 255, 0.3)';
+                ctx.lineWidth = hover ? 2 : 1;
+            }
             ctx.strokeRect(x - width/2, y - height/2, width, height);
             
             // Text
-            ctx.fillStyle = hover ? '#fff' : 'rgba(255, 255, 255, 0.8)';
-            ctx.font = hover ? 'bold 22px "Segoe UI", sans-serif' : '20px "Segoe UI", sans-serif';
+            ctx.fillStyle = hover || isModeSelected ? '#fff' : 'rgba(255, 255, 255, 0.8)';
+            ctx.font = hover || isModeSelected ? 'bold 22px "Segoe UI", sans-serif' : '20px "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(text, x, y);
+            
+            // Selected indicator (checkmark)
+            if (isModeSelected) {
+                ctx.fillStyle = '#00c864';
+                ctx.font = 'bold 18px "Segoe UI", sans-serif';
+                ctx.fillText('✓', x - width/2 + 20, y);
+            }
             
             // Return clickable rect
             return { x: x - width/2, y: y - height/2, width, height, text };
@@ -1182,7 +1200,13 @@
                 
                 if (isHovered) selectedOption = i;
                 
-                const rect = drawButton(option, canvas.width / 2, y, buttonWidth, buttonHeight, isHovered, i === selectedOption);
+                // Check if this option is selected (for modes screen)
+                let isSelected = false;
+                if (screen === 'modes' && i < 3) { // Only for mode options, not BACK
+                    isSelected = (i === selectedModeIndex);
+                }
+                
+                const rect = drawButton(option, canvas.width / 2, y, buttonWidth, buttonHeight, isHovered, i === selectedOption, isSelected);
                 menuItemRects.push(rect);
             });
             
@@ -1224,11 +1248,17 @@
                                   mouseY < y + cardHeight/2;
                 
                 if (isHovered) selectedOption = i;
-                const isSelected = i === selectedOption;
+                const isHighlighted = i === selectedOption;
+                const isCharSelected = i === selectedCharacterIndex;
                 
                 // Card background
                 ctx.save();
-                if (isSelected || isHovered) {
+                if (isCharSelected) {
+                    // Selected character gets green glow
+                    ctx.shadowColor = '#00c864';
+                    ctx.shadowBlur = 30;
+                    ctx.fillStyle = 'rgba(0, 200, 100, 0.15)';
+                } else if (isHighlighted || isHovered) {
                     ctx.shadowColor = data.color;
                     ctx.shadowBlur = 25;
                     ctx.fillStyle = 'rgba(0,0,0,0.5)';
@@ -1239,9 +1269,22 @@
                 ctx.restore();
                 
                 // Border
-                ctx.strokeStyle = isSelected || isHovered ? data.color : 'rgba(255,255,255,0.2)';
-                ctx.lineWidth = isSelected ? 3 : 2;
+                if (isCharSelected) {
+                    ctx.strokeStyle = '#00c864';
+                    ctx.lineWidth = 4;
+                } else {
+                    ctx.strokeStyle = isHighlighted || isHovered ? data.color : 'rgba(255,255,255,0.2)';
+                    ctx.lineWidth = isHighlighted ? 3 : 2;
+                }
                 ctx.strokeRect(x - cardWidth/2, y - cardHeight/2, cardWidth, cardHeight);
+                
+                // Selected indicator (checkmark)
+                if (isCharSelected) {
+                    ctx.fillStyle = '#00c864';
+                    ctx.font = 'bold 24px "Segoe UI", sans-serif';
+                    ctx.textAlign = 'left';
+                    ctx.fillText('✓ SELECTED', x - cardWidth/2 + 10, y - cardHeight/2 + 25);
+                }
                 
                 // Character circle
                 ctx.fillStyle = data.color;
@@ -1262,7 +1305,7 @@
                 
                 // Name
                 ctx.fillStyle = '#fff';
-                ctx.font = isSelected ? 'bold 26px "Segoe UI", sans-serif' : '22px "Segoe UI", sans-serif';
+                ctx.font = isCharSelected ? 'bold 28px "Segoe UI", sans-serif' : (isHighlighted ? 'bold 26px "Segoe UI", sans-serif' : '22px "Segoe UI", sans-serif');
                 ctx.textAlign = 'center';
                 ctx.fillText(char, x, y + 40);
                 
@@ -8816,6 +8859,20 @@
                     player.y = 0;
                     camera.x = 0;
                     camera.y = 0;
+                    // Setup game based on selected mode
+                    if (testingMode) {
+                        // Clear disaster curse and notification
+                        activeDisasterCurse = null;
+                        disasterNotification = null;
+                        disasterNotifTimer = 0;
+                        spawnTestingSpirits();
+                        showNotif('TESTING MODE - Practice on stationary targets!');
+                    } else {
+                        cursedSpirits.length = 0;
+                        if (gameMode === 'OPEN_WORLD') {
+                            generateCursedSpirits();
+                        }
+                    }
                     screen = 'game';
                 } else if (option === 'MODES') {
                     screen = 'modes';
@@ -8864,29 +8921,11 @@
                     screen = 'title';
                     currentMenu = titleOptions;
                     selectedOption = 0;
-                } else if (option === 'TESTING MODE') {
-                    testingMode = true;
-                    gameMode = 'OPEN_WORLD';
-                    // Reset player position
-                    player.x = 0;
-                    player.y = 0;
-                    // Clear disaster curse and notification
-                    activeDisasterCurse = null;
-                    disasterNotification = null;
-                    disasterNotifTimer = 0;
-                    // Spawn testing spirits
-                    spawnTestingSpirits();
-                    screen = 'game';
-                    showNotif('TESTING MODE - Practice on stationary targets!');
                 } else {
-                    testingMode = false;
-                    gameMode = option === 'OPEN WORLD' ? 'OPEN_WORLD' : 'STORY';
-                    // Clear testing spirits and spawn normal open world spirits
-                    cursedSpirits.length = 0;
-                    // Reset player position
-                    player.x = 0;
-                    player.y = 0;
-                    screen = 'game';
+                    // Just select the mode, don't start the game
+                    selectedModeIndex = selectedOption;
+                    testingMode = (option === 'TESTING MODE');
+                    gameMode = option === 'STORY MODE' ? 'STORY' : 'OPEN_WORLD';
                 }
             } else if (screen === 'character') {
                 if (option === 'BACK') {
@@ -8894,12 +8933,11 @@
                     currentMenu = titleOptions;
                     selectedOption = 0;
                 } else {
+                    // Just select the character, don't return to title
+                    selectedCharacterIndex = selectedOption;
                     selectedCharacter = option;
                     // Update abilities based on selected character
                     abilities = CHARACTER_ABILITIES[selectedCharacter] || CHARACTER_ABILITIES['GOJO'];
-                    screen = 'title';
-                    currentMenu = titleOptions;
-                    selectedOption = 0;
                 }
             } else if (screen === 'customisation') {
                 if (option === 'BACK') {
