@@ -116,18 +116,18 @@
         
         let mobileMode = false;
         
-        // Update log entries - formatted with descriptive titles
+        // Update log entries - formatted with category headers and sub-bullets
         const updateBlog = [
-            { date: '2026-04-18', title: 'Update Log Format Overhaul', content: '• Changed: All update logs reformatted with descriptive titles\n• Changed: Content now uses bullet points with categories (Added, Fixed, Visuals, etc.)\n• Removed: Generic "Major Update" style titles\n• Added: Clear categorization for better readability' },
-            { date: '2026-04-18', title: 'Enhanced Dismantle & Cleave Slash Effects', content: '• Added: Multi-layer slash glows (outer red, middle orange, bright white core)\n• Added: Spark particles along slash paths\n• Added: Cross-pattern slashes for extra impact\n• Added: Screen shake during Dismantle and Cleave abilities\n• Added: Red flash effect on ability activation\n• Visuals: Slashes now expand slightly as they fade\n• Visuals: Longer slash duration for better visibility' },
-            { date: '2026-04-18', title: 'Minimap Redesign - Overlapping Biome Zones', content: '• Fixed: Biome circles now overlap to eliminate black gaps\n• Fixed: Player position correctly corresponds to actual biome location\n• Visuals: Larger biome radius (55% of map) for seamless coverage\n• Visuals: Forest center expanded to 45% of map radius' },
+            { date: '2026-04-18', title: 'Update Log Format Overhaul', content: '• Changed:\n  ◦ All update logs reformatted with descriptive titles\n  ◦ Content now uses bullet points with categories (Added, Fixed, Visuals, etc.)\n  ◦ Clear categorization for better readability\n• Removed: Generic "Major Update" style titles' },
+            { date: '2026-04-18', title: 'Enhanced Dismantle & Cleave Slash Effects', content: '• Added:\n  ◦ Multi-layer slash glows (outer red, middle orange, bright white core)\n  ◦ Spark particles along slash paths\n  ◦ Cross-pattern slashes for extra impact\n  ◦ Screen shake during Dismantle and Cleave abilities\n  ◦ Red flash effect on ability activation\n• Visuals:\n  ◦ Slashes now expand slightly as they fade\n  ◦ Longer slash duration for better visibility' },
+            { date: '2026-04-18', title: 'Minimap Redesign - Overlapping Biome Zones', content: '• Fixed:\n  ◦ Biome circles now overlap to eliminate black gaps\n  ◦ Player position correctly corresponds to actual biome location\n• Visuals:\n  ◦ Larger biome radius (55% of map) for seamless coverage\n  ◦ Forest center expanded to 45% of map radius' },
             { date: '2026-04-18', title: 'Game Mode Renamed to Free Roam', content: '• Changed: "Open World" renamed to "Free Roam"\n• Fixed: Default game mode now correctly set to Free Roam' },
-            { date: '2026-04-17', title: 'Mobile Optimizations & UI Improvements', content: '• Mobile: Simplified spirit rendering (colored circles instead of complex designs)\n• Mobile: Reduced particle effects for better performance\n• Mobile: Optimized domain visuals (fewer slices, no slash waves)\n• Mobile: Control buttons remapped (M1 punch, 1-4 abilities)\n• Mobile: Added auto-aim based on joystick direction\n• UI: Mode/Character selection system - select then press PLAY\n• UI: Story Mode shows "Coming Soon" screen\n• UI: Renamed Update Blog to Update Log\n• Fixed: Fuga "Click to fire" only shows at 100% charge' },
-            { date: '2026-04-17', title: 'Bug Fixes - Domain & Boss Systems', content: '• Fixed: Malevolent Shrine now properly kills disaster curses\n• Fixed: Testing mode clears boss UI (notification and health bar)\n• Fixed: Infinite Void freezes all enemy projectiles\n• Fixed: Disaster curses only aggro near boss structures (600px range)\n• Fixed: Default game mode is now Free Roam' },
-            { date: '2026-04-17', title: 'Sukuna Domain Expansion - Malevolent Shrine', content: '• Added: Barrierless domain expansion for Sukuna character\n• Visuals: Shrine manifests behind player with 4 mouths (cardinal directions)\n• Visuals: 8 skulls around base with glowing red eyes\n• Visuals: Pulsing crimson slash waves expanding outward\n• Visuals: Red mist particles floating throughout domain\n• Visuals: Cursed energy sparks falling like embers\n• Visuals: Domain text "伏魔御廚子" / "MALEVOLENT SHRINE"\n• Mechanics: 200m sure-hit radius (no barrier)\n• Mechanics: Continuous cleave/dismantle damage (25 per tick, 6 ticks/sec)\n• Mechanics: Domain follows player movement\n• Mechanics: 30 second duration\n• Activation: Press 4 or click DOMAIN ability (80 CE cost)' },
-            { date: '2026-04-17', title: 'FUGA Fire Arrow Ability', content: '• Added: Complete fire arrow ability with charging mechanic\n• Visuals: Fire circle with segmented rings and orbiting orbs\n• Visuals: Gradual flame arrow formation during charge\n• Visuals: Massive explosion with shockwaves and debris on impact\n• Mechanics: Charging system (hold to charge, release to fire)\n• Mechanics: 50% minimum charge to fire\n• Mechanics: 100% charge for maximum damage\n• Damage: Up to 1000 damage on direct hit' },
-            { date: '2026-04-17', title: 'Character Selection System', content: '• Added: Character selection menu (Gojo, Sukuna, Yuki)\n• Added: Mode selection menu (Story, Free Roam, Testing)\n• UI: Green highlight indicators for selected options\n• UI: Checkmarks showing current selection\n• Fixed: Testing mode properly clears spirits when switching modes' },
-            { date: '2026-04-16', title: 'Initial Release - JJK Game', content: '• Added: Playable characters (Gojo, Sukuna)\n• Added: Multiple biomes (Snow, Forest, Volcano, City, Sand)\n• Added: Cursed spirits with different types and behaviors\n• Added: Basic combat system (punch, abilities)\n• Added: CE (Cursed Energy) system\n• Added: Minimap and UI elements' }
+            { date: '2026-04-17', title: 'Mobile Optimizations & UI Improvements', content: '• Mobile:\n  ◦ Simplified spirit rendering (colored circles instead of complex designs)\n  ◦ Reduced particle effects for better performance\n  ◦ Optimized domain visuals (fewer slices, no slash waves)\n  ◦ Control buttons remapped (M1 punch, 1-4 abilities)\n  ◦ Added auto-aim based on joystick direction\n• UI:\n  ◦ Mode/Character selection system - select then press PLAY\n  ◦ Story Mode shows "Coming Soon" screen\n  ◦ Renamed Update Blog to Update Log\n• Fixed: Fuga "Click to fire" only shows at 100% charge' },
+            { date: '2026-04-17', title: 'Bug Fixes - Domain & Boss Systems', content: '• Fixed:\n  ◦ Malevolent Shrine now properly kills disaster curses\n  ◦ Testing mode clears boss UI (notification and health bar)\n  ◦ Infinite Void freezes all enemy projectiles\n  ◦ Disaster curses only aggro near boss structures (600px range)\n  ◦ Default game mode is now Free Roam' },
+            { date: '2026-04-17', title: 'Sukuna Domain Expansion - Malevolent Shrine', content: '• Added: Barrierless domain expansion for Sukuna character\n• Visuals:\n  ◦ Shrine manifests behind player with 4 mouths (cardinal directions)\n  ◦ 8 skulls around base with glowing red eyes\n  ◦ Pulsing crimson slash waves expanding outward\n  ◦ Red mist particles floating throughout domain\n  ◦ Cursed energy sparks falling like embers\n  ◦ Domain text "伏魔御廚子" / "MALEVOLENT SHRINE"\n• Mechanics:\n  ◦ 200m sure-hit radius (no barrier)\n  ◦ Continuous cleave/dismantle damage (25 per tick, 6 ticks/sec)\n  ◦ Domain follows player movement\n  ◦ 30 second duration\n• Activation: Press 4 or click DOMAIN ability (80 CE cost)' },
+            { date: '2026-04-17', title: 'FUGA Fire Arrow Ability', content: '• Added: Complete fire arrow ability with charging mechanic\n• Visuals:\n  ◦ Fire circle with segmented rings and orbiting orbs\n  ◦ Gradual flame arrow formation during charge\n  ◦ Massive explosion with shockwaves and debris on impact\n• Mechanics:\n  ◦ Charging system (hold to charge, release to fire)\n  ◦ 50% minimum charge to fire\n  ◦ 100% charge for maximum damage\n• Damage: Up to 1000 damage on direct hit' },
+            { date: '2026-04-17', title: 'Character Selection System', content: '• Added:\n  ◦ Character selection menu (Gojo, Sukuna, Yuki)\n  ◦ Mode selection menu (Story, Free Roam, Testing)\n• UI:\n  ◦ Green highlight indicators for selected options\n  ◦ Checkmarks showing current selection\n• Fixed: Testing mode properly clears spirits when switching modes' },
+            { date: '2026-04-16', title: 'Initial Release - JJK Game', content: '• Added:\n  ◦ Playable characters (Gojo, Sukuna)\n  ◦ Multiple biomes (Snow, Forest, Volcano, City, Sand)\n  ◦ Cursed spirits with different types and behaviors\n  ◦ Basic combat system (punch, abilities)\n  ◦ CE (Cursed Energy) system\n  ◦ Minimap and UI elements' }
         ];
         let blogSelectedEntry = -1; // -1 = list view, 0+ = entry index
         
@@ -8864,6 +8864,7 @@
                 ctx.font = '18px "Segoe UI", sans-serif';
                 let lineY = 180;
                 const lineHeight = 28;
+                const subBulletIndent = 25; // Extra indent for sub-bullets (◦)
                 
                 // Split by newlines first to preserve bullet point separation
                 const bulletLines = entry.content.split('\n');
@@ -8872,10 +8873,14 @@
                     const bulletLine = bulletLines[b].trim();
                     if (!bulletLine) continue;
                     
-                    // Check if this is a bullet point line
-                    const isBullet = bulletLine.startsWith('•');
+                    // Check bullet type
+                    const isMainBullet = bulletLine.startsWith('•');
+                    const isSubBullet = bulletLine.startsWith('◦');
                     
-                    if (isBullet) {
+                    if (isMainBullet || isSubBullet) {
+                        // Determine indentation based on bullet type
+                        const baseIndent = isSubBullet ? subBulletIndent : 0;
+                        
                         // Split long bullet points that exceed width
                         const words = bulletLine.split(' ');
                         let line = '';
@@ -8886,9 +8891,9 @@
                             const metrics = ctx.measureText(testLine);
                             
                             // Check if we need to wrap
-                            const effectiveWidth = firstLine ? contentWidth : contentWidth - 30; // Indent continuation lines
+                            const effectiveWidth = firstLine ? contentWidth - baseIndent : contentWidth - baseIndent - 20;
                             if (metrics.width > effectiveWidth && w > 0) {
-                                const drawX = firstLine ? marginX : marginX + 30;
+                                const drawX = marginX + baseIndent + (firstLine ? 0 : 20);
                                 ctx.fillText(line.trim(), drawX, lineY);
                                 line = words[w] + ' ';
                                 lineY += lineHeight;
@@ -8898,7 +8903,7 @@
                             }
                         }
                         // Draw the last part of the bullet
-                        const drawX = firstLine ? marginX : marginX + 30;
+                        const drawX = marginX + baseIndent + (firstLine ? 0 : 20);
                         ctx.fillText(line.trim(), drawX, lineY);
                         lineY += lineHeight;
                     } else {
@@ -8921,9 +8926,12 @@
                         lineY += lineHeight;
                     }
                     
-                    // Add extra spacing between bullet points
-                    if (isBullet && b < bulletLines.length - 1) {
-                        lineY += 8;
+                    // Add extra spacing after main bullet points (before next category)
+                    if (isMainBullet && b < bulletLines.length - 1) {
+                        const nextLine = bulletLines[b + 1].trim();
+                        if (nextLine.startsWith('•')) {
+                            lineY += 12; // Extra space between categories
+                        }
                     }
                 }
                 
