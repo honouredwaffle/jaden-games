@@ -1031,28 +1031,31 @@
                 ctx.fill();
             }
             
-            // Main title
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 80px "Segoe UI", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('PROJECT', canvas.width / 2, 100);
-            ctx.fillStyle = '#e94560';
-            ctx.font = 'bold 100px "Segoe UI", sans-serif';
-            ctx.fillText('KAISEN', canvas.width / 2, 190);
+            // Only draw title elements if we're on the main title screen
+            if (screen === 'title' && currentMenu === titleOptions) {
+                // Main title
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 80px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('PROJECT', canvas.width / 2, 100);
+                ctx.fillStyle = '#e94560';
+                ctx.font = 'bold 100px "Segoe UI", sans-serif';
+                ctx.fillText('KAISEN', canvas.width / 2, 190);
 
-            // Subtitle
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-            ctx.font = 'italic 20px "Segoe UI", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('Jujutsu Kaisen Fan Game', canvas.width / 2, 240);
+                // Subtitle
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+                ctx.font = 'italic 20px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('Jujutsu Kaisen Fan Game', canvas.width / 2, 240);
 
-            // Simple line
-            ctx.strokeStyle = '#e94560';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.moveTo(canvas.width / 2 - 150, 260);
-            ctx.lineTo(canvas.width / 2 + 150, 260);
-            ctx.stroke();
+                // Simple line
+                ctx.strokeStyle = '#e94560';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.moveTo(canvas.width / 2 - 150, 260);
+                ctx.lineTo(canvas.width / 2 + 150, 260);
+                ctx.stroke();
+            }
             
             // Selected character display at bottom
             ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
@@ -7436,30 +7439,34 @@
             // Store joystick position
             window.joystick = { x: joystickX, y: joystickY, radius: joystickRadius };
             
-            // Ability buttons on right side
-            const btnSize = 50;
-            const btnSpacing = 60;
-            const btnStartX = canvas.width - 80;
-            const btnStartY = canvas.height - 200;
+            // Ability buttons on right side - 2x2 grid
+            const btnSize = 55;
+            const btnSpacing = 65;
+            const btnStartX = canvas.width - 70;
+            const btnStartY = canvas.height - 180;
             
-            // Ability 1 (Punch/M1)
+            // Ability 1 (Punch/M1) - top right
             drawMobileButton(btnStartX, btnStartY, btnSize, 'M1', '#e94560');
             
-            // Ability 2 (Blue)
-            drawMobileButton(btnStartX - btnSpacing, btnStartY + 40, btnSize, '1', '#00aaff');
+            // Ability 2 (Blue/Fuga) - top left
+            drawMobileButton(btnStartX - btnSpacing, btnStartY, btnSize, '1', '#00aaff');
             
-            // Ability 3 (Red/Fuga)
+            // Ability 3 (Red) - bottom right
             drawMobileButton(btnStartX, btnStartY + btnSpacing, btnSize, '2', '#ff4444');
             
-            // Ability 4 (Purple/Domain)
-            drawMobileButton(btnStartX - btnSpacing, btnStartY + btnSpacing + 40, btnSize, '3', '#aa00ff');
+            // Ability 4 (Purple/Domain) - bottom left
+            drawMobileButton(btnStartX - btnSpacing, btnStartY + btnSpacing, btnSize, '3', '#aa00ff');
+            
+            // Ability 5 (4th ability) - extra button below
+            drawMobileButton(btnStartX - btnSpacing/2, btnStartY + btnSpacing * 1.8, btnSize * 0.9, '4', '#ff8800');
             
             // Store button positions
             window.mobileButtons = [
                 { x: btnStartX - btnSize/2, y: btnStartY - btnSize/2, width: btnSize, height: btnSize, ability: 0 },
-                { x: btnStartX - btnSpacing - btnSize/2, y: btnStartY + 40 - btnSize/2, width: btnSize, height: btnSize, ability: 1 },
+                { x: btnStartX - btnSpacing - btnSize/2, y: btnStartY - btnSize/2, width: btnSize, height: btnSize, ability: 1 },
                 { x: btnStartX - btnSize/2, y: btnStartY + btnSpacing - btnSize/2, width: btnSize, height: btnSize, ability: 2 },
-                { x: btnStartX - btnSpacing - btnSize/2, y: btnStartY + btnSpacing + 40 - btnSize/2, width: btnSize, height: btnSize, ability: 3 }
+                { x: btnStartX - btnSpacing - btnSize/2, y: btnStartY + btnSpacing - btnSize/2, width: btnSize, height: btnSize, ability: 3 },
+                { x: btnStartX - btnSpacing/2 - btnSize*0.45, y: btnStartY + btnSpacing * 1.8 - btnSize*0.45, width: btnSize * 0.9, height: btnSize * 0.9, ability: 4 }
             ];
         }
 
