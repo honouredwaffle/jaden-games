@@ -118,6 +118,7 @@
         
         // Update blog entries
         const updateBlog = [
+            { date: '2026-04-17', title: 'Shrine Orientation Fix', content: 'Fixed slanted shrine issue. Shrine now stands upright regardless of player facing direction. Removed rotation dependency on player angle.' },
             { date: '2026-04-17', title: 'Shrine Visual Overhaul', content: 'Fixed upside-down shrine orientation. Completely redesigned shrine with improved visuals: detailed skulls with proper anatomy, tapered pillar with decorative lines, pointed teeth on mouths, crown ornament with horns and glowing red gem, gradient shading throughout, stronger glow effects.' },
             { date: '2026-04-17', title: 'Malevolent Shrine - Sukuna Domain', content: 'Added Sukuna\'s barrierless domain expansion! Features: 2D side-view shrine with 4 mouths and skull base, 200m sure-hit radius with continuous cleave/dismantle damage, shrine follows player movement, visual slice effects throughout domain. Testing mode respawn fixed for domain kills.' },
             { date: '2026-04-17', title: 'FUGA Ability Overhaul', content: 'Complete rework of Sukuna\'s fire arrow ability. New charging system with fire circle, gradual flame arrow formation, and explosive impact.' },
@@ -5229,8 +5230,9 @@
             sukunaDomain.centerX = player.x - Math.cos(player.facing) * shrineOffset;
             sukunaDomain.centerY = player.y - Math.sin(player.facing) * shrineOffset;
             
-            // Store shrine facing direction for consistent orientation
-            sukunaDomain.shrineFacing = player.facing;
+            // Shrine stands upright (no rotation) - always facing right (0 radians)
+            // This keeps it from appearing slanted based on player direction
+            sukunaDomain.shrineFacing = 0;
             
             sukunaDomain.damageTimer = 0;
             sukunaDomain.sureHitTargets = [];
