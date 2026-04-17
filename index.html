@@ -4404,12 +4404,12 @@
                     }
                     
                     // Animated flame trails along the arrow
-                    const time = Date.now() / 50;
+                    const flameTime = Date.now() / 50;
                     for (let f = 0; f < 12; f++) {
-                        const fx = -60 + f * 10 + Math.sin(time + f * 0.5) * 5;
-                        const fy = Math.sin(time * 2 + f * 0.8) * (6 + f * 0.5);
-                        const fsize = 4 + Math.sin(time + f) * 2 + f * 0.3;
-                        const alpha = 0.6 + Math.sin(time * 3 + f) * 0.3;
+                        const fx = -60 + f * 10 + Math.sin(flameTime + f * 0.5) * 5;
+                        const fy = Math.sin(flameTime * 2 + f * 0.8) * (6 + f * 0.5);
+                        const fsize = 4 + Math.sin(flameTime + f) * 2 + f * 0.3;
+                        const alpha = 0.6 + Math.sin(flameTime * 3 + f) * 0.3;
                         
                         ctx.fillStyle = `rgba(255, ${80 + Math.sin(f) * 60}, 0, ${alpha})`;
                         ctx.shadowColor = '#ff4400';
@@ -4444,7 +4444,7 @@
                     ctx.fill();
                     
                     // Inner shaft (glowing with pulse)
-                    ctx.fillStyle = `rgba(255, ${68 + Math.sin(time) * 30}, 0, 0.9)`;
+                    ctx.fillStyle = `rgba(255, ${68 + Math.sin(flameTime) * 30}, 0, 0.9)`;
                     ctx.beginPath();
                     ctx.moveTo(35, 0);
                     ctx.lineTo(-55, -2);
