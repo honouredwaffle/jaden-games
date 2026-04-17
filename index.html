@@ -4323,44 +4323,47 @@
                     const time = Date.now() / 100;
                     const pulse = Math.sin(time) * 0.3 + 0.7;
                     
-                    // Fire orb growing between hands
-                    const midX = (leftHandX + rightHandX) / 2;
-                    const midY = (leftHandY + rightHandY) / 2;
-                    const orbSize = 15 + chargePercent * 25 * pulse;
-                    
-                    // Outer fire orb glow
-                    const orbGradient = ctx.createRadialGradient(midX, midY, 0, midX, midY, orbSize * 2);
-                    orbGradient.addColorStop(0, `rgba(255, ${100 + chargePercent * 100}, 0, ${0.5 + chargePercent * 0.3})`);
-                    orbGradient.addColorStop(0.5, `rgba(255, 60, 0, ${0.3 + chargePercent * 0.2})`);
-                    orbGradient.addColorStop(1, 'rgba(255, 30, 0, 0)');
-                    ctx.fillStyle = orbGradient;
-                    ctx.beginPath();
-                    ctx.arc(midX, midY, orbSize * 2, 0, Math.PI * 2);
-                    ctx.fill();
-                    
-                    // Inner intense core
-                    ctx.fillStyle = `rgba(255, ${150 + chargePercent * 105}, ${chargePercent * 100}, ${0.7 + chargePercent * 0.3})`;
-                    ctx.shadowColor = '#ff4400';
-                    ctx.shadowBlur = 20 + chargePercent * 15;
-                    ctx.beginPath();
-                    ctx.arc(midX, midY, orbSize, 0, Math.PI * 2);
-                    ctx.fill();
-                    ctx.shadowBlur = 0;
-                    
-                    // Swirling flames around the orb
-                    for (let i = 0; i < 8 + chargePercent * 8; i++) {
-                        const angle = time * 2 + (i / 16) * Math.PI * 2;
-                        const dist = orbSize * 0.8 + Math.sin(time * 3 + i) * 10;
-                        const fx = midX + Math.cos(angle) * dist;
-                        const fy = midY + Math.sin(angle) * dist;
-                        const fsize = 6 + chargePercent * 8 + Math.random() * 5;
+                    // Only show fire orb when hands are close together (first 30% of charge)
+                    if (chargePercent < 0.35) {
+                        // Fire orb growing between hands
+                        const midX = (leftHandX + rightHandX) / 2;
+                        const midY = (leftHandY + rightHandY) / 2;
+                        const orbSize = 15 + chargePercent * 25 * pulse;
                         
-                        ctx.fillStyle = `rgba(255, ${60 + Math.random() * 100}, 0, ${0.6 + Math.random() * 0.4})`;
-                        ctx.shadowColor = '#ff2200';
-                        ctx.shadowBlur = 10 + chargePercent * 8;
+                        // Outer fire orb glow
+                        const orbGradient = ctx.createRadialGradient(midX, midY, 0, midX, midY, orbSize * 2);
+                        orbGradient.addColorStop(0, `rgba(255, ${100 + chargePercent * 100}, 0, ${0.5 + chargePercent * 0.3})`);
+                        orbGradient.addColorStop(0.5, `rgba(255, 60, 0, ${0.3 + chargePercent * 0.2})`);
+                        orbGradient.addColorStop(1, 'rgba(255, 30, 0, 0)');
+                        ctx.fillStyle = orbGradient;
                         ctx.beginPath();
-                        ctx.arc(fx, fy, fsize, 0, Math.PI * 2);
+                        ctx.arc(midX, midY, orbSize * 2, 0, Math.PI * 2);
                         ctx.fill();
+                        
+                        // Inner intense core
+                        ctx.fillStyle = `rgba(255, ${150 + chargePercent * 105}, ${chargePercent * 100}, ${0.7 + chargePercent * 0.3})`;
+                        ctx.shadowColor = '#ff4400';
+                        ctx.shadowBlur = 20 + chargePercent * 15;
+                        ctx.beginPath();
+                        ctx.arc(midX, midY, orbSize, 0, Math.PI * 2);
+                        ctx.fill();
+                        ctx.shadowBlur = 0;
+                        
+                        // Swirling flames around the orb
+                        for (let i = 0; i < 8 + chargePercent * 8; i++) {
+                            const angle = time * 2 + (i / 16) * Math.PI * 2;
+                            const dist = orbSize * 0.8 + Math.sin(time * 3 + i) * 10;
+                            const fx = midX + Math.cos(angle) * dist;
+                            const fy = midY + Math.sin(angle) * dist;
+                            const fsize = 6 + chargePercent * 8 + Math.random() * 5;
+                            
+                            ctx.fillStyle = `rgba(255, ${60 + Math.random() * 100}, 0, ${0.6 + Math.random() * 0.4})`;
+                            ctx.shadowColor = '#ff2200';
+                            ctx.shadowBlur = 10 + chargePercent * 8;
+                            ctx.beginPath();
+                            ctx.arc(fx, fy, fsize, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
                     }
                     
                     // Hand flames - intense fire on both hands
