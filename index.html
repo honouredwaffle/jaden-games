@@ -3628,38 +3628,102 @@
             ctx.lineTo(rightFootX, rightFootY);
             ctx.stroke();
             
-            // Arms - swing opposite to legs
+            // Arms - swing opposite to legs, or Fuga charging animation
             ctx.lineWidth = 4;
             
-            // Left arm swings with right leg
-            const leftArmSwing = isMoving ? Math.sin(time * 5 + Math.PI) * stepSize * 0.8 : 0;
-            const leftShoulderX = screenX - player.radius + 2;
-            const leftShoulderY = drawY + 3;
-            const leftElbowX = leftShoulderX + perpX * 2 + Math.cos(player.facing) * leftArmSwing;
-            const leftElbowY = leftShoulderY + 8;
-            const leftHandX = leftElbowX + Math.cos(player.facing) * leftArmSwing * 0.5;
-            const leftHandY = leftElbowY + 10;
+            let leftShoulderX, leftShoulderY, rightShoulderX, rightShoulderY;
+            let leftHandX, leftHandY, rightHandX, rightHandY;
             
-            ctx.beginPath();
-            ctx.moveTo(leftShoulderX, leftShoulderY);
-            ctx.lineTo(leftElbowX, leftElbowY);
-            ctx.lineTo(leftHandX, leftHandY);
-            ctx.stroke();
-            
-            // Right arm swings with left leg
-            const rightArmSwing = isMoving ? Math.sin(time * 5) * stepSize * 0.8 : 0;
-            const rightShoulderX = screenX + player.radius - 2;
-            const rightShoulderY = drawY + 3;
-            const rightElbowX = rightShoulderX - perpX * 2 + Math.cos(player.facing) * rightArmSwing;
-            const rightElbowY = rightShoulderY + 8;
-            const rightHandX = rightElbowX + Math.cos(player.facing) * rightArmSwing * 0.5;
-            const rightHandY = rightElbowY + 10;
-            
-            ctx.beginPath();
-            ctx.moveTo(rightShoulderX, rightShoulderY);
-            ctx.lineTo(rightElbowX, rightElbowY);
-            ctx.lineTo(rightHandX, rightHandY);
-            ctx.stroke();
+            if (fuga.charging) {
+                // FUGA CHARGING - arms clapping together in front
+                const chargePercent = fuga.chargeTime / fuga.maxChargeTime;
+                
+                // Shoulder positions (fixed)
+                leftShoulderX = screenX - player.radius + 2;
+                leftShoulderY = drawY + 3;
+                rightShoulderX = screenX + player.radius - 2;
+                rightShoulderY = drawY + 3;
+                
+                // Hands move from sides to center (clapping motion)
+                // Start at sides, move to center in front of player
+                const clapProgress = Math.min(chargePercent * 3, 1); // Complete clap in first 33%
+                const forwardDist = 25; // Distance in front of player
+                const sideSpread = 20 * (1 - clapProgress); // Spread decreases as hands come together
+                
+                // Left hand moves from left side to center
+                leftHandX = screenX - sideSpread + Math.cos(player.facing) * forwardDist * clapProgress;
+                leftHandY = drawY + 5 + Math.sin(player.facing) * forwardDist * clapProgress;
+                
+                // Right hand moves from right side to center, then pulls back when charged
+                let rightSideOffset = sideSpread;
+                if (chargePercent > 0.5) {
+                    // Pull right hand back to form arrow
+                    const pullBackProgress = (chargePercent - 0.5) * 2;
+                    rightSideOffset = -30 * pullBackProgress; // Pull to the right
+                }
+                rightHandX = screenX + rightSideOffset + Math.cos(player.facing) * forwardDist * Math.min(chargePercent * 2, 1);
+                rightHandY = drawY + 5 + Math.sin(player.facing) * forwardDist * Math.min(chargePercent * 2, 1);
+                
+                // Elbows bend based on hand position
+                const leftElbowX = (leftShoulderX + leftHandX) / 2;
+                const leftElbowY = leftShoulderY + 5;
+                const rightElbowX = (rightShoulderX + rightHandX) / 2;
+                const rightElbowY = rightShoulderY + 5;
+                
+                // Draw arms
+                ctx.strokeStyle = '#1a1a2e';
+                ctx.beginPath();
+                ctx.moveTo(leftShoulderX, leftShoulderY);
+                ctx.lineTo(leftElbowX, leftElbowY);
+                ctx.lineTo(leftHandX, leftHandY);
+                ctx.stroke();
+                
+                ctx.beginPath();
+                ctx.moveTo(rightShoulderX, rightShoulderY);
+                ctx.lineTo(rightElbowX, rightElbowY);
+                ctx.lineTo(rightHandX, rightHandY);
+                ctx.stroke();
+                
+                // Draw hands
+                ctx.fillStyle = '#8B4513';
+                ctx.beginPath();
+                ctx.arc(leftHandX, leftHandY, 5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.beginPath();
+                ctx.arc(rightHandX, rightHandY, 5, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                // Normal arm animation
+                // Left arm swings with right leg
+                const leftArmSwing = isMoving ? Math.sin(time * 5 + Math.PI) * stepSize * 0.8 : 0;
+                leftShoulderX = screenX - player.radius + 2;
+                leftShoulderY = drawY + 3;
+                const leftElbowX = leftShoulderX + perpX * 2 + Math.cos(player.facing) * leftArmSwing;
+                const leftElbowY = leftShoulderY + 8;
+                leftHandX = leftElbowX + Math.cos(player.facing) * leftArmSwing * 0.5;
+                leftHandY = leftElbowY + 10;
+                
+                ctx.beginPath();
+                ctx.moveTo(leftShoulderX, leftShoulderY);
+                ctx.lineTo(leftElbowX, leftElbowY);
+                ctx.lineTo(leftHandX, leftHandY);
+                ctx.stroke();
+                
+                // Right arm swings with left leg
+                const rightArmSwing = isMoving ? Math.sin(time * 5) * stepSize * 0.8 : 0;
+                rightShoulderX = screenX + player.radius - 2;
+                rightShoulderY = drawY + 3;
+                const rightElbowX = rightShoulderX - perpX * 2 + Math.cos(player.facing) * rightArmSwing;
+                const rightElbowY = rightShoulderY + 8;
+                rightHandX = rightElbowX + Math.cos(player.facing) * rightArmSwing * 0.5;
+                rightHandY = rightElbowY + 10;
+                
+                ctx.beginPath();
+                ctx.moveTo(rightShoulderX, rightShoulderY);
+                ctx.lineTo(rightElbowX, rightElbowY);
+                ctx.lineTo(rightHandX, rightHandY);
+                ctx.stroke();
+            }
             
             // Body bob when walking up/down
             if (isMoving && Math.abs(Math.sin(player.facing)) > 0.5) {
@@ -4288,32 +4352,6 @@
         function drawFuga() {
             if (fuga.charging) {
                 const chargePercent = fuga.chargeTime / fuga.maxChargeTime;
-                const intensity = chargePercent < 0.5 ? chargePercent * 2 : 1; // Ramps up to full
-                
-                // Hand positions - clapping motion (perpendicular to facing, in front of player)
-                const forwardOffset = 20; // Distance in front of player
-                const sideOffset = chargePercent < 0.3 ? 40 - chargePercent * 133 : 0; // Hands come together
-                const pullBack = chargePercent > 0.5 ? (chargePercent - 0.5) * 100 : 0;
-                
-                // Left hand - to the left side
-                const leftAngle = player.facing - Math.PI / 2;
-                const leftHandX = player.x + Math.cos(player.facing) * forwardOffset + Math.cos(leftAngle) * sideOffset - camera.x;
-                const leftHandY = player.y + Math.sin(player.facing) * forwardOffset + Math.sin(leftAngle) * sideOffset - camera.y;
-                
-                // Right hand - to the right side (pulls back when charged)
-                const rightAngle = player.facing + Math.PI / 2;
-                const rightSideOffset = sideOffset - pullBack;
-                const rightHandX = player.x + Math.cos(player.facing) * forwardOffset + Math.cos(rightAngle) * rightSideOffset - camera.x;
-                const rightHandY = player.y + Math.sin(player.facing) * forwardOffset + Math.sin(rightAngle) * rightSideOffset - camera.y;
-                
-                // Draw hands (simple circles for now - no fire effects)
-                ctx.fillStyle = '#8B4513'; // Brown hands
-                ctx.beginPath();
-                ctx.arc(leftHandX, leftHandY, 8, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.arc(rightHandX, rightHandY, 8, 0, Math.PI * 2);
-                ctx.fill();
                 
                 if (!fuga.charged) {
                     // CHARGING PHASE - just text for now
