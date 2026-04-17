@@ -4316,34 +4316,99 @@
                 const time = Date.now() / 100;
                 const effectTime = Date.now() / 60;
                 
-                // FIRE CIRCLE around player
-                const circlePulse = Math.sin(time * 4) * 0.2 + 0.8;
-                const circleRadius = 50 + chargePercent * 30 * circlePulse;
+                // POWERFUL FIRE CIRCLE around player
+                const circleTime = Date.now() / 40;
+                const circlePulse = Math.sin(circleTime * 2) * 0.3 + 0.7;
+                const baseRadius = 45 + chargePercent * 25;
                 
-                // Outer fire ring
-                for (let ring = 0; ring < 3; ring++) {
-                    const ringAlpha = (0.3 - ring * 0.08) * chargePercent;
-                    ctx.strokeStyle = `rgba(255, ${80 + ring * 60}, 0, ${ringAlpha})`;
-                    ctx.lineWidth = 4 - ring;
+                // Multiple expanding shockwave rings
+                for (let ring = 0; ring < 5; ring++) {
+                    const ringOffset = (circleTime * 2 + ring * 0.8) % 3;
+                    const ringRadius = baseRadius + ring * 12 + ringOffset * 15;
+                    const ringAlpha = Math.max(0, (0.5 - ringOffset * 0.15) * chargePercent * circlePulse);
+                    const ringWidth = 6 - ring;
+                    
+                    ctx.strokeStyle = `rgba(255, ${60 + ring * 40}, 0, ${ringAlpha})`;
+                    ctx.lineWidth = ringWidth;
+                    ctx.shadowColor = '#ff2200';
+                    ctx.shadowBlur = 20 * ringAlpha;
                     ctx.beginPath();
-                    ctx.arc(screenX, screenY, circleRadius + ring * 15, 0, Math.PI * 2);
+                    ctx.arc(screenX, screenY, ringRadius, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                ctx.shadowBlur = 0;
+                
+                // Intense radial energy beams
+                const numBeams = 12 + Math.floor(chargePercent * 8);
+                for (let i = 0; i < numBeams; i++) {
+                    const beamAngle = circleTime * 1.5 + (i / numBeams) * Math.PI * 2;
+                    const beamLength = baseRadius * (0.8 + Math.sin(circleTime * 3 + i) * 0.3);
+                    const beamWidth = 3 + chargePercent * 4 + Math.sin(circleTime * 4 + i) * 2;
+                    
+                    const sx = screenX + Math.cos(beamAngle) * 20;
+                    const sy = screenY + Math.sin(beamAngle) * 20;
+                    const ex = screenX + Math.cos(beamAngle) * beamLength;
+                    const ey = screenY + Math.sin(beamAngle) * beamLength;
+                    
+                    // Beam glow
+                    const beamGrad = ctx.createLinearGradient(sx, sy, ex, ey);
+                    beamGrad.addColorStop(0, `rgba(255, 200, 50, ${0.8 * chargePercent})`);
+                    beamGrad.addColorStop(0.5, `rgba(255, 100, 0, ${0.6 * chargePercent})`);
+                    beamGrad.addColorStop(1, 'rgba(255, 30, 0, 0)');
+                    
+                    ctx.strokeStyle = beamGrad;
+                    ctx.lineWidth = beamWidth;
+                    ctx.lineCap = 'round';
+                    ctx.shadowColor = '#ff4400';
+                    ctx.shadowBlur = 15 * chargePercent;
+                    ctx.beginPath();
+                    ctx.moveTo(sx, sy);
+                    ctx.lineTo(ex, ey);
                     ctx.stroke();
                 }
                 
-                // Rotating fire particles around circle
-                for (let i = 0; i < 8 + chargePercent * 8; i++) {
-                    const particleAngle = time * 3 + (i / 16) * Math.PI * 2;
-                    const px = screenX + Math.cos(particleAngle) * circleRadius;
-                    const py = screenY + Math.sin(particleAngle) * circleRadius;
-                    const psize = 4 + chargePercent * 6 + Math.sin(time * 5 + i) * 2;
+                // Swirling fire tornado effect
+                const tornadoHeight = 80 + chargePercent * 60;
+                for (let layer = 0; layer < 4; layer++) {
+                    const layerRadius = baseRadius - layer * 8;
+                    const layerSpeed = 3 + layer * 0.5;
+                    const numSpirals = 6 + layer * 2;
                     
-                    ctx.fillStyle = `rgba(255, ${100 + Math.sin(i) * 80}, 0, ${0.6 + chargePercent * 0.3})`;
-                    ctx.shadowColor = '#ff4400';
-                    ctx.shadowBlur = 12;
-                    ctx.beginPath();
-                    ctx.arc(px, py, psize, 0, Math.PI * 2);
-                    ctx.fill();
+                    for (let i = 0; i < numSpirals; i++) {
+                        const spiralAngle = circleTime * layerSpeed + (i / numSpirals) * Math.PI * 2;
+                        const heightOffset = Math.sin(circleTime * 4 + i * 0.7) * 20;
+                        const dist = layerRadius + Math.sin(circleTime * 5 + i) * 10;
+                        
+                        const px = screenX + Math.cos(spiralAngle) * dist;
+                        const py = screenY + Math.sin(spiralAngle) * dist + heightOffset * 0.3;
+                        const psize = 5 + chargePercent * 8 + Math.sin(circleTime * 6 + i) * 3;
+                        
+                        const heat = 0.5 + Math.sin(circleTime * 2 + i) * 0.5;
+                        ctx.fillStyle = `rgba(255, ${100 + heat * 100}, ${heat * 50}, ${0.7 + chargePercent * 0.3})`;
+                        ctx.shadowColor = heat > 0.5 ? '#ff0000' : '#ff6600';
+                        ctx.shadowBlur = 20 * heat;
+                        ctx.beginPath();
+                        ctx.arc(px, py, psize, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
                 }
+                
+                // Core explosion effect at center
+                const corePulse = Math.sin(circleTime * 8) * 0.5 + 0.5;
+                const coreSize = 15 + chargePercent * 25 * corePulse;
+                const coreGrad = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, coreSize * 2);
+                coreGrad.addColorStop(0, `rgba(255, 255, 200, ${0.9 * chargePercent})`);
+                coreGrad.addColorStop(0.3, `rgba(255, 200, 50, ${0.7 * chargePercent})`);
+                coreGrad.addColorStop(0.6, `rgba(255, 100, 0, ${0.4 * chargePercent})`);
+                coreGrad.addColorStop(1, 'rgba(255, 50, 0, 0)');
+                
+                ctx.fillStyle = coreGrad;
+                ctx.shadowColor = '#ffaa00';
+                ctx.shadowBlur = 40 * chargePercent;
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, coreSize * 2, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
                 
                 // PHASE 1: 0-50% charge - fire building up, moving from front to side
                 if (chargePercent < 0.5) {
