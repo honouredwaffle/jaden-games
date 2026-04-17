@@ -4290,17 +4290,21 @@
                 const chargePercent = fuga.chargeTime / fuga.maxChargeTime;
                 const intensity = chargePercent < 0.5 ? chargePercent * 2 : 1; // Ramps up to full
                 
-                // Hand positions - clapping motion
-                const handOffset = 25;
-                const clapOffset = chargePercent < 0.3 ? (0.3 - chargePercent) * 60 : 0;
+                // Hand positions - clapping motion (perpendicular to facing, in front of player)
+                const forwardOffset = 20; // Distance in front of player
+                const sideOffset = chargePercent < 0.3 ? 40 - chargePercent * 133 : 0; // Hands come together
                 const pullBack = chargePercent > 0.5 ? (chargePercent - 0.5) * 100 : 0;
                 
-                const leftHandX = player.x + Math.cos(player.facing) * (handOffset + clapOffset) - camera.x;
-                const leftHandY = player.y + Math.sin(player.facing) * (handOffset + clapOffset) - camera.y;
+                // Left hand - to the left side
+                const leftAngle = player.facing - Math.PI / 2;
+                const leftHandX = player.x + Math.cos(player.facing) * forwardOffset + Math.cos(leftAngle) * sideOffset - camera.x;
+                const leftHandY = player.y + Math.sin(player.facing) * forwardOffset + Math.sin(leftAngle) * sideOffset - camera.y;
                 
-                const rightHandDist = handOffset + clapOffset - pullBack;
-                const rightHandX = player.x + Math.cos(player.facing) * rightHandDist - camera.x;
-                const rightHandY = player.y + Math.sin(player.facing) * rightHandDist - camera.y;
+                // Right hand - to the right side (pulls back when charged)
+                const rightAngle = player.facing + Math.PI / 2;
+                const rightSideOffset = sideOffset - pullBack;
+                const rightHandX = player.x + Math.cos(player.facing) * forwardOffset + Math.cos(rightAngle) * rightSideOffset - camera.x;
+                const rightHandY = player.y + Math.sin(player.facing) * forwardOffset + Math.sin(rightAngle) * rightSideOffset - camera.y;
                 
                 // Spawn embers and sparks around hands only (not in front of player)
                 if (Math.random() < 0.3 + chargePercent * 0.5) {
