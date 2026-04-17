@@ -5737,32 +5737,31 @@
             }
             
             // Draw cursed sparks
-                for (const spark of sukunaDomain.cursedSparks) {
-                    const sx = spark.x - camera.x;
-                    const sy = spark.y - camera.y;
-                    
-                    ctx.save();
-                    const sparkAlpha = spark.life / spark.maxLife;
-                    ctx.globalAlpha = sparkAlpha;
-                    ctx.fillStyle = spark.color;
-                    ctx.shadowBlur = 8;
-                    ctx.shadowColor = spark.color;
-                    
-                    // Draw spark
-                    ctx.beginPath();
-                    ctx.arc(sx, sy, spark.size, 0, Math.PI * 2);
-                    ctx.fill();
-                    
-                    // Spark trail
-                    ctx.strokeStyle = spark.color;
-                    ctx.lineWidth = 1;
-                    ctx.beginPath();
-                    ctx.moveTo(sx, sy);
-                    ctx.lineTo(sx - spark.vx * 3, sy - spark.vy * 3);
-                    ctx.stroke();
-                    
-                    ctx.restore();
-                }
+            for (const spark of sukunaDomain.cursedSparks) {
+                const sx = spark.x - camera.x;
+                const sy = spark.y - camera.y;
+                
+                ctx.save();
+                const sparkAlpha = spark.life / spark.maxLife;
+                ctx.globalAlpha = sparkAlpha;
+                ctx.fillStyle = spark.color;
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = spark.color;
+                
+                // Draw spark
+                ctx.beginPath();
+                ctx.arc(sx, sy, spark.size, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Spark trail
+                ctx.strokeStyle = spark.color;
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(sx, sy);
+                ctx.lineTo(sx - spark.vx * 3, sy - spark.vy * 3);
+                ctx.stroke();
+                
+                ctx.restore();
             }
             
             // Draw slice effects (ENHANCED FLASHY VERSION)
