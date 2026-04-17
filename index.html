@@ -4065,6 +4065,9 @@
                 return;
             }
             
+            // Dramatic initial flash
+            screenFlash = { r: 255, g: 80, b: 80, alpha: 0.2, decay: 0.03 };
+            
             // Perform slashes at mouse area
             for (let i = 0; i < slashCount; i++) {
                 setTimeout(() => {
@@ -4074,12 +4077,24 @@
                         const damage = 25;
                         target.hp -= damage;
                         
-                        // Multiple slash visual effects around target
-                        for (let j = 0; j < 3; j++) {
+                        // Enhanced slash visual effects around target
+                        const slashType = i % 2 === 0 ? 'cross' : 'normal';
+                        for (let j = 0; j < 4; j++) {
                             setTimeout(() => {
-                                addSlashEffect(target.x + (Math.random() - 0.5) * 60, target.y + (Math.random() - 0.5) * 60);
-                            }, j * 30);
+                                addSlashEffect(
+                                    target.x + (Math.random() - 0.5) * 70, 
+                                    target.y + (Math.random() - 0.5) * 70,
+                                    slashType
+                                );
+                            }, j * 25);
                         }
+                        
+                        // Screen shake on every other slash
+                        if (i % 2 === 0) {
+                            camera.shake = 2;
+                            camera.shakeTimer = 4;
+                        }
+                        
                         addHitEffect(target.x, target.y, 'red');
                         addDamageNumber(target.x, target.y, damage);
                         
@@ -4151,7 +4166,10 @@
             
             showNotif('Cleave!');
             
-            // Barrage of quick slashes
+            // Dramatic initial flash
+            screenFlash = { r: 255, g: 50, b: 50, alpha: 0.3, decay: 0.05 };
+            
+            // Barrage of quick slashes with enhanced visuals
             const slashCount = 12;
             for (let i = 0; i < slashCount; i++) {
                 setTimeout(() => {
@@ -4159,13 +4177,22 @@
                         const damage = 20;
                         grabbedEnemy.hp -= damage;
                         
-                        // Quick slash visual effects
-                        for (let j = 0; j < 2; j++) {
+                        // Enhanced slash visual effects - alternating between normal and cross
+                        const slashType = i % 3 === 0 ? 'cross' : 'normal';
+                        for (let j = 0; j < 3; j++) {
                             addSlashEffect(
-                                grabbedEnemy.x + (Math.random() - 0.5) * 40,
-                                grabbedEnemy.y + (Math.random() - 0.5) * 40
+                                grabbedEnemy.x + (Math.random() - 0.5) * 50,
+                                grabbedEnemy.y + (Math.random() - 0.5) * 50,
+                                slashType
                             );
                         }
+                        
+                        // Screen shake on every 3rd slash
+                        if (i % 3 === 0) {
+                            camera.shake = 3;
+                            camera.shakeTimer = 5;
+                        }
+                        
                         addHitEffect(grabbedEnemy.x, grabbedEnemy.y, 'red');
                         addDamageNumber(grabbedEnemy.x, grabbedEnemy.y, damage);
                         
@@ -8183,18 +8210,19 @@
             });
         }
         
-        function addSlashEffect(x, y) {
-            // Slash effect for Dismantle - limit on mobile
-            if (mobileMode && slashEffects.length > 10) return;
+        function addSlashEffect(x, y, type = 'normal') {
+            // Slash effect for Dismantle/Cleave - limit on mobile
+            if (mobileMode && slashEffects.length > 15) return;
             const angle = Math.random() * Math.PI * 2;
             slashEffects.push({
                 x: x,
                 y: y,
                 angle: angle,
-                life: 15,
-                maxLife: 15,
-                length: 40 + Math.random() * 30,
-                width: 3 + Math.random() * 2
+                life: 20,
+                maxLife: 20,
+                length: 50 + Math.random() * 40,
+                width: 4 + Math.random() * 3,
+                type: type
             });
         }
         
@@ -8274,27 +8302,76 @@
                 const screenX = effect.x - camera.x;
                 const screenY = effect.y - camera.y;
                 const alpha = effect.life / effect.maxLife;
+                const progress = 1 - alpha; // 0 to 1 as effect fades
                 
                 ctx.save();
-                ctx.globalAlpha = alpha;
-                ctx.strokeStyle = '#ff0000';
-                ctx.lineWidth = effect.width;
+                ctx.translate(screenX, screenY);
+                ctx.rotate(effect.angle);
+                
+                const length = effect.length * (1 + progress * 0.3); // Slight expansion
+                const halfLen = length / 2;
+                
+                // FLASHY MULTI-LAYER SLASH EFFECT
+                
+                // Layer 1: Outer massive glow (red)
+                ctx.shadowBlur = 25;
+                ctx.shadowColor = `rgba(255, 0, 0, ${alpha})`;
+                ctx.strokeStyle = `rgba(255, 50, 50, ${alpha * 0.4})`;
+                ctx.lineWidth = effect.width * 4;
                 ctx.lineCap = 'round';
-                
-                // Draw slash line
                 ctx.beginPath();
-                const startX = screenX - Math.cos(effect.angle) * effect.length / 2;
-                const startY = screenY - Math.sin(effect.angle) * effect.length / 2;
-                const endX = screenX + Math.cos(effect.angle) * effect.length / 2;
-                const endY = screenY + Math.sin(effect.angle) * effect.length / 2;
-                ctx.moveTo(startX, startY);
-                ctx.lineTo(endX, endY);
+                ctx.moveTo(-halfLen, 0);
+                ctx.lineTo(halfLen, 0);
                 ctx.stroke();
                 
-                // Draw glow
-                ctx.shadowColor = '#ff4444';
-                ctx.shadowBlur = 10;
+                // Layer 2: Middle glow (orange-red)
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = `rgba(255, 100, 0, ${alpha})`;
+                ctx.strokeStyle = `rgba(255, 100, 50, ${alpha * 0.7})`;
+                ctx.lineWidth = effect.width * 2;
+                ctx.beginPath();
+                ctx.moveTo(-halfLen, 0);
+                ctx.lineTo(halfLen, 0);
                 ctx.stroke();
+                
+                // Layer 3: Core slash (bright white-yellow)
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = `rgba(255, 255, 200, ${alpha})`;
+                ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+                ctx.lineWidth = effect.width;
+                ctx.beginPath();
+                ctx.moveTo(-halfLen, 0);
+                ctx.lineTo(halfLen, 0);
+                ctx.stroke();
+                
+                // Spark particles along the slash
+                if (!mobileMode || Math.random() > 0.5) {
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = `rgba(255, 255, 0, ${alpha})`;
+                    ctx.fillStyle = `rgba(255, 255, 150, ${alpha})`;
+                    const sparkCount = mobileMode ? 3 : 6;
+                    for (let s = 0; s < sparkCount; s++) {
+                        const sparkPos = (s / (sparkCount - 1)) * length - halfLen;
+                        const sparkOffset = (Math.random() - 0.5) * 8;
+                        const sparkSize = 1.5 + Math.random() * 2;
+                        ctx.beginPath();
+                        ctx.arc(sparkPos, sparkOffset, sparkSize, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                }
+                
+                // Cross slash for extra impact (perpendicular line)
+                if (effect.type === 'cross' || Math.random() > 0.7) {
+                    const crossSize = halfLen * 0.4;
+                    ctx.shadowBlur = 12;
+                    ctx.shadowColor = `rgba(255, 100, 100, ${alpha})`;
+                    ctx.strokeStyle = `rgba(255, 150, 150, ${alpha * 0.8})`;
+                    ctx.lineWidth = effect.width * 1.5;
+                    ctx.beginPath();
+                    ctx.moveTo(0, -crossSize);
+                    ctx.lineTo(0, crossSize);
+                    ctx.stroke();
+                }
                 
                 ctx.restore();
             }
