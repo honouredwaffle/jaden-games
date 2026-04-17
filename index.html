@@ -4865,9 +4865,9 @@
                 ctx.translate(ax, ay);
                 ctx.rotate(angle);
                 
-                // Spawn trail particles (comet tail effect)
-                if (Math.random() < 0.7) {
-                    for (let t = 0; t < 3; t++) {
+                // Spawn trail particles (comet tail effect) - reduced for performance
+                if (Math.random() < 0.5) {
+                    for (let t = 0; t < 2; t++) {
                         spawnFugaParticle(
                             fuga.arrow.x - Math.cos(angle) * (20 + t * 15) + (Math.random() - 0.5) * 15,
                             fuga.arrow.y - Math.sin(angle) * (20 + t * 15) + (Math.random() - 0.5) * 15,
@@ -4876,12 +4876,12 @@
                     }
                 }
                 
-                // LONG COMET TRAIL - fire streaming behind the arrow
-                for (let layer = 0; layer < 4; layer++) {
-                    ctx.shadowColor = layer === 0 ? '#ff0000' : layer === 1 ? '#ff3300' : layer === 2 ? '#ff6600' : '#ffaa00';
-                    ctx.shadowBlur = 35 - layer * 6;
+                // LONG COMET TRAIL - fire streaming behind the arrow - reduced layers and particles
+                for (let layer = 0; layer < 3; layer++) {
+                    ctx.shadowColor = layer === 0 ? '#ff0000' : layer === 1 ? '#ff3300' : '#ff6600';
+                    ctx.shadowBlur = 30 - layer * 8;
                     
-                    for (let i = 0; i < 20; i++) {
+                    for (let i = 0; i < 12; i++) {
                         const trailSize = Math.max(3, (18 - layer * 3) - i * 0.8);
                         const trailX = -20 - i * 12 - layer * 5;
                         const alpha = (0.9 - layer * 0.12 - i * 0.03) * lifePercent;
