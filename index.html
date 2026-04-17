@@ -9161,9 +9161,13 @@
             // Only handle select if actually clicked on a button
             if (clickedButton) {
                 handleSelect();
+                // If we just switched to coming_soon, don't process other click handlers
+                if (screen === 'coming_soon') {
+                    return;
+                }
             }
             
-            // Coming soon screen click handling
+            // Coming soon screen click handling (when clicking anywhere, not just buttons)
             if (screen === 'coming_soon') {
                 screen = 'title';
                 return;
