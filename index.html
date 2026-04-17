@@ -5072,75 +5072,113 @@
             playerDomain.radius = 0;
             playerDomain.duration = 1800; // 30 seconds
             playerDomain.frozenEnemies = [];
+            playerDomain.character = selectedCharacter; // Track which character activated it
             
             // Store fixed domain center at player position when cast
             playerDomain.centerX = player.x;
             playerDomain.centerY = player.y;
             
-            // Initialize dramatic speed lines (more intense, radiating from center)
-            playerDomain.lines = [];
-            for (let i = 0; i < 150; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                const dist = 100 + Math.random() * 500;
-                playerDomain.lines.push({
-                    angle: angle,
-                    dist: dist,
-                    z: Math.random() * 800,
-                    speed: 30 + Math.random() * 40,
-                    color: ['#4488ff', '#ff4444', '#aa44ff', '#ffffff', '#44ffff'][Math.floor(Math.random() * 5)],
-                    length: 100 + Math.random() * 200,
-                    width: 2 + Math.random() * 4
-                });
-            }
-            
-            // Initialize stars (more numerous, deeper space feel)
-            playerDomain.stars = [];
-            for (let i = 0; i < 300; i++) {
-                playerDomain.stars.push({
-                    x: (Math.random() - 0.5) * 2500,
-                    y: (Math.random() - 0.5) * 2500,
-                    size: 0.5 + Math.random() * 2.5,
-                    twinkle: Math.random() * Math.PI * 2,
-                    brightness: 0.3 + Math.random() * 0.7
-                });
-            }
-            
-            // Initialize galaxies (more dramatic)
-            playerDomain.galaxies = [];
-            for (let i = 0; i < 6; i++) {
-                playerDomain.galaxies.push({
-                    x: (Math.random() - 0.5) * 2000,
-                    y: (Math.random() - 0.5) * 2000,
-                    size: 150 + Math.random() * 200,
-                    rotation: Math.random() * Math.PI * 2,
-                    rotationSpeed: (Math.random() - 0.5) * 0.003,
-                    color: `hsl(${Math.random() * 80 + 220}, 80%, 65%)`,
-                    brightness: 0.6 + Math.random() * 0.4
-                });
-            }
-            
-            // Initialize paint splats (empty initially)
-            playerDomain.paintSplats = [];
-            
-            // Initialize footstep ripples
-            playerDomain.footstepRipples = [];
-            playerDomain.footstepDistance = 0;
-            
-            // Japanese text for Unlimited Void
-            playerDomain.domainText = {
-                japanese: '無量空処',
-                english: 'UNLIMITED VOID',
-                opacity: 0,
-                showTime: 0
-            };
-            
-            // Freeze all enemies currently in range
-            for (const spirit of cursedSpirits) {
-                const dx = spirit.x - player.x;
-                const dy = spirit.y - player.y;
-                const dist = Math.sqrt(dx * dx + dy * dy);
-                if (dist < playerDomain.maxRadius) {
-                    playerDomain.frozenEnemies.push(spirit);
+            if (selectedCharacter === 'SUKUNA') {
+                // MALEVOLENT SHRINE - barrier-less domain
+                playerDomain.type = 'shrine';
+                
+                // Initialize shrine pillars
+                playerDomain.pillars = [];
+                const numPillars = 8;
+                for (let i = 0; i < numPillars; i++) {
+                    const angle = (i / numPillars) * Math.PI * 2;
+                    playerDomain.pillars.push({
+                        angle: angle,
+                        dist: playerDomain.maxRadius * 0.85,
+                        height: 0, // Animates in
+                        targetHeight: 200 + Math.random() * 100,
+                        width: 30 + Math.random() * 20
+                    });
+                }
+                
+                // Initialize divine flames (constantly damaging)
+                playerDomain.divineFlames = [];
+                
+                // Initialize slash marks
+                playerDomain.slashMarks = [];
+                
+                // Japanese text for Malevolent Shrine
+                playerDomain.domainText = {
+                    japanese: '伏魔御廚子',
+                    english: 'MALEVOLENT SHRINE',
+                    opacity: 0,
+                    showTime: 0
+                };
+                
+            } else {
+                // UNLIMITED VOID - Gojo's domain
+                playerDomain.type = 'void';
+                
+                // Initialize dramatic speed lines (more intense, radiating from center)
+                playerDomain.lines = [];
+                for (let i = 0; i < 150; i++) {
+                    const angle = Math.random() * Math.PI * 2;
+                    const dist = 100 + Math.random() * 500;
+                    playerDomain.lines.push({
+                        angle: angle,
+                        dist: dist,
+                        z: Math.random() * 800,
+                        speed: 30 + Math.random() * 40,
+                        color: ['#4488ff', '#ff4444', '#aa44ff', '#ffffff', '#44ffff'][Math.floor(Math.random() * 5)],
+                        length: 100 + Math.random() * 200,
+                        width: 2 + Math.random() * 4
+                    });
+                }
+                
+                // Initialize stars (more numerous, deeper space feel)
+                playerDomain.stars = [];
+                for (let i = 0; i < 300; i++) {
+                    playerDomain.stars.push({
+                        x: (Math.random() - 0.5) * 2500,
+                        y: (Math.random() - 0.5) * 2500,
+                        size: 0.5 + Math.random() * 2.5,
+                        twinkle: Math.random() * Math.PI * 2,
+                        brightness: 0.3 + Math.random() * 0.7
+                    });
+                }
+                
+                // Initialize galaxies (more dramatic)
+                playerDomain.galaxies = [];
+                for (let i = 0; i < 6; i++) {
+                    playerDomain.galaxies.push({
+                        x: (Math.random() - 0.5) * 2000,
+                        y: (Math.random() - 0.5) * 2000,
+                        size: 150 + Math.random() * 200,
+                        rotation: Math.random() * Math.PI * 2,
+                        rotationSpeed: (Math.random() - 0.5) * 0.003,
+                        color: `hsl(${Math.random() * 80 + 220}, 80%, 65%)`,
+                        brightness: 0.6 + Math.random() * 0.4
+                    });
+                }
+                
+                // Initialize paint splats (empty initially)
+                playerDomain.paintSplats = [];
+                
+                // Initialize footstep ripples
+                playerDomain.footstepRipples = [];
+                playerDomain.footstepDistance = 0;
+                
+                // Japanese text for Unlimited Void
+                playerDomain.domainText = {
+                    japanese: '無量空処',
+                    english: 'UNLIMITED VOID',
+                    opacity: 0,
+                    showTime: 0
+                };
+                
+                // Freeze all enemies currently in range
+                for (const spirit of cursedSpirits) {
+                    const dx = spirit.x - player.x;
+                    const dy = spirit.y - player.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < playerDomain.maxRadius) {
+                        playerDomain.frozenEnemies.push(spirit);
+                    }
                 }
             }
         }
@@ -5659,14 +5697,142 @@
             ctx.arc(domainScreenX, domainScreenY, playerDomain.radius, 0, Math.PI * 2);
             ctx.clip();
             
-            // Fill with infinite void - darker at edges, deep purple-black center
-            const voidGrad = ctx.createRadialGradient(domainScreenX, domainScreenY, 0, domainScreenX, domainScreenY, playerDomain.radius);
-            voidGrad.addColorStop(0, '#0d0020');
-            voidGrad.addColorStop(0.3, '#080014');
-            voidGrad.addColorStop(0.7, '#030008');
-            voidGrad.addColorStop(1, '#000000');
-            ctx.fillStyle = voidGrad;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            if (playerDomain.type === 'shrine') {
+                // MALEVOLENT SHRINE background - hellish red/orange
+                const shrineGrad = ctx.createRadialGradient(domainScreenX, domainScreenY, 0, domainScreenX, domainScreenY, playerDomain.radius);
+                shrineGrad.addColorStop(0, '#2a0a0a');
+                shrineGrad.addColorStop(0.3, '#1a0505');
+                shrineGrad.addColorStop(0.7, '#0a0202');
+                shrineGrad.addColorStop(1, '#000000');
+                ctx.fillStyle = shrineGrad;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                
+                // Draw shrine pillars
+                if (playerDomain.pillars) {
+                    ctx.save();
+                    ctx.translate(domainScreenX, domainScreenY);
+                    
+                    for (const pillar of playerDomain.pillars) {
+                        // Animate pillar height
+                        if (playerDomain.phase === 'expanding') {
+                            pillar.height += (pillar.targetHeight - pillar.height) * 0.05;
+                        }
+                        
+                        const px = Math.cos(pillar.angle) * pillar.dist;
+                        const py = Math.sin(pillar.angle) * pillar.dist;
+                        
+                        // Pillar shadow/glow
+                        ctx.shadowColor = '#ff2200';
+                        ctx.shadowBlur = 20;
+                        
+                        // Pillar body
+                        const pillarGrad = ctx.createLinearGradient(px - pillar.width/2, py - pillar.height, px + pillar.width/2, py);
+                        pillarGrad.addColorStop(0, '#4a2010');
+                        pillarGrad.addColorStop(0.5, '#2a1008');
+                        pillarGrad.addColorStop(1, '#1a0804');
+                        ctx.fillStyle = pillarGrad;
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(px - pillar.width/2, py);
+                        ctx.lineTo(px + pillar.width/2, py);
+                        ctx.lineTo(px + pillar.width/3, py - pillar.height);
+                        ctx.lineTo(px - pillar.width/3, py - pillar.height);
+                        ctx.closePath();
+                        ctx.fill();
+                        
+                        // Pillar top (on fire)
+                        ctx.fillStyle = `rgba(255, ${100 + Math.random() * 100}, 0, 0.8)`;
+                        ctx.beginPath();
+                        ctx.ellipse(px, py - pillar.height, pillar.width/2, 8, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        ctx.shadowBlur = 0;
+                    }
+                    
+                    ctx.restore();
+                }
+                
+                // Draw divine flames (random slashes throughout domain)
+                if (playerDomain.slashMarks) {
+                    ctx.save();
+                    ctx.translate(domainScreenX - playerDomain.centerX, domainScreenY - playerDomain.centerY);
+                    
+                    // Spawn new slashes
+                    if (Math.random() < 0.3 && playerDomain.phase === 'active') {
+                        const angle = Math.random() * Math.PI * 2;
+                        const dist = Math.random() * playerDomain.radius * 0.9;
+                        playerDomain.slashMarks.push({
+                            x: playerDomain.centerX + Math.cos(angle) * dist,
+                            y: playerDomain.centerY + Math.sin(angle) * dist,
+                            angle: Math.random() * Math.PI * 2,
+                            life: 20,
+                            maxLife: 20,
+                            size: 30 + Math.random() * 50
+                        });
+                    }
+                    
+                    // Draw and update slashes
+                    for (let i = playerDomain.slashMarks.length - 1; i >= 0; i--) {
+                        const slash = playerDomain.slashMarks[i];
+                        slash.life--;
+                        
+                        if (slash.life <= 0) {
+                            playerDomain.slashMarks.splice(i, 1);
+                            continue;
+                        }
+                        
+                        const alpha = slash.life / slash.maxLife;
+                        ctx.strokeStyle = `rgba(255, 50, 50, ${alpha})`;
+                        ctx.lineWidth = 3;
+                        ctx.shadowColor = '#ff0000';
+                        ctx.shadowBlur = 10;
+                        
+                        ctx.save();
+                        ctx.translate(slash.x, slash.y);
+                        ctx.rotate(slash.angle);
+                        ctx.beginPath();
+                        ctx.moveTo(-slash.size/2, 0);
+                        ctx.lineTo(slash.size/2, 0);
+                        ctx.stroke();
+                        ctx.restore();
+                        
+                        ctx.shadowBlur = 0;
+                    }
+                    
+                    ctx.restore();
+                }
+                
+                // Damage enemies in domain (Malevolent Shrine's sure-hit)
+                if (playerDomain.phase === 'active' && frame % 10 === 0) {
+                    for (const spirit of cursedSpirits) {
+                        const dx = spirit.x - playerDomain.centerX;
+                        const dy = spirit.y - playerDomain.centerY;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (dist < playerDomain.radius) {
+                            // Constant damage to all enemies in domain
+                            spirit.hp -= 5; // Divine flame damage
+                            
+                            // Visual slash effect on enemy
+                            if (Math.random() < 0.3) {
+                                addHitEffect(spirit.x, spirit.y, 20);
+                            }
+                            
+                            if (spirit.hp <= 0) {
+                                killSpirit(spirit, 'Domain Slash');
+                            }
+                        }
+                    }
+                }
+            } else {
+                // UNLIMITED VOID background - deep purple-black
+                const voidGrad = ctx.createRadialGradient(domainScreenX, domainScreenY, 0, domainScreenX, domainScreenY, playerDomain.radius);
+                voidGrad.addColorStop(0, '#0d0020');
+                voidGrad.addColorStop(0.3, '#080014');
+                voidGrad.addColorStop(0.7, '#030008');
+                voidGrad.addColorStop(1, '#000000');
+                ctx.fillStyle = voidGrad;
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
             
             // Draw water ripple footsteps (relative to domain center)
             if (playerDomain.phase !== 'expanding' && playerDomain.phase !== 'lines') {
@@ -5869,7 +6035,7 @@
                 ctx.stroke();
                 
                 ctx.restore();
-            }
+            } // End of void-specific drawing
             
             // Draw white paint splats
             if (playerDomain.paintSplats.length > 0) {
@@ -5943,22 +6109,29 @@
                 }
                 textAlpha *= 0.9;
                 
-                // Japanese text - 無量空処 (Muryōkūsho - Unlimited Void)
+                // Dynamic domain text based on character
+                const isShrine = playerDomain.type === 'shrine';
+                const japaneseText = isShrine ? '伏魔御廚子' : '無量空処';
+                const englishText = isShrine ? 'MALEVOLENT SHRINE' : 'UNLIMITED VOID';
+                const glowColor = isShrine ? '#ff4422' : '#aa44ff';
+                const lineColor = isShrine ? 'rgba(255, 68, 34, 0.5)' : 'rgba(170, 68, 255, 0.5)';
+                
+                // Japanese text
                 ctx.fillStyle = `rgba(255, 255, 255, ${textAlpha})`;
                 ctx.font = 'bold 56px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.shadowBlur = 40;
-                ctx.shadowColor = '#aa44ff';
-                ctx.fillText('無量空処', 0, -35);
+                ctx.shadowColor = glowColor;
+                ctx.fillText(japaneseText, 0, -35);
                 
                 // English subtitle
                 ctx.font = 'bold 20px "Segoe UI", sans-serif';
-                ctx.fillStyle = `rgba(200, 200, 255, ${textAlpha * 0.8})`;
-                ctx.fillText('UNLIMITED VOID', 0, 20);
+                ctx.fillStyle = isShrine ? `rgba(255, 200, 180, ${textAlpha * 0.8})` : `rgba(200, 200, 255, ${textAlpha * 0.8})`;
+                ctx.fillText(englishText, 0, 20);
                 
                 // Decorative lines
-                ctx.strokeStyle = `rgba(170, 68, 255, ${textAlpha * 0.5})`;
+                ctx.strokeStyle = lineColor;
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.moveTo(-140, 40);
@@ -5969,10 +6142,16 @@
                 ctx.restore();
             }
             
-            // Draw domain border - glowing purple barrier at fixed position
+            // Draw domain border - color based on domain type
+            const isShrine = playerDomain.type === 'shrine';
+            const borderColor = isShrine ? '#662211' : '#440044';
+            const glowColor = isShrine ? '#ff4422' : '#660066';
+            const innerColor = isShrine ? '#ff6644' : '#aa44ff';
+            const outerColor = isShrine ? '#662211' : '#440066';
+            
             ctx.shadowBlur = 20;
-            ctx.shadowColor = '#660066';
-            ctx.strokeStyle = '#440044';
+            ctx.shadowColor = glowColor;
+            ctx.strokeStyle = borderColor;
             ctx.lineWidth = 4;
             ctx.globalAlpha = 0.9;
             ctx.beginPath();
@@ -5981,7 +6160,7 @@
             
             // Inner pulsing border
             const pulse = Math.sin(Date.now() * 0.005) * 0.3 + 0.7;
-            ctx.strokeStyle = '#aa44ff';
+            ctx.strokeStyle = innerColor;
             ctx.lineWidth = 2;
             ctx.globalAlpha = pulse * 0.6;
             ctx.beginPath();
@@ -5989,7 +6168,7 @@
             ctx.stroke();
             
             // Outer glow ring
-            ctx.strokeStyle = '#440066';
+            ctx.strokeStyle = outerColor;
             ctx.lineWidth = 1;
             ctx.globalAlpha = pulse * 0.3;
             ctx.beginPath();
