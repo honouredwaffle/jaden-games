@@ -8556,9 +8556,9 @@
             const centerY = mapY + mapHeight / 2;
             const mapRadius = Math.min(mapWidth, mapHeight) / 2 - 10;
             
-            // Quadrant-style biome design - no circles
-            const quadSize = mapRadius * 0.85;
-            const mapScale = mapRadius / (BIOME_SIZE * 1.2); // For player/enemy positioning
+            // Proper biome representation - circular zones at actual positions
+            const mapScale = mapRadius / (BIOME_SIZE * 1.1);
+            const biomeRadius = BIOME_SIZE * 0.6 * mapScale; // Actual biome radius on minimap
             
             // Clip to minimap bounds
             ctx.save();
@@ -8566,56 +8566,43 @@
             ctx.rect(mapX, mapY, mapWidth, mapHeight);
             ctx.clip();
             
-            // Draw quadrant backgrounds for each outer biome
-            // VOLCANO - Top Left
-            ctx.fillStyle = BIOME_COLORS.VOLCANO.ground;
-            ctx.globalAlpha = 0.35;
-            ctx.fillRect(centerX - quadSize, centerY - quadSize, quadSize, quadSize);
+            // Draw outer biomes (circular zones at actual positions)
+            for (const biome of BIOMES) {
+                if (biome === 'FOREST') continue;
+                
+                const center = BIOME_CENTERS[biome];
+                const colors = BIOME_COLORS[biome];
+                const bx = centerX + center.x * mapScale;
+                const by = centerY + center.y * mapScale;
+                
+                // Biome zone - filled circle
+                ctx.fillStyle = colors.ground;
+                ctx.globalAlpha = 0.4;
+                ctx.beginPath();
+                ctx.arc(bx, by, biomeRadius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Biome border
+                ctx.globalAlpha = 0.7;
+                ctx.strokeStyle = colors.grid;
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(bx, by, biomeRadius * 0.85, 0, Math.PI * 2);
+                ctx.stroke();
+            }
             
-            // SAND - Top Right
-            ctx.fillStyle = BIOME_COLORS.SAND.ground;
-            ctx.fillRect(centerX, centerY - quadSize, quadSize, quadSize);
-            
-            // SNOW - Bottom Left
-            ctx.fillStyle = BIOME_COLORS.SNOW.ground;
-            ctx.fillRect(centerX - quadSize, centerY, quadSize, quadSize);
-            
-            // CITY - Bottom Right
-            ctx.fillStyle = BIOME_COLORS.CITY.ground;
-            ctx.fillRect(centerX, centerY, quadSize, quadSize);
-            
-            // Draw biome borders (diagonal lines separating quadrants)
-            ctx.globalAlpha = 0.8;
-            ctx.lineWidth = 2;
-            
-            // Vertical center line
-            ctx.strokeStyle = BIOME_COLORS.VOLCANO.grid;
-            ctx.beginPath();
-            ctx.moveTo(centerX, centerY - quadSize);
-            ctx.lineTo(centerX, centerY + quadSize);
-            ctx.stroke();
-            
-            // Horizontal center line
-            ctx.strokeStyle = BIOME_COLORS.SNOW.grid;
-            ctx.beginPath();
-            ctx.moveTo(centerX - quadSize, centerY);
-            ctx.lineTo(centerX + quadSize, centerY);
-            ctx.stroke();
-            
-            // Draw Forest center (diamond shape)
+            // Draw Forest center (circular zone in middle)
             ctx.fillStyle = BIOME_COLORS.FOREST.ground;
             ctx.globalAlpha = 0.5;
             ctx.beginPath();
-            ctx.moveTo(centerX, centerY - quadSize * 0.35);
-            ctx.lineTo(centerX + quadSize * 0.35, centerY);
-            ctx.lineTo(centerX, centerY + quadSize * 0.35);
-            ctx.lineTo(centerX - quadSize * 0.35, centerY);
-            ctx.closePath();
+            ctx.arc(centerX, centerY, biomeRadius * 0.8, 0, Math.PI * 2);
             ctx.fill();
             
             ctx.globalAlpha = 0.9;
             ctx.strokeStyle = BIOME_COLORS.FOREST.grid;
             ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, biomeRadius * 0.7, 0, Math.PI * 2);
             ctx.stroke();
             
             ctx.restore(); // End clip
@@ -8627,11 +8614,11 @@
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             
-            const labelOffset = mapRadius * 0.5;
-            ctx.fillText('VOLCANO', centerX - labelOffset, centerY - labelOffset);
-            ctx.fillText('SAND', centerX + labelOffset, centerY - labelOffset);
-            ctx.fillText('CITY', centerX + labelOffset, centerY + labelOffset);
-            ctx.fillText('SNOW', centerX - labelOffset, centerY + labelOffset);
+            const labelOffset = mapRadius * 0.65;
+            ctx.fillText('VOLCANO', centerX - labelOffset * 0.7, centerY - labelOffset * 0.7);
+            ctx.fillText('SAND', centerX + labelOffset * 0.7, centerY - labelOffset * 0.7);
+            ctx.fillText('CITY', centerX + labelOffset * 0.7, centerY + labelOffset * 0.7);
+            ctx.fillText('SNOW', centerX - labelOffset * 0.7, centerY + labelOffset * 0.7);
             
             // Forest label
             ctx.font = 'bold 8px "Segoe UI", sans-serif';
