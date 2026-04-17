@@ -4011,9 +4011,9 @@
         }
         
         function fireFugaArrow() {
-            // Can fire at 90% charge or higher
+            // Can fire at 50% charge or higher
             const chargePercent = fuga.chargeTime / fuga.maxChargeTime;
-            if (chargePercent < 0.9) {
+            if (chargePercent < 0.5) {
                 // Cancel if not enough charge
                 fuga.charging = false;
                 fuga.chargeTime = 0;
@@ -4296,9 +4296,9 @@
                 const screenX = player.x - camera.x;
                 const screenY = player.y - camera.y;
                 
-                // Hand position - to the RIGHT of player (perpendicular to facing)
-                const handDist = 35;
-                const handAngle = player.facing + Math.PI / 2; // 90 degrees to the right
+                // Hand position - IN FRONT of player (in facing direction)
+                const handDist = 40;
+                const handAngle = player.facing;
                 const handX = screenX + Math.cos(handAngle) * handDist;
                 const handY = screenY + Math.sin(handAngle) * handDist;
                 
@@ -4308,9 +4308,9 @@
                 const time = Date.now() / 100;
                 const effectTime = Date.now() / 60;
                 
-                // PHASE 1: 0-90% charge - fire building up at hand
-                if (chargePercent < 0.9) {
-                    const buildupProgress = chargePercent / 0.9; // 0 to 1 during buildup
+                // PHASE 1: 0-50% charge - fire building up at hand
+                if (chargePercent < 0.5) {
+                    const buildupProgress = chargePercent / 0.5; // 0 to 1 during buildup
                     
                     // Pulsing fire aura around hand
                     const pulse = Math.sin(time * 3) * 0.3 + 0.7;
@@ -4373,8 +4373,8 @@
                     ctx.fillText(`FUGA CHARGING... ${Math.floor(chargePercent * 100)}%`, player.x - camera.x, player.y - camera.y - 90);
                     
                 } else {
-                    // PHASE 2: 90-100% - flame arrow slowly forms
-                    const formationProgress = (chargePercent - 0.9) / 0.1; // 0 to 1 during formation
+                    // PHASE 2: 50-100% - flame arrow slowly forms
+                    const formationProgress = (chargePercent - 0.5) / 0.5; // 0 to 1 during formation
                     
                     // Draw forming fire arrow at hand position
                     ctx.save();
@@ -7412,7 +7412,7 @@
                     return;
                 }
                 // If charging Fuga, fire on click instead of punch
-                if (fuga.charging && fuga.chargeTime >= fuga.maxChargeTime * 0.9) {
+                if (fuga.charging && fuga.chargeTime >= fuga.maxChargeTime * 0.5) {
                     fireFugaArrow();
                     return;
                 }
