@@ -7356,6 +7356,8 @@
                 } else {
                     testingMode = false;
                     gameMode = option === 'OPEN WORLD' ? 'OPEN_WORLD' : 'STORY';
+                    // Clear testing spirits and spawn normal open world spirits
+                    cursedSpirits.length = 0;
                     // Reset player position
                     player.x = 0;
                     player.y = 0;
