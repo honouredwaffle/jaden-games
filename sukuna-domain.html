@@ -1,43 +1,58 @@
-    
-        // Force cache bust on load
-        if (!window.location.search.includes('nocache')) {
-            window.location.href = window.location.href.split('?')[0] + '?nocache=' + Date.now();
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JJK Game</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
         }
-    
-    
+        body {
+            background: #0a0a0a;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            overflow: hidden;
+        }
+        #game-container {
+            position: relative;
+            width: 100%;
+            max-width: 1200px;
+            aspect-ratio: 16/9;
+        }
+        canvas {
+            display: block;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <canvas id="game"></canvas>
+    </div>
+    <script>
         const canvas = document.getElementById('game');
         const ctx = canvas.getContext('2d');
         
         function resize() {
             const container = document.getElementById('game-container');
             const rect = container.getBoundingClientRect();
-            
-            // Get actual display size
-            const displayWidth = Math.floor(rect.width);
-            const displayHeight = Math.floor(rect.height);
-            
-            // Only resize if dimensions are valid and different
-            if (displayWidth > 0 && displayHeight > 0) {
-                if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
-                    canvas.width = displayWidth;
-                    canvas.height = displayHeight;
-                }
-            } else {
-                // Fallback to window size if container has no size
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-            }
+            // Ensure minimum dimensions to prevent black screen
+            canvas.width = Math.max(rect.width, 800);
+            canvas.height = Math.max(rect.height, 450);
         }
-        
-        // Resize immediately and multiple times to ensure proper dimensions
+        // Resize immediately and again after a short delay to ensure proper dimensions
         resize();
-        window.addEventListener('resize', resize);
-        
-        // Also resize on load and after short delays
-        window.addEventListener('load', resize);
-        setTimeout(resize, 50);
-        setTimeout(resize, 200);
+        setTimeout(resize, 100);
         setTimeout(resize, 500);
+        window.addEventListener('resize', resize);
         
         // Initial clear to prevent black screen on load
         ctx.fillStyle = '#1a0a2e';
@@ -63,27 +78,14 @@
         };
         
         // Menu options
-        const titleOptions = ['PLAY', 'MODES', 'CHARACTER', 'CUSTOMISATION', 'UPDATE BLOG'];
-        const modeOptions = ['STORY MODE', 'OPEN WORLD', 'TESTING MODE', 'BACK'];
+        const titleOptions = ['PLAY', 'MODES', 'CHARACTER', 'CUSTOMISATION'];
+        const modeOptions = ['STORY MODE', 'OPEN WORLD', 'BACK'];
         const characterOptions = ['GOJO', 'SUKUNA', 'YUKI', 'BACK'];
         const customOptions = ['OUTFIT', 'ABILITY COLOUR', 'BACK'];
-        const settingsOptions = ['CONTROL MODE: COMPUTER', 'BACK'];
-        
-        let mobileMode = false;
-        
-        // Update blog entries
-        const updateBlog = [
-            { date: '2026-04-17', title: 'FUGA Ability Overhaul', content: 'Complete rework of Sukuna\'s fire arrow ability. New charging system with fire circle, gradual flame arrow formation, and explosive impact.' },
-            { date: '2026-04-17', title: 'Testing Mode Fix', content: 'Fixed testing spirits persisting when switching to Open World. Spirits now properly clear between modes.' },
-            { date: '2026-04-17', title: 'Visual Effects Update', content: 'Improved fire circle with segmented rings and orbiting orbs. Enhanced explosion effects with shockwaves and debris.' },
-            { date: '2026-04-16', title: 'Initial Release', content: 'First version of JJK Game with Gojo and Sukuna playable characters.' }
-        ];
-        let blogSelectedEntry = -1; // -1 = list view, 0+ = entry index
         
         let currentMenu = titleOptions;
         let selectedCharacter = 'GOJO';
         let gameMode = 'STORY';
-        let testingMode = false;
         
         // Player
         const player = {
@@ -108,47 +110,6 @@
         
         // Hit effects (when abilities hit enemies)
         let hitEffects = [];
-        
-        // Slash effects (for Dismantle)
-        let slashEffects = [];
-        
-        // Notification system
-        let notifications = [];
-        
-        function showNotif(text) {
-            notifications.push({
-                text: text,
-                life: 120, // 2 seconds at 60fps
-                maxLife: 120
-            });
-        }
-        
-        function updateNotifications() {
-            for (let i = notifications.length - 1; i >= 0; i--) {
-                notifications[i].life--;
-                if (notifications[i].life <= 0) {
-                    notifications.splice(i, 1);
-                }
-            }
-        }
-        
-        function drawNotifications() {
-            for (let i = 0; i < notifications.length; i++) {
-                const notif = notifications[i];
-                const alpha = notif.life / notif.maxLife;
-                const y = 100 + i * 30;
-                
-                ctx.save();
-                ctx.globalAlpha = alpha;
-                ctx.fillStyle = '#fff';
-                ctx.font = 'bold 18px "Segoe UI", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.shadowColor = '#000';
-                ctx.shadowBlur = 4;
-                ctx.fillText(notif.text, canvas.width / 2, y);
-                ctx.restore();
-            }
-        }
         
         // Kill effects (when enemies die)
         let killEffects = [];
@@ -198,24 +159,13 @@
         let disasterNotification = null;
         let disasterNotifTimer = 0;
         
-        // Character abilities
-        const CHARACTER_ABILITIES = {
-            'GOJO': [
-                { name: 'BLUE', key: '1', cooldown: 0, maxCooldown: 120, active: false },
-                { name: 'RED', key: '2', cooldown: 0, maxCooldown: 180, active: false },
-                { name: 'PURPLE', key: '3', cooldown: 0, maxCooldown: 300, active: false },
-                { name: 'UNLIMITED VOID', key: '4', cooldown: 0, maxCooldown: 600, active: false }
-            ],
-            'SUKUNA': [
-                { name: 'DISMANTLE', key: '1', cooldown: 0, maxCooldown: 80, active: false },
-                { name: 'CLEAVE', key: '2', cooldown: 0, maxCooldown: 120, active: false },
-                { name: 'FUGA', key: '3', cooldown: 0, maxCooldown: 200, active: false },
-                { name: 'MALEVOLENT SHRINE', key: '4', cooldown: 0, maxCooldown: 600, active: false }
-            ]
-        };
-        
-        // Current abilities (set based on selected character)
-        let abilities = CHARACTER_ABILITIES['GOJO'];
+        // Abilities
+        const abilities = [
+            { name: 'BLUE', key: '1', cooldown: 0, maxCooldown: 120, active: false },
+            { name: 'RED', key: '2', cooldown: 0, maxCooldown: 180, active: false },
+            { name: 'PURPLE', key: '3', cooldown: 0, maxCooldown: 300, active: false },
+            { name: 'DOMAIN', key: '4', cooldown: 0, maxCooldown: 600, active: false }
+        ];
         
         // Max Blue state
         let maxBlue = {
@@ -267,15 +217,6 @@
             redOrb: { x: 0, y: 0, angle: Math.PI }
         };
         
-        // Fuga (Sukuna's fire arrow)
-        let fuga = {
-            charging: false,
-            charged: false,
-            chargeTime: 0,
-            maxChargeTime: 240, // 4 seconds to charge
-            arrow: null, // { x, y, vx, vy, damage }
-        };
-        
         // Domain Expansion state
         let playerDomain = {
             active: false,
@@ -294,6 +235,34 @@
             frozenEnemies: [], // Track which enemies are frozen
             footstepRipples: [],
             footstepDistance: 0
+        };
+        
+        // Sukuna's Barrierless Domain - Malevolent Shrine
+        let sukunaDomain = {
+            active: false,
+            phase: 'activating', // activating, active, fading
+            phaseTimer: 0,
+            radius: 0,
+            maxRadius: 800, // 200m radius for sure-hit
+            duration: 1800, // 30 seconds
+            centerX: 0,
+            centerY: 0,
+            shrine: {
+                scale: 0,
+                targetScale: 1,
+                mouths: [], // 4 mouths
+                skulls: [], // skulls around base
+                pulse: 0
+            },
+            slices: [], // Visual slice effects
+            damageTimer: 0, // For continuous damage
+            sureHitTargets: [], // Enemies being hit
+            domainText: {
+                japanese: '伏魔御廚子',
+                english: 'MALEVOLENT SHRINE',
+                opacity: 0,
+                showTime: 0
+            }
         };
         
         // Camera
@@ -389,11 +358,6 @@
         
         function generateCursedSpirits() {
             cursedSpirits.length = 0;
-            
-            // Don't spawn normal spirits in testing mode
-            if (testingMode) {
-                return;
-            }
             
             for (let i = 0; i < SPIRIT_COUNT; i++) {
                 const rand = Math.random();
@@ -781,290 +745,54 @@
             });
         }
 
-        // Background fight animation for title screen
-        let titleFighters = [];
-        function initTitleFighters() {
-            titleFighters = [];
-            for (let i = 0; i < 6; i++) {
-                titleFighters.push({
-                    x: Math.random() * canvas.width,
-                    y: Math.random() * canvas.height,
-                    vx: (Math.random() - 0.5) * 3,
-                    vy: (Math.random() - 0.5) * 3,
-                    color: Math.random() > 0.5 ? '#00aaff' : '#ff2244',
-                    size: 8 + Math.random() * 6,
-                    attacking: false,
-                    attackTimer: 0
-                });
-            }
-        }
-        
-        function updateTitleFighters() {
-            if (titleFighters.length === 0) initTitleFighters();
-            
-            for (let i = 0; i < titleFighters.length; i++) {
-                const f = titleFighters[i];
-                
-                // Move
-                f.x += f.vx;
-                f.y += f.vy;
-                
-                // Bounce off edges
-                if (f.x < 0 || f.x > canvas.width) f.vx *= -1;
-                if (f.y < 0 || f.y > canvas.height) f.vy *= -1;
-                
-                // Random attacks
-                f.attackTimer--;
-                if (f.attackTimer <= 0) {
-                    f.attacking = !f.attacking;
-                    f.attackTimer = 20 + Math.random() * 40;
-                }
-                
-                // Find nearby fighter to attack
-                if (f.attacking) {
-                    for (let j = 0; j < titleFighters.length; j++) {
-                        if (i !== j) {
-                            const other = titleFighters[j];
-                            const dist = Math.hypot(other.x - f.x, other.y - f.y);
-                            if (dist < 100) {
-                                // Dash toward enemy
-                                const angle = Math.atan2(other.y - f.y, other.x - f.x);
-                                f.vx += Math.cos(angle) * 0.5;
-                                f.vy += Math.sin(angle) * 0.5;
-                            }
-                        }
-                    }
-                }
-                
-                // Limit speed
-                const speed = Math.hypot(f.vx, f.vy);
-                if (speed > 4) {
-                    f.vx = (f.vx / speed) * 4;
-                    f.vy = (f.vy / speed) * 4;
-                }
-            }
-        }
-        
-        function drawTitleFighters() {
-            for (const f of titleFighters) {
-                // Trail effect
-                ctx.fillStyle = f.color + '33'; // 20% opacity
-                ctx.beginPath();
-                ctx.arc(f.x - f.vx * 3, f.y - f.vy * 3, f.size * 0.7, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Fighter body
-                ctx.fillStyle = f.color;
-                ctx.beginPath();
-                ctx.arc(f.x, f.y, f.size, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Attack effect
-                if (f.attacking) {
-                    ctx.strokeStyle = f.color;
-                    ctx.lineWidth = 2;
-                    ctx.beginPath();
-                    const angle = Math.atan2(f.vy, f.vx);
-                    ctx.moveTo(f.x, f.y);
-                    ctx.lineTo(
-                        f.x + Math.cos(angle) * (f.size + 15),
-                        f.y + Math.sin(angle) * (f.size + 15)
-                    );
-                    ctx.stroke();
-                }
-            }
-        }
-
-        // Background images for title screen (placeholder - replace with your image URLs)
-        const titleBackgrounds = [
-            // Add your image URLs here like:
-            // 'https://i.imgur.com/yourimage1.jpg',
-            // 'https://i.imgur.com/yourimage2.jpg',
-        ];
-        let currentBgIndex = 0;
-        let bgRotationTimer = 0;
-        const BG_ROTATION_INTERVAL = 600; // 10 seconds at 60fps
-        
         function drawTitle() {
-            // Dark background
-            ctx.fillStyle = '#0a0505';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            drawBackground();
             
-            const time = frame * 0.03;
-            const centerX = canvas.width / 2;
-            const centerY = canvas.height / 2;
+            const pulse = Math.sin(frame * 0.05) * 0.3 + 0.7;
             
-            // Glowing red aura from center
-            const auraGradient = ctx.createRadialGradient(centerX, centerY, 0, centerX, centerY, 400);
-            auraGradient.addColorStop(0, 'rgba(139, 0, 0, 0.3)');
-            auraGradient.addColorStop(0.5, 'rgba(100, 0, 0, 0.15)');
-            auraGradient.addColorStop(1, 'rgba(0, 0, 0, 0)');
-            ctx.fillStyle = auraGradient;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            // Multiple pairs of hands in prayer position
-            for (let pair = 0; pair < 3; pair++) {
-                const scale = 0.5 + pair * 0.3;
-                const offset = pair * 80;
-                const pulse = Math.sin(time + pair) * 0.1 + 1;
-                
-                ctx.save();
-                ctx.translate(centerX, centerY + 100 + offset);
-                ctx.scale(scale * pulse, scale * pulse);
-                
-                // Hand glow
-                ctx.shadowColor = '#ff2200';
-                ctx.shadowBlur = 30;
-                
-                // Left hand
-                ctx.fillStyle = `rgba(200, 50, 30, ${0.4 - pair * 0.1})`;
-                ctx.beginPath();
-                ctx.ellipse(-40, 0, 35, 80, -0.2, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Right hand
-                ctx.beginPath();
-                ctx.ellipse(40, 0, 35, 80, 0.2, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Fingers detail
-                ctx.fillStyle = `rgba(255, 80, 50, ${0.6 - pair * 0.15})`;
-                for (let i = 0; i < 4; i++) {
-                    // Left fingers
-                    ctx.beginPath();
-                    ctx.ellipse(-55 + i * 8, -60 + i * 5, 6, 25, -0.3 + i * 0.1, 0, Math.PI * 2);
-                    ctx.fill();
-                    // Right fingers
-                    ctx.beginPath();
-                    ctx.ellipse(25 + i * 8, -60 + i * 5, 6, 25, 0.3 - i * 0.1, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                
-                ctx.restore();
-            }
-            
-            // Floating nails/shards (like in Sukuna's domain)
-            ctx.shadowColor = '#ff4400';
-            ctx.shadowBlur = 10;
-            for (let i = 0; i < 12; i++) {
-                const angle = (i / 12) * Math.PI * 2 + time * 0.2;
-                const dist = 250 + Math.sin(time * 2 + i) * 30;
-                const x = centerX + Math.cos(angle) * dist;
-                const y = centerY + Math.sin(angle) * dist * 0.6;
-                const rotation = angle + Math.PI / 2;
-                
-                ctx.save();
-                ctx.translate(x, y);
-                ctx.rotate(rotation);
-                
-                // Nail shape
-                ctx.fillStyle = `rgba(180, 40, 20, ${0.5 + Math.sin(time + i) * 0.3})`;
-                ctx.beginPath();
-                ctx.moveTo(0, -20);
-                ctx.lineTo(6, 15);
-                ctx.lineTo(0, 20);
-                ctx.lineTo(-6, 15);
-                ctx.closePath();
-                ctx.fill();
-                
-                ctx.restore();
-            }
-            
-            // Smoke/cloud effects
-            ctx.shadowBlur = 0;
-            for (let i = 0; i < 5; i++) {
-                const x = centerX + Math.sin(time * 0.5 + i * 1.5) * 300;
-                const y = centerY + Math.cos(time * 0.3 + i * 1.2) * 150;
-                const size = 80 + Math.sin(time + i) * 20;
-                
-                const smokeGrad = ctx.createRadialGradient(x, y, 0, x, y, size);
-                smokeGrad.addColorStop(0, 'rgba(100, 20, 10, 0.2)');
-                smokeGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
-                ctx.fillStyle = smokeGrad;
-                ctx.beginPath();
-                ctx.arc(x, y, size, 0, Math.PI * 2);
-                ctx.fill();
-            }
-            
-            // Only draw title elements if we're on the main title screen
-            if (screen === 'title' && currentMenu === titleOptions) {
-                // Main title
-                ctx.fillStyle = '#fff';
-                ctx.font = 'bold 80px "Segoe UI", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText('PROJECT', canvas.width / 2, 100);
-                ctx.fillStyle = '#e94560';
-                ctx.font = 'bold 100px "Segoe UI", sans-serif';
-                ctx.fillText('KAISEN', canvas.width / 2, 190);
-
-                // Subtitle
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
-                ctx.font = 'italic 20px "Segoe UI", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText('Jujutsu Kaisen Fan Game', canvas.width / 2, 240);
-
-                // Simple line
-                ctx.strokeStyle = '#e94560';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(canvas.width / 2 - 150, 260);
-                ctx.lineTo(canvas.width / 2 + 150, 260);
-                ctx.stroke();
-            }
-            
-            // Selected character display at bottom
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-            ctx.font = '14px "Segoe UI", sans-serif';
+            ctx.save();
+            ctx.shadowColor = '#e94560';
+            ctx.shadowBlur = 30 * pulse;
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 80px "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(`Selected Character: ${selectedCharacter}`, canvas.width / 2, canvas.height - 30);
-            
-            // Settings button at top right
-            const settingsBtnSize = 40;
-            const settingsX = canvas.width - settingsBtnSize - 20;
-            const settingsY = 20;
-            
-            // Settings icon (gear)
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.fillText('JJK', canvas.width / 2, 100);
+            ctx.restore();
+
+            ctx.fillStyle = '#e94560';
+            ctx.font = '36px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('CURSED ARENA', canvas.width / 2, 160);
+
+            ctx.strokeStyle = '#e94560';
             ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.arc(settingsX + settingsBtnSize/2, settingsY + settingsBtnSize/2, 12, 0, Math.PI * 2);
+            ctx.moveTo(canvas.width / 2 - 180, 180);
+            ctx.lineTo(canvas.width / 2 + 180, 180);
             ctx.stroke();
-            
-            // Gear teeth
-            for (let i = 0; i < 8; i++) {
-                const angle = (i / 8) * Math.PI * 2;
-                const innerR = 14;
-                const outerR = 18;
-                ctx.beginPath();
-                ctx.moveTo(settingsX + settingsBtnSize/2 + Math.cos(angle) * innerR, settingsY + settingsBtnSize/2 + Math.sin(angle) * innerR);
-                ctx.lineTo(settingsX + settingsBtnSize/2 + Math.cos(angle) * outerR, settingsY + settingsBtnSize/2 + Math.sin(angle) * outerR);
-                ctx.stroke();
-            }
-            
-            // Store settings button position
-            window.settingsButton = { x: settingsX, y: settingsY, width: settingsBtnSize, height: settingsBtnSize };
         }
 
         function drawButton(text, x, y, width, height, isHovered, isSelected) {
             const hover = isHovered || isSelected;
             
-            // Simple button background
+            // Button background
+            ctx.save();
             if (hover) {
-                ctx.fillStyle = 'rgba(233, 69, 96, 0.3)';
-                ctx.fillRect(x - width/2, y - height/2, width, height);
-            } else {
-                ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+                ctx.shadowColor = '#e94560';
+                ctx.shadowBlur = 15;
+                ctx.fillStyle = 'rgba(233, 69, 96, 0.2)';
                 ctx.fillRect(x - width/2, y - height/2, width, height);
             }
+            ctx.restore();
             
-            // Simple border
+            // Border
             ctx.strokeStyle = hover ? '#e94560' : 'rgba(255, 255, 255, 0.3)';
             ctx.lineWidth = hover ? 2 : 1;
             ctx.strokeRect(x - width/2, y - height/2, width, height);
             
             // Text
-            ctx.fillStyle = hover ? '#fff' : 'rgba(255, 255, 255, 0.8)';
-            ctx.font = hover ? 'bold 22px "Segoe UI", sans-serif' : '20px "Segoe UI", sans-serif';
+            ctx.fillStyle = hover ? '#e94560' : 'rgba(255, 255, 255, 0.8)';
+            ctx.font = hover ? 'bold 24px "Segoe UI", sans-serif' : '20px "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(text, x, y);
@@ -1084,11 +812,10 @@
                 ctx.fillText(title, canvas.width / 2, 240);
             }
             
-            // Position buttons in middle of screen (higher up)
+            const startY = title ? 280 : 260;
             const buttonWidth = 280;
             const buttonHeight = 50;
             const spacing = 65;
-            const startY = canvas.height / 2 - 20;
             
             options.forEach((option, i) => {
                 const y = startY + i * spacing;
@@ -1239,24 +966,12 @@
                 dx /= len;
                 dy /= len;
                 
-                // Get current biome for speed modifier
-                const currentBiome = getBiomeAt(player.x, player.y);
-                let speedMultiplier = 1;
-                if (currentBiome === 'VOLCANO') speedMultiplier = 1.3; // 30% faster in volcano
-                else if (currentBiome === 'SNOW') speedMultiplier = 0.7; // 30% slower in snow
-                else if (currentBiome === 'SAND') speedMultiplier = 0.85; // 15% slower in sand
-                
                 // Store old position for footstep check
                 const oldX = player.x;
                 const oldY = player.y;
                 
-                player.x += dx * player.speed * speedMultiplier;
-                player.y += dy * player.speed * speedMultiplier;
-                
-                // Add footstep effect in testing mode
-                if (testingMode && frame % 15 === 0) {
-                    addFootstepEffect(player.x, player.y + 15);
-                }
+                player.x += dx * player.speed;
+                player.y += dy * player.speed;
                 
                 // Add footstep ripple in domain (every 30 pixels moved)
                 if (playerDomain.active && playerDomain.phase !== 'expanding' && playerDomain.phase !== 'lines') {
@@ -1282,22 +997,16 @@
             const faceDy = mouseWorldY - player.y;
             player.facing = Math.atan2(faceDy, faceDx);
             
-            // Keep player in world bounds (smaller bounds in testing mode)
-            if (testingMode) {
-                // Small testing arena - 800x600
-                player.x = Math.max(-400, Math.min(400, player.x));
-                player.y = Math.max(-300, Math.min(300, player.y));
-            } else {
-                player.x = Math.max(-WORLD_WIDTH/2, Math.min(WORLD_WIDTH/2, player.x));
-                player.y = Math.max(-WORLD_HEIGHT/2, Math.min(WORLD_HEIGHT/2, player.y));
-            }
+            // Keep player in world bounds
+            player.x = Math.max(-WORLD_WIDTH/2, Math.min(WORLD_WIDTH/2, player.x));
+            player.y = Math.max(-WORLD_HEIGHT/2, Math.min(WORLD_HEIGHT/2, player.y));
             
-            // Regen CE and HP
+            // Regen CE and HP (slower HP regen)
             if (player.ce < player.maxCe) {
-                player.ce += 0.08; // Faster CE regen
+                player.ce += 0.1;
             }
             if (player.hp < player.maxHp) {
-                player.hp += 0.05; // HP regen stays slow
+                player.hp += 0.3; // HP regen (slower)
             }
             
             // Iframes
@@ -1352,30 +1061,6 @@
         }
         
         function drawBiomeGround() {
-            // Testing mode - grey empty map
-            if (testingMode) {
-                ctx.fillStyle = '#2a2a2a';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
-                // Draw grid lines
-                ctx.strokeStyle = '#3a3a3a';
-                ctx.lineWidth = 1;
-                const gridSize = 100;
-                for (let x = 0; x < canvas.width; x += gridSize) {
-                    ctx.beginPath();
-                    ctx.moveTo(x, 0);
-                    ctx.lineTo(x, canvas.height);
-                    ctx.stroke();
-                }
-                for (let y = 0; y < canvas.height; y += gridSize) {
-                    ctx.beginPath();
-                    ctx.moveTo(0, y);
-                    ctx.lineTo(canvas.width, y);
-                    ctx.stroke();
-                }
-                return;
-            }
-            
             // Draw biome ground based on closest biome center (radial system)
             const tileSize = 200;
             const startX = Math.floor(camera.x / tileSize) * tileSize;
@@ -1640,9 +1325,6 @@
         }
         
         function drawForestGround(x, y, screenX, screenY, tileSize) {
-            // Safety check for valid parameters
-            if (tileSize <= 0) tileSize = 200;
-            
             // Draw forest ground with dappled sunlight and paths
             ctx.save();
             
@@ -1650,16 +1332,16 @@
             ctx.fillStyle = '#3d5a35';
             ctx.fillRect(screenX, screenY, tileSize, tileSize);
             
-            // Deterministic seed based on position (use Math.abs to ensure positive)
-            const seed = Math.abs(Math.floor(x / tileSize) * 137 + Math.floor(y / tileSize) * 241);
+            // Deterministic seed based on position
+            const seed = Math.floor(x / tileSize) * 137 + Math.floor(y / tileSize) * 241;
             
             // Dappled sunlight spots (deterministic)
             ctx.fillStyle = '#6a9a50';
             for (let i = 0; i < 8; i++) {
-                const sx = screenX + Math.abs((seed + i * 53) % tileSize);
-                const sy = screenY + Math.abs((seed + i * 71) % tileSize);
-                const size = Math.max(5, 10 + Math.abs((seed + i * 13) % 25));
-                ctx.globalAlpha = Math.max(0.1, 0.2 + Math.abs((seed + i * 17) % 30) / 100);
+                const sx = screenX + ((seed + i * 53) % tileSize);
+                const sy = screenY + ((seed + i * 71) % tileSize);
+                const size = 10 + ((seed + i * 13) % 25);
+                ctx.globalAlpha = 0.2 + ((seed + i * 17) % 30) / 100;
                 ctx.beginPath();
                 ctx.arc(sx, sy, size, 0, Math.PI * 2);
                 ctx.fill();
@@ -1682,8 +1364,8 @@
             ctx.fillStyle = '#4a7a3a';
             ctx.globalAlpha = 0.5;
             for (let i = 0; i < 12; i++) {
-                const gx = screenX + Math.abs((seed + i * 37) % tileSize);
-                const gy = screenY + Math.abs((seed + i * 43) % tileSize);
+                const gx = screenX + ((seed + i * 37) % tileSize);
+                const gy = screenY + ((seed + i * 43) % tileSize);
                 ctx.beginPath();
                 ctx.moveTo(gx, gy);
                 ctx.lineTo(gx - 3, gy - 8);
@@ -1696,11 +1378,11 @@
             ctx.fillStyle = '#8a6a3a';
             ctx.globalAlpha = 0.3;
             for (let i = 0; i < 10; i++) {
-                const lx = screenX + Math.abs((seed + i * 19) % tileSize);
-                const ly = screenY + Math.abs((seed + i * 23) % tileSize);
-                const rot = Math.abs((seed + i * 11) % 100) / 100 * Math.PI;
+                const lx = screenX + ((seed + i * 19) % tileSize);
+                const ly = screenY + ((seed + i * 23) % tileSize);
+                const rot = ((seed + i * 11) % 100) / 100 * Math.PI;
                 ctx.beginPath();
-                ctx.ellipse(lx, ly, Math.max(1, 3), Math.max(1, 2), rot, 0, Math.PI * 2);
+                ctx.ellipse(lx, ly, 3, 2, rot, 0, Math.PI * 2);
                 ctx.fill();
             }
             
@@ -1715,8 +1397,8 @@
             ctx.fillStyle = '#1a1210';
             ctx.fillRect(screenX, screenY, tileSize, tileSize);
             
-            // Deterministic seed based on position (use Math.abs to ensure positive)
-            const crackSeed = Math.abs(Math.floor((x + y) / 100));
+            // Deterministic seed based on position
+            const crackSeed = Math.floor((x + y) / 100);
             
             // Lava cracks - glowing orange lines
             ctx.strokeStyle = '#ff4400';
@@ -1727,8 +1409,8 @@
             
             // Deterministic crack pattern based on position
             for (let i = 0; i < 5; i++) {
-                const startX = screenX + Math.abs((crackSeed * 137 + i * 53) % tileSize);
-                const startY = screenY + Math.abs((crackSeed * 241 + i * 71) % tileSize);
+                const startX = screenX + ((crackSeed * 137 + i * 53) % tileSize);
+                const startY = screenY + ((crackSeed * 241 + i * 71) % tileSize);
                 
                 ctx.beginPath();
                 ctx.moveTo(startX, startY);
@@ -1736,8 +1418,8 @@
                 let cx = startX;
                 let cy = startY;
                 for (let j = 0; j < 4; j++) {
-                    cx += (Math.abs((crackSeed + j * 17) % 100) / 100 - 0.5) * 60;
-                    cy += (Math.abs((crackSeed + j * 23) % 100) / 100 - 0.5) * 60;
+                    cx += (((crackSeed + j * 17) % 100) / 100 - 0.5) * 60;
+                    cy += (((crackSeed + j * 23) % 100) / 100 - 0.5) * 60;
                     ctx.lineTo(cx, cy);
                 }
                 ctx.stroke();
@@ -1747,9 +1429,9 @@
             ctx.fillStyle = '#ff5500';
             ctx.shadowBlur = 20;
             for (let i = 0; i < 3; i++) {
-                const poolX = screenX + Math.abs((crackSeed * 89 + i * 37) % Math.max(1, tileSize - 40)) + 20;
-                const poolY = screenY + Math.abs((crackSeed * 167 + i * 43) % Math.max(1, tileSize - 40)) + 20;
-                const poolSize = Math.max(1, 8 + (crackSeed % 12));
+                const poolX = screenX + ((crackSeed * 89 + i * 37) % (tileSize - 40)) + 20;
+                const poolY = screenY + ((crackSeed * 167 + i * 43) % (tileSize - 40)) + 20;
+                const poolSize = 8 + (crackSeed % 12);
                 ctx.globalAlpha = 0.4 + (Math.sin(Date.now() * 0.002 + i) * 0.2);
                 ctx.beginPath();
                 ctx.arc(poolX, poolY, poolSize, 0, Math.PI * 2);
@@ -1761,9 +1443,9 @@
             ctx.shadowBlur = 0;
             ctx.globalAlpha = 0.3;
             for (let i = 0; i < 15; i++) {
-                const rx = screenX + Math.abs((crackSeed + i * 13) % tileSize);
-                const ry = screenY + Math.abs((crackSeed + i * 17) % tileSize);
-                const rsize = Math.max(1, 2 + ((crackSeed + i * 7) % 6));
+                const rx = screenX + ((crackSeed + i * 13) % tileSize);
+                const ry = screenY + ((crackSeed + i * 17) % tileSize);
+                const rsize = 2 + ((crackSeed + i * 7) % 6);
                 ctx.beginPath();
                 ctx.arc(rx, ry, rsize, 0, Math.PI * 2);
                 ctx.fill();
@@ -1795,20 +1477,8 @@
         }
         
         function updateCursedSpirits() {
-            for (let i = cursedSpirits.length - 1; i >= 0; i--) {
-                const spirit = cursedSpirits[i];
+            for (const spirit of cursedSpirits) {
                 const data = SPIRIT_GRADES[spirit.grade];
-                
-                // Check if spirit is dead
-                if (spirit.hp <= 0) {
-                    killSpirit(i, 'normal');
-                    continue;
-                }
-                
-                // Stationary spirits don't move (testing mode)
-                if (spirit.stationary) {
-                    continue;
-                }
                 
                 // Check if spirit is frozen in player's domain
                 if (playerDomain.active && playerDomain.phase !== 'expanding') {
@@ -1856,7 +1526,7 @@
                         
                     case 'ATTACK':
                         // Close range melee attack
-                        if (dist < data.closeRange && spirit.attackCooldown <= 0 && !testingMode) {
+                        if (dist < data.closeRange && spirit.attackCooldown <= 0) {
                             // Melee damage
                             if (player.iframes <= 0) {
                                 player.hp -= data.damage * 1.5; // Melee does more damage
@@ -1865,7 +1535,7 @@
                             spirit.attackCooldown = data.attackCooldown;
                         }
                         // Mid range projectile
-                        else if (dist < data.attackRange && dist >= data.closeRange && spirit.attackCooldown <= 0 && !testingMode) {
+                        else if (dist < data.attackRange && dist >= data.closeRange && spirit.attackCooldown <= 0) {
                             spiritProjectiles.push({
                                 x: spirit.x,
                                 y: spirit.y,
@@ -2056,7 +1726,7 @@
                     boss.domainActive = true;
                     boss.domainTimer = 900; // Reset
                     // AOE damage to player if in range
-                    if (dist < 400 && player.iframes <= 0 && !testingMode) {
+                    if (dist < 400 && player.iframes <= 0) {
                         player.hp -= boss.damage * 3;
                         player.iframes = 120;
                     }
@@ -2081,7 +1751,7 @@
                 disasterSpawnTimer++;
                 if (disasterSpawnTimer >= disasterSpawnCheckInterval) {
                     disasterSpawnTimer = 0;
-                    if (Math.random() < 0.2 && !testingMode) { // 20% chance (disabled in testing)
+                    if (Math.random() < 0.2) { // 20% chance
                         spawnDisasterCurse();
                     }
                 }
@@ -2257,7 +1927,7 @@
                 const dy = player.y - proj.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
-                if (dist < player.radius + proj.size && player.iframes <= 0 && !testingMode) {
+                if (dist < player.radius + proj.size && player.iframes <= 0) {
                     player.hp -= proj.damage;
                     player.iframes = 60;
                     spiritProjectiles.splice(i, 1);
@@ -2325,9 +1995,6 @@
                         break;
                     case 'SPECIAL':
                         drawSpecialGradeSpirit(ctx, screenX, screenY, spirit, time);
-                        break;
-                    case 'DISASTER_CURSE':
-                        drawDisasterCurseTest(ctx, screenX, screenY, spirit, time);
                         break;
                 }
                 
@@ -2656,73 +2323,6 @@
             ctx.arc(x, y, spirit.size * 0.08, 0, Math.PI * 2);
             ctx.fill();
             ctx.shadowBlur = 0;
-        }
-        
-        function drawDisasterCurseTest(ctx, x, y, spirit, time) {
-            // Disaster Curse appearance for testing
-            const pulse = Math.sin(time * 2) * 0.3 + 0.7;
-            
-            // Outer flame aura
-            ctx.fillStyle = `rgba(255, 50, 0, ${0.3 * pulse})`;
-            ctx.shadowColor = '#ff3300';
-            ctx.shadowBlur = 40 * pulse;
-            ctx.beginPath();
-            ctx.arc(x, y, spirit.size * 1.5 + Math.sin(time * 3) * 5, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Main body - volcanic rock texture
-            ctx.fillStyle = spirit.color;
-            ctx.shadowColor = '#ff5500';
-            ctx.shadowBlur = 20;
-            ctx.beginPath();
-            const points = 8;
-            for (let i = 0; i < points; i++) {
-                const angle = (i / points) * Math.PI * 2 + time * 0.2;
-                const r = spirit.size + Math.sin(time * 2 + i) * 5;
-                const px = x + Math.cos(angle) * r;
-                const py = y + Math.sin(angle) * r;
-                if (i === 0) ctx.moveTo(px, py);
-                else ctx.lineTo(px, py);
-            }
-            ctx.closePath();
-            ctx.fill();
-            
-            // Lava cracks
-            ctx.strokeStyle = '#ffaa00';
-            ctx.lineWidth = 2;
-            ctx.shadowColor = '#ffaa00';
-            ctx.shadowBlur = 10;
-            for (let i = 0; i < 4; i++) {
-                const angle = (i / 4) * Math.PI * 2 + time;
-                ctx.beginPath();
-                ctx.moveTo(x, y);
-                ctx.lineTo(
-                    x + Math.cos(angle) * spirit.size * 0.8,
-                    y + Math.sin(angle) * spirit.size * 0.8
-                );
-                ctx.stroke();
-            }
-            
-            // Central eye - intense glow
-            ctx.fillStyle = '#ffff00';
-            ctx.shadowColor = '#ffff00';
-            ctx.shadowBlur = 30;
-            ctx.beginPath();
-            ctx.arc(x, y, spirit.size * 0.3, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Pupil
-            ctx.fillStyle = '#ff0000';
-            ctx.beginPath();
-            ctx.arc(x, y, spirit.size * 0.15, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.shadowBlur = 0;
-            
-            // Label
-            ctx.fillStyle = '#fff';
-            ctx.font = '12px "Segoe UI", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('DISASTER', x, y - spirit.size - 10);
         }
         
         function drawBiomeObjects() {
@@ -3624,20 +3224,17 @@
             ctx.lineTo(rightFootX, rightFootY);
             ctx.stroke();
             
-            // Arms - normal animation (no Fuga animation here)
+            // Arms - swing opposite to legs
             ctx.lineWidth = 4;
-            
-            let leftShoulderX, leftShoulderY, rightShoulderX, rightShoulderY;
-            let leftHandX, leftHandY, rightHandX, rightHandY;
             
             // Left arm swings with right leg
             const leftArmSwing = isMoving ? Math.sin(time * 5 + Math.PI) * stepSize * 0.8 : 0;
-            leftShoulderX = screenX - player.radius + 2;
-            leftShoulderY = drawY + 3;
+            const leftShoulderX = screenX - player.radius + 2;
+            const leftShoulderY = drawY + 3;
             const leftElbowX = leftShoulderX + perpX * 2 + Math.cos(player.facing) * leftArmSwing;
             const leftElbowY = leftShoulderY + 8;
-            leftHandX = leftElbowX + Math.cos(player.facing) * leftArmSwing * 0.5;
-            leftHandY = leftElbowY + 10;
+            const leftHandX = leftElbowX + Math.cos(player.facing) * leftArmSwing * 0.5;
+            const leftHandY = leftElbowY + 10;
             
             ctx.beginPath();
             ctx.moveTo(leftShoulderX, leftShoulderY);
@@ -3647,12 +3244,12 @@
             
             // Right arm swings with left leg
             const rightArmSwing = isMoving ? Math.sin(time * 5) * stepSize * 0.8 : 0;
-            rightShoulderX = screenX + player.radius - 2;
-            rightShoulderY = drawY + 3;
+            const rightShoulderX = screenX + player.radius - 2;
+            const rightShoulderY = drawY + 3;
             const rightElbowX = rightShoulderX - perpX * 2 + Math.cos(player.facing) * rightArmSwing;
             const rightElbowY = rightShoulderY + 8;
-            rightHandX = rightElbowX + Math.cos(player.facing) * rightArmSwing * 0.5;
-            rightHandY = rightElbowY + 10;
+            const rightHandX = rightElbowX + Math.cos(player.facing) * rightArmSwing * 0.5;
+            const rightHandY = rightElbowY + 10;
             
             ctx.beginPath();
             ctx.moveTo(rightShoulderX, rightShoulderY);
@@ -3731,7 +3328,7 @@
             const barHeight = 60;
             const barX = (canvas.width - barWidth) / 2;
             const barY = canvas.height - barHeight - 20;
-            const slotWidth = barWidth / 4; // 4 ability slots
+            const slotWidth = barWidth / 4;
             
             // Background
             ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
@@ -3742,11 +3339,10 @@
             ctx.lineWidth = 2;
             ctx.strokeRect(barX, barY, barWidth, barHeight);
             
-            // Draw abilities
-            const centerY = barY + barHeight / 2;
             abilities.forEach((ability, i) => {
                 const slotX = barX + i * slotWidth;
                 const centerX = slotX + slotWidth / 2;
+                const centerY = barY + barHeight / 2;
                 
                 // Slot background
                 if (ability.cooldown === 0) {
@@ -3771,9 +3367,9 @@
                 
                 // Ability name
                 ctx.fillStyle = ability.cooldown === 0 ? '#fff' : '#888';
-                ctx.font = 'bold 12px "Segoe UI", sans-serif';
+                ctx.font = 'bold 14px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText(ability.name, centerX, barY + 18);
+                ctx.fillText(ability.name, centerX, barY + 20);
                 
                 // Key number
                 ctx.fillStyle = '#e94560';
@@ -3782,1236 +3378,39 @@
             });
         }
         
-        function killSpirit(index, type) {
-            const spirit = cursedSpirits[index];
-            if (!spirit) {
-                console.log('killSpirit: no spirit at index', index);
-                return;
-            }
-            
-            console.log('killSpirit:', spirit.grade, 'testingMode:', testingMode);
-            
-            // Respawn in testing mode
-            if (testingMode && spirit.grade) {
-                console.log('Respawning', spirit.grade);
-                respawnTestingSpirit(spirit.grade);
-            }
-            
-            cursedSpirits.splice(index, 1);
-        }
-        
-        function useM1() {
-            // Basic punch attack - no CE cost
-            const isBlackFlash = Math.random() < 0.05; // 5% chance
-            
-            // Find nearby enemies to punch
-            const punchRange = 80;
-            let hitEnemy = false;
-            
-            for (let i = cursedSpirits.length - 1; i >= 0; i--) {
-                const enemy = cursedSpirits[i];
-                const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
-                
-                if (dist < punchRange) {
-                    hitEnemy = true;
-                    const damage = isBlackFlash ? 150 : 20;
-                    enemy.hp -= damage;
-                    
-                    // Knockback
-                    const knockbackDir = Math.atan2(enemy.y - player.y, enemy.x - player.x);
-                    enemy.x += Math.cos(knockbackDir) * (isBlackFlash ? 50 : 20);
-                    enemy.y += Math.sin(knockbackDir) * (isBlackFlash ? 50 : 20);
-                    
-                    // Visual effect
-                    addHitEffect(enemy.x, enemy.y, isBlackFlash ? 'purple' : 'blue');
-                    addDamageNumber(enemy.x, enemy.y, damage);
-                    
-                    if (isBlackFlash) {
-                        showNotif('BLACK FLASH!');
-                        // Screen shake effect
-                        camera.x += (Math.random() - 0.5) * 20;
-                        camera.y += (Math.random() - 0.5) * 20;
-                    }
-                    
-                    if (enemy.hp <= 0) {
-                        addKillEffect(enemy.x, enemy.y, isBlackFlash ? 'purple' : 'blue');
-                        killSpirit(i, isBlackFlash ? 'purple' : 'blue');
-                    }
-                    
-                    break; // Only hit one enemy per punch
-                }
-            }
-            
-            // Punch visual effect even if no enemy hit
-            if (!hitEnemy) {
-                // Create a small punch effect in front of player
-                const punchX = player.x + Math.cos(player.facing) * 40;
-                const punchY = player.y + Math.sin(player.facing) * 40;
-                addHitEffect(punchX, punchY, 'blue');
-            }
-        }
-        
-        function activateDismantle() {
-            // Dismantle - barrage of slashes at mouse position
-            const dismantleRange = 250;
-            const slashCount = 8;
-            
-            // Target position is where mouse is pointing
-            const targetX = mouseWorldX;
-            const targetY = mouseWorldY;
-            
-            // Find enemies near mouse position
-            const targets = [];
-            for (const enemy of cursedSpirits) {
-                const dist = Math.hypot(enemy.x - targetX, enemy.y - targetY);
-                if (dist < dismantleRange) {
-                    targets.push(enemy);
-                }
-            }
-            
-            // Cancel if no enemies in range of mouse
-            if (targets.length === 0) {
-                showNotif('No targets at mouse position!');
-                // Refund the cooldown and CE
-                abilities[0].cooldown = 0;
-                player.ce += 15;
-                return;
-            }
-            
-            // Perform slashes at mouse area
-            for (let i = 0; i < slashCount; i++) {
-                setTimeout(() => {
-                    if (targets.length > 0) {
-                        // Hit random target near mouse
-                        const target = targets[Math.floor(Math.random() * targets.length)];
-                        const damage = 25;
-                        target.hp -= damage;
-                        
-                        // Multiple slash visual effects around target
-                        for (let j = 0; j < 3; j++) {
-                            setTimeout(() => {
-                                addSlashEffect(target.x + (Math.random() - 0.5) * 60, target.y + (Math.random() - 0.5) * 60);
-                            }, j * 30);
-                        }
-                        addHitEffect(target.x, target.y, 'red');
-                        addDamageNumber(target.x, target.y, damage);
-                        
-                        // Check if enemy died
-                        if (target.hp <= 0) {
-                            addKillEffect(target.x, target.y, 'red');
-                            const idx = cursedSpirits.indexOf(target);
-                            if (idx > -1) killSpirit(idx, 'red');
-                            // Remove from targets too
-                            const targetIdx = targets.indexOf(target);
-                            if (targetIdx > -1) targets.splice(targetIdx, 1);
-                        }
-                    }
-                }, i * 100); // 100ms between slashes
-            }
-            
-            showNotif('Dismantle!');
-        }
-        
-        function activateCleave() {
-            // Cleave - grab enemy in front and barrage of quick slashes
-            const grabRange = 250;
-            let grabbedEnemy = null;
-            let grabbedIndex = -1;
-            
-            // Find enemy in front of player
-            for (let i = 0; i < cursedSpirits.length; i++) {
-                const enemy = cursedSpirits[i];
-                const dist = Math.hypot(enemy.x - player.x, enemy.y - player.y);
-                
-                if (dist < grabRange) {
-                    // Check if enemy is in front (within 60 degree cone)
-                    const angleToEnemy = Math.atan2(enemy.y - player.y, enemy.x - player.x);
-                    const angleDiff = Math.abs(angleToEnemy - player.facing);
-                    const normalizedDiff = Math.min(angleDiff, Math.PI * 2 - angleDiff);
-                    
-                    if (normalizedDiff < Math.PI / 3) { // 60 degree cone
-                        grabbedEnemy = enemy;
-                        grabbedIndex = i;
-                        break;
-                    }
-                }
-            }
-            
-            // Cancel if no enemy to grab
-            if (!grabbedEnemy) {
-                showNotif('No enemy to grab!');
-                // Refund the cooldown and CE
-                abilities[1].cooldown = 0;
-                player.ce += 25;
-                return;
-            }
-            
-            // Check if enemy is close enough - if not, teleport to them
-            const distToEnemy = Math.hypot(grabbedEnemy.x - player.x, grabbedEnemy.y - player.y);
-            if (distToEnemy > 80) {
-                // Teleport behind the enemy
-                player.x = grabbedEnemy.x - Math.cos(player.facing) * 60;
-                player.y = grabbedEnemy.y - Math.sin(player.facing) * 60;
-                // Add teleport effect
-                for (let i = 0; i < 10; i++) {
-                    addHitEffect(player.x + (Math.random() - 0.5) * 40, player.y + (Math.random() - 0.5) * 40, 'red');
-                }
-            }
-            
-            // Pull enemy to player
-            grabbedEnemy.x = player.x + Math.cos(player.facing) * 50;
-            grabbedEnemy.y = player.y + Math.sin(player.facing) * 50;
-            
-            showNotif('Cleave!');
-            
-            // Barrage of quick slashes
-            const slashCount = 12;
-            for (let i = 0; i < slashCount; i++) {
-                setTimeout(() => {
-                    if (grabbedEnemy && cursedSpirits.includes(grabbedEnemy)) {
-                        const damage = 20;
-                        grabbedEnemy.hp -= damage;
-                        
-                        // Quick slash visual effects
-                        for (let j = 0; j < 2; j++) {
-                            addSlashEffect(
-                                grabbedEnemy.x + (Math.random() - 0.5) * 40,
-                                grabbedEnemy.y + (Math.random() - 0.5) * 40
-                            );
-                        }
-                        addHitEffect(grabbedEnemy.x, grabbedEnemy.y, 'red');
-                        addDamageNumber(grabbedEnemy.x, grabbedEnemy.y, damage);
-                        
-                        // Check if enemy died
-                        if (grabbedEnemy.hp <= 0) {
-                            addKillEffect(grabbedEnemy.x, grabbedEnemy.y, 'red');
-                            killSpirit(grabbedIndex, 'red');
-                        }
-                    }
-                }, i * 50); // 50ms between slashes (faster than Dismantle)
-            }
-        }
-        
-        function activateFuga() {
-            // Fuga - charge up fire arrow
-            if (fuga.charging || fuga.charged) {
-                // Already charging or charged, fire the arrow
-                fireFugaArrow();
-                return;
-            }
-            
-            // Start charging
-            fuga.charging = true;
-            fuga.chargeTime = 0;
-            showNotif('Fuga charging...');
-        }
-        
-        function fireFugaArrow() {
-            // Can fire at 50% charge or higher
-            const chargePercent = fuga.chargeTime / fuga.maxChargeTime;
-            if (chargePercent < 0.5) {
-                // Cancel if not enough charge
-                fuga.charging = false;
-                fuga.chargeTime = 0;
-                showNotif('Fuga cancelled!');
-                // Refund
-                abilities[2].cooldown = 0;
-                player.ce += 30;
-                return;
-            }
-            
-            // Fire the arrow
-            const arrowSpeed = 25;
-            const arrowDamage = 300;
-            
-            // Fire arrow toward mouse position, spawned from right side of player
-            const mouseAngle = Math.atan2(mouseWorldY - player.y, mouseWorldX - player.x);
-            const rightOffsetAngle = player.facing + Math.PI / 2;
-            const spawnX = player.x + Math.cos(rightOffsetAngle) * 20;
-            const spawnY = player.y + Math.sin(rightOffsetAngle) * 20;
-            fuga.arrow = {
-                x: spawnX + Math.cos(mouseAngle) * 20,
-                y: spawnY + Math.sin(mouseAngle) * 20,
-                vx: Math.cos(mouseAngle) * arrowSpeed,
-                vy: Math.sin(mouseAngle) * arrowSpeed,
-                damage: arrowDamage,
-                life: 120, // 2 seconds
-                maxLife: 120,
-                hitEnemies: []
-            };
-            
-            fuga.charging = false;
-            fuga.charged = false;
-            fuga.chargeTime = 0;
-            showNotif('FUGA!');
-        }
-        
-        function updateFuga() {
-            if (fuga.charging) {
-                fuga.chargeTime++;
-                if (fuga.chargeTime >= fuga.maxChargeTime) {
-                    fuga.charged = true;
-                    // Cap charge time to prevent issues
-                    fuga.chargeTime = fuga.maxChargeTime;
-                }
-            }
-            
-            if (fuga.arrow) {
-                // Move arrow
-                fuga.arrow.x += fuga.arrow.vx;
-                fuga.arrow.y += fuga.arrow.vy;
-                fuga.arrow.life--;
-                
-                // Check collisions with enemies - EXPLODES on first hit
-                let hitSomething = false;
-                for (let i = cursedSpirits.length - 1; i >= 0; i--) {
-                    const enemy = cursedSpirits[i];
-                    const dist = Math.hypot(enemy.x - fuga.arrow.x, enemy.y - fuga.arrow.y);
-                    if (dist < enemy.size + 25) {
-                        hitSomething = true;
-                        break;
-                    }
-                }
-                
-                // Also check collision with active disaster curse
-                if (!hitSomething && activeDisasterCurse) {
-                    const dist = Math.hypot(activeDisasterCurse.x - fuga.arrow.x, activeDisasterCurse.y - fuga.arrow.y);
-                    if (dist < activeDisasterCurse.size + 30) {
-                        hitSomething = true;
-                    }
-                }
-                
-                if (hitSomething || fuga.arrow.life <= 0) {
-                    // MASSIVE EXPLOSION
-                    const explosionX = fuga.arrow.x;
-                    const explosionY = fuga.arrow.y;
-                    const explosionRadius = 350;
-                    const explosionDamage = 1000;
-                    
-                    // Damage all enemies in explosion radius
-                    for (let i = cursedSpirits.length - 1; i >= 0; i--) {
-                        const enemy = cursedSpirits[i];
-                        const dist = Math.hypot(enemy.x - explosionX, enemy.y - explosionY);
-                        if (dist < explosionRadius + enemy.size) {
-                            // Damage falls off with distance
-                            const damageMultiplier = 1 - (dist / (explosionRadius + enemy.size));
-                            const actualDamage = Math.floor(explosionDamage * damageMultiplier);
-                            enemy.hp -= actualDamage;
-                            
-                            if (actualDamage > 50) {
-                                addDamageNumber(enemy.x, enemy.y - 20, actualDamage);
-                            }
-                            
-                            if (enemy.hp <= 0) {
-                                addKillEffect(enemy.x, enemy.y, 'red');
-                                killSpirit(i, 'red');
-                            }
-                        }
-                    }
-                    
-                    // Damage active disaster curse
-                    if (activeDisasterCurse) {
-                        const dist = Math.hypot(activeDisasterCurse.x - explosionX, activeDisasterCurse.y - explosionY);
-                        if (dist < explosionRadius + activeDisasterCurse.size) {
-                            const damageMultiplier = 1 - (dist / (explosionRadius + activeDisasterCurse.size));
-                            const actualDamage = Math.floor(explosionDamage * damageMultiplier);
-                            activeDisasterCurse.hp -= actualDamage;
-                            addDamageNumber(activeDisasterCurse.x, activeDisasterCurse.y - 40, actualDamage);
-                            
-                            if (activeDisasterCurse.hp <= 0) {
-                                defeatDisasterCurse();
-                            }
-                        }
-                    }
-                    
-                    // Visual explosion effect
-                    spawnFugaExplosion(explosionX, explosionY);
-                    
-                    // Screen shake
-                    camera.shake = 15;
-                    camera.shakeTimer = 10;
-                    
-                    fuga.arrow = null;
-                }
-            }
-        }
-        
-        // Fuga particles for dramatic effects
-        let fugaParticles = [];
-        let fugaExplosions = [];
-        
-        function spawnFugaExplosion(x, y) {
-            // Create massive explosion
-            const explosion = {
-                x: x,
-                y: y,
-                life: 80,
-                maxLife: 80,
-                radius: 60
-            };
-            fugaExplosions.push(explosion);
-            
-            // Spawn tons of particles
-            for (let i = 0; i < 80; i++) {
-                const angle = (Math.PI * 2 * i) / 80 + Math.random() * 0.5;
-                const speed = 5 + Math.random() * 12;
-                const particle = {
-                    x: x,
-                    y: y,
-                    vx: Math.cos(angle) * speed,
-                    vy: Math.sin(angle) * speed,
-                    life: 50 + Math.random() * 40,
-                    maxLife: 0,
-                    size: 8 + Math.random() * 20,
-                    type: 'explosion',
-                    color: Math.random() > 0.7 ? '#ffaa00' : Math.random() > 0.4 ? '#ff6600' : '#ff2200'
-                };
-                particle.maxLife = particle.life;
-                fugaParticles.push(particle);
-            }
-            
-            // Shockwave particles
-            for (let i = 0; i < 50; i++) {
-                const angle = Math.random() * Math.PI * 2;
-                const speed = 8 + Math.random() * 15;
-                const particle = {
-                    x: x,
-                    y: y,
-                    vx: Math.cos(angle) * speed,
-                    vy: Math.sin(angle) * speed,
-                    life: 35 + Math.random() * 20,
-                    maxLife: 0,
-                    size: 5 + Math.random() * 10,
-                    type: 'spark',
-                    color: '#ffdd00'
-                };
-                particle.maxLife = particle.life;
-                fugaParticles.push(particle);
-            }
-        }
-        
-        function drawFugaExplosions() {
-            const expTime = Date.now() / 30;
-            
-            for (let i = fugaExplosions.length - 1; i >= 0; i--) {
-                const ex = fugaExplosions[i];
-                ex.life--;
-                const progress = 1 - (ex.life / ex.maxLife);
-                const alpha = 1 - progress;
-                
-                const screenX = ex.x - camera.x;
-                const screenY = ex.y - camera.y;
-                
-                // EXPANDING SHOCKWAVE RINGS
-                for (let ring = 0; ring < 4; ring++) {
-                    const ringProgress = Math.min(1, progress * (1 + ring * 0.3));
-                    const ringRadius = ex.radius * 0.3 + ringProgress * (80 + ring * 40);
-                    const ringAlpha = Math.max(0, (1 - ringProgress) * alpha * (0.8 - ring * 0.15));
-                    const ringWidth = 6 - ring;
-                    
-                    ctx.strokeStyle = `rgba(255, ${100 + ring * 40}, 0, ${ringAlpha})`;
-                    ctx.lineWidth = ringWidth;
-                    ctx.shadowColor = '#ff4400';
-                    ctx.shadowBlur = 20 * ringAlpha;
-                    ctx.beginPath();
-                    ctx.arc(screenX, screenY, ringRadius, 0, Math.PI * 2);
-                    ctx.stroke();
-                }
-                ctx.shadowBlur = 0;
-                
-                // MAIN FIREBALL - expanding sphere
-                const ballRadius = ex.radius * 0.5 + progress * ex.radius * 0.8;
-                const ballGrad = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, ballRadius);
-                ballGrad.addColorStop(0, `rgba(255, 255, 220, ${alpha})`);
-                ballGrad.addColorStop(0.2, `rgba(255, 200, 50, ${alpha * 0.9})`);
-                ballGrad.addColorStop(0.5, `rgba(255, 100, 0, ${alpha * 0.6})`);
-                ballGrad.addColorStop(0.8, `rgba(255, 40, 0, ${alpha * 0.3})`);
-                ballGrad.addColorStop(1, 'rgba(255, 20, 0, 0)');
-                
-                ctx.fillStyle = ballGrad;
-                ctx.beginPath();
-                ctx.arc(screenX, screenY, ballRadius, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // CHURNING FLAME LAYERS - multiple animated rings
-                for (let layer = 0; layer < 3; layer++) {
-                    const layerRadius = ballRadius * (0.4 + layer * 0.25);
-                    const numFlames = 8 + layer * 4;
-                    
-                    for (let f = 0; f < numFlames; f++) {
-                        const flameAngle = expTime * (3 + layer) + (f / numFlames) * Math.PI * 2;
-                        const flameDist = layerRadius * (0.7 + Math.sin(expTime * 5 + f) * 0.3);
-                        const fx = screenX + Math.cos(flameAngle) * flameDist;
-                        const fy = screenY + Math.sin(flameAngle) * flameDist;
-                        const fsize = (8 - layer * 2) * alpha * (0.8 + Math.sin(expTime * 4 + f) * 0.4);
-                        
-                        ctx.fillStyle = `rgba(255, ${120 + Math.sin(f) * 80}, 0, ${alpha * 0.7})`;
-                        ctx.shadowColor = '#ff6600';
-                        ctx.shadowBlur = 15 * alpha;
-                        ctx.beginPath();
-                        ctx.arc(fx, fy, fsize, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                }
-                ctx.shadowBlur = 0;
-                
-                // FLYING DEBRIS/SPARKS
-                for (let d = 0; d < 12; d++) {
-                    const debrisAngle = (d / 12) * Math.PI * 2 + ex.life * 0.1;
-                    const debrisDist = progress * (60 + d * 8);
-                    const dx = screenX + Math.cos(debrisAngle) * debrisDist;
-                    const dy = screenY + Math.sin(debrisAngle) * debrisDist;
-                    const dsize = (4 + Math.sin(d * 3) * 2) * alpha;
-                    
-                    ctx.fillStyle = `rgba(255, ${200 + Math.sin(d) * 55}, 50, ${alpha})`;
-                    ctx.beginPath();
-                    ctx.arc(dx, dy, dsize, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                
-                // BRIGHT CORE FLASH
-                const coreSize = ex.radius * 0.3 * (1 - progress * 0.5);
-                ctx.fillStyle = `rgba(255, 255, 255, ${alpha * 0.9})`;
-                ctx.shadowColor = '#ffffaa';
-                ctx.shadowBlur = 40 * alpha;
-                ctx.beginPath();
-                ctx.arc(screenX, screenY, coreSize, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.shadowBlur = 0;
-                
-                if (ex.life <= 0) {
-                    fugaExplosions.splice(i, 1);
-                }
-            }
-        }
-        
-        function spawnFugaParticle(x, y, type) {
-            // Limit total particles to prevent performance issues
-            if (fugaParticles.length > 200) {
-                fugaParticles.shift(); // Remove oldest particle
-            }
-            
-            const particle = {
-                x: x,
-                y: y,
-                vx: (Math.random() - 0.5) * (type === 'spark' ? 8 : 4),
-                vy: (Math.random() - 0.5) * (type === 'spark' ? 8 : 4) - (type === 'ember' ? 2 : 0),
-                life: type === 'spark' ? 20 + Math.random() * 15 : 40 + Math.random() * 30,
-                maxLife: 0,
-                size: type === 'spark' ? 2 + Math.random() * 3 : 4 + Math.random() * 6,
-                type: type,
-                color: type === 'spark' ? 
-                    (Math.random() > 0.5 ? '#ffaa00' : '#ff4400') : 
-                    (Math.random() > 0.7 ? '#ff2200' : Math.random() > 0.5 ? '#ff6600' : '#ffaa00')
-            };
-            particle.maxLife = particle.life;
-            fugaParticles.push(particle);
-        }
-        
-        function updateFugaParticles() {
-            for (let i = fugaParticles.length - 1; i >= 0; i--) {
-                const p = fugaParticles[i];
-                p.x += p.vx;
-                p.y += p.vy;
-                p.life--;
-                
-                // Sparks fall down, embers float up
-                if (p.type === 'spark') {
-                    p.vy += 0.3; // gravity
-                } else {
-                    p.vy -= 0.05; // float up
-                }
-                
-                if (p.life <= 0) {
-                    fugaParticles.splice(i, 1);
-                }
-            }
-        }
-        
-        function drawFugaParticles() {
-            for (const p of fugaParticles) {
-                const alpha = p.life / p.maxLife;
-                ctx.save();
-                ctx.globalAlpha = alpha;
-                ctx.fillStyle = p.color;
-                ctx.shadowColor = p.color;
-                ctx.shadowBlur = p.type === 'spark' ? 10 : 15;
-                ctx.beginPath();
-                ctx.arc(p.x - camera.x, p.y - camera.y, p.size * alpha, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.restore();
-            }
-        }
-        
-        function drawFuga() {
-            if (fuga.charging) {
-                const chargePercent = fuga.chargeTime / fuga.maxChargeTime;
-                const screenX = player.x - camera.x;
-                const screenY = player.y - camera.y;
-                
-                // Arrow position - to the RIGHT of player (where it will be held)
-                const arrowDist = 35;
-                const arrowAngle = player.facing + Math.PI / 2; // 90 degrees right
-                const arrowX = screenX + Math.cos(arrowAngle) * arrowDist;
-                const arrowY = screenY + Math.sin(arrowAngle) * arrowDist;
-                
-                // Fire position - moves from front (0%) to right side (50%)
-                const frontAngle = player.facing;
-                const frontDist = 40;
-                const frontX = screenX + Math.cos(frontAngle) * frontDist;
-                const frontY = screenY + Math.sin(frontAngle) * frontDist;
-                
-                // Interpolate fire position: 0% = front, 50% = right side
-                const firePosT = Math.min(chargePercent * 2, 1);
-                const fireX = frontX + (arrowX - frontX) * firePosT;
-                const fireY = frontY + (arrowY - frontY) * firePosT;
-                
-                const time = Date.now() / 100;
-                const effectTime = Date.now() / 60;
-                
-                // POLISHED FIRE CIRCLE around player
-                const circleTime = Date.now() / 50;
-                const baseRadius = 50 + chargePercent * 20;
-                
-                // Outer glow ring - soft and smooth
-                const outerGlow = ctx.createRadialGradient(screenX, screenY, baseRadius * 0.5, screenX, screenY, baseRadius * 1.8);
-                outerGlow.addColorStop(0, 'rgba(255, 100, 0, 0)');
-                outerGlow.addColorStop(0.4, `rgba(255, 80, 0, ${0.15 * chargePercent})`);
-                outerGlow.addColorStop(0.7, `rgba(255, 60, 0, ${0.25 * chargePercent})`);
-                outerGlow.addColorStop(1, 'rgba(255, 40, 0, 0)');
-                ctx.fillStyle = outerGlow;
-                ctx.beginPath();
-                ctx.arc(screenX, screenY, baseRadius * 1.8, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Main rotating fire ring
-                const ringPulse = Math.sin(circleTime * 3) * 0.2 + 0.8;
-                const ringAlpha = 0.4 * chargePercent * ringPulse;
-                
-                ctx.strokeStyle = `rgba(255, 120, 30, ${ringAlpha})`;
-                ctx.lineWidth = 8;
-                ctx.lineCap = 'round';
-                ctx.shadowColor = '#ff4400';
-                ctx.shadowBlur = 20 * chargePercent;
-                
-                // Draw segmented ring for smoother look
-                const segments = 24;
-                for (let i = 0; i < segments; i++) {
-                    const startAngle = circleTime * 2 + (i / segments) * Math.PI * 2;
-                    const endAngle = startAngle + (Math.PI * 2 / segments) * 0.7;
-                    const segmentAlpha = ringAlpha * (0.7 + Math.sin(circleTime * 4 + i) * 0.3);
-                    
-                    ctx.strokeStyle = `rgba(255, ${100 + Math.sin(i * 0.5) * 40}, 20, ${segmentAlpha})`;
-                    ctx.beginPath();
-                    ctx.arc(screenX, screenY, baseRadius, startAngle, endAngle);
-                    ctx.stroke();
-                }
-                
-                // Orbiting fire orbs
-                const numOrbs = 6 + Math.floor(chargePercent * 4);
-                for (let i = 0; i < numOrbs; i++) {
-                    const orbAngle = circleTime * 2.5 + (i / numOrbs) * Math.PI * 2;
-                    const orbDist = baseRadius + Math.sin(circleTime * 4 + i) * 8;
-                    const ox = screenX + Math.cos(orbAngle) * orbDist;
-                    const oy = screenY + Math.sin(orbAngle) * orbDist;
-                    const orbSize = 6 + chargePercent * 6 + Math.sin(circleTime * 6 + i) * 2;
-                    
-                    // Orb glow
-                    const orbGrad = ctx.createRadialGradient(ox, oy, 0, ox, oy, orbSize * 2);
-                    orbGrad.addColorStop(0, `rgba(255, 200, 50, ${0.9 * chargePercent})`);
-                    orbGrad.addColorStop(0.5, `rgba(255, 100, 0, ${0.5 * chargePercent})`);
-                    orbGrad.addColorStop(1, 'rgba(255, 50, 0, 0)');
-                    
-                    ctx.fillStyle = orbGrad;
-                    ctx.shadowColor = '#ff6600';
-                    ctx.shadowBlur = 15 * chargePercent;
-                    ctx.beginPath();
-                    ctx.arc(ox, oy, orbSize * 2, 0, Math.PI * 2);
-                    ctx.fill();
-                    
-                    // Orb core
-                    ctx.fillStyle = `rgba(255, 255, 150, ${0.95 * chargePercent})`;
-                    ctx.shadowBlur = 8;
-                    ctx.beginPath();
-                    ctx.arc(ox, oy, orbSize * 0.5, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                ctx.shadowBlur = 0;
-                
-                // Rising ember particles
-                for (let i = 0; i < 12 + chargePercent * 8; i++) {
-                    const emberAngle = (i / 20) * Math.PI * 2 + circleTime * 0.5;
-                    const emberDist = 15 + Math.sin(circleTime * 3 + i) * 10;
-                    const ex = screenX + Math.cos(emberAngle) * emberDist;
-                    const ey = screenY + Math.sin(emberAngle) * emberDist - (circleTime * 30 + i * 10) % 60;
-                    const emberSize = 2 + Math.random() * 3 * chargePercent;
-                    const emberAlpha = Math.max(0, 1 - ((circleTime * 30 + i * 10) % 60) / 60) * chargePercent;
-                    
-                    ctx.fillStyle = `rgba(255, ${150 + Math.random() * 80}, 50, ${emberAlpha})`;
-                    ctx.beginPath();
-                    ctx.arc(ex, ey, emberSize, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                
-                // Inner core - clean white-hot center
-                const corePulse = Math.sin(circleTime * 5) * 0.2 + 0.8;
-                const coreSize = 18 + chargePercent * 12 * corePulse;
-                
-                const coreGrad = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, coreSize);
-                coreGrad.addColorStop(0, `rgba(255, 255, 220, ${chargePercent})`);
-                coreGrad.addColorStop(0.3, `rgba(255, 200, 80, ${0.8 * chargePercent})`);
-                coreGrad.addColorStop(0.6, `rgba(255, 120, 20, ${0.4 * chargePercent})`);
-                coreGrad.addColorStop(1, 'rgba(255, 60, 0, 0)');
-                
-                ctx.fillStyle = coreGrad;
-                ctx.shadowColor = '#ff8800';
-                ctx.shadowBlur = 20 * chargePercent;
-                ctx.beginPath();
-                ctx.arc(screenX, screenY, coreSize, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.shadowBlur = 0;
-                
-                // PHASE 1: 0-50% charge - fire building up, moving from front to side
-                if (chargePercent < 0.5) {
-                    const buildupProgress = chargePercent / 0.5;
-                    
-                    // Pulsing fire aura at current fire position
-                    const pulse = Math.sin(time * 3) * 0.3 + 0.7;
-                    const auraSize = 20 + buildupProgress * 25 * pulse;
-                    
-                    // Outer glow
-                    const gradient = ctx.createRadialGradient(fireX, fireY, 0, fireX, fireY, auraSize * 2);
-                    gradient.addColorStop(0, `rgba(255, ${100 + buildupProgress * 100}, 0, ${0.4 + buildupProgress * 0.3})`);
-                    gradient.addColorStop(0.5, `rgba(255, 60, 0, ${0.2 + buildupProgress * 0.15})`);
-                    gradient.addColorStop(1, 'rgba(255, 30, 0, 0)');
-                    ctx.fillStyle = gradient;
-                    ctx.beginPath();
-                    ctx.arc(fireX, fireY, auraSize * 2, 0, Math.PI * 2);
-                    ctx.fill();
-                    
-                    // Swirling embers
-                    for (let i = 0; i < 5 + buildupProgress * 10; i++) {
-                        const orbitAngle = time * 4 + (i / 15) * Math.PI * 2;
-                        const dist = auraSize * 0.7 + Math.sin(time * 5 + i) * 12;
-                        const ex = fireX + Math.cos(orbitAngle) * dist;
-                        const ey = fireY + Math.sin(orbitAngle) * dist;
-                        const size = 3 + buildupProgress * 5 + Math.random() * 3;
-                        
-                        ctx.fillStyle = `rgba(255, ${60 + Math.random() * 100}, 0, ${0.7 + Math.random() * 0.3})`;
-                        ctx.shadowColor = '#ff2200';
-                        ctx.shadowBlur = 10;
-                        ctx.beginPath();
-                        ctx.arc(ex, ey, size, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                    
-                    // Lightning arcs from player to fire
-                    ctx.strokeStyle = `rgba(255, ${200 + buildupProgress * 55}, 100, ${0.25 + buildupProgress * 0.35})`;
-                    ctx.lineWidth = 2;
-                    for (let i = 0; i < 3 + buildupProgress * 4; i++) {
-                        const arcAngle = time * 5 + i * 2.1;
-                        const midX = (screenX + fireX) / 2 + Math.cos(arcAngle) * 20;
-                        const midY = (screenY + fireY) / 2 + Math.sin(arcAngle) * 20;
-                        
-                        ctx.beginPath();
-                        ctx.moveTo(screenX, screenY);
-                        ctx.quadraticCurveTo(midX, midY, fireX, fireY);
-                        ctx.stroke();
-                    }
-                    
-                    // Charging text
-                    const textPulse = Math.sin(time * 2) * 0.4 + 0.6;
-                    ctx.fillStyle = `rgba(255, ${100 + chargePercent * 100}, 0, ${textPulse})`;
-                    ctx.font = 'bold 20px "Segoe UI", sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(`FUGA CHARGING... ${Math.floor(chargePercent * 100)}%`, player.x - camera.x, player.y - camera.y - 90);
-                    
-                } else {
-                    // PHASE 2: 50-100% - flame arrow forms at right side
-                    const formationProgress = (chargePercent - 0.5) / 0.5;
-                    
-                    // Draw forming fire arrow at arrow position (right side)
-                    ctx.save();
-                    ctx.translate(arrowX, arrowY);
-                    ctx.rotate(player.facing);
-                    
-                    // Fire aura that grows with formation
-                    const auraIntensity = 0.5 + formationProgress * 0.4;
-                    const auraSize = 45 + formationProgress * 35;
-                    
-                    // Outer glow
-                    const outerGrad = ctx.createRadialGradient(0, 0, 15, 0, 0, auraSize);
-                    outerGrad.addColorStop(0, `rgba(255, 150, 50, ${0.7 * auraIntensity})`);
-                    outerGrad.addColorStop(0.5, `rgba(255, 100, 0, ${0.4 * auraIntensity})`);
-                    outerGrad.addColorStop(1, 'rgba(255, 50, 0, 0)');
-                    ctx.fillStyle = outerGrad;
-                    ctx.beginPath();
-                    ctx.ellipse(0, 0, auraSize, auraSize * 0.6, 0, 0, Math.PI * 2);
-                    ctx.fill();
-                    
-                    // ORGANIC FLAME ARROW - forms gradually
-                    const numFlames = Math.floor(formationProgress * 25);
-                    
-                    for (let i = 0; i < numFlames; i++) {
-                        const t = i / 24;
-                        const baseX = -70 + t * 130;
-                        const shapeFactor = Math.sin(t * Math.PI);
-                        const maxWidth = 15 * shapeFactor;
-                        
-                        const wave1 = Math.sin(effectTime * 3 + t * 8) * maxWidth;
-                        const wave2 = Math.cos(effectTime * 2.5 + t * 6) * maxWidth * 0.7;
-                        const flameY = wave1 + wave2;
-                        const flameSize = 5 + shapeFactor * 12 + Math.sin(effectTime * 4 + i) * 3;
-                        
-                        let r, g, b;
-                        if (t < 0.3) {
-                            const hotness = (0.3 - t) / 0.3;
-                            r = 255;
-                            g = 200 + hotness * 55;
-                            b = 100 + hotness * 155;
-                        } else if (t < 0.7) {
-                            r = 255;
-                            g = 120 + Math.sin(effectTime + i) * 40;
-                            b = 20;
-                        } else {
-                            r = 255;
-                            g = 60 + Math.sin(effectTime * 2 + i) * 30;
-                            b = 0;
-                        }
-                        
-                        const alpha = 0.7 + Math.sin(effectTime * 3 + i) * 0.3;
-                        
-                        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
-                        ctx.shadowColor = `rgb(${r}, ${Math.max(g - 50, 0)}, 0)`;
-                        ctx.shadowBlur = flameSize * 1.5;
-                        
-                        ctx.beginPath();
-                        const fx = baseX + flameY * 0.3;
-                        ctx.arc(fx, flameY, flameSize, 0, Math.PI * 2);
-                        ctx.fill();
-                        
-                        if (Math.random() < 0.3) {
-                            const sparkX = fx + (Math.random() - 0.5) * 20;
-                            const sparkY = flameY + (Math.random() - 0.5) * 15;
-                            const sparkSize = 2 + Math.random() * 3;
-                            ctx.fillStyle = `rgba(255, 255, 150, 0.8)`;
-                            ctx.shadowBlur = 8;
-                            ctx.beginPath();
-                            ctx.arc(sparkX, sparkY, sparkSize, 0, Math.PI * 2);
-                            ctx.fill();
-                        }
-                    }
-                    
-                    // Fletching forms last
-                    if (formationProgress > 0.7) {
-                        const fletchAlpha = (formationProgress - 0.7) / 0.3;
-                        ctx.shadowColor = '#ff4400';
-                        ctx.shadowBlur = 15;
-                        
-                        ctx.fillStyle = `rgba(255, 80, 0, ${0.8 * fletchAlpha})`;
-                        ctx.beginPath();
-                        ctx.moveTo(-65, -2);
-                        ctx.lineTo(-85, -12);
-                        ctx.lineTo(-80, -5);
-                        ctx.lineTo(-88, -7);
-                        ctx.lineTo(-70, 0);
-                        ctx.closePath();
-                        ctx.fill();
-                        
-                        ctx.beginPath();
-                        ctx.moveTo(-65, 2);
-                        ctx.lineTo(-85, 12);
-                        ctx.lineTo(-80, 5);
-                        ctx.lineTo(-88, 7);
-                        ctx.lineTo(-70, 0);
-                        ctx.closePath();
-                        ctx.fill();
-                    }
-                    
-                    ctx.restore();
-                    ctx.shadowBlur = 0;
-                    
-                    // Lightning from player to arrow
-                    ctx.strokeStyle = `rgba(255, 200, 100, ${0.3 + formationProgress * 0.3})`;
-                    ctx.lineWidth = 2;
-                    for (let i = 0; i < 4; i++) {
-                        const arcAngle = time * 6 + i * 1.5;
-                        const midX = (screenX + arrowX) / 2 + Math.cos(arcAngle) * 15;
-                        const midY = (screenY + arrowY) / 2 + Math.sin(arcAngle) * 15;
-                        
-                        ctx.beginPath();
-                        ctx.moveTo(screenX, screenY);
-                        ctx.quadraticCurveTo(midX, midY, arrowX, arrowY);
-                        ctx.stroke();
-                    }
-                    
-                    // Ready text - click to fire
-                    const shakeX = (Math.random() - 0.5) * 3;
-                    const shakeY = (Math.random() - 0.5) * 3;
-                    ctx.fillStyle = '#ff4400';
-                    ctx.font = 'bold 22px "Segoe UI", sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('CLICK TO FIRE!', player.x - camera.x + shakeX, player.y - camera.y - 100 + shakeY);
-                }
-                
-                
-            }
-            
-            // Draw fired arrow
-            if (fuga.arrow) {
-                const ax = fuga.arrow.x - camera.x;
-                const ay = fuga.arrow.y - camera.y;
-                const angle = Math.atan2(fuga.arrow.vy, fuga.arrow.vx);
-                const lifePercent = fuga.arrow.life / fuga.arrow.maxLife;
-                
-                ctx.save();
-                ctx.translate(ax, ay);
-                ctx.rotate(angle);
-                
-                // Spawn trail particles (comet tail effect)
-                if (Math.random() < 0.7) {
-                    for (let t = 0; t < 3; t++) {
-                        spawnFugaParticle(
-                            fuga.arrow.x - Math.cos(angle) * (20 + t * 15) + (Math.random() - 0.5) * 15,
-                            fuga.arrow.y - Math.sin(angle) * (20 + t * 15) + (Math.random() - 0.5) * 15,
-                            'ember'
-                        );
-                    }
-                }
-                
-                // LONG COMET TRAIL - fire streaming behind the arrow
-                for (let layer = 0; layer < 4; layer++) {
-                    ctx.shadowColor = layer === 0 ? '#ff0000' : layer === 1 ? '#ff3300' : layer === 2 ? '#ff6600' : '#ffaa00';
-                    ctx.shadowBlur = 35 - layer * 6;
-                    
-                    for (let i = 0; i < 20; i++) {
-                        const trailSize = Math.max(3, (18 - layer * 3) - i * 0.8);
-                        const trailX = -20 - i * 12 - layer * 5;
-                        const alpha = (0.9 - layer * 0.12 - i * 0.03) * lifePercent;
-                        const offsetY = (Math.random() - 0.5) * (6 + i);
-                        
-                        ctx.fillStyle = `rgba(255, ${layer === 0 ? 20 : layer === 1 ? 50 : layer === 2 ? 100 : 150}, 0, ${alpha})`;
-                        ctx.beginPath();
-                        ctx.arc(trailX, offsetY, trailSize, 0, Math.PI * 2);
-                        ctx.fill();
-                    }
-                }
-                
-                // FLAMES ENVELOPING THE ARROW
-                ctx.save();
-                
-                // Random flames along the entire arrow
-                for (let f = 0; f < 25; f++) {
-                    const flameX = -70 + f * 6 + (Math.random() - 0.5) * 8;
-                    const flameY = (Math.random() - 0.5) * 12;
-                    const flameSize = 4 + Math.random() * 8;
-                    
-                    ctx.fillStyle = `rgba(255, ${60 + Math.random() * 100}, 0, ${0.6 + Math.random() * 0.3})`;
-                    ctx.shadowColor = Math.random() > 0.5 ? '#ff2200' : '#ff6600';
-                    ctx.shadowBlur = 10 + Math.random() * 8;
-                    ctx.beginPath();
-                    ctx.arc(flameX, flameY, flameSize, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                
-                // Larger flames on the arrowhead
-                for (let f = 0; f < 15; f++) {
-                    const flameX = 30 + Math.random() * 40;
-                    const flameY = (Math.random() - 0.5) * 20;
-                    const flameSize = 6 + Math.random() * 10;
-                    
-                    ctx.fillStyle = `rgba(255, ${40 + Math.random() * 80}, 0, ${0.7 + Math.random() * 0.3})`;
-                    ctx.shadowColor = '#ff0000';
-                    ctx.shadowBlur = 15 + Math.random() * 10;
-                    ctx.beginPath();
-                    ctx.arc(flameX, flameY, flameSize, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                
-                // Flames on the fletching
-                for (let f = 0; f < 10; f++) {
-                    const flameX = -85 - Math.random() * 15;
-                    const flameY = (Math.random() - 0.5) * 16;
-                    const flameSize = 5 + Math.random() * 7;
-                    
-                    ctx.fillStyle = `rgba(255, ${80 + Math.random() * 100}, 0, ${0.6 + Math.random() * 0.3})`;
-                    ctx.shadowColor = '#ff4400';
-                    ctx.shadowBlur = 12;
-                    ctx.beginPath();
-                    ctx.arc(flameX, flameY, flameSize, 0, Math.PI * 2);
-                    ctx.fill();
-                }
-                
-                ctx.restore();
-                ctx.shadowBlur = 0;
-                
-                // ARROW SHAFT - long and thin (drawn BEHIND the flames)
-                ctx.shadowColor = '#ff4400';
-                ctx.shadowBlur = 20;
-                
-                // Outer shaft glow
-                ctx.fillStyle = 'rgba(100, 30, 0, 0.8)';
-                ctx.beginPath();
-                ctx.moveTo(40, 0);
-                ctx.lineTo(-80, -5);
-                ctx.lineTo(-85, 0);
-                ctx.lineTo(-80, 5);
-                ctx.closePath();
-                ctx.fill();
-                
-                // Main shaft (darker, charred wood look)
-                ctx.fillStyle = '#4a2010';
-                ctx.beginPath();
-                ctx.moveTo(35, 0);
-                ctx.lineTo(-75, -3);
-                ctx.lineTo(-80, 0);
-                ctx.lineTo(-75, 3);
-                ctx.closePath();
-                ctx.fill();
-                
-                // Inner shaft (glowing hot center)
-                ctx.fillStyle = '#ff4400';
-                ctx.beginPath();
-                ctx.moveTo(30, 0);
-                ctx.lineTo(-60, -1.5);
-                ctx.lineTo(-65, 0);
-                ctx.lineTo(-60, 1.5);
-                ctx.closePath();
-                ctx.fill();
-                
-                // ARROWHEAD - metal head heated by fire
-                ctx.shadowColor = '#ff0000';
-                ctx.shadowBlur = 30;
-                
-                // Outer arrowhead (heated metal glow)
-                ctx.fillStyle = 'rgba(255, 60, 0, 0.9)';
-                ctx.beginPath();
-                ctx.moveTo(80, 0);      // Tip
-                ctx.lineTo(30, -22);    // Back of head top
-                ctx.lineTo(35, 0);      // Center notch
-                ctx.lineTo(30, 22);     // Back of head bottom
-                ctx.closePath();
-                ctx.fill();
-                
-                // Main arrowhead (iron)
-                ctx.fillStyle = '#5a3a30';
-                ctx.beginPath();
-                ctx.moveTo(70, 0);
-                ctx.lineTo(28, -15);
-                ctx.lineTo(32, 0);
-                ctx.lineTo(28, 15);
-                ctx.closePath();
-                ctx.fill();
-                
-                // Inner arrowhead (heated)
-                ctx.fillStyle = '#aa3300';
-                ctx.beginPath();
-                ctx.moveTo(60, 0);
-                ctx.lineTo(25, -10);
-                ctx.lineTo(28, 0);
-                ctx.lineTo(25, 10);
-                ctx.closePath();
-                ctx.fill();
-                
-                // Hot core of arrowhead
-                ctx.fillStyle = '#ff6600';
-                ctx.beginPath();
-                ctx.moveTo(50, 0);
-                ctx.lineTo(22, -6);
-                ctx.lineTo(25, 0);
-                ctx.lineTo(22, 6);
-                ctx.closePath();
-                ctx.fill();
-                
-                // White hot tip
-                ctx.fillStyle = '#ffccaa';
-                ctx.beginPath();
-                ctx.moveTo(40, 0);
-                ctx.lineTo(20, -3);
-                ctx.lineTo(22, 0);
-                ctx.lineTo(20, 3);
-                ctx.closePath();
-                ctx.fill();
-                
-                // Fletching (feathers) - burning
-                ctx.shadowColor = '#ff4400';
-                ctx.shadowBlur = 15;
-                
-                // Top fletching (charred)
-                ctx.fillStyle = '#3a2010';
-                ctx.beginPath();
-                ctx.moveTo(-80, -2);
-                ctx.lineTo(-100, -12);
-                ctx.lineTo(-95, -4);
-                ctx.lineTo(-105, -6);
-                ctx.lineTo(-90, 0);
-                ctx.closePath();
-                ctx.fill();
-                
-                // Bottom fletching (charred)
-                ctx.beginPath();
-                ctx.moveTo(-80, 2);
-                ctx.lineTo(-100, 12);
-                ctx.lineTo(-95, 4);
-                ctx.lineTo(-105, 6);
-                ctx.lineTo(-90, 0);
-                ctx.closePath();
-                ctx.fill();
-                
-                ctx.restore();
-                ctx.shadowBlur = 0;
-            }
-            
-            // Draw explosions
-            drawFugaExplosions();
-            
-        }
-        
-        // Update and draw particles (called separately from game loop)
-        function updateAndDrawFugaParticles() {
-            updateFugaParticles();
-            drawFugaParticles();
-        }
-        
-        function spawnTestingSpirits() {
-            // Clear existing spirits
-            cursedSpirits.length = 0;
-            
-            // Spawn one of each grade at fixed positions around player spawn (within 800x600 arena)
-            const spiritTypes = [
-                { grade: 'Grade 4', hp: 30, color: '#44bb44', size: 15, x: -250, y: -100 },
-                { grade: 'Grade 3', hp: 60, color: '#44ccaa', size: 18, x: 250, y: -100 },
-                { grade: 'Grade 2', hp: 120, color: '#9955cc', size: 22, x: -250, y: 100 },
-                { grade: 'Grade 1', hp: 200, color: '#ff4444', size: 28, x: 250, y: 100 },
-                { grade: 'Special Grade', hp: 400, color: '#ff00ff', size: 35, x: 0, y: -200 },
-                { grade: 'Disaster Curse', hp: 1000, color: '#ff3300', size: 50, x: 0, y: 200, isBoss: true }
-            ];
-            
-            const gradeMap = {
-                'Grade 4': 'GRADE_4',
-                'Grade 3': 'GRADE_3',
-                'Grade 2': 'GRADE_2',
-                'Grade 1': 'GRADE_1',
-                'Special Grade': 'SPECIAL',
-                'Disaster Curse': 'DISASTER_CURSE'
-            };
-            
-            for (const type of spiritTypes) {
-                cursedSpirits.push({
-                    x: type.x,
-                    y: type.y,
-                    hp: type.hp,
-                    maxHp: type.hp,
-                    color: type.color,
-                    size: type.size,
-                    grade: gradeMap[type.grade] || type.grade,
-                    stationary: true, // Flag to prevent movement
-                    attackCooldown: 0,
-                    state: 'idle'
-                });
-            }
-        }
-        
-        function respawnTestingSpirit(grade) {
-            console.log('respawnTestingSpirit called for', grade);
-            // Respawn the same grade spirit at its original position
-            const spiritPositions = {
-                'GRADE_4': { x: -250, y: -100, hp: 30, color: '#44bb44', size: 15 },
-                'GRADE_3': { x: 250, y: -100, hp: 60, color: '#44ccaa', size: 18 },
-                'GRADE_2': { x: -250, y: 100, hp: 120, color: '#9955cc', size: 22 },
-                'GRADE_1': { x: 250, y: 100, hp: 200, color: '#ff4444', size: 28 },
-                'SPECIAL': { x: 0, y: -200, hp: 400, color: '#ff00ff', size: 35 },
-                'DISASTER_CURSE': { x: 0, y: 200, hp: 1000, color: '#ff3300', size: 50, isBoss: true }
-            };
-            
-            const pos = spiritPositions[grade];
-            console.log('Position found:', pos);
-            if (pos) {
-                setTimeout(() => {
-                    // Convert grade format for drawing function
-                    const gradeMap = {
-                        'Grade 4': 'GRADE_4',
-                        'Grade 3': 'GRADE_3',
-                        'Grade 2': 'GRADE_2',
-                        'Grade 1': 'GRADE_1',
-                        'Special Grade': 'SPECIAL',
-                        'Disaster Curse': 'DISASTER_CURSE'
-                    };
-                    const drawGrade = gradeMap[grade] || grade;
-                    
-                    // Spawn at original position (relative to world origin, not player)
-                    console.log('Actually respawning', grade, 'as', drawGrade, 'at', pos.x, pos.y);
-                    cursedSpirits.push({
-                        x: pos.x,
-                        y: pos.y,
-                        hp: pos.hp,
-                        maxHp: pos.hp,
-                        color: pos.color,
-                        size: pos.size,
-                        grade: drawGrade,
-                        stationary: true,
-                        attackCooldown: 0,
-                        state: 'idle'
-                    });
-                    console.log('Spirit count after respawn:', cursedSpirits.length);
-                }, 2000); // Respawn after 2 seconds
-            }
-        }
-        
         function useAbility(index) {
             const ability = abilities[index];
-            const ceCost = selectedCharacter === 'SUKUNA' ? [15, 25, 40, 80] : [20, 30, 50, 80];
+            const ceCost = [20, 30, 50, 80][index]; // Blue, Red, Purple, Domain costs
             
-            // Fuga special handling - only cost CE when starting charge, not when firing
-            if (selectedCharacter === 'SUKUNA' && index === 2) {
-                if (fuga.charging || fuga.charged) {
-                    // Already charging or charged, just fire (no CE cost)
-                    activateFuga();
-                    return;
-                }
-                // Starting charge - check CE and cooldown
-                if (ability.cooldown === 0 && player.ce >= ceCost[index]) {
-                    ability.cooldown = ability.maxCooldown;
-                    player.ce -= ceCost[index];
-                    activateFuga();
-                } else if (player.ce < ceCost[index]) {
-                    showNotif('Not enough CE!');
-                }
-                return;
-            }
-            
-            if (ability.cooldown === 0 && player.ce >= ceCost[index]) {
+            if (ability.cooldown === 0 && player.ce >= ceCost) {
                 ability.cooldown = ability.maxCooldown;
-                player.ce -= ceCost[index];
+                player.ce -= ceCost;
                 
-                if (selectedCharacter === 'SUKUNA') {
-                    // Sukuna's abilities
-                    if (index === 0) { // Dismantle - barrage of slashes
-                        activateDismantle();
-                    } else if (index === 1) {
-                        activateCleave();
-                    } else if (index === 3) showNotif('Malevolent Shrine!');
-                } else {
-                    // Gojo's abilities
-                    if (index === 0) { // Max Blue
-                        if (!reversalRed.active && !reversalRed.charging) {
-                            maxBlue.active = true;
-                            maxBlue.timer = maxBlue.duration;
+                // Activate abilities
+                if (index === 0) { // Max Blue
+                    if (!reversalRed.active && !reversalRed.charging) {
+                        maxBlue.active = true;
+                        maxBlue.timer = maxBlue.duration;
+                    }
+                } else if (index === 1) { // Reversal Red
+                    if (!reversalRed.active && !reversalRed.charging && !maxBlue.active && !hollowPurple.active && !hollowPurple.charging) {
+                        reversalRed.charging = true;
+                        reversalRed.chargeTime = reversalRed.maxChargeTime;
+                    }
+                } else if (index === 2) { // Hollow Purple
+                    if (!hollowPurple.active && !hollowPurple.charging && !maxBlue.active && !reversalRed.active && !reversalRed.charging) {
+                        hollowPurple.charging = true;
+                        hollowPurple.fusing = true;
+                        hollowPurple.chargeTime = hollowPurple.maxChargeTime;
+                        hollowPurple.blueOrb.angle = 0;
+                        hollowPurple.redOrb.angle = Math.PI;
+                    }
+                } else if (index === 3) { // Domain Expansion
+                    if (selectedCharacter === 'SUKUNA') {
+                        if (!sukunaDomain.active) {
+                            activateSukunaDomain();
                         }
-                    } else if (index === 1) { // Reversal Red
-                        if (!reversalRed.active && !reversalRed.charging && !maxBlue.active && !hollowPurple.active && !hollowPurple.charging) {
-                            reversalRed.charging = true;
-                            reversalRed.chargeTime = reversalRed.maxChargeTime;
-                        }
-                    } else if (index === 2) { // Hollow Purple
-                        if (!hollowPurple.active && !hollowPurple.charging && !maxBlue.active && !reversalRed.active && !reversalRed.charging) {
-                            hollowPurple.charging = true;
-                            hollowPurple.fusing = true;
-                            hollowPurple.chargeTime = hollowPurple.maxChargeTime;
-                            hollowPurple.blueOrb.angle = 0;
-                            hollowPurple.redOrb.angle = Math.PI;
-                        }
-                    } else if (index === 3) { // Domain Expansion
+                    } else {
                         if (!playerDomain.active) {
                             activateDomain();
                         }
@@ -5027,115 +3426,473 @@
             playerDomain.radius = 0;
             playerDomain.duration = 1800; // 30 seconds
             playerDomain.frozenEnemies = [];
-            playerDomain.character = selectedCharacter; // Track which character activated it
             
             // Store fixed domain center at player position when cast
             playerDomain.centerX = player.x;
             playerDomain.centerY = player.y;
             
-            if (selectedCharacter === 'SUKUNA') {
-                // MALEVOLENT SHRINE - barrier-less domain
-                playerDomain.type = 'shrine';
+            // Initialize dramatic speed lines (more intense, radiating from center)
+            playerDomain.lines = [];
+            for (let i = 0; i < 150; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = 100 + Math.random() * 500;
+                playerDomain.lines.push({
+                    angle: angle,
+                    dist: dist,
+                    z: Math.random() * 800,
+                    speed: 30 + Math.random() * 40,
+                    color: ['#4488ff', '#ff4444', '#aa44ff', '#ffffff', '#44ffff'][Math.floor(Math.random() * 5)],
+                    length: 100 + Math.random() * 200,
+                    width: 2 + Math.random() * 4
+                });
+            }
+            
+            // Initialize stars (more numerous, deeper space feel)
+            playerDomain.stars = [];
+            for (let i = 0; i < 300; i++) {
+                playerDomain.stars.push({
+                    x: (Math.random() - 0.5) * 2500,
+                    y: (Math.random() - 0.5) * 2500,
+                    size: 0.5 + Math.random() * 2.5,
+                    twinkle: Math.random() * Math.PI * 2,
+                    brightness: 0.3 + Math.random() * 0.7
+                });
+            }
+            
+            // Initialize galaxies (more dramatic)
+            playerDomain.galaxies = [];
+            for (let i = 0; i < 6; i++) {
+                playerDomain.galaxies.push({
+                    x: (Math.random() - 0.5) * 2000,
+                    y: (Math.random() - 0.5) * 2000,
+                    size: 150 + Math.random() * 200,
+                    rotation: Math.random() * Math.PI * 2,
+                    rotationSpeed: (Math.random() - 0.5) * 0.003,
+                    color: `hsl(${Math.random() * 80 + 220}, 80%, 65%)`,
+                    brightness: 0.6 + Math.random() * 0.4
+                });
+            }
+            
+            // Initialize paint splats (empty initially)
+            playerDomain.paintSplats = [];
+            
+            // Initialize footstep ripples
+            playerDomain.footstepRipples = [];
+            playerDomain.footstepDistance = 0;
+            
+            // Japanese text for Unlimited Void
+            playerDomain.domainText = {
+                japanese: '無量空処',
+                english: 'UNLIMITED VOID',
+                opacity: 0,
+                showTime: 0
+            };
+            
+            // Freeze all enemies currently in range
+            for (const spirit of cursedSpirits) {
+                const dx = spirit.x - player.x;
+                const dy = spirit.y - player.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < playerDomain.maxRadius) {
+                    playerDomain.frozenEnemies.push(spirit);
+                }
+            }
+        }
+        
+        function activateSukunaDomain() {
+            sukunaDomain.active = true;
+            sukunaDomain.phase = 'activating';
+            sukunaDomain.phaseTimer = 120; // 2 seconds to manifest
+            sukunaDomain.radius = 0;
+            sukunaDomain.duration = 1800; // 30 seconds
+            sukunaDomain.centerX = player.x;
+            sukunaDomain.centerY = player.y;
+            sukunaDomain.damageTimer = 0;
+            sukunaDomain.sureHitTargets = [];
+            
+            // Initialize shrine
+            sukunaDomain.shrine.scale = 0;
+            sukunaDomain.shrine.pulse = 0;
+            
+            // 4 mouths at cardinal directions
+            sukunaDomain.shrine.mouths = [
+                { angle: 0, openAmount: 0, targetOpen: 1 },      // Right
+                { angle: Math.PI / 2, openAmount: 0, targetOpen: 1 },  // Bottom
+                { angle: Math.PI, openAmount: 0, targetOpen: 1 },      // Left
+                { angle: -Math.PI / 2, openAmount: 0, targetOpen: 1 }  // Top
+            ];
+            
+            // Skulls around the base
+            sukunaDomain.shrine.skulls = [];
+            const skullCount = 8;
+            for (let i = 0; i < skullCount; i++) {
+                const angle = (i / skullCount) * Math.PI * 2;
+                sukunaDomain.shrine.skulls.push({
+                    angle: angle,
+                    distance: 60 + Math.random() * 20,
+                    scale: 0,
+                    targetScale: 1,
+                    glow: 0
+                });
+            }
+            
+            // Initialize slice effects array
+            sukunaDomain.slices = [];
+            
+            // Domain text
+            sukunaDomain.domainText.opacity = 0;
+            sukunaDomain.domainText.showTime = 60;
+        }
+        
+        function updateSukunaDomain() {
+            if (!sukunaDomain.active) return;
+            
+            // Update phase
+            if (sukunaDomain.phase === 'activating') {
+                sukunaDomain.phaseTimer--;
                 
-                // Initialize shrine pillars
-                playerDomain.pillars = [];
-                const numPillars = 8;
-                for (let i = 0; i < numPillars; i++) {
-                    const angle = (i / numPillars) * Math.PI * 2;
-                    playerDomain.pillars.push({
-                        angle: angle,
-                        dist: playerDomain.maxRadius * 0.85,
-                        height: 0, // Animates in
-                        targetHeight: 200 + Math.random() * 100,
-                        width: 30 + Math.random() * 20
-                    });
+                // Expand radius to max
+                const progress = 1 - (sukunaDomain.phaseTimer / 120);
+                sukunaDomain.radius = sukunaDomain.maxRadius * Math.min(1, progress);
+                
+                // Scale up shrine
+                sukunaDomain.shrine.scale = Math.min(1, progress * 1.5);
+                
+                // Open mouths
+                sukunaDomain.shrine.mouths.forEach(mouth => {
+                    mouth.openAmount = Math.min(1, progress * 2);
+                });
+                
+                // Scale up skulls
+                sukunaDomain.shrine.skulls.forEach(skull => {
+                    skull.scale = Math.min(1, progress * 1.2);
+                });
+                
+                // Show text
+                if (progress > 0.3) {
+                    sukunaDomain.domainText.opacity = Math.min(1, (progress - 0.3) * 2);
                 }
                 
-                // Initialize divine flames (constantly damaging)
-                playerDomain.divineFlames = [];
+                if (sukunaDomain.phaseTimer <= 0) {
+                    sukunaDomain.phase = 'active';
+                    sukunaDomain.duration = 1800;
+                }
+            } else if (sukunaDomain.phase === 'active') {
+                sukunaDomain.duration--;
                 
-                // Initialize slash marks
-                playerDomain.slashMarks = [];
+                // Pulse effect
+                sukunaDomain.shrine.pulse += 0.05;
                 
-                // Japanese text for Malevolent Shrine
-                playerDomain.domainText = {
-                    japanese: '伏魔御廚子',
-                    english: 'MALEVOLENT SHRINE',
-                    opacity: 0,
-                    showTime: 0
-                };
+                // Shrine follows player
+                sukunaDomain.centerX = player.x;
+                sukunaDomain.centerY = player.y;
                 
-            } else {
-                // UNLIMITED VOID - Gojo's domain
-                playerDomain.type = 'void';
-                
-                // Initialize dramatic speed lines (more intense, radiating from center)
-                playerDomain.lines = [];
-                for (let i = 0; i < 150; i++) {
-                    const angle = Math.random() * Math.PI * 2;
-                    const dist = 100 + Math.random() * 500;
-                    playerDomain.lines.push({
-                        angle: angle,
-                        dist: dist,
-                        z: Math.random() * 800,
-                        speed: 30 + Math.random() * 40,
-                        color: ['#4488ff', '#ff4444', '#aa44ff', '#ffffff', '#44ffff'][Math.floor(Math.random() * 5)],
-                        length: 100 + Math.random() * 200,
-                        width: 2 + Math.random() * 4
-                    });
+                // Continuous sure-hit damage
+                sukunaDomain.damageTimer++;
+                if (sukunaDomain.damageTimer >= 10) { // Damage every 10 frames (6 times per second)
+                    sukunaDomain.damageTimer = 0;
+                    applySukunaDomainDamage();
                 }
                 
-                // Initialize stars (more numerous, deeper space feel)
-                playerDomain.stars = [];
-                for (let i = 0; i < 300; i++) {
-                    playerDomain.stars.push({
-                        x: (Math.random() - 0.5) * 2500,
-                        y: (Math.random() - 0.5) * 2500,
-                        size: 0.5 + Math.random() * 2.5,
-                        twinkle: Math.random() * Math.PI * 2,
-                        brightness: 0.3 + Math.random() * 0.7
-                    });
+                // Spawn random slice visuals
+                if (Math.random() < 0.3) {
+                    spawnSliceEffect();
                 }
                 
-                // Initialize galaxies (more dramatic)
-                playerDomain.galaxies = [];
-                for (let i = 0; i < 6; i++) {
-                    playerDomain.galaxies.push({
-                        x: (Math.random() - 0.5) * 2000,
-                        y: (Math.random() - 0.5) * 2000,
-                        size: 150 + Math.random() * 200,
-                        rotation: Math.random() * Math.PI * 2,
-                        rotationSpeed: (Math.random() - 0.5) * 0.003,
-                        color: `hsl(${Math.random() * 80 + 220}, 80%, 65%)`,
-                        brightness: 0.6 + Math.random() * 0.4
-                    });
+                // Update slices
+                for (let i = sukunaDomain.slices.length - 1; i >= 0; i--) {
+                    const slice = sukunaDomain.slices[i];
+                    slice.life--;
+                    slice.x += slice.vx;
+                    slice.y += slice.vy;
+                    if (slice.life <= 0) {
+                        sukunaDomain.slices.splice(i, 1);
+                    }
                 }
                 
-                // Initialize paint splats (empty initially)
-                playerDomain.paintSplats = [];
+                // Fade text after a while
+                if (sukunaDomain.duration < 1740) {
+                    sukunaDomain.domainText.opacity = Math.max(0, sukunaDomain.domainText.opacity - 0.02);
+                }
                 
-                // Initialize footstep ripples
-                playerDomain.footstepRipples = [];
-                playerDomain.footstepDistance = 0;
+                if (sukunaDomain.duration <= 0) {
+                    sukunaDomain.phase = 'fading';
+                    sukunaDomain.phaseTimer = 60;
+                }
+            } else if (sukunaDomain.phase === 'fading') {
+                sukunaDomain.phaseTimer--;
+                const fadeProgress = sukunaDomain.phaseTimer / 60;
+                sukunaDomain.shrine.scale = fadeProgress;
+                sukunaDomain.radius = sukunaDomain.maxRadius * fadeProgress;
                 
-                // Japanese text for Unlimited Void
-                playerDomain.domainText = {
-                    japanese: '無量空処',
-                    english: 'UNLIMITED VOID',
-                    opacity: 0,
-                    showTime: 0
-                };
+                if (sukunaDomain.phaseTimer <= 0) {
+                    sukunaDomain.active = false;
+                }
+            }
+        }
+        
+        function applySukunaDomainDamage() {
+            // Cleave and Dismantle damage to all enemies in range
+            const damage = 25; // Base damage per tick
+            
+            // Damage cursed spirits
+            for (let i = cursedSpirits.length - 1; i >= 0; i--) {
+                const spirit = cursedSpirits[i];
+                const dx = spirit.x - sukunaDomain.centerX;
+                const dy = spirit.y - sukunaDomain.centerY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
                 
-                // Freeze all enemies currently in range
-                for (const spirit of cursedSpirits) {
-                    const dx = spirit.x - player.x;
-                    const dy = spirit.y - player.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    if (dist < playerDomain.maxRadius) {
-                        playerDomain.frozenEnemies.push(spirit);
+                if (dist < sukunaDomain.maxRadius) {
+                    spirit.hp -= damage;
+                    addDamageCounter(damage);
+                    addDamageNumber(spirit.x, spirit.y - spirit.size, damage);
+                    
+                    // Spawn slice effect at enemy position
+                    sukunaDomain.slices.push({
+                        x: spirit.x,
+                        y: spirit.y,
+                        vx: (Math.random() - 0.5) * 4,
+                        vy: (Math.random() - 0.5) * 4,
+                        angle: Math.random() * Math.PI * 2,
+                        length: 30 + Math.random() * 40,
+                        life: 15,
+                        type: Math.random() > 0.5 ? 'cleave' : 'dismantle'
+                    });
+                    
+                    if (spirit.hp <= 0) {
+                        cursedSpirits.splice(i, 1);
                     }
                 }
             }
+            
+            // Damage boss if present
+            if (activeDisasterCurse) {
+                const dx = activeDisasterCurse.x - sukunaDomain.centerX;
+                const dy = activeDisasterCurse.y - sukunaDomain.centerY;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                
+                if (dist < sukunaDomain.maxRadius) {
+                    const bossDamage = damage * 2;
+                    activeDisasterCurse.hp -= bossDamage;
+                    addDamageCounter(bossDamage);
+                    addDamageNumber(activeDisasterCurse.x, activeDisasterCurse.y - activeDisasterCurse.size, bossDamage);
+                }
+            }
+        }
+        
+        function spawnSliceEffect() {
+            // Random slice within domain radius
+            const angle = Math.random() * Math.PI * 2;
+            const dist = Math.random() * sukunaDomain.maxRadius * 0.8;
+            
+            sukunaDomain.slices.push({
+                x: sukunaDomain.centerX + Math.cos(angle) * dist,
+                y: sukunaDomain.centerY + Math.sin(angle) * dist,
+                vx: (Math.random() - 0.5) * 2,
+                vy: (Math.random() - 0.5) * 2,
+                angle: Math.random() * Math.PI * 2,
+                length: 20 + Math.random() * 50,
+                life: 10 + Math.random() * 10,
+                type: Math.random() > 0.5 ? 'cleave' : 'dismantle'
+            });
+        }
+        
+        function drawSukunaDomain() {
+            if (!sukunaDomain.active) return;
+            
+            const screenX = sukunaDomain.centerX - camera.x;
+            const screenY = sukunaDomain.centerY - camera.y;
+            
+            // Draw sure-hit radius indicator (subtle)
+            ctx.save();
+            ctx.strokeStyle = `rgba(139, 0, 0, ${0.1 + Math.sin(sukunaDomain.shrine.pulse) * 0.05})`;
+            ctx.lineWidth = 2;
+            ctx.setLineDash([20, 20]);
+            ctx.beginPath();
+            ctx.arc(screenX, screenY, sukunaDomain.radius, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.setLineDash([]);
+            
+            // Draw slice effects
+            for (const slice of sukunaDomain.slices) {
+                const sx = slice.x - camera.x;
+                const sy = slice.y - camera.y;
+                
+                ctx.save();
+                ctx.translate(sx, sy);
+                ctx.rotate(slice.angle);
+                
+                if (slice.type === 'cleave') {
+                    // Cleave - curved slash
+                    ctx.strokeStyle = `rgba(255, 50, 50, ${slice.life / 15})`;
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.moveTo(-slice.length / 2, 0);
+                    ctx.quadraticCurveTo(0, -10, slice.length / 2, 0);
+                    ctx.stroke();
+                } else {
+                    // Dismantle - straight slash
+                    ctx.strokeStyle = `rgba(200, 0, 0, ${slice.life / 15})`;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.moveTo(-slice.length / 2, 0);
+                    ctx.lineTo(slice.length / 2, 0);
+                    ctx.stroke();
+                }
+                
+                ctx.restore();
+            }
+            
+            // Draw shrine
+            const shrineScale = sukunaDomain.shrine.scale;
+            const pulse = 1 + Math.sin(sukunaDomain.shrine.pulse) * 0.05;
+            
+            ctx.save();
+            ctx.translate(screenX, screenY);
+            ctx.scale(shrineScale * pulse, shrineScale * pulse);
+            
+            // Draw skulls at base
+            for (const skull of sukunaDomain.shrine.skulls) {
+                const sx = Math.cos(skull.angle) * skull.distance;
+                const sy = Math.sin(skull.angle) * skull.distance;
+                
+                ctx.save();
+                ctx.translate(sx, sy);
+                ctx.scale(skull.scale, skull.scale);
+                
+                // Skull glow
+                const glowIntensity = 0.3 + Math.sin(sukunaDomain.shrine.pulse * 2 + skull.angle) * 0.2;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = `rgba(255, 50, 0, ${glowIntensity})`;
+                
+                // Skull base
+                ctx.fillStyle = '#2a1a1a';
+                ctx.beginPath();
+                ctx.arc(0, 0, 12, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Skull highlight
+                ctx.fillStyle = '#4a2a2a';
+                ctx.beginPath();
+                ctx.arc(-3, -3, 6, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Eye sockets
+                ctx.fillStyle = '#ff2200';
+                ctx.shadowBlur = 10;
+                ctx.beginPath();
+                ctx.arc(-4, 0, 3, 0, Math.PI * 2);
+                ctx.arc(4, 0, 3, 0, Math.PI * 2);
+                ctx.fill();
+                
+                ctx.restore();
+            }
+            
+            // Draw central shrine structure
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = 'rgba(139, 0, 0, 0.8)';
+            
+            // Main shrine body
+            ctx.fillStyle = '#1a0a0a';
+            ctx.beginPath();
+            ctx.arc(0, 0, 40, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Shrine border
+            ctx.strokeStyle = '#8b0000';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(0, 0, 40, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Inner glow
+            const innerGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, 35);
+            innerGlow.addColorStop(0, 'rgba(139, 0, 0, 0.6)');
+            innerGlow.addColorStop(1, 'rgba(139, 0, 0, 0)');
+            ctx.fillStyle = innerGlow;
+            ctx.beginPath();
+            ctx.arc(0, 0, 35, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw 4 mouths
+            for (let i = 0; i < sukunaDomain.shrine.mouths.length; i++) {
+                const mouth = sukunaDomain.shrine.mouths[i];
+                const mx = Math.cos(mouth.angle) * 50;
+                const my = Math.sin(mouth.angle) * 50;
+                
+                ctx.save();
+                ctx.translate(mx, my);
+                ctx.rotate(mouth.angle);
+                
+                // Mouth glow
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = 'rgba(255, 0, 0, 0.9)';
+                
+                // Mouth opening
+                const openSize = 15 * mouth.openAmount;
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 20, openSize, 0, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Mouth interior glow
+                if (mouth.openAmount > 0.3) {
+                    const mouthGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, openSize);
+                    mouthGlow.addColorStop(0, 'rgba(255, 50, 0, 0.9)');
+                    mouthGlow.addColorStop(1, 'rgba(139, 0, 0, 0)');
+                    ctx.fillStyle = mouthGlow;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 18, openSize * 0.8, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // Teeth
+                ctx.fillStyle = '#fff';
+                ctx.shadowBlur = 5;
+                for (let t = -2; t <= 2; t++) {
+                    const tx = t * 8;
+                    ctx.beginPath();
+                    ctx.moveTo(tx, -openSize * 0.7);
+                    ctx.lineTo(tx + 4, -openSize * 0.9);
+                    ctx.lineTo(tx + 8, -openSize * 0.7);
+                    ctx.fill();
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(tx, openSize * 0.7);
+                    ctx.lineTo(tx + 4, openSize * 0.9);
+                    ctx.lineTo(tx + 8, openSize * 0.7);
+                    ctx.fill();
+                }
+                
+                ctx.restore();
+            }
+            
+            ctx.restore(); // End shrine transform
+            
+            // Draw domain text
+            if (sukunaDomain.domainText.opacity > 0) {
+                ctx.save();
+                ctx.globalAlpha = sukunaDomain.domainText.opacity;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                
+                // Japanese text
+                ctx.font = 'bold 36px "Segoe UI", sans-serif';
+                ctx.fillStyle = '#ff2244';
+                ctx.shadowBlur = 20;
+                ctx.shadowColor = 'rgba(255, 34, 68, 0.8)';
+                ctx.fillText(sukunaDomain.domainText.japanese, canvas.width / 2, canvas.height / 2 - 30);
+                
+                // English text
+                ctx.font = 'bold 20px "Segoe UI", sans-serif';
+                ctx.fillStyle = '#ff4466';
+                ctx.shadowBlur = 10;
+                ctx.fillText(sukunaDomain.domainText.english, canvas.width / 2, canvas.height / 2 + 20);
+                
+                ctx.restore();
+            }
+            
+            ctx.restore(); // End domain drawing
         }
         
         function updateReversalRed() {
@@ -5179,7 +3936,7 @@
                     addDamageCounter(reversalRed.damage);
                     addDamageNumber(spirit.x, spirit.y, reversalRed.damage);
                     if (spirit.hp <= 0) {
-                        killSpirit(i, 'red');
+                        cursedSpirits.splice(i, 1);
                     }
                     reversalRed.active = false;
                     return;
@@ -5490,7 +4247,7 @@
                     
                     if (spirit.hp <= 0) {
                         addKillEffect(spirit.x, spirit.y, 'purple');
-                        killSpirit(i, 'purple');
+                        cursedSpirits.splice(i, 1);
                     }
                 }
             }
@@ -5527,7 +4284,7 @@
                         addDamageCounter(100);
                         if (spirit.hp <= 0) {
                             addKillEffect(spirit.x, spirit.y, 'purple');
-                            killSpirit(i, 'purple');
+                            cursedSpirits.splice(i, 1);
                         }
                     }
                 }
@@ -5652,145 +4409,17 @@
             ctx.arc(domainScreenX, domainScreenY, playerDomain.radius, 0, Math.PI * 2);
             ctx.clip();
             
-            if (playerDomain.type === 'shrine') {
-                // MALEVOLENT SHRINE background - hellish red/orange
-                const shrineGrad = ctx.createRadialGradient(domainScreenX, domainScreenY, 0, domainScreenX, domainScreenY, playerDomain.radius);
-                shrineGrad.addColorStop(0, '#2a0a0a');
-                shrineGrad.addColorStop(0.3, '#1a0505');
-                shrineGrad.addColorStop(0.7, '#0a0202');
-                shrineGrad.addColorStop(1, '#000000');
-                ctx.fillStyle = shrineGrad;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                
-                // Draw shrine pillars
-                if (playerDomain.pillars) {
-                    ctx.save();
-                    ctx.translate(domainScreenX, domainScreenY);
-                    
-                    for (const pillar of playerDomain.pillars) {
-                        // Animate pillar height
-                        if (playerDomain.phase === 'expanding') {
-                            pillar.height += (pillar.targetHeight - pillar.height) * 0.05;
-                        }
-                        
-                        const px = Math.cos(pillar.angle) * pillar.dist;
-                        const py = Math.sin(pillar.angle) * pillar.dist;
-                        
-                        // Pillar shadow/glow
-                        ctx.shadowColor = '#ff2200';
-                        ctx.shadowBlur = 20;
-                        
-                        // Pillar body
-                        const pillarGrad = ctx.createLinearGradient(px - pillar.width/2, py - pillar.height, px + pillar.width/2, py);
-                        pillarGrad.addColorStop(0, '#4a2010');
-                        pillarGrad.addColorStop(0.5, '#2a1008');
-                        pillarGrad.addColorStop(1, '#1a0804');
-                        ctx.fillStyle = pillarGrad;
-                        
-                        ctx.beginPath();
-                        ctx.moveTo(px - pillar.width/2, py);
-                        ctx.lineTo(px + pillar.width/2, py);
-                        ctx.lineTo(px + pillar.width/3, py - pillar.height);
-                        ctx.lineTo(px - pillar.width/3, py - pillar.height);
-                        ctx.closePath();
-                        ctx.fill();
-                        
-                        // Pillar top (on fire)
-                        ctx.fillStyle = `rgba(255, ${100 + Math.random() * 100}, 0, 0.8)`;
-                        ctx.beginPath();
-                        ctx.ellipse(px, py - pillar.height, pillar.width/2, 8, 0, 0, Math.PI * 2);
-                        ctx.fill();
-                        
-                        ctx.shadowBlur = 0;
-                    }
-                    
-                    ctx.restore();
-                }
-                
-                // Draw divine flames (random slashes throughout domain)
-                if (playerDomain.slashMarks) {
-                    ctx.save();
-                    ctx.translate(domainScreenX - playerDomain.centerX, domainScreenY - playerDomain.centerY);
-                    
-                    // Spawn new slashes
-                    if (Math.random() < 0.3 && playerDomain.phase === 'active') {
-                        const angle = Math.random() * Math.PI * 2;
-                        const dist = Math.random() * playerDomain.radius * 0.9;
-                        playerDomain.slashMarks.push({
-                            x: playerDomain.centerX + Math.cos(angle) * dist,
-                            y: playerDomain.centerY + Math.sin(angle) * dist,
-                            angle: Math.random() * Math.PI * 2,
-                            life: 20,
-                            maxLife: 20,
-                            size: 30 + Math.random() * 50
-                        });
-                    }
-                    
-                    // Draw and update slashes
-                    for (let i = playerDomain.slashMarks.length - 1; i >= 0; i--) {
-                        const slash = playerDomain.slashMarks[i];
-                        slash.life--;
-                        
-                        if (slash.life <= 0) {
-                            playerDomain.slashMarks.splice(i, 1);
-                            continue;
-                        }
-                        
-                        const alpha = slash.life / slash.maxLife;
-                        ctx.strokeStyle = `rgba(255, 50, 50, ${alpha})`;
-                        ctx.lineWidth = 3;
-                        ctx.shadowColor = '#ff0000';
-                        ctx.shadowBlur = 10;
-                        
-                        ctx.save();
-                        ctx.translate(slash.x, slash.y);
-                        ctx.rotate(slash.angle);
-                        ctx.beginPath();
-                        ctx.moveTo(-slash.size/2, 0);
-                        ctx.lineTo(slash.size/2, 0);
-                        ctx.stroke();
-                        ctx.restore();
-                        
-                        ctx.shadowBlur = 0;
-                    }
-                    
-                    ctx.restore();
-                }
-                
-                // Damage enemies in domain (Malevolent Shrine's sure-hit)
-                if (playerDomain.phase === 'active' && frame % 10 === 0) {
-                    for (const spirit of cursedSpirits) {
-                        const dx = spirit.x - playerDomain.centerX;
-                        const dy = spirit.y - playerDomain.centerY;
-                        const dist = Math.sqrt(dx * dx + dy * dy);
-                        
-                        if (dist < playerDomain.radius) {
-                            // Constant damage to all enemies in domain
-                            spirit.hp -= 5; // Divine flame damage
-                            
-                            // Visual slash effect on enemy
-                            if (Math.random() < 0.3) {
-                                addHitEffect(spirit.x, spirit.y, 20);
-                            }
-                            
-                            if (spirit.hp <= 0) {
-                                killSpirit(spirit, 'Domain Slash');
-                            }
-                        }
-                    }
-                }
-            } else {
-                // UNLIMITED VOID background - deep purple-black
-                const voidGrad = ctx.createRadialGradient(domainScreenX, domainScreenY, 0, domainScreenX, domainScreenY, playerDomain.radius);
-                voidGrad.addColorStop(0, '#0d0020');
-                voidGrad.addColorStop(0.3, '#080014');
-                voidGrad.addColorStop(0.7, '#030008');
-                voidGrad.addColorStop(1, '#000000');
-                ctx.fillStyle = voidGrad;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            // Fill with infinite void - darker at edges, deep purple-black center
+            const voidGrad = ctx.createRadialGradient(domainScreenX, domainScreenY, 0, domainScreenX, domainScreenY, playerDomain.radius);
+            voidGrad.addColorStop(0, '#0d0020');
+            voidGrad.addColorStop(0.3, '#080014');
+            voidGrad.addColorStop(0.7, '#030008');
+            voidGrad.addColorStop(1, '#000000');
+            ctx.fillStyle = voidGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-                // Draw water ripple footsteps (relative to domain center)
-                if (playerDomain.phase !== 'expanding' && playerDomain.phase !== 'lines') {
+            // Draw water ripple footsteps (relative to domain center)
+            if (playerDomain.phase !== 'expanding' && playerDomain.phase !== 'lines') {
                 ctx.save();
                 // Translate so domain center is at origin, then draw ripples at their world positions
                 ctx.translate(domainScreenX - playerDomain.centerX, domainScreenY - playerDomain.centerY);
@@ -5990,7 +4619,7 @@
                 ctx.stroke();
                 
                 ctx.restore();
-            } // End of void-specific drawing
+            }
             
             // Draw white paint splats
             if (playerDomain.paintSplats.length > 0) {
@@ -6023,7 +4652,6 @@
                     }
                 }
                 ctx.restore();
-            }
             }
             
             ctx.restore();
@@ -6065,29 +4693,22 @@
                 }
                 textAlpha *= 0.9;
                 
-                // Dynamic domain text based on character
-                const isShrine = playerDomain.type === 'shrine';
-                const japaneseText = isShrine ? '伏魔御廚子' : '無量空処';
-                const englishText = isShrine ? 'MALEVOLENT SHRINE' : 'UNLIMITED VOID';
-                const glowColor = isShrine ? '#ff4422' : '#aa44ff';
-                const lineColor = isShrine ? 'rgba(255, 68, 34, 0.5)' : 'rgba(170, 68, 255, 0.5)';
-                
-                // Japanese text
+                // Japanese text - 無量空処 (Muryōkūsho - Unlimited Void)
                 ctx.fillStyle = `rgba(255, 255, 255, ${textAlpha})`;
                 ctx.font = 'bold 56px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
                 ctx.shadowBlur = 40;
-                ctx.shadowColor = glowColor;
-                ctx.fillText(japaneseText, 0, -35);
+                ctx.shadowColor = '#aa44ff';
+                ctx.fillText('無量空処', 0, -35);
                 
                 // English subtitle
                 ctx.font = 'bold 20px "Segoe UI", sans-serif';
-                ctx.fillStyle = isShrine ? `rgba(255, 200, 180, ${textAlpha * 0.8})` : `rgba(200, 200, 255, ${textAlpha * 0.8})`;
-                ctx.fillText(englishText, 0, 20);
+                ctx.fillStyle = `rgba(200, 200, 255, ${textAlpha * 0.8})`;
+                ctx.fillText('UNLIMITED VOID', 0, 20);
                 
                 // Decorative lines
-                ctx.strokeStyle = lineColor;
+                ctx.strokeStyle = `rgba(170, 68, 255, ${textAlpha * 0.5})`;
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.moveTo(-140, 40);
@@ -6098,16 +4719,10 @@
                 ctx.restore();
             }
             
-            // Draw domain border - color based on domain type
-            const isShrine = playerDomain.type === 'shrine';
-            const borderColor = isShrine ? '#662211' : '#440044';
-            const glowColor = isShrine ? '#ff4422' : '#660066';
-            const innerColor = isShrine ? '#ff6644' : '#aa44ff';
-            const outerColor = isShrine ? '#662211' : '#440066';
-            
+            // Draw domain border - glowing purple barrier at fixed position
             ctx.shadowBlur = 20;
-            ctx.shadowColor = glowColor;
-            ctx.strokeStyle = borderColor;
+            ctx.shadowColor = '#660066';
+            ctx.strokeStyle = '#440044';
             ctx.lineWidth = 4;
             ctx.globalAlpha = 0.9;
             ctx.beginPath();
@@ -6116,7 +4731,7 @@
             
             // Inner pulsing border
             const pulse = Math.sin(Date.now() * 0.005) * 0.3 + 0.7;
-            ctx.strokeStyle = innerColor;
+            ctx.strokeStyle = '#aa44ff';
             ctx.lineWidth = 2;
             ctx.globalAlpha = pulse * 0.6;
             ctx.beginPath();
@@ -6124,7 +4739,7 @@
             ctx.stroke();
             
             // Outer glow ring
-            ctx.strokeStyle = outerColor;
+            ctx.strokeStyle = '#440066';
             ctx.lineWidth = 1;
             ctx.globalAlpha = pulse * 0.3;
             ctx.beginPath();
@@ -6706,7 +5321,7 @@
                     }
                     if (spirit.hp <= 0) {
                         addKillEffect(spirit.x, spirit.y, 'blue');
-                        killSpirit(i, 'blue');
+                        cursedSpirits.splice(i, 1);
                         continue;
                     }
                     // Only show damage number occasionally to avoid spam
@@ -6915,22 +5530,15 @@
         }
         
         function drawGame() {
-            // Always ensure canvas matches window size
-            if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-            }
-            
             // Ensure canvas has valid dimensions
             if (canvas.width < 100 || canvas.height < 100) {
-                canvas.width = window.innerWidth || 800;
-                canvas.height = window.innerHeight || 450;
+                resize();
                 ctx.fillStyle = '#1a0a2e';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillRect(0, 0, canvas.width || 800, canvas.height || 450);
                 ctx.fillStyle = '#fff';
                 ctx.font = '20px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText('Loading...', canvas.width / 2, canvas.height / 2);
+                ctx.fillText('Loading...', (canvas.width || 800) / 2, (canvas.height || 450) / 2);
                 return;
             }
             
@@ -6938,7 +5546,19 @@
             ctx.fillStyle = '#0a0a0a';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
+            // DEBUG - after clear so it's visible
+            ctx.fillStyle = '#ff0000';
+            ctx.font = 'bold 20px "Segoe UI", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText('GAME IS RUNNING', 20, 30);
+            
             updatePlayer();
+            
+            // DEBUG camera info
+            ctx.fillStyle = '#00ff00';
+            ctx.fillText(`CAM: ${Math.floor(camera.x)}, ${Math.floor(camera.y)}`, 20, 55);
+            ctx.fillText(`PLAYER: ${Math.floor(player.x)}, ${Math.floor(player.y)}`, 20, 80);
+            ctx.fillText(`CANVAS: ${canvas.width}x${canvas.height}`, 20, 105);
             
             // Validate camera values
             if (!isFinite(camera.x) || !isFinite(camera.y)) {
@@ -6950,14 +5570,12 @@
             updateMaxBlue();
             updateReversalRed();
             updateHollowPurple();
-            updateFuga();
             updatePlayerDomain();
+            updateSukunaDomain();
             updateDamageCounter();
             updateDamageNumbers();
             updateHitEffects();
             updateKillEffects();
-            updateSlashEffects();
-            updateNotifications();
             updateSpiritProjectiles();
             updateDisasterCurse();
             
@@ -6972,16 +5590,12 @@
             }
             
             drawBiomeGround();
-            if (testingMode) {
-                drawFootstepEffects();
-            }
-            if (!testingMode) {
-                drawGrid();
-                drawBiomeOverlay();
-                drawBiomeObjects();
-            }
+            drawGrid();
+            drawBiomeOverlay();
+            drawBiomeObjects();
             drawSpiritProjectiles();
             drawPlayerDomainBackground(); // Draw domain void/bg FIRST
+            drawSukunaDomain(); // Sukuna's barrierless domain
             drawCursedSpirits(); // Enemies on top of domain background
             drawDisasterCurse();
             drawPlayer();
@@ -6991,61 +5605,35 @@
             drawMaxBlue();
             drawReversalRed();
             drawHollowPurple();
-            drawFuga();
-            updateAndDrawFugaParticles();
             drawDamageNumbers();
             drawHitEffects();
             drawKillEffects();
-            drawSlashEffects();
-            drawNotifications();
             drawDisasterNotification();
             drawAbilityBar();
-            if (testingMode) {
-                drawTestingMinimap();
-            } else {
-                drawMinimap();
-            }
+            drawMinimap();
             drawPlayerBars();
-            drawMenuButton();
             
-            // Mobile controls
-            if (mobileMode) {
-                drawMobileControls();
-            }
+            // DEBUG: Show camera and player info
+            ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
+            ctx.font = 'bold 16px "Segoe UI", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(`CAM: ${Math.floor(camera.x)}, ${Math.floor(camera.y)}`, 20, 200);
+            ctx.fillText(`PLAYER: ${Math.floor(player.x)}, ${Math.floor(player.y)}`, 20, 220);
+            ctx.fillText(`CANVAS: ${canvas.width}x${canvas.height}`, 20, 240);
+            ctx.fillText(`BIOME: ${getBiomeAt(player.x, player.y)}`, 20, 260);
             
-            // Testing mode indicator
-            if (testingMode) {
-                ctx.fillStyle = '#ffff00';
-                ctx.font = 'bold 20px "Segoe UI", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText('TESTING MODE', canvas.width / 2, 30);
-                ctx.font = '14px "Segoe UI", sans-serif';
-                ctx.fillText('Enemies will not attack', canvas.width / 2, 50);
-            }
+            // UI - Coordinates and current biome
+            const currentBiome = getBiomeAt(player.x, player.y);
             
-            // DEBUG: Show camera and player info (disabled in testing mode)
-            if (!testingMode) {
-                ctx.fillStyle = 'rgba(255, 0, 0, 0.8)';
-                ctx.font = 'bold 16px "Segoe UI", sans-serif';
-                ctx.textAlign = 'left';
-                ctx.fillText(`CAM: ${Math.floor(camera.x)}, ${Math.floor(camera.y)}`, 20, 200);
-                ctx.fillText(`PLAYER: ${Math.floor(player.x)}, ${Math.floor(player.y)}`, 20, 220);
-                ctx.fillText(`CANVAS: ${canvas.width}x${canvas.height}`, 20, 240);
-                ctx.fillText(`BIOME: ${getBiomeAt(player.x, player.y)}`, 20, 260);
-                
-                // UI - Coordinates and current biome
-                const currentBiome = getBiomeAt(player.x, player.y);
-                
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
-                ctx.fillRect(10, 70, 200, 60);
-                
-                ctx.fillStyle = '#fff';
-                ctx.font = '14px "Segoe UI", sans-serif';
-                ctx.textAlign = 'left';
-                ctx.fillText(`X: ${Math.floor(player.x)} Y: ${Math.floor(player.y)}`, 20, 95);
-                ctx.fillStyle = BIOME_COLORS[currentBiome].grid.replace('0.15', '1');
-                ctx.fillText(`BIOME: ${currentBiome}`, 20, 118);
-            }
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+            ctx.fillRect(10, 70, 200, 60);
+            
+            ctx.fillStyle = '#fff';
+            ctx.font = '14px "Segoe UI", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(`X: ${Math.floor(player.x)} Y: ${Math.floor(player.y)}`, 20, 95);
+            ctx.fillStyle = BIOME_COLORS[currentBiome].grid.replace('0.15', '1');
+            ctx.fillText(`BIOME: ${currentBiome}`, 20, 118);
         }
         
         function addDamageCounter(damage) {
@@ -7078,20 +5666,6 @@
                     speed: 2 + Math.random() * 3,
                     size: 2 + Math.random() * 3
                 }))
-            });
-        }
-        
-        function addSlashEffect(x, y) {
-            // Slash effect for Dismantle
-            const angle = Math.random() * Math.PI * 2;
-            slashEffects.push({
-                x: x,
-                y: y,
-                angle: angle,
-                life: 15,
-                maxLife: 15,
-                length: 40 + Math.random() * 30,
-                width: 3 + Math.random() * 2
             });
         }
         
@@ -7163,46 +5737,6 @@
                 ctx.fill();
                 
                 ctx.restore();
-            }
-        }
-        
-        function drawSlashEffects() {
-            for (const effect of slashEffects) {
-                const screenX = effect.x - camera.x;
-                const screenY = effect.y - camera.y;
-                const alpha = effect.life / effect.maxLife;
-                
-                ctx.save();
-                ctx.globalAlpha = alpha;
-                ctx.strokeStyle = '#ff0000';
-                ctx.lineWidth = effect.width;
-                ctx.lineCap = 'round';
-                
-                // Draw slash line
-                ctx.beginPath();
-                const startX = screenX - Math.cos(effect.angle) * effect.length / 2;
-                const startY = screenY - Math.sin(effect.angle) * effect.length / 2;
-                const endX = screenX + Math.cos(effect.angle) * effect.length / 2;
-                const endY = screenY + Math.sin(effect.angle) * effect.length / 2;
-                ctx.moveTo(startX, startY);
-                ctx.lineTo(endX, endY);
-                ctx.stroke();
-                
-                // Draw glow
-                ctx.shadowColor = '#ff4444';
-                ctx.shadowBlur = 10;
-                ctx.stroke();
-                
-                ctx.restore();
-            }
-        }
-        
-        function updateSlashEffects() {
-            for (let i = slashEffects.length - 1; i >= 0; i--) {
-                slashEffects[i].life--;
-                if (slashEffects[i].life <= 0) {
-                    slashEffects.splice(i, 1);
-                }
             }
         }
         
@@ -7510,368 +6044,8 @@
             ctx.fillText('MAP', mapX, mapY - 8);
         }
 
-        function drawMenuButton() {
-            const btnWidth = 60;
-            const btnHeight = 30;
-            const btnX = canvas.width - btnWidth - 20;
-            const btnY = canvas.height - btnHeight - 20;
-            
-            // Button background
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.fillRect(btnX, btnY, btnWidth, btnHeight);
-            
-            // Button border
-            ctx.strokeStyle = '#e94560';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(btnX, btnY, btnWidth, btnHeight);
-            
-            // Button text
-            ctx.fillStyle = '#fff';
-            ctx.font = '14px "Segoe UI", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText('MENU', btnX + btnWidth / 2, btnY + btnHeight / 2);
-            
-            // Store button position for click detection
-            window.menuButton = { x: btnX, y: btnY, width: btnWidth, height: btnHeight };
-        }
-
-        function drawMobileControls() {
-            // Virtual joystick on left side
-            const joystickX = 80;
-            const joystickY = canvas.height - 120;
-            const joystickRadius = 50;
-            
-            // Joystick base
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
-            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(joystickX, joystickY, joystickRadius, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-            
-            // Joystick handle
-            let handleX = joystickX;
-            let handleY = joystickY;
-            
-            if (window.joystickActive && window.joystickDelta) {
-                const deltaLen = Math.sqrt(window.joystickDelta.x ** 2 + window.joystickDelta.y ** 2);
-                const maxDist = joystickRadius * 0.6;
-                const scale = Math.min(deltaLen, maxDist) / deltaLen;
-                handleX = joystickX + window.joystickDelta.x * scale;
-                handleY = joystickY + window.joystickDelta.y * scale;
-            }
-            
-            ctx.fillStyle = 'rgba(233, 69, 96, 0.6)';
-            ctx.shadowColor = '#e94560';
-            ctx.shadowBlur = 10;
-            ctx.beginPath();
-            ctx.arc(handleX, handleY, 20, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.shadowBlur = 0;
-            
-            // Store joystick position
-            window.joystick = { x: joystickX, y: joystickY, radius: joystickRadius };
-            
-            // Ability buttons on right side - 2x2 grid
-            const btnSize = 55;
-            const btnSpacing = 65;
-            const btnStartX = canvas.width - 70;
-            const btnStartY = canvas.height - 180;
-            
-            // Ability 1 (Punch/M1) - top right
-            drawMobileButton(btnStartX, btnStartY, btnSize, 'M1', '#e94560');
-            
-            // Ability 2 (Blue/Fuga) - top left
-            drawMobileButton(btnStartX - btnSpacing, btnStartY, btnSize, '1', '#00aaff');
-            
-            // Ability 3 (Red) - bottom right
-            drawMobileButton(btnStartX, btnStartY + btnSpacing, btnSize, '2', '#ff4444');
-            
-            // Ability 4 (Purple/Domain) - bottom left
-            drawMobileButton(btnStartX - btnSpacing, btnStartY + btnSpacing, btnSize, '3', '#aa00ff');
-            
-            // Ability 5 (4th ability) - extra button below
-            drawMobileButton(btnStartX - btnSpacing/2, btnStartY + btnSpacing * 1.8, btnSize * 0.9, '4', '#ff8800');
-            
-            // Store button positions
-            window.mobileButtons = [
-                { x: btnStartX - btnSize/2, y: btnStartY - btnSize/2, width: btnSize, height: btnSize, ability: 0 },
-                { x: btnStartX - btnSpacing - btnSize/2, y: btnStartY - btnSize/2, width: btnSize, height: btnSize, ability: 1 },
-                { x: btnStartX - btnSize/2, y: btnStartY + btnSpacing - btnSize/2, width: btnSize, height: btnSize, ability: 2 },
-                { x: btnStartX - btnSpacing - btnSize/2, y: btnStartY + btnSpacing - btnSize/2, width: btnSize, height: btnSize, ability: 3 },
-                { x: btnStartX - btnSpacing/2 - btnSize*0.45, y: btnStartY + btnSpacing * 1.8 - btnSize*0.45, width: btnSize * 0.9, height: btnSize * 0.9, ability: 4 }
-            ];
-        }
-
-        function drawMobileButton(x, y, size, label, color) {
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
-            ctx.strokeStyle = color;
-            ctx.lineWidth = 2;
-            ctx.beginPath();
-            ctx.arc(x, y, size/2, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.stroke();
-            
-            ctx.fillStyle = color;
-            ctx.font = 'bold 16px "Segoe UI", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(label, x, y);
-        }
-
-        function drawBlog() {
-            // Background
-            const bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
-            bgGrad.addColorStop(0, '#0f0f23');
-            bgGrad.addColorStop(1, '#1a0a2e');
-            ctx.fillStyle = bgGrad;
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-            
-            if (blogSelectedEntry >= 0) {
-                // VIEWING SINGLE ENTRY
-                const entry = updateBlog[blogSelectedEntry];
-                const marginX = 80;
-                const contentWidth = canvas.width - marginX * 2;
-                
-                // Date
-                ctx.fillStyle = '#888';
-                ctx.font = '18px "Segoe UI", sans-serif';
-                ctx.textAlign = 'left';
-                ctx.fillText(entry.date, marginX, 80);
-                
-                // Title
-                ctx.fillStyle = '#e94560';
-                ctx.font = 'bold 32px "Segoe UI", sans-serif';
-                ctx.fillText(entry.title, marginX, 120);
-                
-                // Divider line
-                ctx.strokeStyle = 'rgba(233, 69, 96, 0.3)';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.moveTo(marginX, 140);
-                ctx.lineTo(canvas.width - marginX, 140);
-                ctx.stroke();
-                
-                // Full content (wrapped)
-                ctx.fillStyle = '#ddd';
-                ctx.font = '18px "Segoe UI", sans-serif';
-                const words = entry.content.split(' ');
-                let line = '';
-                let lineY = 180;
-                const lineHeight = 28;
-                
-                for (let w = 0; w < words.length; w++) {
-                    const testLine = line + words[w] + ' ';
-                    const metrics = ctx.measureText(testLine);
-                    if (metrics.width > contentWidth && w > 0) {
-                        ctx.fillText(line, marginX, lineY);
-                        line = words[w] + ' ';
-                        lineY += lineHeight;
-                    } else {
-                        line = testLine;
-                    }
-                }
-                ctx.fillText(line, marginX, lineY);
-                
-                // Instructions
-                ctx.fillStyle = '#666';
-                ctx.font = '16px "Segoe UI", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText('Press ENTER or CLICK to go back', canvas.width / 2, canvas.height - 50);
-                
-            } else {
-                // LIST VIEW
-                // Title
-                ctx.fillStyle = '#e94560';
-                ctx.font = 'bold 36px "Segoe UI", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText('UPDATE BLOG', canvas.width / 2, 60);
-                
-                // Draw blog entries
-                const entryHeight = 100;
-                const entrySpacing = 20;
-                const startY = 100;
-                const marginX = 50;
-                const entryWidth = canvas.width - marginX * 2;
-                
-                // Store entry positions for click detection
-                window.blogEntryRects = [];
-                
-                for (let i = 0; i < updateBlog.length; i++) {
-                    const entry = updateBlog[i];
-                    const y = startY + i * (entryHeight + entrySpacing);
-                    
-                    // Store position
-                    window.blogEntryRects.push({ x: marginX, y: y, width: entryWidth, height: entryHeight, index: i });
-                    
-                    // Entry background (highlight if hovered)
-                    if (i === selectedOption) {
-                        ctx.fillStyle = 'rgba(233, 69, 96, 0.15)';
-                        ctx.fillRect(marginX, y, entryWidth, entryHeight);
-                    } else {
-                        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-                        ctx.fillRect(marginX, y, entryWidth, entryHeight);
-                    }
-                    
-                    // Entry border
-                    ctx.strokeStyle = i === selectedOption ? 'rgba(233, 69, 96, 0.6)' : 'rgba(233, 69, 96, 0.3)';
-                    ctx.lineWidth = i === selectedOption ? 2 : 1;
-                    ctx.strokeRect(marginX, y, entryWidth, entryHeight);
-                    
-                    // Date
-                    ctx.fillStyle = '#888';
-                    ctx.font = '14px "Segoe UI", sans-serif';
-                    ctx.textAlign = 'left';
-                    ctx.fillText(entry.date, marginX + 15, y + 25);
-                    
-                    // Title
-                    ctx.fillStyle = '#e94560';
-                    ctx.font = 'bold 18px "Segoe UI", sans-serif';
-                    ctx.fillText(entry.title, marginX + 15, y + 50);
-                    
-                    // Content preview (wrapped, max 2 lines)
-                    ctx.fillStyle = '#ccc';
-                    ctx.font = '14px "Segoe UI", sans-serif';
-                    const maxWidth = entryWidth - 30;
-                    const words = entry.content.split(' ');
-                    let line = '';
-                    let lineY = y + 75;
-                    let lines = 0;
-                    
-                    for (let w = 0; w < words.length && lines < 2; w++) {
-                        const testLine = line + words[w] + ' ';
-                        const metrics = ctx.measureText(testLine);
-                        if (metrics.width > maxWidth && w > 0) {
-                            ctx.fillText(line, marginX + 15, lineY);
-                            line = words[w] + ' ';
-                            lineY += 20;
-                            lines++;
-                        } else {
-                            line = testLine;
-                        }
-                    }
-                    if (lines < 2) {
-                        ctx.fillText(line, marginX + 15, lineY);
-                    }
-                    
-                    // "Read more" hint
-                    ctx.fillStyle = '#666';
-                    ctx.font = '12px "Segoe UI", sans-serif';
-                    ctx.textAlign = 'right';
-                    ctx.fillText('Click or ENTER to read', marginX + entryWidth - 15, y + entryHeight - 10);
-                }
-                
-                // Instructions
-                ctx.fillStyle = '#666';
-                ctx.font = '16px "Segoe UI", sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText('UP/DOWN to select • ENTER/CLICK to read • ESC to return', canvas.width / 2, canvas.height - 30);
-            }
-        }
-
-        function drawTestingMinimap() {
-            const mapWidth = 180;
-            const mapHeight = 135;
-            const mapX = canvas.width - mapWidth - 20;
-            const mapY = 20;
-            
-            // Background - grey
-            ctx.fillStyle = 'rgba(40, 40, 40, 0.9)';
-            ctx.fillRect(mapX, mapY, mapWidth, mapHeight);
-            ctx.strokeStyle = '#666';
-            ctx.lineWidth = 2;
-            ctx.strokeRect(mapX, mapY, mapWidth, mapHeight);
-            
-            // Arena bounds (800x600)
-            const arenaWidth = 800;
-            const arenaHeight = 600;
-            const scale = Math.min((mapWidth - 20) / arenaWidth, (mapHeight - 20) / arenaHeight);
-            const centerX = mapX + mapWidth / 2;
-            const centerY = mapY + mapHeight / 2;
-            
-            // Draw arena outline
-            ctx.strokeStyle = '#888';
-            ctx.lineWidth = 1;
-            ctx.strokeRect(
-                centerX - arenaWidth * scale / 2,
-                centerY - arenaHeight * scale / 2,
-                arenaWidth * scale,
-                arenaHeight * scale
-            );
-            
-            // Draw player (green dot)
-            const playerMapX = centerX + player.x * scale;
-            const playerMapY = centerY + player.y * scale;
-            ctx.fillStyle = '#0f0';
-            ctx.beginPath();
-            ctx.arc(playerMapX, playerMapY, 4, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // Draw enemies (red dots)
-            for (const spirit of cursedSpirits) {
-                const spiritMapX = centerX + spirit.x * scale;
-                const spiritMapY = centerY + spirit.y * scale;
-                ctx.fillStyle = spirit.color || '#f00';
-                ctx.beginPath();
-                ctx.arc(spiritMapX, spiritMapY, 3, 0, Math.PI * 2);
-                ctx.fill();
-            }
-            
-            // Label
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 10px "Segoe UI", sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('TESTING ARENA', mapX + mapWidth / 2, mapY + mapHeight - 5);
-        }
-
-        // Footstep effects for testing mode
-        let footstepEffects = [];
-        function addFootstepEffect(x, y) {
-            footstepEffects.push({
-                x: x,
-                y: y,
-                life: 30,
-                maxLife: 30
-            });
-        }
-        
-        function drawFootstepEffects() {
-            for (let i = footstepEffects.length - 1; i >= 0; i--) {
-                const effect = footstepEffects[i];
-                const alpha = effect.life / effect.maxLife;
-                
-                ctx.fillStyle = `rgba(200, 200, 200, ${alpha * 0.3})`;
-                ctx.beginPath();
-                ctx.ellipse(
-                    effect.x - camera.x,
-                    effect.y - camera.y + 10,
-                    15 * (1 - alpha * 0.5),
-                    8 * (1 - alpha * 0.5),
-                    0, 0, Math.PI * 2
-                );
-                ctx.fill();
-                
-                effect.life--;
-                if (effect.life <= 0) {
-                    footstepEffects.splice(i, 1);
-                }
-            }
-        }
-
         function loop() {
             frame++;
-            
-            // Ensure canvas is properly sized
-            if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
-                canvas.width = window.innerWidth;
-                canvas.height = window.innerHeight;
-            }
-            
-            // Clear canvas at start of each frame
-            ctx.fillStyle = '#0a0a0a';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
             
             // DEBUG: Show current screen state
             if (frame % 60 === 0) {
@@ -7886,10 +6060,6 @@
                 drawCharacterSelect();
             } else if (screen === 'customisation') {
                 drawMenu(customOptions, 'CUSTOMISATION');
-            } else if (screen === 'blog') {
-                drawBlog();
-            } else if (screen === 'settings') {
-                drawMenu(settingsOptions, 'SETTINGS');
             } else if (screen === 'game') {
                 drawGame();
             } else {
@@ -7909,13 +6079,6 @@
             
             if (screen === 'title') {
                 if (option === 'PLAY') {
-                    // Force canvas resize before entering game
-                    resize();
-                    // Reset player to center
-                    player.x = 0;
-                    player.y = 0;
-                    camera.x = 0;
-                    camera.y = 0;
                     screen = 'game';
                 } else if (option === 'MODES') {
                     screen = 'modes';
@@ -7929,56 +6092,14 @@
                     screen = 'customisation';
                     currentMenu = customOptions;
                     selectedOption = 0;
-                } else if (option === 'UPDATE BLOG') {
-                    screen = 'blog';
-                    selectedOption = 0;
-                }
-            } else if (screen === 'settings') {
-                if (option === 'BACK') {
-                    screen = 'title';
-                    currentMenu = titleOptions;
-                    selectedOption = 0;
-                } else if (option.startsWith('CONTROL MODE:')) {
-                    mobileMode = !mobileMode;
-                    settingsOptions[0] = mobileMode ? 'CONTROL MODE: MOBILE' : 'CONTROL MODE: COMPUTER';
-                    showNotif(mobileMode ? 'Mobile mode enabled!' : 'Computer mode enabled!');
-                }
-            } else if (screen === 'blog') {
-                if (keys['Escape'] || keys['Backspace']) {
-                    if (blogSelectedEntry >= 0) {
-                        blogSelectedEntry = -1; // Go back to list
-                    } else {
-                        screen = 'title';
-                        currentMenu = titleOptions;
-                        selectedOption = 0;
-                    }
-                } else if (keys['Enter']) {
-                    if (blogSelectedEntry >= 0) {
-                        blogSelectedEntry = -1; // Go back to list
-                    } else if (selectedOption >= 0 && selectedOption < updateBlog.length) {
-                        blogSelectedEntry = selectedOption; // View selected entry
-                    }
                 }
             } else if (screen === 'modes') {
                 if (option === 'BACK') {
                     screen = 'title';
                     currentMenu = titleOptions;
                     selectedOption = 0;
-                } else if (option === 'TESTING MODE') {
-                    testingMode = true;
-                    gameMode = 'OPEN_WORLD';
-                    // Reset player position
-                    player.x = 0;
-                    player.y = 0;
-                    // Spawn testing spirits
-                    spawnTestingSpirits();
-                    screen = 'game';
-                    showNotif('TESTING MODE - Practice on stationary targets!');
                 } else {
-                    testingMode = false;
                     gameMode = option === 'OPEN WORLD' ? 'OPEN_WORLD' : 'STORY';
-                    // Clear testing spirits and spawn normal open world spirits
-                    cursedSpirits.length = 0;
                     // Reset player position
                     player.x = 0;
                     player.y = 0;
@@ -7991,8 +6112,6 @@
                     selectedOption = 0;
                 } else {
                     selectedCharacter = option;
-                    // Update abilities based on selected character
-                    abilities = CHARACTER_ABILITIES[selectedCharacter] || CHARACTER_ABILITIES['GOJO'];
                     screen = 'title';
                     currentMenu = titleOptions;
                     selectedOption = 0;
@@ -8006,110 +6125,6 @@
             }
         }
 
-        // Touch/Mouse events for mobile controls
-        let activeTouches = {};
-        
-        function handleTouchStart(e) {
-            if (!mobileMode || screen !== 'game') return;
-            e.preventDefault();
-            
-            const rect = canvas.getBoundingClientRect();
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const touch = e.changedTouches[i];
-                const touchX = (touch.clientX - rect.left) * (canvas.width / rect.width);
-                const touchY = (touch.clientY - rect.top) * (canvas.height / rect.height);
-                
-                // Check joystick
-                if (window.joystick) {
-                    const dx = touchX - window.joystick.x;
-                    const dy = touchY - window.joystick.y;
-                    const dist = Math.sqrt(dx * dx + dy * dy);
-                    
-                    if (dist < window.joystick.radius * 1.5) {
-                        activeTouches[touch.identifier] = { type: 'joystick', startX: touchX, startY: touchY };
-                        window.joystickActive = true;
-                        window.joystickDelta = { x: dx, y: dy };
-                        updateMobileMovement();
-                        continue;
-                    }
-                }
-                
-                // Check ability buttons
-                if (window.mobileButtons) {
-                    for (const btn of window.mobileButtons) {
-                        if (touchX >= btn.x && touchX <= btn.x + btn.width &&
-                            touchY >= btn.y && touchY <= btn.y + btn.height) {
-                            activeTouches[touch.identifier] = { type: 'button', ability: btn.ability };
-                            useAbility(btn.ability);
-                            break;
-                        }
-                    }
-                }
-            }
-        }
-        
-        function handleTouchMove(e) {
-            if (!mobileMode || screen !== 'game') return;
-            e.preventDefault();
-            
-            const rect = canvas.getBoundingClientRect();
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const touch = e.changedTouches[i];
-                const touchData = activeTouches[touch.identifier];
-                
-                if (touchData && touchData.type === 'joystick') {
-                    const touchX = (touch.clientX - rect.left) * (canvas.width / rect.width);
-                    const touchY = (touch.clientY - rect.top) * (canvas.height / rect.height);
-                    
-                    const dx = touchX - window.joystick.x;
-                    const dy = touchY - window.joystick.y;
-                    window.joystickDelta = { x: dx, y: dy };
-                    updateMobileMovement();
-                }
-            }
-        }
-        
-        function handleTouchEnd(e) {
-            if (!mobileMode) return;
-            
-            for (let i = 0; i < e.changedTouches.length; i++) {
-                const touch = e.changedTouches[i];
-                const touchData = activeTouches[touch.identifier];
-                
-                if (touchData && touchData.type === 'joystick') {
-                    window.joystickActive = false;
-                    window.joystickDelta = null;
-                    // Stop movement
-                    keys['w'] = false;
-                    keys['a'] = false;
-                    keys['s'] = false;
-                    keys['d'] = false;
-                }
-                
-                delete activeTouches[touch.identifier];
-            }
-        }
-        
-        function updateMobileMovement() {
-            if (!window.joystickDelta) return;
-            
-            const maxDist = 30;
-            const dx = Math.max(-maxDist, Math.min(maxDist, window.joystickDelta.x));
-            const dy = Math.max(-maxDist, Math.min(maxDist, window.joystickDelta.y));
-            
-            // Convert to WASD keys
-            keys['w'] = dy < -10;
-            keys['s'] = dy > 10;
-            keys['a'] = dx < -10;
-            keys['d'] = dx > 10;
-        }
-        
-        // Add touch listeners
-        canvas.addEventListener('touchstart', handleTouchStart, { passive: false });
-        canvas.addEventListener('touchmove', handleTouchMove, { passive: false });
-        canvas.addEventListener('touchend', handleTouchEnd, { passive: false });
-        canvas.addEventListener('touchcancel', handleTouchEnd, { passive: false });
-        
         // Mouse events
         canvas.addEventListener('mousemove', (e) => {
             const rect = canvas.getBoundingClientRect();
@@ -8122,43 +6137,13 @@
         });
 
         canvas.addEventListener('click', (e) => {
+            if (screen === 'game') return;
+            
+            // Check if mouse is actually over a button before selecting
             const rect = canvas.getBoundingClientRect();
             const clickX = (e.clientX - rect.left) * (canvas.width / rect.width);
             const clickY = (e.clientY - rect.top) * (canvas.height / rect.height);
             
-            // Check for settings button on title screen
-            if (screen === 'title' && window.settingsButton) {
-                const btn = window.settingsButton;
-                if (clickX >= btn.x && clickX <= btn.x + btn.width &&
-                    clickY >= btn.y && clickY <= btn.y + btn.height) {
-                    screen = 'settings';
-                    currentMenu = settingsOptions;
-                    selectedOption = 0;
-                    return;
-                }
-            }
-            
-            // Check for menu button click in game screen
-            if (screen === 'game' && window.menuButton) {
-                const btn = window.menuButton;
-                if (clickX >= btn.x && clickX <= btn.x + btn.width &&
-                    clickY >= btn.y && clickY <= btn.y + btn.height) {
-                    screen = 'title';
-                    currentMenu = titleOptions;
-                    selectedOption = 0;
-                    return;
-                }
-                // If charging Fuga, fire on click instead of punch
-                if (fuga.charging && fuga.chargeTime >= fuga.maxChargeTime * 0.5) {
-                    fireFugaArrow();
-                    return;
-                }
-                // M1 punch on left click (not on menu button)
-                useM1();
-                return;
-            }
-            
-            // Check if mouse is actually over a button before selecting (menu screens)
             let clickedButton = false;
             for (let i = 0; i < menuItemRects.length; i++) {
                 const btn = menuItemRects[i];
@@ -8173,24 +6158,6 @@
             // Only handle select if actually clicked on a button
             if (clickedButton) {
                 handleSelect();
-            }
-            
-            // Blog entry click handling
-            if (screen === 'blog') {
-                if (blogSelectedEntry >= 0) {
-                    // Click anywhere to go back to list
-                    blogSelectedEntry = -1;
-                } else if (window.blogEntryRects) {
-                    // Check if clicked on an entry
-                    for (const entryRect of window.blogEntryRects) {
-                        if (clickX >= entryRect.x && clickX <= entryRect.x + entryRect.width &&
-                            clickY >= entryRect.y && clickY <= entryRect.y + entryRect.height) {
-                            blogSelectedEntry = entryRect.index;
-                            selectedOption = entryRect.index;
-                            break;
-                        }
-                    }
-                }
             }
         });
 
@@ -8208,28 +6175,6 @@
                     screen = 'title';
                     currentMenu = titleOptions;
                     selectedOption = 0;
-                }
-            } else if (screen === 'blog') {
-                if (blogSelectedEntry >= 0) {
-                    // Viewing single entry
-                    if (e.key === 'Enter' || e.key === 'Escape' || e.key === 'Backspace') {
-                        blogSelectedEntry = -1;
-                    }
-                } else {
-                    // List view
-                    if (e.key === 'ArrowUp') {
-                        selectedOption = (selectedOption - 1 + updateBlog.length) % updateBlog.length;
-                    } else if (e.key === 'ArrowDown') {
-                        selectedOption = (selectedOption + 1) % updateBlog.length;
-                    } else if (e.key === 'Enter') {
-                        if (selectedOption >= 0 && selectedOption < updateBlog.length) {
-                            blogSelectedEntry = selectedOption;
-                        }
-                    } else if (e.key === 'Escape') {
-                        screen = 'title';
-                        currentMenu = titleOptions;
-                        selectedOption = 0;
-                    }
                 }
             } else {
                 if (e.key === 'ArrowUp') {
@@ -8253,4 +6198,6 @@
         });
 
         loop();
-    
+    </script>
+</body>
+</html>
