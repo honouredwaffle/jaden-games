@@ -5790,7 +5790,7 @@
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
             
                 // Draw water ripple footsteps (relative to domain center)
-            if (playerDomain.phase !== 'expanding' && playerDomain.phase !== 'lines') {
+                if (playerDomain.phase !== 'expanding' && playerDomain.phase !== 'lines') {
                 ctx.save();
                 // Translate so domain center is at origin, then draw ripples at their world positions
                 ctx.translate(domainScreenX - playerDomain.centerX, domainScreenY - playerDomain.centerY);
