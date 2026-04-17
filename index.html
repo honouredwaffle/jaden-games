@@ -4791,13 +4791,22 @@
                         ctx.stroke();
                     }
                     
-                    // Ready text - click to fire
-                    const shakeX = (Math.random() - 0.5) * 3;
-                    const shakeY = (Math.random() - 0.5) * 3;
-                    ctx.fillStyle = '#ff4400';
-                    ctx.font = 'bold 22px "Segoe UI", sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('CLICK TO FIRE!', player.x - camera.x + shakeX, player.y - camera.y - 100 + shakeY);
+                    // Ready text - only show at 100% charge
+                    if (chargePercent >= 1) {
+                        const shakeX = (Math.random() - 0.5) * 3;
+                        const shakeY = (Math.random() - 0.5) * 3;
+                        ctx.fillStyle = '#ff4400';
+                        ctx.font = 'bold 22px "Segoe UI", sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('CLICK TO FIRE!', player.x - camera.x + shakeX, player.y - camera.y - 100 + shakeY);
+                    } else {
+                        // Show charging progress during formation phase
+                        const textPulse = Math.sin(time * 2) * 0.4 + 0.6;
+                        ctx.fillStyle = `rgba(255, ${100 + chargePercent * 100}, 0, ${textPulse})`;
+                        ctx.font = 'bold 20px "Segoe UI", sans-serif';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(`FUGA CHARGING... ${Math.floor(chargePercent * 100)}%`, player.x - camera.x, player.y - camera.y - 90);
+                    }
                 }
                 
                 
@@ -9206,8 +9215,8 @@
                     selectedOption = 0;
                     return;
                 }
-                // If charging Fuga, fire on click instead of punch
-                if (fuga.charging && fuga.chargeTime >= fuga.maxChargeTime * 0.5) {
+                // If charging Fuga at 100%, fire on click instead of punch
+                if (fuga.charging && fuga.chargeTime >= fuga.maxChargeTime) {
                     fireFugaArrow();
                     return;
                 }
