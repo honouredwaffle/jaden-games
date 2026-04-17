@@ -3628,116 +3628,13 @@
             ctx.lineTo(rightFootX, rightFootY);
             ctx.stroke();
             
-            // Arms - swing opposite to legs, or Fuga charging animation
+            // Arms - normal animation (no Fuga animation here)
             ctx.lineWidth = 4;
             
             let leftShoulderX, leftShoulderY, rightShoulderX, rightShoulderY;
             let leftHandX, leftHandY, rightHandX, rightHandY;
             
-            if (fuga.charging) {
-                // FUGA CHARGING - arms clapping together in front
-                const chargePercent = fuga.chargeTime / fuga.maxChargeTime;
-                
-                // Shoulder positions (fixed)
-                leftShoulderX = screenX - player.radius + 2;
-                leftShoulderY = drawY + 3;
-                rightShoulderX = screenX + player.radius - 2;
-                rightShoulderY = drawY + 3;
-                
-                // Hands move from sides to center (clapping motion)
-                // Start at sides, move to center in front of player
-                const clapProgress = Math.min(chargePercent * 3, 1); // Complete clap in first 33%
-                const forwardDist = 25; // Distance in front of player
-                const sideSpread = 20 * (1 - clapProgress); // Spread decreases as hands come together
-                
-                // Left hand moves from left side to center
-                leftHandX = screenX - sideSpread + Math.cos(player.facing) * forwardDist * clapProgress;
-                leftHandY = drawY + 5 + Math.sin(player.facing) * forwardDist * clapProgress;
-                
-                // Right hand moves from right side to center, then pulls back when charged
-                let rightSideOffset = sideSpread;
-                if (chargePercent > 0.5) {
-                    // Pull right hand back to form arrow
-                    const pullBackProgress = (chargePercent - 0.5) * 2;
-                    rightSideOffset = -30 * pullBackProgress; // Pull to the right
-                }
-                rightHandX = screenX + rightSideOffset + Math.cos(player.facing) * forwardDist * Math.min(chargePercent * 2, 1);
-                rightHandY = drawY + 5 + Math.sin(player.facing) * forwardDist * Math.min(chargePercent * 2, 1);
-                
-                // Elbows bend based on hand position
-                const leftElbowX = (leftShoulderX + leftHandX) / 2;
-                const leftElbowY = leftShoulderY + 5;
-                const rightElbowX = (rightShoulderX + rightHandX) / 2;
-                const rightElbowY = rightShoulderY + 5;
-                
-                // Draw arms (brighter color for visibility)
-                ctx.strokeStyle = '#4a4a6e';
-                ctx.lineCap = 'round';
-                ctx.lineJoin = 'round';
-                ctx.beginPath();
-                ctx.moveTo(leftShoulderX, leftShoulderY);
-                ctx.lineTo(leftElbowX, leftElbowY);
-                ctx.lineTo(leftHandX, leftHandY);
-                ctx.stroke();
-                
-                ctx.beginPath();
-                ctx.moveTo(rightShoulderX, rightShoulderY);
-                ctx.lineTo(rightElbowX, rightElbowY);
-                ctx.lineTo(rightHandX, rightHandY);
-                ctx.stroke();
-                
-                // Draw hands
-                ctx.fillStyle = '#8B4513';
-                ctx.beginPath();
-                ctx.arc(leftHandX, leftHandY, 5, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.beginPath();
-                ctx.arc(rightHandX, rightHandY, 5, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Draw flame arrow in right hand when charged
-                if (fuga.charged) {
-                    const mouseAngle = Math.atan2(mouseWorldY - player.y, mouseWorldX - player.x);
-                    ctx.save();
-                    ctx.translate(rightHandX, rightHandY);
-                    ctx.rotate(mouseAngle);
-                    
-                    // BIGGER flame arrow
-                    ctx.fillStyle = '#ff4400';
-                    ctx.shadowColor = '#ff0000';
-                    ctx.shadowBlur = 20;
-                    
-                    // Longer arrow shaft
-                    ctx.fillRect(-30, -4, 60, 8);
-                    
-                    // Bigger arrowhead
-                    ctx.beginPath();
-                    ctx.moveTo(30, 0);
-                    ctx.lineTo(-5, -15);
-                    ctx.lineTo(-5, 15);
-                    ctx.closePath();
-                    ctx.fill();
-                    
-                    // Inner hot core
-                    ctx.fillStyle = '#ff8800';
-                    ctx.beginPath();
-                    ctx.moveTo(20, 0);
-                    ctx.lineTo(-5, -10);
-                    ctx.lineTo(-5, 10);
-                    ctx.closePath();
-                    ctx.fill();
-                    
-                    // Flame glow
-                    ctx.fillStyle = '#ffaa00';
-                    ctx.shadowBlur = 30;
-                    ctx.beginPath();
-                    ctx.arc(-10, 0, 12, 0, Math.PI * 2);
-                    ctx.fill();
-                    
-                    ctx.restore();
-                    ctx.shadowBlur = 0;
-                }
-            } else {
+            // Normal arm animation
                 // Normal arm animation
                 // Left arm swings with right leg
                 const leftArmSwing = isMoving ? Math.sin(time * 5 + Math.PI) * stepSize * 0.8 : 0;
@@ -4397,10 +4294,57 @@
         function drawFuga() {
             if (fuga.charging) {
                 const chargePercent = fuga.chargeTime / fuga.maxChargeTime;
+                const screenX = player.x - camera.x;
+                const screenY = player.y - camera.y;
+                
+                // Hand positions - to the right of player (where arrow is held)
+                const handOffsetX = 35;
+                const handOffsetY = 5;
+                const handX = screenX + handOffsetX;
+                const handY = screenY + handOffsetY;
                 
                 if (!fuga.charged) {
-                    // CHARGING PHASE - just text for now
+                    // CHARGING PHASE - fire building up
                     const time = Date.now() / 100;
+                    
+                    // Pulsing fire aura around hand
+                    const pulse = Math.sin(time * 3) * 0.3 + 0.7;
+                    const auraSize = 20 + chargePercent * 30 * pulse;
+                    
+                    // Outer glow
+                    const gradient = ctx.createRadialGradient(handX, handY, 0, handX, handY, auraSize * 1.5);
+                    gradient.addColorStop(0, `rgba(255, ${100 + chargePercent * 100}, 0, ${0.4 + chargePercent * 0.4})`);
+                    gradient.addColorStop(0.5, `rgba(255, 60, 0, ${0.2 + chargePercent * 0.2})`);
+                    gradient.addColorStop(1, 'rgba(255, 30, 0, 0)');
+                    ctx.fillStyle = gradient;
+                    ctx.beginPath();
+                    ctx.arc(handX, handY, auraSize * 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Inner fire core
+                    ctx.fillStyle = `rgba(255, ${150 + chargePercent * 105}, ${chargePercent * 100}, ${0.6 + chargePercent * 0.4})`;
+                    ctx.shadowColor = '#ff4400';
+                    ctx.shadowBlur = 20 + chargePercent * 20;
+                    ctx.beginPath();
+                    ctx.arc(handX, handY, auraSize * 0.5, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.shadowBlur = 0;
+                    
+                    // Swirling embers
+                    for (let i = 0; i < 6 + chargePercent * 8; i++) {
+                        const angle = time * 3 + (i / 14) * Math.PI * 2;
+                        const dist = auraSize * 0.6 + Math.sin(time * 4 + i) * 8;
+                        const ex = handX + Math.cos(angle) * dist;
+                        const ey = handY + Math.sin(angle) * dist;
+                        const size = 3 + chargePercent * 5 + Math.random() * 3;
+                        
+                        ctx.fillStyle = `rgba(255, ${60 + Math.random() * 100}, 0, ${0.7 + Math.random() * 0.3})`;
+                        ctx.shadowColor = '#ff2200';
+                        ctx.shadowBlur = 8;
+                        ctx.beginPath();
+                        ctx.arc(ex, ey, size, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
                     
                     // Charging text
                     const textPulse = Math.sin(time * 2) * 0.4 + 0.6;
@@ -4410,7 +4354,7 @@
                     ctx.fillText(`FUGA CHARGING... ${Math.floor(chargePercent * 100)}%`, player.x - camera.x, player.y - camera.y - 90);
                     
                 } else {
-                    // CHARGED PHASE - ready to fire
+                    // CHARGED PHASE - ready to fire, show full fire arrow
                     
                     // Ready text
                     const time = Date.now() / 100;
@@ -4419,6 +4363,137 @@
                     ctx.fillStyle = '#ff4400';
                     ctx.font = 'bold 22px "Segoe UI", sans-serif';
                     ctx.textAlign = 'center';
+                    ctx.fillText('FUGA READY! Press 3', player.x - camera.x + shakeX, player.y - camera.y - 100 + shakeY);
+                    
+                    // Draw fire arrow at hand position (same as launched arrow)
+                    const mouseAngle = Math.atan2(mouseWorldY - player.y, mouseWorldX - player.x);
+                    ctx.save();
+                    ctx.translate(handX, handY);
+                    ctx.rotate(mouseAngle);
+                    
+                    // Fire aura around arrow
+                    for (let ring = 0; ring < 3; ring++) {
+                        ctx.fillStyle = `rgba(255, ${60 + ring * 40}, 0, ${0.3 - ring * 0.08})`;
+                        ctx.shadowColor = '#ff2200';
+                        ctx.shadowBlur = 30 - ring * 8;
+                        ctx.beginPath();
+                        ctx.ellipse(15, 0, 40 + ring * 12, 28 + ring * 8, 0, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    
+                    // ARROW SHAFT
+                    ctx.shadowColor = '#ff4400';
+                    ctx.shadowBlur = 25;
+                    
+                    // Outer shaft
+                    ctx.fillStyle = 'rgba(80, 30, 10, 0.9)';
+                    ctx.beginPath();
+                    ctx.moveTo(40, 0);
+                    ctx.lineTo(-70, -5);
+                    ctx.lineTo(-75, 0);
+                    ctx.lineTo(-70, 5);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Main shaft
+                    ctx.fillStyle = '#4a2010';
+                    ctx.beginPath();
+                    ctx.moveTo(35, 0);
+                    ctx.lineTo(-65, -3);
+                    ctx.lineTo(-70, 0);
+                    ctx.lineTo(-65, 3);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Inner shaft (glowing)
+                    ctx.fillStyle = '#ff4400';
+                    ctx.beginPath();
+                    ctx.moveTo(30, 0);
+                    ctx.lineTo(-50, -1.5);
+                    ctx.lineTo(-55, 0);
+                    ctx.lineTo(-50, 1.5);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // ARROWHEAD
+                    ctx.shadowColor = '#ff0000';
+                    ctx.shadowBlur = 35;
+                    
+                    // Outer arrowhead
+                    ctx.fillStyle = 'rgba(255, 60, 0, 0.9)';
+                    ctx.beginPath();
+                    ctx.moveTo(70, 0);
+                    ctx.lineTo(25, -20);
+                    ctx.lineTo(30, 0);
+                    ctx.lineTo(25, 20);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Main arrowhead
+                    ctx.fillStyle = '#5a3a30';
+                    ctx.beginPath();
+                    ctx.moveTo(60, 0);
+                    ctx.lineTo(22, -15);
+                    ctx.lineTo(26, 0);
+                    ctx.lineTo(22, 15);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Inner arrowhead
+                    ctx.fillStyle = '#aa3300';
+                    ctx.beginPath();
+                    ctx.moveTo(50, 0);
+                    ctx.lineTo(20, -10);
+                    ctx.lineTo(23, 0);
+                    ctx.lineTo(20, 10);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Hot core
+                    ctx.fillStyle = '#ffaa00';
+                    ctx.beginPath();
+                    ctx.moveTo(40, 0);
+                    ctx.lineTo(18, -6);
+                    ctx.lineTo(20, 0);
+                    ctx.lineTo(18, 6);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // White hot tip
+                    ctx.fillStyle = '#ffffcc';
+                    ctx.beginPath();
+                    ctx.moveTo(30, 0);
+                    ctx.lineTo(15, -3);
+                    ctx.lineTo(17, 0);
+                    ctx.lineTo(15, 3);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Fletching (feathers)
+                    ctx.shadowColor = '#ff6600';
+                    ctx.shadowBlur = 15;
+                    
+                    ctx.fillStyle = 'rgba(255, 100, 0, 0.8)';
+                    ctx.beginPath();
+                    ctx.moveTo(-65, -2);
+                    ctx.lineTo(-85, -12);
+                    ctx.lineTo(-80, -5);
+                    ctx.lineTo(-88, -7);
+                    ctx.lineTo(-70, 0);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(-65, 2);
+                    ctx.lineTo(-85, 12);
+                    ctx.lineTo(-80, 5);
+                    ctx.lineTo(-88, 7);
+                    ctx.lineTo(-70, 0);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    ctx.restore();
+                    ctx.shadowBlur = 0;
                 }
             }
             
