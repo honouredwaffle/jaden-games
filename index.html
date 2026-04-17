@@ -8556,11 +8556,17 @@
             const centerY = mapY + mapHeight / 2;
             const mapRadius = Math.min(mapWidth, mapHeight) / 2 - 10;
             
-            // Draw connected biome zones - overlapping large circles for seamless coverage
-            const mapScale = mapRadius / (BIOME_SIZE * 1.2);
-            const biomeRadius = mapRadius * 0.65; // Large enough to overlap
+            // Draw connected biome zones - scaled to fit within minimap borders
+            const mapScale = mapRadius / (BIOME_SIZE * 1.5);
+            const biomeRadius = mapRadius * 0.38; // Reduced to fit within borders
             
-            // Draw outer biomes first (larger, overlapping circles)
+            // Clip to minimap bounds so biomes don't stick out
+            ctx.save();
+            ctx.beginPath();
+            ctx.rect(mapX, mapY, mapWidth, mapHeight);
+            ctx.clip();
+            
+            // Draw outer biomes first
             for (const biome of BIOMES) {
                 if (biome === 'FOREST') continue;
                 
@@ -8569,16 +8575,16 @@
                 const bx = centerX + center.x * mapScale;
                 const by = centerY + center.y * mapScale;
                 
-                // Large overlapping biome zone
+                // Biome zone
                 ctx.fillStyle = colors.ground;
-                ctx.globalAlpha = 0.35;
+                ctx.globalAlpha = 0.4;
                 ctx.beginPath();
                 ctx.arc(bx, by, biomeRadius, 0, Math.PI * 2);
                 ctx.fill();
             }
             
-            // Draw biome borders (arcs where circles meet)
-            ctx.globalAlpha = 0.6;
+            // Draw biome borders
+            ctx.globalAlpha = 0.7;
             ctx.lineWidth = 2;
             for (const biome of BIOMES) {
                 if (biome === 'FOREST') continue;
@@ -8590,20 +8596,22 @@
                 
                 ctx.strokeStyle = colors.grid;
                 ctx.beginPath();
-                ctx.arc(bx, by, biomeRadius * 0.7, 0, Math.PI * 2);
+                ctx.arc(bx, by, biomeRadius * 0.75, 0, Math.PI * 2);
                 ctx.stroke();
             }
             
-            // Draw Forest center (covers the overlap in the middle)
+            // Draw Forest center
             ctx.fillStyle = BIOME_COLORS.FOREST.ground;
-            ctx.globalAlpha = 0.6;
+            ctx.globalAlpha = 0.5;
             ctx.beginPath();
-            ctx.arc(centerX, centerY, mapRadius * 0.45, 0, Math.PI * 2);
+            ctx.arc(centerX, centerY, mapRadius * 0.35, 0, Math.PI * 2);
             ctx.fill();
-            ctx.globalAlpha = 0.9;
+            ctx.globalAlpha = 1;
             ctx.strokeStyle = BIOME_COLORS.FOREST.grid;
             ctx.lineWidth = 2;
             ctx.stroke();
+            
+            ctx.restore(); // End clip
             
             // Labels for outer biomes (positioned near edges)
             ctx.globalAlpha = 1;
@@ -8612,11 +8620,11 @@
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             
-            const labelOffset = mapRadius * 0.75;
-            ctx.fillText('VOLCANO', centerX - labelOffset * 0.7, centerY - labelOffset * 0.7);
-            ctx.fillText('SAND', centerX + labelOffset * 0.7, centerY - labelOffset * 0.7);
-            ctx.fillText('CITY', centerX + labelOffset * 0.7, centerY + labelOffset * 0.7);
-            ctx.fillText('SNOW', centerX - labelOffset * 0.7, centerY + labelOffset * 0.7);
+            const labelOffset = mapRadius * 0.55;
+            ctx.fillText('VOLCANO', centerX - labelOffset * 0.8, centerY - labelOffset * 0.8);
+            ctx.fillText('SAND', centerX + labelOffset * 0.8, centerY - labelOffset * 0.8);
+            ctx.fillText('CITY', centerX + labelOffset * 0.8, centerY + labelOffset * 0.8);
+            ctx.fillText('SNOW', centerX - labelOffset * 0.8, centerY + labelOffset * 0.8);
             
             // Forest label
             ctx.font = 'bold 8px "Segoe UI", sans-serif';
