@@ -5438,30 +5438,31 @@
                     applySukunaDomainDamage();
                 }
                 
-                // Spawn random slice visuals - reduced for performance
-                const sliceChance = mobileMode ? 0.15 : 0.4;
-                if (Math.random() < sliceChance && sukunaDomain.slices.length < (mobileMode ? 15 : 30)) {
+                // Spawn random slice visuals - increased for mobile
+                const sliceChance = mobileMode ? 0.5 : 0.4;
+                if (Math.random() < sliceChance && sukunaDomain.slices.length < (mobileMode ? 40 : 30)) {
                     spawnSliceEffect();
                 }
-                // Spawn multiple slices only on desktop
-                if (!mobileMode && Math.random() < 0.2) {
+                // Spawn multiple slices
+                if (Math.random() < 0.3) {
                     spawnSliceEffect();
+                    if (mobileMode) spawnSliceEffect();
                 }
                 
-                // Spawn pulsing crimson slash waves - reduced for performance
-                const waveChance = mobileMode ? 0.05 : 0.15;
+                // Spawn pulsing crimson slash waves - enabled for mobile
+                const waveChance = mobileMode ? 0.2 : 0.15;
                 if (Math.random() < waveChance) {
                     spawnSlashWave();
                 }
                 
-                // Spawn red mist particles - reduced for performance
-                const mistChance = mobileMode ? 0.1 : 0.3;
+                // Spawn red mist particles - enabled for mobile
+                const mistChance = mobileMode ? 0.4 : 0.3;
                 if (Math.random() < mistChance) {
                     spawnRedMist();
                 }
                 
-                // Spawn cursed sparks - reduced for performance
-                const sparkChance = mobileMode ? 0.08 : 0.2;
+                // Spawn cursed sparks - enabled for mobile
+                const sparkChance = mobileMode ? 0.25 : 0.2;
                 if (Math.random() < sparkChance) {
                     spawnCursedSpark();
                 }
@@ -5687,8 +5688,7 @@
             ctx.stroke();
             ctx.setLineDash([]);
             
-            // Draw pulsing crimson slash waves - skip on mobile
-            if (!mobileMode) {
+            // Draw pulsing crimson slash waves
             for (const wave of sukunaDomain.slashWaves) {
                 const wx = wave.x - camera.x;
                 const wy = wave.y - camera.y;
@@ -5714,10 +5714,8 @@
                 
                 ctx.restore();
             }
-            } // End mobile check for slash waves
             
-            // Draw red mist particles - skip on mobile
-            if (!mobileMode) {
+            // Draw red mist particles
                 for (const mist of sukunaDomain.redMist) {
                     const mx = mist.x - camera.x;
                     const my = mist.y - camera.y;
@@ -5738,8 +5736,7 @@
                 }
             }
             
-            // Draw cursed sparks - skip on mobile
-            if (!mobileMode) {
+            // Draw cursed sparks
                 for (const spark of sukunaDomain.cursedSparks) {
                     const sx = spark.x - camera.x;
                     const sy = spark.y - camera.y;
@@ -5775,14 +5772,28 @@
                 const alpha = slice.life / slice.maxLife;
                 const width = slice.width || 3;
                 
-                // Mobile: simplified slash rendering
+                // Mobile: enhanced slash rendering with glow
                 if (mobileMode) {
                     ctx.save();
                     ctx.translate(sx, sy);
                     ctx.rotate(slice.angle);
                     
                     const length = slice.length;
-                    ctx.strokeStyle = `rgba(255, 100, 100, ${alpha})`;
+                    
+                    // Add glow effect for mobile
+                    ctx.shadowBlur = 15;
+                    ctx.shadowColor = 'rgba(255, 0, 0, 0.8)';
+                    ctx.strokeStyle = `rgba(255, 80, 80, ${alpha * 0.7})`;
+                    ctx.lineWidth = width * 2;
+                    ctx.beginPath();
+                    ctx.moveTo(-length / 2, 0);
+                    ctx.lineTo(length / 2, 0);
+                    ctx.stroke();
+                    
+                    // Core slash
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = 'rgba(255, 255, 255, 0.9)';
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
                     ctx.lineWidth = width;
                     ctx.beginPath();
                     ctx.moveTo(-length / 2, 0);
