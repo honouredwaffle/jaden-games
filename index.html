@@ -3634,38 +3634,35 @@
             let leftShoulderX, leftShoulderY, rightShoulderX, rightShoulderY;
             let leftHandX, leftHandY, rightHandX, rightHandY;
             
-            // Normal arm animation
-                // Normal arm animation
-                // Left arm swings with right leg
-                const leftArmSwing = isMoving ? Math.sin(time * 5 + Math.PI) * stepSize * 0.8 : 0;
-                leftShoulderX = screenX - player.radius + 2;
-                leftShoulderY = drawY + 3;
-                const leftElbowX = leftShoulderX + perpX * 2 + Math.cos(player.facing) * leftArmSwing;
-                const leftElbowY = leftShoulderY + 8;
-                leftHandX = leftElbowX + Math.cos(player.facing) * leftArmSwing * 0.5;
-                leftHandY = leftElbowY + 10;
-                
-                ctx.beginPath();
-                ctx.moveTo(leftShoulderX, leftShoulderY);
-                ctx.lineTo(leftElbowX, leftElbowY);
-                ctx.lineTo(leftHandX, leftHandY);
-                ctx.stroke();
-                
-                // Right arm swings with left leg
-                const rightArmSwing = isMoving ? Math.sin(time * 5) * stepSize * 0.8 : 0;
-                rightShoulderX = screenX + player.radius - 2;
-                rightShoulderY = drawY + 3;
-                const rightElbowX = rightShoulderX - perpX * 2 + Math.cos(player.facing) * rightArmSwing;
-                const rightElbowY = rightShoulderY + 8;
-                rightHandX = rightElbowX + Math.cos(player.facing) * rightArmSwing * 0.5;
-                rightHandY = rightElbowY + 10;
-                
-                ctx.beginPath();
-                ctx.moveTo(rightShoulderX, rightShoulderY);
-                ctx.lineTo(rightElbowX, rightElbowY);
-                ctx.lineTo(rightHandX, rightHandY);
-                ctx.stroke();
-            }
+            // Left arm swings with right leg
+            const leftArmSwing = isMoving ? Math.sin(time * 5 + Math.PI) * stepSize * 0.8 : 0;
+            leftShoulderX = screenX - player.radius + 2;
+            leftShoulderY = drawY + 3;
+            const leftElbowX = leftShoulderX + perpX * 2 + Math.cos(player.facing) * leftArmSwing;
+            const leftElbowY = leftShoulderY + 8;
+            leftHandX = leftElbowX + Math.cos(player.facing) * leftArmSwing * 0.5;
+            leftHandY = leftElbowY + 10;
+            
+            ctx.beginPath();
+            ctx.moveTo(leftShoulderX, leftShoulderY);
+            ctx.lineTo(leftElbowX, leftElbowY);
+            ctx.lineTo(leftHandX, leftHandY);
+            ctx.stroke();
+            
+            // Right arm swings with left leg
+            const rightArmSwing = isMoving ? Math.sin(time * 5) * stepSize * 0.8 : 0;
+            rightShoulderX = screenX + player.radius - 2;
+            rightShoulderY = drawY + 3;
+            const rightElbowX = rightShoulderX - perpX * 2 + Math.cos(player.facing) * rightArmSwing;
+            const rightElbowY = rightShoulderY + 8;
+            rightHandX = rightElbowX + Math.cos(player.facing) * rightArmSwing * 0.5;
+            rightHandY = rightElbowY + 10;
+            
+            ctx.beginPath();
+            ctx.moveTo(rightShoulderX, rightShoulderY);
+            ctx.lineTo(rightElbowX, rightElbowY);
+            ctx.lineTo(rightHandX, rightHandY);
+            ctx.stroke();
             
             // Body bob when walking up/down
             if (isMoving && Math.abs(Math.sin(player.facing)) > 0.5) {
