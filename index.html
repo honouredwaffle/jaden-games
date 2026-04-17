@@ -195,7 +195,7 @@
         
         // Update log entries - formatted with category headers and sub-bullets
         const updateBlog = [
-            { date: '2026-04-18', title: 'Ability Colour Customization', content: '• Added:\n  ◦ New customization menu option: Ability Colour\n  ◦ Four colour options: Default, Purple, Yellow, Black\n  ◦ Ability bar UI changes to match selected colour\n  ◦ Mobile control buttons use selected colour\n  ◦ Max Blue (Gojo ability 1) uses custom colours when active\n• Visuals:\n  ◦ Colour preview shown in menu\n  ◦ Selected colour highlighted with checkmark' },
+            { date: '2026-04-18', title: 'Ability Colour Customization - All Abilities', content: '• Added:\n  ◦ All abilities now use selected custom colour\n  ◦ Max Blue - orb, glow, rings, and particles\n  ◦ Reversal Red - charging and fired projectile\n  ◦ Hollow Purple - fusion orbs and energy effects\n  ◦ Dismantle/Cleave - slash effects and sparks\n  ◦ Fuga - fire circle and charging effects\n  ◦ Hit effects and kill effects\n  ◦ Ability bar UI and mobile buttons\n• Colour options: Default, Purple, Yellow, Black' },
             { date: '2026-04-18', title: 'Update Log Format Overhaul', content: '• Changed:\n  ◦ All update logs reformatted with descriptive titles\n  ◦ Content now uses bullet points with categories (Added, Fixed, Visuals, etc.)\n  ◦ Clear categorization for better readability\n• Removed: Generic "Major Update" style titles' },
             { date: '2026-04-18', title: 'Enhanced Dismantle & Cleave Slash Effects', content: '• Added:\n  ◦ Multi-layer slash glows (outer red, middle orange, bright white core)\n  ◦ Spark particles along slash paths\n  ◦ Cross-pattern slashes for extra impact\n  ◦ Screen shake during Dismantle and Cleave abilities\n  ◦ Red flash effect on ability activation\n• Visuals:\n  ◦ Slashes now expand slightly as they fade\n  ◦ Longer slash duration for better visibility' },
             { date: '2026-04-18', title: 'Minimap Redesign - Overlapping Biome Zones', content: '• Fixed:\n  ◦ Biome circles now overlap to eliminate black gaps\n  ◦ Player position correctly corresponds to actual biome location\n• Visuals:\n  ◦ Larger biome radius (55% of map) for seamless coverage\n  ◦ Forest center expanded to 45% of map radius' },
@@ -4711,6 +4711,9 @@
         }
         
         function drawFuga() {
+            const colors = getCurrentAbilityColors();
+            const rgb = hexToRgb(colors.primary) || {r: 255, g: 100, b: 0};
+            
             if (fuga.charging) {
                 const chargePercent = fuga.chargeTime / fuga.maxChargeTime;
                 const screenX = player.x - camera.x;
@@ -4736,15 +4739,15 @@
                 const time = Date.now() / 100;
                 const effectTime = Date.now() / 60;
                 
-                // POLISHED FIRE CIRCLE around player
+                // POLISHED FIRE CIRCLE around player - uses custom colors
                 const circleTime = Date.now() / 50;
                 const baseRadius = 50 + chargePercent * 20;
                 
                 // Outer glow ring - soft and smooth
                 const outerGlow = ctx.createRadialGradient(screenX, screenY, baseRadius * 0.5, screenX, screenY, baseRadius * 1.8);
                 outerGlow.addColorStop(0, 'rgba(255, 100, 0, 0)');
-                outerGlow.addColorStop(0.4, `rgba(255, 80, 0, ${0.15 * chargePercent})`);
-                outerGlow.addColorStop(0.7, `rgba(255, 60, 0, ${0.25 * chargePercent})`);
+                outerGlow.addColorStop(0.4, `rgba(${rgb.r}, ${Math.floor(rgb.g * 0.8)}, ${Math.floor(rgb.b * 0.5)}, ${0.15 * chargePercent})`);
+                outerGlow.addColorStop(0.7, `rgba(${rgb.r}, ${Math.floor(rgb.g * 0.6)}, ${Math.floor(rgb.b * 0.3)}, ${0.25 * chargePercent})`);
                 outerGlow.addColorStop(1, 'rgba(255, 40, 0, 0)');
                 ctx.fillStyle = outerGlow;
                 ctx.beginPath();
@@ -4755,10 +4758,10 @@
                 const ringPulse = Math.sin(circleTime * 3) * 0.2 + 0.8;
                 const ringAlpha = 0.4 * chargePercent * ringPulse;
                 
-                ctx.strokeStyle = `rgba(255, 120, 30, ${ringAlpha})`;
+                ctx.strokeStyle = `rgba(${rgb.r}, ${Math.min(255, rgb.g + 20)}, ${Math.floor(rgb.b * 0.3)}, ${ringAlpha})`;
                 ctx.lineWidth = 8;
                 ctx.lineCap = 'round';
-                ctx.shadowColor = '#ff4400';
+                ctx.shadowColor = colors.primary;
                 ctx.shadowBlur = 20 * chargePercent;
                 
                 // Draw segmented ring for smoother look
@@ -4768,7 +4771,7 @@
                     const endAngle = startAngle + (Math.PI * 2 / segments) * 0.7;
                     const segmentAlpha = ringAlpha * (0.7 + Math.sin(circleTime * 4 + i) * 0.3);
                     
-                    ctx.strokeStyle = `rgba(255, ${100 + Math.sin(i * 0.5) * 40}, 20, ${segmentAlpha})`;
+                    ctx.strokeStyle = `rgba(${rgb.r}, ${100 + Math.sin(i * 0.5) * 40}, ${Math.floor(rgb.b * 0.2)}, ${segmentAlpha})`;
                     ctx.beginPath();
                     ctx.arc(screenX, screenY, baseRadius, startAngle, endAngle);
                     ctx.stroke();
@@ -4785,12 +4788,12 @@
                     
                     // Orb glow
                     const orbGrad = ctx.createRadialGradient(ox, oy, 0, ox, oy, orbSize * 2);
-                    orbGrad.addColorStop(0, `rgba(255, 200, 50, ${0.9 * chargePercent})`);
-                    orbGrad.addColorStop(0.5, `rgba(255, 100, 0, ${0.5 * chargePercent})`);
-                    orbGrad.addColorStop(1, 'rgba(255, 50, 0, 0)');
+                    orbGrad.addColorStop(0, `rgba(${Math.min(255, rgb.r + 50)}, ${Math.min(255, rgb.g + 100)}, ${Math.floor(rgb.b * 0.5)}, ${0.9 * chargePercent})`);
+                    orbGrad.addColorStop(0.5, `rgba(${rgb.r}, ${Math.floor(rgb.g * 0.8)}, ${Math.floor(rgb.b * 0.3)}, ${0.5 * chargePercent})`);
+                    orbGrad.addColorStop(1, `rgba(${rgb.r}, ${Math.floor(rgb.g * 0.5)}, 0, 0)`);
                     
                     ctx.fillStyle = orbGrad;
-                    ctx.shadowColor = '#ff6600';
+                    ctx.shadowColor = colors.primary;
                     ctx.shadowBlur = 15 * chargePercent;
                     ctx.beginPath();
                     ctx.arc(ox, oy, orbSize * 2, 0, Math.PI * 2);
@@ -6486,6 +6489,9 @@
         }
         
         function drawReversalRed() {
+            const colors = getCurrentAbilityColors();
+            const rgb = hexToRgb(colors.primary) || {r: 255, g: 50, b: 50};
+            
             // Draw charge-up effect - VORTEX STYLE
             if (reversalRed.charging) {
                 const screenX = reversalRed.x - camera.x;
@@ -6497,7 +6503,7 @@
 
                 // Dark vortex background
                 const vortexSize = 45 + chargeProgress * 25;
-                ctx.fillStyle = `rgba(50, 0, 0, ${0.3 + chargeProgress * 0.3})`;
+                ctx.fillStyle = `rgba(${Math.floor(rgb.r * 0.2)}, ${Math.floor(rgb.g * 0.2)}, ${Math.floor(rgb.b * 0.2)}, ${0.3 + chargeProgress * 0.3})`;
                 ctx.beginPath();
                 ctx.arc(screenX, screenY, vortexSize, 0, Math.PI * 2);
                 ctx.fill();
@@ -6511,7 +6517,7 @@
                     
                     ctx.strokeStyle = `rgba(255, ${120 + w * 30}, ${120 + w * 30}, ${alpha})`;
                     ctx.lineWidth = 3;
-                    ctx.shadowColor = '#ff5555';
+                    ctx.shadowColor = colors.glow;
                     ctx.shadowBlur = 20;
                     ctx.beginPath();
                     ctx.arc(screenX, screenY, waveRadius, 0, Math.PI * 2);
@@ -6529,7 +6535,7 @@
                     const alpha = 0.6 + Math.sin(time * 3 + i) * 0.3;
                     
                     ctx.fillStyle = `rgba(255, ${180 + i * 5}, ${180 + i * 5}, ${alpha})`;
-                    ctx.shadowColor = '#ff6666';
+                    ctx.shadowColor = colors.light;
                     ctx.shadowBlur = 12;
                     ctx.beginPath();
                     ctx.arc(px, py, size, 0, Math.PI * 2);
@@ -6538,11 +6544,11 @@
 
                 // Central charging orb - compact and intense
                 const orbPulse = Math.sin(time * 8) * 3;
-                ctx.shadowColor = '#ff2222';
+                ctx.shadowColor = colors.primary;
                 ctx.shadowBlur = 50 + orbPulse * 5;
                 
                 // Outer intense glow
-                ctx.fillStyle = `rgba(255, 50, 50, ${0.4 + chargeProgress * 0.3})`;
+                ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${0.4 + chargeProgress * 0.3})`;
                 ctx.beginPath();
                 ctx.arc(screenX, screenY, reversalRed.radius + 20 + orbPulse, 0, Math.PI * 2);
                 ctx.fill();
@@ -6551,10 +6557,10 @@
                 ctx.globalAlpha = 0.8 + chargeProgress * 0.2;
                 const coreGrad = ctx.createRadialGradient(screenX - 3, screenY - 3, 0, screenX, screenY, reversalRed.radius);
                 coreGrad.addColorStop(0, '#ffffff');
-                coreGrad.addColorStop(0.3, '#ffaaaa');
-                coreGrad.addColorStop(0.6, '#ff5555');
-                coreGrad.addColorStop(0.9, '#cc2222');
-                coreGrad.addColorStop(1, 'rgba(150, 0, 0, 0.5)');
+                coreGrad.addColorStop(0.3, colors.light);
+                coreGrad.addColorStop(0.6, colors.primary);
+                coreGrad.addColorStop(0.9, colors.secondary);
+                coreGrad.addColorStop(1, `rgba(${Math.floor(rgb.r * 0.6)}, ${Math.floor(rgb.g * 0.6)}, ${Math.floor(rgb.b * 0.6)}, 0.5)`);
                 ctx.fillStyle = coreGrad;
                 ctx.beginPath();
                 ctx.arc(screenX, screenY, reversalRed.radius, 0, Math.PI * 2);
@@ -6570,9 +6576,9 @@
                 ctx.fill();
 
                 // Rotating hexagonal energy shield
-                ctx.strokeStyle = `rgba(255, 150, 150, ${0.3 + chargeProgress * 0.3})`;
+                ctx.strokeStyle = `rgba(${rgb.r}, ${150}, ${150}, ${0.3 + chargeProgress * 0.3})`;
                 ctx.lineWidth = 2;
-                ctx.shadowColor = '#ff6666';
+                ctx.shadowColor = colors.light;
                 ctx.shadowBlur = 15;
                 ctx.beginPath();
                 const hexRadius = reversalRed.radius + 35 + Math.sin(time * 4) * 5;
@@ -6605,9 +6611,9 @@
                 const percentText = `${Math.floor(chargeProgress * 100)}%`;
                 ctx.font = 'bold 20px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
-                ctx.shadowColor = '#ff0000';
+                ctx.shadowColor = colors.primary;
                 ctx.shadowBlur = 25;
-                ctx.fillStyle = '#ffdddd';
+                ctx.fillStyle = colors.light;
                 ctx.fillText(percentText, screenX, screenY - reversalRed.radius - 25);
 
                 ctx.restore();
@@ -6633,16 +6639,16 @@
             // Trail effect (stretched)
             for (let i = 0; i < 5; i++) {
                 const trailOffset = -i * 8;
-                ctx.fillStyle = `rgba(255, ${80 - i * 15}, 80, ${0.4 - i * 0.06})`;
+                ctx.fillStyle = `rgba(${rgb.r}, ${80 - i * 15}, ${rgb.b}, ${0.4 - i * 0.06})`;
                 ctx.beginPath();
                 ctx.ellipse(trailOffset, 0, (reversalRed.radius * 0.6) - i * 2, (reversalRed.radius * 0.4) - i, 0, 0, Math.PI * 2);
                 ctx.fill();
             }
             
             // Outer glow (stretched)
-            ctx.shadowColor = '#ff3333';
+            ctx.shadowColor = colors.primary;
             ctx.shadowBlur = 30;
-            ctx.fillStyle = 'rgba(255, 80, 80, 0.3)';
+            ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.3)`;
             ctx.beginPath();
             ctx.ellipse(0, 0, reversalRed.radius + 8, (reversalRed.radius + 8) * 0.6, 0, 0, Math.PI * 2);
             ctx.fill();
@@ -6651,9 +6657,9 @@
             ctx.shadowBlur = 20;
             const grad = ctx.createRadialGradient(-6, -4, 0, 0, 0, reversalRed.radius * 0.6);
             grad.addColorStop(0, '#ffffff');
-            grad.addColorStop(0.3, '#ff8888');
-            grad.addColorStop(0.7, '#ff3333');
-            grad.addColorStop(1, '#aa0000');
+            grad.addColorStop(0.3, colors.light);
+            grad.addColorStop(0.7, colors.primary);
+            grad.addColorStop(1, colors.secondary);
             ctx.fillStyle = grad;
             ctx.beginPath();
             ctx.ellipse(0, 0, reversalRed.radius * 0.6, (reversalRed.radius * 0.6) * 0.5, 0, 0, Math.PI * 2);
@@ -6667,7 +6673,7 @@
             ctx.fill();
             
             // Energy ring
-            ctx.strokeStyle = '#ffaaaa';
+            ctx.strokeStyle = colors.light;
             ctx.lineWidth = 2;
             ctx.shadowBlur = 15;
             ctx.beginPath();
@@ -7415,6 +7421,9 @@
         }
         
         function drawHollowPurple() {
+            const colors = getCurrentAbilityColors();
+            const rgb = hexToRgb(colors.primary) || {r: 170, g: 68, b: 255};
+            
             // Draw fusion phase
             if (hollowPurple.charging && hollowPurple.fusing) {
                 const blueScreenX = hollowPurple.blueOrb.x - camera.x;
@@ -7425,17 +7434,17 @@
                 
                 ctx.save();
                 
-                // Draw Blue orb (polished with outer glow ring)
+                // Draw Blue orb (polished with outer glow ring) - uses custom colors
                 const blueGrad = ctx.createRadialGradient(blueScreenX - 4, blueScreenY - 4, 0, blueScreenX, blueScreenY, 14);
                 blueGrad.addColorStop(0, '#ffffff');
-                blueGrad.addColorStop(0.3, '#88bbff');
-                blueGrad.addColorStop(0.6, '#4488ff');
-                blueGrad.addColorStop(1, '#1a44aa');
+                blueGrad.addColorStop(0.3, colors.light);
+                blueGrad.addColorStop(0.6, colors.primary);
+                blueGrad.addColorStop(1, colors.secondary);
                 
                 // Outer glow ring
                 ctx.shadowBlur = 25;
-                ctx.shadowColor = '#4488ff';
-                ctx.strokeStyle = '#6699ff';
+                ctx.shadowColor = colors.primary;
+                ctx.strokeStyle = colors.light;
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.arc(blueScreenX, blueScreenY, 14, 0, Math.PI * 2);
@@ -7454,17 +7463,17 @@
                 ctx.arc(blueScreenX - 3, blueScreenY - 3, 4, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Draw Red orb (polished with outer glow ring)
+                // Draw Red orb (polished with outer glow ring) - uses custom colors
                 const redGrad = ctx.createRadialGradient(redScreenX - 4, redScreenY - 4, 0, redScreenX, redScreenY, 14);
                 redGrad.addColorStop(0, '#ffffff');
-                redGrad.addColorStop(0.3, '#ffaaaa');
-                redGrad.addColorStop(0.6, '#ff4444');
-                redGrad.addColorStop(1, '#aa1a1a');
+                redGrad.addColorStop(0.3, colors.light);
+                redGrad.addColorStop(0.6, colors.primary);
+                redGrad.addColorStop(1, colors.secondary);
                 
                 // Outer glow ring
                 ctx.shadowBlur = 25;
-                ctx.shadowColor = '#ff4444';
-                ctx.strokeStyle = '#ff6666';
+                ctx.shadowColor = colors.primary;
+                ctx.strokeStyle = colors.light;
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.arc(redScreenX, redScreenY, 14, 0, Math.PI * 2);
@@ -7498,8 +7507,8 @@
                 
                 // Pulsing glow around each orb from the start
                 ctx.shadowBlur = 15 + earlyPower * 20;
-                ctx.shadowColor = '#8844cc';
-                ctx.fillStyle = `rgba(136, 68, 204, ${earlyPower * 0.3})`;
+                ctx.shadowColor = colors.glow;
+                ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${earlyPower * 0.3})`;
                 ctx.beginPath();
                 ctx.arc(centerX, centerY, 20 + earlyPower * 15, 0, Math.PI * 2);
                 ctx.fill();
@@ -7507,9 +7516,9 @@
                 // Lightning arcs between orbs (start small, grow bigger)
                 if (fusionProgress > 0.05) {
                     const arcIntensity = Math.min(1, fusionProgress * 3);
-                    ctx.strokeStyle = `rgba(220, 120, 255, ${arcIntensity * 0.9})`;
+                    ctx.strokeStyle = `rgba(${Math.min(255, rgb.r + 50)}, ${Math.min(255, rgb.g + 50)}, ${Math.min(255, rgb.b + 50)}, ${arcIntensity * 0.9})`;
                     ctx.lineWidth = 2 + arcIntensity;
-                    ctx.shadowColor = '#cc66ff';
+                    ctx.shadowColor = colors.glow;
                     ctx.shadowBlur = 20 + arcIntensity * 15;
                     const arcCount = Math.floor(3 + fusionProgress * 8);
                     for (let i = 0; i < arcCount; i++) {
@@ -8389,13 +8398,19 @@
         }
         
         function addKillEffect(x, y, type) {
-            // type: 'blue', 'red', or 'purple'
-            const colors = { blue: '#4444ff', red: '#ff4444', purple: '#aa44ff' };
-            const color = colors[type] || '#ff4444';
+            // type: 'blue', 'red', or 'purple' - now uses custom ability colors
+            const customColors = getCurrentAbilityColors();
+            const colors = { 
+                blue: customColors ? customColors.primary : '#4444ff', 
+                red: customColors ? customColors.primary : '#ff4444', 
+                purple: customColors ? customColors.primary : '#aa44ff' 
+            };
+            const color = colors[type] || colors.red;
             killEffects.push({
                 x: x,
                 y: y,
                 type: type,
+                color: color,
                 life: 40,
                 maxLife: 40,
                 ringSize: 10,
@@ -8429,11 +8444,14 @@
         }
         
         function drawHitEffects() {
+            const colors = getCurrentAbilityColors();
+            const primaryRgb = hexToRgb(colors.primary) || {r: 255, g: 50, b: 50};
+            
             for (const effect of hitEffects) {
                 const screenX = effect.x - camera.x;
                 const screenY = effect.y - camera.y;
                 const alpha = effect.life / effect.maxLife;
-                const color = effect.type === 'blue' ? '#4444ff' : '#ff4444';
+                const color = effect.type === 'blue' ? colors.primary : colors.primary;
                 
                 ctx.save();
                 ctx.globalAlpha = alpha;
@@ -8460,6 +8478,9 @@
         }
         
         function drawSlashEffects() {
+            const colors = getCurrentAbilityColors();
+            const rgb = hexToRgb(colors.primary) || {r: 255, g: 50, b: 50};
+            
             for (const effect of slashEffects) {
                 const screenX = effect.x - camera.x;
                 const screenY = effect.y - camera.y;
@@ -8473,12 +8494,12 @@
                 const length = effect.length * (1 + progress * 0.3); // Slight expansion
                 const halfLen = length / 2;
                 
-                // FLASHY MULTI-LAYER SLASH EFFECT
+                // FLASHY MULTI-LAYER SLASH EFFECT - uses custom colors
                 
-                // Layer 1: Outer massive glow (red)
+                // Layer 1: Outer massive glow
                 ctx.shadowBlur = 25;
-                ctx.shadowColor = `rgba(255, 0, 0, ${alpha})`;
-                ctx.strokeStyle = `rgba(255, 50, 50, ${alpha * 0.4})`;
+                ctx.shadowColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+                ctx.strokeStyle = `rgba(${rgb.r}, ${Math.floor(rgb.g * 0.8)}, ${Math.floor(rgb.b * 0.8)}, ${alpha * 0.4})`;
                 ctx.lineWidth = effect.width * 4;
                 ctx.lineCap = 'round';
                 ctx.beginPath();
@@ -8486,19 +8507,19 @@
                 ctx.lineTo(halfLen, 0);
                 ctx.stroke();
                 
-                // Layer 2: Middle glow (orange-red)
+                // Layer 2: Middle glow
                 ctx.shadowBlur = 15;
-                ctx.shadowColor = `rgba(255, 100, 0, ${alpha})`;
-                ctx.strokeStyle = `rgba(255, 100, 50, ${alpha * 0.7})`;
+                ctx.shadowColor = `rgba(${Math.min(255, rgb.r + 50)}, ${rgb.g}, ${Math.floor(rgb.b * 0.5)}, ${alpha})`;
+                ctx.strokeStyle = `rgba(${Math.min(255, rgb.r + 50)}, ${Math.floor(rgb.g * 0.8)}, ${Math.floor(rgb.b * 0.5)}, ${alpha * 0.7})`;
                 ctx.lineWidth = effect.width * 2;
                 ctx.beginPath();
                 ctx.moveTo(-halfLen, 0);
                 ctx.lineTo(halfLen, 0);
                 ctx.stroke();
                 
-                // Layer 3: Core slash (bright white-yellow)
+                // Layer 3: Core slash (bright white with color tint)
                 ctx.shadowBlur = 20;
-                ctx.shadowColor = `rgba(255, 255, 200, ${alpha})`;
+                ctx.shadowColor = `rgba(255, 255, 255, ${alpha})`;
                 ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
                 ctx.lineWidth = effect.width;
                 ctx.beginPath();
@@ -8509,8 +8530,8 @@
                 // Spark particles along the slash
                 if (!mobileMode || Math.random() > 0.5) {
                     ctx.shadowBlur = 10;
-                    ctx.shadowColor = `rgba(255, 255, 0, ${alpha})`;
-                    ctx.fillStyle = `rgba(255, 255, 150, ${alpha})`;
+                    ctx.shadowColor = colors.glow;
+                    ctx.fillStyle = `rgba(${Math.min(255, rgb.r + 100)}, ${Math.min(255, rgb.g + 100)}, ${Math.min(255, rgb.b + 50)}, ${alpha})`;
                     const sparkCount = mobileMode ? 3 : 6;
                     for (let s = 0; s < sparkCount; s++) {
                         const sparkPos = (s / (sparkCount - 1)) * length - halfLen;
@@ -8526,8 +8547,8 @@
                 if (effect.type === 'cross' || Math.random() > 0.7) {
                     const crossSize = halfLen * 0.4;
                     ctx.shadowBlur = 12;
-                    ctx.shadowColor = `rgba(255, 100, 100, ${alpha})`;
-                    ctx.strokeStyle = `rgba(255, 150, 150, ${alpha * 0.8})`;
+                    ctx.shadowColor = `rgba(${rgb.r}, ${Math.floor(rgb.g * 0.6)}, ${Math.floor(rgb.b * 0.6)}, ${alpha})`;
+                    ctx.strokeStyle = `rgba(${Math.min(255, rgb.r + 50)}, ${Math.floor(rgb.g * 0.8)}, ${Math.floor(rgb.b * 0.8)}, ${alpha * 0.8})`;
                     ctx.lineWidth = effect.width * 1.5;
                     ctx.beginPath();
                     ctx.moveTo(0, -crossSize);
@@ -8553,7 +8574,7 @@
                 const screenX = effect.x - camera.x;
                 const screenY = effect.y - camera.y;
                 const alpha = effect.life / effect.maxLife;
-                const color = effect.type === 'blue' ? '#4444ff' : '#ff4444';
+                const color = effect.color || (effect.type === 'blue' ? '#4444ff' : '#ff4444');
                 
                 ctx.save();
                 ctx.globalAlpha = alpha;
