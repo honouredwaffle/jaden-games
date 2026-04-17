@@ -4393,22 +4393,38 @@
                     }
                 }
                 
-                // Core explosion effect at center
-                const corePulse = Math.sin(circleTime * 8) * 0.5 + 0.5;
-                const coreSize = 15 + chargePercent * 25 * corePulse;
-                const coreGrad = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, coreSize * 2);
-                coreGrad.addColorStop(0, `rgba(255, 255, 200, ${0.9 * chargePercent})`);
-                coreGrad.addColorStop(0.3, `rgba(255, 200, 50, ${0.7 * chargePercent})`);
-                coreGrad.addColorStop(0.6, `rgba(255, 100, 0, ${0.4 * chargePercent})`);
-                coreGrad.addColorStop(1, 'rgba(255, 50, 0, 0)');
+                // Inner fire core - smooth gradient, no weird circles
+                const corePulse = Math.sin(circleTime * 6) * 0.3 + 0.7;
+                const coreSize = 20 + chargePercent * 15 * corePulse;
+                
+                // Single smooth glow
+                const coreGrad = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, coreSize * 1.5);
+                coreGrad.addColorStop(0, `rgba(255, 240, 150, ${0.95 * chargePercent})`);
+                coreGrad.addColorStop(0.4, `rgba(255, 150, 30, ${0.7 * chargePercent})`);
+                coreGrad.addColorStop(0.8, `rgba(255, 60, 0, ${0.3 * chargePercent})`);
+                coreGrad.addColorStop(1, 'rgba(255, 30, 0, 0)');
                 
                 ctx.fillStyle = coreGrad;
-                ctx.shadowColor = '#ffaa00';
-                ctx.shadowBlur = 40 * chargePercent;
+                ctx.shadowColor = '#ff6600';
+                ctx.shadowBlur = 25 * chargePercent;
                 ctx.beginPath();
-                ctx.arc(screenX, screenY, coreSize * 2, 0, Math.PI * 2);
+                ctx.arc(screenX, screenY, coreSize * 1.5, 0, Math.PI * 2);
                 ctx.fill();
                 ctx.shadowBlur = 0;
+                
+                // Small flickering flames at center
+                for (let i = 0; i < 5 + chargePercent * 5; i++) {
+                    const flameAngle = circleTime * 4 + (i / 10) * Math.PI * 2;
+                    const flameDist = Math.random() * coreSize * 0.5;
+                    const fx = screenX + Math.cos(flameAngle) * flameDist;
+                    const fy = screenY + Math.sin(flameAngle) * flameDist;
+                    const fsize = 3 + Math.random() * 5 * chargePercent;
+                    
+                    ctx.fillStyle = `rgba(255, ${200 + Math.random() * 55}, ${50 + Math.random() * 100}, ${0.8 * chargePercent})`;
+                    ctx.beginPath();
+                    ctx.arc(fx, fy, fsize, 0, Math.PI * 2);
+                    ctx.fill();
+                }
                 
                 // PHASE 1: 0-50% charge - fire building up, moving from front to side
                 if (chargePercent < 0.5) {
