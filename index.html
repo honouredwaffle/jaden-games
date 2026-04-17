@@ -4011,8 +4011,10 @@
         }
         
         function fireFugaArrow() {
-            if (!fuga.charged) {
-                // Cancel if not fully charged
+            // Can fire at 90% charge or higher
+            const chargePercent = fuga.chargeTime / fuga.maxChargeTime;
+            if (chargePercent < 0.9) {
+                // Cancel if not enough charge
                 fuga.charging = false;
                 fuga.chargeTime = 0;
                 showNotif('Fuga cancelled!');
@@ -4303,167 +4305,185 @@
                 // Arrow points in facing direction
                 const arrowAngle = player.facing;
                 
-                // FIRE ARROW FORMS GRADUALLY based on charge
-                // At 0%: just embers, at 100%: full flame arrow
-                const formationProgress = Math.min(chargePercent * 1.2, 1); // Full form at 83% charge
-                
                 const time = Date.now() / 100;
                 const effectTime = Date.now() / 60;
                 
-                // Draw forming fire arrow at hand position
-                ctx.save();
-                ctx.translate(handX, handY);
-                ctx.rotate(arrowAngle);
-                
-                // Fire aura that grows with charge
-                const auraIntensity = 0.3 + formationProgress * 0.5;
-                const auraSize = 30 + formationProgress * 50;
-                
-                // Outer glow
-                const outerGrad = ctx.createRadialGradient(0, 0, 10, 0, 0, auraSize);
-                outerGrad.addColorStop(0, `rgba(255, 150, 50, ${0.6 * auraIntensity})`);
-                outerGrad.addColorStop(0.5, `rgba(255, 100, 0, ${0.3 * auraIntensity})`);
-                outerGrad.addColorStop(1, 'rgba(255, 50, 0, 0)');
-                ctx.fillStyle = outerGrad;
-                ctx.beginPath();
-                ctx.ellipse(0, 0, auraSize, auraSize * 0.6, 0, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // ORGANIC FLAME ARROW - forms gradually
-                // Number of flame particles based on formation progress
-                const numFlames = Math.floor(formationProgress * 25);
-                
-                for (let i = 0; i < numFlames; i++) {
-                    // Position along arrow length (-70 to +60)
-                    const t = i / 24; // 0 to 1
-                    const baseX = -70 + t * 130;
+                // PHASE 1: 0-90% charge - fire building up at hand
+                if (chargePercent < 0.9) {
+                    const buildupProgress = chargePercent / 0.9; // 0 to 1 during buildup
                     
-                    // Flame shape - wider in middle, pointed at ends
-                    const shapeFactor = Math.sin(t * Math.PI); // 0 at ends, 1 in middle
-                    const maxWidth = 15 * shapeFactor * formationProgress;
+                    // Pulsing fire aura around hand
+                    const pulse = Math.sin(time * 3) * 0.3 + 0.7;
+                    const auraSize = 15 + buildupProgress * 25 * pulse;
                     
-                    // Organic wavy motion
-                    const wave1 = Math.sin(effectTime * 3 + t * 8) * maxWidth;
-                    const wave2 = Math.cos(effectTime * 2.5 + t * 6) * maxWidth * 0.7;
-                    const flameY = wave1 + wave2;
-                    
-                    // Flame size varies along arrow
-                    const flameSize = (5 + shapeFactor * 12 + Math.sin(effectTime * 4 + i) * 3) * formationProgress;
-                    
-                    // Color gradient: yellow-white at base, orange in middle, red at tip
-                    let r, g, b;
-                    if (t < 0.3) {
-                        // Arrowhead area - hot yellow/white
-                        const hotness = (0.3 - t) / 0.3;
-                        r = 255;
-                        g = 200 + hotness * 55;
-                        b = 100 + hotness * 155;
-                    } else if (t < 0.7) {
-                        // Shaft - orange
-                        r = 255;
-                        g = 120 + Math.sin(effectTime + i) * 40;
-                        b = 20;
-                    } else {
-                        // Back - red
-                        r = 255;
-                        g = 60 + Math.sin(effectTime * 2 + i) * 30;
-                        b = 0;
-                    }
-                    
-                    const alpha = (0.7 + Math.sin(effectTime * 3 + i) * 0.3) * formationProgress;
-                    
-                    ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
-                    ctx.shadowColor = `rgb(${r}, ${Math.max(g - 50, 0)}, 0)`;
-                    ctx.shadowBlur = flameSize * 1.5;
-                    
-                    // Draw flame as irregular circle
+                    // Outer glow
+                    const gradient = ctx.createRadialGradient(handX, handY, 0, handX, handY, auraSize * 2);
+                    gradient.addColorStop(0, `rgba(255, ${100 + buildupProgress * 100}, 0, ${0.3 + buildupProgress * 0.3})`);
+                    gradient.addColorStop(0.5, `rgba(255, 60, 0, ${0.15 + buildupProgress * 0.15})`);
+                    gradient.addColorStop(1, 'rgba(255, 30, 0, 0)');
+                    ctx.fillStyle = gradient;
                     ctx.beginPath();
-                    const fx = baseX + flameY * 0.3;
-                    ctx.arc(fx, flameY, flameSize, 0, Math.PI * 2);
+                    ctx.arc(handX, handY, auraSize * 2, 0, Math.PI * 2);
                     ctx.fill();
                     
-                    // Add smaller spark particles
-                    if (Math.random() < 0.3 * formationProgress) {
-                        const sparkX = fx + (Math.random() - 0.5) * 20;
-                        const sparkY = flameY + (Math.random() - 0.5) * 15;
-                        const sparkSize = 2 + Math.random() * 3;
-                        ctx.fillStyle = `rgba(255, 255, 150, ${0.8 * formationProgress})`;
-                        ctx.shadowBlur = 8;
+                    // Swirling embers - rotate with player facing
+                    for (let i = 0; i < 4 + buildupProgress * 10; i++) {
+                        const orbitAngle = time * 4 + (i / 14) * Math.PI * 2;
+                        const dist = auraSize * 0.8 + Math.sin(time * 5 + i) * 10;
+                        const ex = handX + Math.cos(orbitAngle + handAngle) * dist;
+                        const ey = handY + Math.sin(orbitAngle + handAngle) * dist;
+                        const size = 2 + buildupProgress * 6 + Math.random() * 3;
+                        
+                        ctx.fillStyle = `rgba(255, ${60 + Math.random() * 100}, 0, ${0.6 + Math.random() * 0.4})`;
+                        ctx.shadowColor = '#ff2200';
+                        ctx.shadowBlur = 10;
                         ctx.beginPath();
-                        ctx.arc(sparkX, sparkY, sparkSize, 0, Math.PI * 2);
+                        ctx.arc(ex, ey, size, 0, Math.PI * 2);
                         ctx.fill();
                     }
-                }
-                
-                // Fletching (feathers) at back - forms last
-                if (formationProgress > 0.7) {
-                    const fletchAlpha = (formationProgress - 0.7) / 0.3;
-                    ctx.shadowColor = '#ff4400';
-                    ctx.shadowBlur = 15;
                     
-                    // Top fletching
-                    ctx.fillStyle = `rgba(255, 80, 0, ${0.8 * fletchAlpha})`;
-                    ctx.beginPath();
-                    ctx.moveTo(-65, -2);
-                    ctx.lineTo(-85, -12);
-                    ctx.lineTo(-80, -5);
-                    ctx.lineTo(-88, -7);
-                    ctx.lineTo(-70, 0);
-                    ctx.closePath();
-                    ctx.fill();
+                    // Lightning arcs between hand and player (intensify with charge)
+                    ctx.strokeStyle = `rgba(255, ${200 + buildupProgress * 55}, 100, ${0.2 + buildupProgress * 0.4})`;
+                    ctx.lineWidth = 2;
+                    for (let i = 0; i < 2 + buildupProgress * 5; i++) {
+                        const arcAngle = time * 5 + i * 2.1;
+                        const startDist = 10;
+                        const endDist = handDist - 5;
+                        const midDist = (startDist + endDist) / 2 + Math.sin(arcAngle * 3) * 10;
+                        const perpOffset = Math.cos(arcAngle * 2) * 15;
+                        
+                        const sx = screenX + Math.cos(handAngle) * startDist;
+                        const sy = screenY + Math.sin(handAngle) * startDist;
+                        const mx = screenX + Math.cos(handAngle) * midDist + Math.cos(handAngle + Math.PI/2) * perpOffset;
+                        const my = screenY + Math.sin(handAngle) * midDist + Math.sin(handAngle + Math.PI/2) * perpOffset;
+                        const ex = handX - Math.cos(handAngle) * 5;
+                        const ey = handY - Math.sin(handAngle) * 5;
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(sx, sy);
+                        ctx.quadraticCurveTo(mx, my, ex, ey);
+                        ctx.stroke();
+                    }
                     
-                    // Bottom fletching
-                    ctx.beginPath();
-                    ctx.moveTo(-65, 2);
-                    ctx.lineTo(-85, 12);
-                    ctx.lineTo(-80, 5);
-                    ctx.lineTo(-88, 7);
-                    ctx.lineTo(-70, 0);
-                    ctx.closePath();
-                    ctx.fill();
-                }
-                
-                ctx.restore();
-                ctx.shadowBlur = 0;
-                
-                // Lightning arcs between hand and player (intensify with charge)
-                ctx.strokeStyle = `rgba(255, ${200 + chargePercent * 55}, 100, ${0.2 + chargePercent * 0.4})`;
-                ctx.lineWidth = 2;
-                for (let i = 0; i < 2 + chargePercent * 4; i++) {
-                    const arcAngle = time * 5 + i * 2.1;
-                    const startDist = 10;
-                    const endDist = handDist - 5;
-                    const midDist = (startDist + endDist) / 2 + Math.sin(arcAngle * 3) * 10;
-                    const perpOffset = Math.cos(arcAngle * 2) * 15;
-                    
-                    const sx = screenX + Math.cos(handAngle) * startDist;
-                    const sy = screenY + Math.sin(handAngle) * startDist;
-                    const mx = screenX + Math.cos(handAngle) * midDist + Math.cos(handAngle + Math.PI/2) * perpOffset;
-                    const my = screenY + Math.sin(handAngle) * midDist + Math.sin(handAngle + Math.PI/2) * perpOffset;
-                    const ex = handX - Math.cos(handAngle) * 5;
-                    const ey = handY - Math.sin(handAngle) * 5;
-                    
-                    ctx.beginPath();
-                    ctx.moveTo(sx, sy);
-                    ctx.quadraticCurveTo(mx, my, ex, ey);
-                    ctx.stroke();
-                }
-                
-                // Text
-                if (!fuga.charged) {
+                    // Charging text
                     const textPulse = Math.sin(time * 2) * 0.4 + 0.6;
                     ctx.fillStyle = `rgba(255, ${100 + chargePercent * 100}, 0, ${textPulse})`;
                     ctx.font = 'bold 20px "Segoe UI", sans-serif';
                     ctx.textAlign = 'center';
                     ctx.fillText(`FUGA CHARGING... ${Math.floor(chargePercent * 100)}%`, player.x - camera.x, player.y - camera.y - 90);
+                    
                 } else {
-                    // Ready text
-                    const shakeX = (Math.random() - 0.5) * 4;
-                    const shakeY = (Math.random() - 0.5) * 4;
+                    // PHASE 2: 90-100% - flame arrow slowly forms
+                    const formationProgress = (chargePercent - 0.9) / 0.1; // 0 to 1 during formation
+                    
+                    // Draw forming fire arrow at hand position
+                    ctx.save();
+                    ctx.translate(handX, handY);
+                    ctx.rotate(arrowAngle);
+                    
+                    // Fire aura that grows with formation
+                    const auraIntensity = 0.5 + formationProgress * 0.4;
+                    const auraSize = 40 + formationProgress * 40;
+                    
+                    // Outer glow
+                    const outerGrad = ctx.createRadialGradient(0, 0, 15, 0, 0, auraSize);
+                    outerGrad.addColorStop(0, `rgba(255, 150, 50, ${0.7 * auraIntensity})`);
+                    outerGrad.addColorStop(0.5, `rgba(255, 100, 0, ${0.4 * auraIntensity})`);
+                    outerGrad.addColorStop(1, 'rgba(255, 50, 0, 0)');
+                    ctx.fillStyle = outerGrad;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, auraSize, auraSize * 0.6, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // ORGANIC FLAME ARROW - forms gradually
+                    const numFlames = Math.floor(formationProgress * 25);
+                    
+                    for (let i = 0; i < numFlames; i++) {
+                        const t = i / 24;
+                        const baseX = -70 + t * 130;
+                        const shapeFactor = Math.sin(t * Math.PI);
+                        const maxWidth = 15 * shapeFactor;
+                        
+                        const wave1 = Math.sin(effectTime * 3 + t * 8) * maxWidth;
+                        const wave2 = Math.cos(effectTime * 2.5 + t * 6) * maxWidth * 0.7;
+                        const flameY = wave1 + wave2;
+                        const flameSize = 5 + shapeFactor * 12 + Math.sin(effectTime * 4 + i) * 3;
+                        
+                        let r, g, b;
+                        if (t < 0.3) {
+                            const hotness = (0.3 - t) / 0.3;
+                            r = 255;
+                            g = 200 + hotness * 55;
+                            b = 100 + hotness * 155;
+                        } else if (t < 0.7) {
+                            r = 255;
+                            g = 120 + Math.sin(effectTime + i) * 40;
+                            b = 20;
+                        } else {
+                            r = 255;
+                            g = 60 + Math.sin(effectTime * 2 + i) * 30;
+                            b = 0;
+                        }
+                        
+                        const alpha = 0.7 + Math.sin(effectTime * 3 + i) * 0.3;
+                        
+                        ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+                        ctx.shadowColor = `rgb(${r}, ${Math.max(g - 50, 0)}, 0)`;
+                        ctx.shadowBlur = flameSize * 1.5;
+                        
+                        ctx.beginPath();
+                        const fx = baseX + flameY * 0.3;
+                        ctx.arc(fx, flameY, flameSize, 0, Math.PI * 2);
+                        ctx.fill();
+                        
+                        if (Math.random() < 0.3) {
+                            const sparkX = fx + (Math.random() - 0.5) * 20;
+                            const sparkY = flameY + (Math.random() - 0.5) * 15;
+                            const sparkSize = 2 + Math.random() * 3;
+                            ctx.fillStyle = `rgba(255, 255, 150, 0.8)`;
+                            ctx.shadowBlur = 8;
+                            ctx.beginPath();
+                            ctx.arc(sparkX, sparkY, sparkSize, 0, Math.PI * 2);
+                            ctx.fill();
+                        }
+                    }
+                    
+                    // Fletching forms last
+                    if (formationProgress > 0.7) {
+                        const fletchAlpha = (formationProgress - 0.7) / 0.3;
+                        ctx.shadowColor = '#ff4400';
+                        ctx.shadowBlur = 15;
+                        
+                        ctx.fillStyle = `rgba(255, 80, 0, ${0.8 * fletchAlpha})`;
+                        ctx.beginPath();
+                        ctx.moveTo(-65, -2);
+                        ctx.lineTo(-85, -12);
+                        ctx.lineTo(-80, -5);
+                        ctx.lineTo(-88, -7);
+                        ctx.lineTo(-70, 0);
+                        ctx.closePath();
+                        ctx.fill();
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(-65, 2);
+                        ctx.lineTo(-85, 12);
+                        ctx.lineTo(-80, 5);
+                        ctx.lineTo(-88, 7);
+                        ctx.lineTo(-70, 0);
+                        ctx.closePath();
+                        ctx.fill();
+                    }
+                    
+                    ctx.restore();
+                    ctx.shadowBlur = 0;
+                    
+                    // Ready text - click to fire
+                    const shakeX = (Math.random() - 0.5) * 3;
+                    const shakeY = (Math.random() - 0.5) * 3;
                     ctx.fillStyle = '#ff4400';
                     ctx.font = 'bold 22px "Segoe UI", sans-serif';
                     ctx.textAlign = 'center';
-                    ctx.fillText('FUGA READY! Press 3', player.x - camera.x + shakeX, player.y - camera.y - 100 + shakeY);
+                    ctx.fillText('CLICK TO FIRE!', player.x - camera.x + shakeX, player.y - camera.y - 100 + shakeY);
                 }
                 
                 
@@ -7387,6 +7407,11 @@
                     screen = 'title';
                     currentMenu = titleOptions;
                     selectedOption = 0;
+                    return;
+                }
+                // If charging Fuga, fire on click instead of punch
+                if (fuga.charging && fuga.chargeTime >= fuga.maxChargeTime * 0.9) {
+                    fireFugaArrow();
                     return;
                 }
                 // M1 punch on left click (not on menu button)
