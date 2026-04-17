@@ -112,12 +112,90 @@
         const modeOptions = ['STORY MODE', 'FREE ROAM', 'TESTING MODE', 'BACK'];
         const characterOptions = ['GOJO', 'SUKUNA', 'YUKI', 'BACK'];
         const customOptions = ['OUTFIT', 'ABILITY COLOUR', 'BACK'];
+        const abilityColorOptions = ['DEFAULT', 'PURPLE', 'YELLOW', 'BLACK', 'BACK'];
         const settingsOptions = ['CONTROL MODE: COMPUTER', 'BACK'];
+        
+        // Ability color customization
+        let selectedAbilityColor = 'DEFAULT'; // DEFAULT, PURPLE, YELLOW, BLACK
+        
+        // Get ability colors based on selected customization
+        function getAbilityColors() {
+            switch(selectedAbilityColor) {
+                case 'PURPLE':
+                    return {
+                        primary: '#aa44ff',
+                        secondary: '#8844cc',
+                        glow: '#cc66ff',
+                        light: '#dd88ff'
+                    };
+                case 'YELLOW':
+                    return {
+                        primary: '#ffcc00',
+                        secondary: '#cc9900',
+                        glow: '#ffdd44',
+                        light: '#ffee88'
+                    };
+                case 'BLACK':
+                    return {
+                        primary: '#222222',
+                        secondary: '#111111',
+                        glow: '#444444',
+                        light: '#666666'
+                    };
+                case 'DEFAULT':
+                default:
+                    return null; // Use default character colors
+            }
+        }
+        
+        // Convert hex color to RGB object
+        function hexToRgb(hex) {
+            if (!hex) return null;
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? {
+                r: parseInt(result[1], 16),
+                g: parseInt(result[2], 16),
+                b: parseInt(result[3], 16)
+            } : null;
+        }
+        
+        // Convert hex color to rgba string
+        function hexToRgba(hex, alpha) {
+            const rgb = hexToRgb(hex);
+            if (!rgb) return `rgba(233, 69, 96, ${alpha})`;
+            return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${alpha})`;
+        }
+        
+        // Get current ability color scheme based on selection
+        function getCurrentAbilityColors() {
+            if (selectedAbilityColor === 'DEFAULT') {
+                // Return character-specific colors
+                if (selectedCharacter === 'SUKUNA') {
+                    return {
+                        primary: '#ff2244',
+                        secondary: '#cc1122',
+                        glow: '#ff4466',
+                        light: '#ff6688',
+                        accent: '#ffaa00'
+                    };
+                }
+                // Default Gojo colors
+                return {
+                    primary: '#00aaff',
+                    secondary: '#0088cc',
+                    glow: '#44ccff',
+                    light: '#88ddff',
+                    accent: '#00ffff'
+                };
+            }
+            return getAbilityColors();
+        }
         
         let mobileMode = false;
         
         // Update log entries - formatted with category headers and sub-bullets
         const updateBlog = [
+            { date: '2026-04-18', title: 'Ability Colour Customization', content: '• Added:\n  ◦ New customization menu option: Ability Colour\n  ◦ Four colour options: Default, Purple, Yellow, Black\n  ◦ Ability bar UI changes to match selected colour\n  ◦ Mobile control buttons use selected colour\n  ◦ Max Blue (Gojo ability 1) uses custom colours when active\n• Visuals:\n  ◦ Colour preview shown in menu\n  ◦ Selected colour highlighted with checkmark' },
             { date: '2026-04-18', title: 'Update Log Format Overhaul', content: '• Changed:\n  ◦ All update logs reformatted with descriptive titles\n  ◦ Content now uses bullet points with categories (Added, Fixed, Visuals, etc.)\n  ◦ Clear categorization for better readability\n• Removed: Generic "Major Update" style titles' },
             { date: '2026-04-18', title: 'Enhanced Dismantle & Cleave Slash Effects', content: '• Added:\n  ◦ Multi-layer slash glows (outer red, middle orange, bright white core)\n  ◦ Spark particles along slash paths\n  ◦ Cross-pattern slashes for extra impact\n  ◦ Screen shake during Dismantle and Cleave abilities\n  ◦ Red flash effect on ability activation\n• Visuals:\n  ◦ Slashes now expand slightly as they fade\n  ◦ Longer slash duration for better visibility' },
             { date: '2026-04-18', title: 'Minimap Redesign - Overlapping Biome Zones', content: '• Fixed:\n  ◦ Biome circles now overlap to eliminate black gaps\n  ◦ Player position correctly corresponds to actual biome location\n• Visuals:\n  ◦ Larger biome radius (55% of map) for seamless coverage\n  ◦ Forest center expanded to 45% of map radius' },
@@ -1208,6 +1286,77 @@
                 if (screen === 'modes' && i < 3) { // Only for mode options, not BACK
                     isSelected = (i === selectedModeIndex);
                 }
+                
+                const rect = drawButton(option, canvas.width / 2, y, buttonWidth, buttonHeight, isHovered, i === selectedOption, isSelected);
+                menuItemRects.push(rect);
+            });
+            
+            // Hint text
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.font = '14px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('Click to select  |  ESC to go back', canvas.width / 2, canvas.height - 30);
+        }
+        
+        function drawAbilityColorMenu() {
+            drawTitle();
+            menuItemRects = [];
+            
+            ctx.fillStyle = '#fff';
+            ctx.font = '28px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('ABILITY COLOUR', canvas.width / 2, 240);
+            
+            // Show current selection
+            ctx.fillStyle = '#888';
+            ctx.font = '16px "Segoe UI", sans-serif';
+            ctx.fillText(`Current: ${selectedAbilityColor}`, canvas.width / 2, 270);
+            
+            // Color preview
+            const colors = getAbilityColors();
+            if (colors) {
+                ctx.fillStyle = colors.primary;
+                ctx.beginPath();
+                ctx.arc(canvas.width / 2, 300, 20, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowColor = colors.glow;
+                ctx.shadowBlur = 20;
+                ctx.strokeStyle = colors.light;
+                ctx.lineWidth = 3;
+                ctx.stroke();
+                ctx.shadowBlur = 0;
+            } else {
+                // Default - show character colors
+                ctx.fillStyle = '#00aaff';
+                ctx.beginPath();
+                ctx.arc(canvas.width / 2 - 25, 300, 15, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#ff2244';
+                ctx.beginPath();
+                ctx.arc(canvas.width / 2, 300, 15, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#aa44ff';
+                ctx.beginPath();
+                ctx.arc(canvas.width / 2 + 25, 300, 15, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            const buttonWidth = 280;
+            const buttonHeight = 50;
+            const spacing = 65;
+            const startY = canvas.height / 2 + 20;
+            
+            abilityColorOptions.forEach((option, i) => {
+                const y = startY + i * spacing;
+                const isHovered = mouseX > canvas.width/2 - buttonWidth/2 && 
+                                  mouseX < canvas.width/2 + buttonWidth/2 &&
+                                  mouseY > y - buttonHeight/2 && 
+                                  mouseY < y + buttonHeight/2;
+                
+                if (isHovered) selectedOption = i;
+                
+                // Check if this color is selected
+                const isSelected = option === selectedAbilityColor;
                 
                 const rect = drawButton(option, canvas.width / 2, y, buttonWidth, buttonHeight, isHovered, i === selectedOption, isSelected);
                 menuItemRects.push(rect);
@@ -3918,12 +4067,17 @@
             const barY = canvas.height - barHeight - 20;
             const slotWidth = barWidth / 4; // 4 ability slots
             
+            // Get custom colors if set
+            const customColors = getCurrentAbilityColors();
+            const primaryColor = customColors ? customColors.primary : '#e94560';
+            const rgb = hexToRgb(primaryColor) || {r: 233, g: 69, b: 96};
+            
             // Background
             ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
             ctx.fillRect(barX, barY, barWidth, barHeight);
             
             // Border
-            ctx.strokeStyle = '#e94560';
+            ctx.strokeStyle = primaryColor;
             ctx.lineWidth = 2;
             ctx.strokeRect(barX, barY, barWidth, barHeight);
             
@@ -3935,7 +4089,7 @@
                 
                 // Slot background
                 if (ability.cooldown === 0) {
-                    ctx.fillStyle = 'rgba(233, 69, 96, 0.3)';
+                    ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.3)`;
                 } else {
                     ctx.fillStyle = 'rgba(50, 50, 50, 0.8)';
                 }
@@ -3961,7 +4115,7 @@
                 ctx.fillText(ability.name, centerX, barY + 18);
                 
                 // Key number
-                ctx.fillStyle = '#e94560';
+                ctx.fillStyle = primaryColor;
                 ctx.font = 'bold 16px "Segoe UI", sans-serif';
                 ctx.fillText(ability.key, centerX, barY + barHeight - 8);
             });
@@ -7876,12 +8030,13 @@
             
             // Spawn energy particles
             if (Math.random() < 0.3) {
+                const colors = getCurrentAbilityColors();
                 maxBlue.debris.push({
                     angle: Math.random() * Math.PI * 2,
                     dist: 25 + Math.random() * 80,
                     size: 2 + Math.random() * 3,
                     speed: 0.03 + Math.random() * 0.04,
-                    color: '#00ffff',
+                    color: colors.accent,
                     type: 'energy'
                 });
             }
@@ -7900,6 +8055,7 @@
         function drawMaxBlue() {
             if (!maxBlue.active) return;
             
+            const colors = getCurrentAbilityColors();
             const screenX = player.x - camera.x;
             const screenY = player.y - camera.y;
             const time = Date.now() * 0.002;
@@ -7914,9 +8070,12 @@
             const orbScreenX = screenX + Math.cos(maxBlue.angle) * maxBlue.radius;
             const orbScreenY = screenY + Math.sin(maxBlue.angle) * maxBlue.radius;
             
+            // Parse primary color for rgba
+            const primaryRgb = hexToRgb(colors.primary) || {r: 0, g: 170, b: 255};
+            
             // Outer pulsing ring
             const pulseRadius = maxBlue.orbPullRadius + Math.sin(time * 3) * 15;
-            ctx.strokeStyle = 'rgba(0, 200, 255, 0.4)';
+            ctx.strokeStyle = `rgba(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}, 0.4)`;
             ctx.lineWidth = 4;
             ctx.setLineDash([10, 10]);
             ctx.beginPath();
@@ -7927,7 +8086,8 @@
             // Inner spinning rings
             for (let i = 0; i < 3; i++) {
                 const ringRadius = 50 + i * 30;
-                ctx.strokeStyle = `rgba(0, ${150 + i * 30}, 255, ${0.3 - i * 0.08})`;
+                const alpha = 0.3 - i * 0.08;
+                ctx.strokeStyle = `rgba(${primaryRgb.r}, ${primaryRgb.g + i * 30}, ${primaryRgb.b}, ${alpha})`;
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.arc(orbScreenX, orbScreenY, ringRadius, time * (i + 1), time * (i + 1) + Math.PI * 1.5);
@@ -7935,7 +8095,7 @@
             }
             
             // Swirl effect
-            ctx.strokeStyle = 'rgba(100, 200, 255, 0.2)';
+            ctx.strokeStyle = `rgba(${primaryRgb.r + 100}, ${primaryRgb.g + 30}, ${primaryRgb.b}, 0.2)`;
             ctx.lineWidth = 1;
             for (let i = 0; i < 6; i++) {
                 const swirlAngle = time * 2 + (i / 6) * Math.PI * 2;
@@ -7953,9 +8113,12 @@
             // Multiple outer glow layers
             for (let i = 3; i >= 0; i--) {
                 const glowSize = 45 + i * 15 + Math.sin(time * 3 + i) * 10;
-                ctx.shadowColor = '#00aaff';
+                ctx.shadowColor = colors.primary;
                 ctx.shadowBlur = 60 - i * 10;
-                ctx.fillStyle = `rgba(0, ${170 - i * 30}, 255, ${0.2 - i * 0.04})`;
+                const r = primaryRgb.r;
+                const g = primaryRgb.g - i * 30;
+                const b = primaryRgb.b;
+                ctx.fillStyle = `rgba(${r}, ${Math.max(0, g)}, ${b}, ${0.2 - i * 0.04})`;
                 ctx.beginPath();
                 ctx.arc(orbX, orbY, glowSize, 0, Math.PI * 2);
                 ctx.fill();
@@ -7965,9 +8128,9 @@
             ctx.shadowBlur = 40;
             const orbGrad = ctx.createRadialGradient(orbX - 12, orbY - 12, 0, orbX, orbY, 35);
             orbGrad.addColorStop(0, '#ffffff');
-            orbGrad.addColorStop(0.2, '#80e5ff');
-            orbGrad.addColorStop(0.5, '#00ccff');
-            orbGrad.addColorStop(0.8, '#0088ff');
+            orbGrad.addColorStop(0.2, colors.light);
+            orbGrad.addColorStop(0.5, colors.primary);
+            orbGrad.addColorStop(0.8, colors.secondary);
             orbGrad.addColorStop(1, '#002266');
             ctx.fillStyle = orbGrad;
             ctx.beginPath();
@@ -7984,9 +8147,9 @@
             
             // Multiple rotating rings
             for (let i = 0; i < 3; i++) {
-                ctx.strokeStyle = i === 0 ? '#00ffff' : (i === 1 ? '#0088ff' : '#0044aa');
+                ctx.strokeStyle = i === 0 ? colors.accent : (i === 1 ? colors.primary : colors.secondary);
                 ctx.lineWidth = 4 - i;
-                ctx.shadowColor = '#00ffff';
+                ctx.shadowColor = colors.accent;
                 ctx.shadowBlur = 25 - i * 5;
                 ctx.beginPath();
                 const ringRadius = 42 + i * 8 + Math.sin(time * (4 + i)) * 3;
@@ -7995,6 +8158,7 @@
             }
             
             // Draw debris circling the orb
+            const customColors = getCurrentAbilityColors();
             for (const debris of maxBlue.debris) {
                 const debrisX = orbX + Math.cos(debris.angle) * debris.dist;
                 const debrisY = orbY + Math.sin(debris.angle) * debris.dist;
@@ -8002,7 +8166,7 @@
                 if (debris.type === 'energy') {
                     // Energy particles
                     ctx.fillStyle = debris.color;
-                    ctx.shadowColor = '#00ffff';
+                    ctx.shadowColor = customColors.accent;
                     ctx.shadowBlur = 15;
                     ctx.globalAlpha = 0.7;
                     ctx.beginPath();
@@ -8743,8 +8907,13 @@
                 handleY = joystickY + window.joystickDelta.y * scale;
             }
             
-            ctx.fillStyle = 'rgba(233, 69, 96, 0.6)';
-            ctx.shadowColor = '#e94560';
+            // Get custom colors if set
+            const customColors = getCurrentAbilityColors();
+            const primaryColor = customColors ? customColors.primary : '#e94560';
+            const accentColor = customColors ? customColors.accent : '#00ffff';
+            
+            ctx.fillStyle = hexToRgba(primaryColor, 0.6);
+            ctx.shadowColor = primaryColor;
             ctx.shadowBlur = 10;
             ctx.beginPath();
             ctx.arc(handleX, handleY, 20, 0, Math.PI * 2);
@@ -8761,16 +8930,16 @@
             const btnStartY = canvas.height - 180;
             
             // M1 (Basic Attack/Punch) - top right
-            drawMobileButton(btnStartX, btnStartY, btnSize, 'M1', '#e94560');
+            drawMobileButton(btnStartX, btnStartY, btnSize, 'M1', primaryColor);
             
             // Ability 1 (Dismantle/Blue) - top left
-            drawMobileButton(btnStartX - btnSpacing, btnStartY, btnSize, '1', '#00aaff');
+            drawMobileButton(btnStartX - btnSpacing, btnStartY, btnSize, '1', customColors ? primaryColor : '#00aaff');
             
             // Ability 2 (Cleave/Red) - bottom right
-            drawMobileButton(btnStartX, btnStartY + btnSpacing, btnSize, '2', '#ff4444');
+            drawMobileButton(btnStartX, btnStartY + btnSpacing, btnSize, '2', customColors ? primaryColor : '#ff4444');
             
             // Ability 3 (Fuga/Purple) - bottom left
-            drawMobileButton(btnStartX - btnSpacing, btnStartY + btnSpacing, btnSize, '3', '#aa00ff');
+            drawMobileButton(btnStartX - btnSpacing, btnStartY + btnSpacing, btnSize, '3', customColors ? primaryColor : '#aa00ff');
             
             // Ability 4 (Domain) - extra button below
             drawMobileButton(btnStartX - btnSpacing/2, btnStartY + btnSpacing * 1.8, btnSize * 0.9, '4', '#ff8800');
@@ -9155,6 +9324,8 @@
                 drawCharacterSelect();
             } else if (screen === 'customisation') {
                 drawMenu(customOptions, 'CUSTOMISATION');
+            } else if (screen === 'ability_color') {
+                drawAbilityColorMenu();
             } else if (screen === 'blog') {
                 drawBlog();
             } else if (screen === 'settings') {
@@ -9277,6 +9448,19 @@
                     screen = 'title';
                     currentMenu = titleOptions;
                     selectedOption = 0;
+                } else if (option === 'ABILITY COLOUR') {
+                    screen = 'ability_color';
+                    currentMenu = abilityColorOptions;
+                    selectedOption = 0;
+                }
+            } else if (screen === 'ability_color') {
+                if (option === 'BACK') {
+                    screen = 'customisation';
+                    currentMenu = customOptions;
+                    selectedOption = 0;
+                } else {
+                    selectedAbilityColor = option;
+                    showNotif(`Ability color set to ${option}!`);
                 }
             }
         }
