@@ -3672,6 +3672,8 @@
                 
                 // Draw arms
                 ctx.strokeStyle = '#1a1a2e';
+                ctx.lineCap = 'round';
+                ctx.lineJoin = 'round';
                 ctx.beginPath();
                 ctx.moveTo(leftShoulderX, leftShoulderY);
                 ctx.lineTo(leftElbowX, leftElbowY);
@@ -3692,6 +3694,39 @@
                 ctx.beginPath();
                 ctx.arc(rightHandX, rightHandY, 5, 0, Math.PI * 2);
                 ctx.fill();
+                
+                // Draw flame arrow in right hand when charged
+                if (fuga.charged) {
+                    const mouseAngle = Math.atan2(mouseWorldY - player.y, mouseWorldX - player.x);
+                    ctx.save();
+                    ctx.translate(rightHandX, rightHandY);
+                    ctx.rotate(mouseAngle);
+                    
+                    // Simple flame arrow shape
+                    ctx.fillStyle = '#ff4400';
+                    ctx.shadowColor = '#ff0000';
+                    ctx.shadowBlur = 10;
+                    
+                    // Arrow shaft
+                    ctx.fillRect(-20, -2, 35, 4);
+                    
+                    // Arrowhead
+                    ctx.beginPath();
+                    ctx.moveTo(15, 0);
+                    ctx.lineTo(-5, -8);
+                    ctx.lineTo(-5, 8);
+                    ctx.closePath();
+                    ctx.fill();
+                    
+                    // Flame effect
+                    ctx.fillStyle = '#ffaa00';
+                    ctx.beginPath();
+                    ctx.arc(-5, 0, 6, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.restore();
+                    ctx.shadowBlur = 0;
+                }
             } else {
                 // Normal arm animation
                 // Left arm swings with right leg
