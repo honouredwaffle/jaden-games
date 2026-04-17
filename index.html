@@ -305,7 +305,7 @@
             charging: false,
             charged: false,
             chargeTime: 0,
-            maxChargeTime: 180, // 3 seconds to charge
+            maxChargeTime: 240, // 4 seconds to charge
             arrow: null, // { x, y, vx, vy, damage }
         };
         
@@ -4296,45 +4296,82 @@
                 const screenX = player.x - camera.x;
                 const screenY = player.y - camera.y;
                 
-                // Hand position - IN FRONT of player (in facing direction)
-                const handDist = 40;
-                const handAngle = player.facing;
-                const handX = screenX + Math.cos(handAngle) * handDist;
-                const handY = screenY + Math.sin(handAngle) * handDist;
+                // Arrow position - to the RIGHT of player (where it will be held)
+                const arrowDist = 35;
+                const arrowAngle = player.facing + Math.PI / 2; // 90 degrees right
+                const arrowX = screenX + Math.cos(arrowAngle) * arrowDist;
+                const arrowY = screenY + Math.sin(arrowAngle) * arrowDist;
                 
-                // Arrow points in facing direction
-                const arrowAngle = player.facing;
+                // Fire position - moves from front (0%) to right side (100%)
+                const frontAngle = player.facing;
+                const frontDist = 40;
+                const frontX = screenX + Math.cos(frontAngle) * frontDist;
+                const frontY = screenY + Math.sin(frontAngle) * frontDist;
+                
+                // Interpolate fire position based on charge
+                const firePosT = Math.min(chargePercent * 2, 1); // 0 at 0%, 1 at 50%
+                const fireX = frontX + (arrowX - frontX) * firePosT;
+                const fireY = frontY + (arrowY - frontY) * firePosT;
                 
                 const time = Date.now() / 100;
                 const effectTime = Date.now() / 60;
                 
-                // PHASE 1: 0-50% charge - fire building up at hand
-                if (chargePercent < 0.5) {
-                    const buildupProgress = chargePercent / 0.5; // 0 to 1 during buildup
+                // FIRE CIRCLE around player
+                const circlePulse = Math.sin(time * 4) * 0.2 + 0.8;
+                const circleRadius = 50 + chargePercent * 30 * circlePulse;
+                
+                // Outer fire ring
+                for (let ring = 0; ring < 3; ring++) {
+                    const ringAlpha = (0.3 - ring * 0.08) * chargePercent;
+                    ctx.strokeStyle = `rgba(255, ${80 + ring * 60}, 0, ${ringAlpha})`;
+                    ctx.lineWidth = 4 - ring;
+                    ctx.beginPath();
+                    ctx.arc(screenX, screenY, circleRadius + ring * 15, 0, Math.PI * 2);
+                    ctx.stroke();
+                }
+                
+                // Rotating fire particles around circle
+                for (let i = 0; i < 8 + chargePercent * 8; i++) {
+                    const particleAngle = time * 3 + (i / 16) * Math.PI * 2;
+                    const px = screenX + Math.cos(particleAngle) * circleRadius;
+                    const py = screenY + Math.sin(particleAngle) * circleRadius;
+                    const psize = 4 + chargePercent * 6 + Math.sin(time * 5 + i) * 2;
                     
-                    // Pulsing fire aura around hand
+                    ctx.fillStyle = `rgba(255, ${100 + Math.sin(i) * 80}, 0, ${0.6 + chargePercent * 0.3})`;
+                    ctx.shadowColor = '#ff4400';
+                    ctx.shadowBlur = 12;
+                    ctx.beginPath();
+                    ctx.arc(px, py, psize, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                
+                // PHASE 1: 0-50% charge - fire building up, moving from front to side
+                if (chargePercent < 0.5) {
+                    const buildupProgress = chargePercent / 0.5;
+                    
+                    // Pulsing fire aura at current fire position
                     const pulse = Math.sin(time * 3) * 0.3 + 0.7;
-                    const auraSize = 15 + buildupProgress * 25 * pulse;
+                    const auraSize = 20 + buildupProgress * 25 * pulse;
                     
                     // Outer glow
-                    const gradient = ctx.createRadialGradient(handX, handY, 0, handX, handY, auraSize * 2);
-                    gradient.addColorStop(0, `rgba(255, ${100 + buildupProgress * 100}, 0, ${0.3 + buildupProgress * 0.3})`);
-                    gradient.addColorStop(0.5, `rgba(255, 60, 0, ${0.15 + buildupProgress * 0.15})`);
+                    const gradient = ctx.createRadialGradient(fireX, fireY, 0, fireX, fireY, auraSize * 2);
+                    gradient.addColorStop(0, `rgba(255, ${100 + buildupProgress * 100}, 0, ${0.4 + buildupProgress * 0.3})`);
+                    gradient.addColorStop(0.5, `rgba(255, 60, 0, ${0.2 + buildupProgress * 0.15})`);
                     gradient.addColorStop(1, 'rgba(255, 30, 0, 0)');
                     ctx.fillStyle = gradient;
                     ctx.beginPath();
-                    ctx.arc(handX, handY, auraSize * 2, 0, Math.PI * 2);
+                    ctx.arc(fireX, fireY, auraSize * 2, 0, Math.PI * 2);
                     ctx.fill();
                     
-                    // Swirling embers - rotate with player facing
-                    for (let i = 0; i < 4 + buildupProgress * 10; i++) {
-                        const orbitAngle = time * 4 + (i / 14) * Math.PI * 2;
-                        const dist = auraSize * 0.8 + Math.sin(time * 5 + i) * 10;
-                        const ex = handX + Math.cos(orbitAngle + handAngle) * dist;
-                        const ey = handY + Math.sin(orbitAngle + handAngle) * dist;
-                        const size = 2 + buildupProgress * 6 + Math.random() * 3;
+                    // Swirling embers
+                    for (let i = 0; i < 5 + buildupProgress * 10; i++) {
+                        const orbitAngle = time * 4 + (i / 15) * Math.PI * 2;
+                        const dist = auraSize * 0.7 + Math.sin(time * 5 + i) * 12;
+                        const ex = fireX + Math.cos(orbitAngle) * dist;
+                        const ey = fireY + Math.sin(orbitAngle) * dist;
+                        const size = 3 + buildupProgress * 5 + Math.random() * 3;
                         
-                        ctx.fillStyle = `rgba(255, ${60 + Math.random() * 100}, 0, ${0.6 + Math.random() * 0.4})`;
+                        ctx.fillStyle = `rgba(255, ${60 + Math.random() * 100}, 0, ${0.7 + Math.random() * 0.3})`;
                         ctx.shadowColor = '#ff2200';
                         ctx.shadowBlur = 10;
                         ctx.beginPath();
@@ -4342,26 +4379,17 @@
                         ctx.fill();
                     }
                     
-                    // Lightning arcs between hand and player (intensify with charge)
-                    ctx.strokeStyle = `rgba(255, ${200 + buildupProgress * 55}, 100, ${0.2 + buildupProgress * 0.4})`;
+                    // Lightning arcs from player to fire
+                    ctx.strokeStyle = `rgba(255, ${200 + buildupProgress * 55}, 100, ${0.25 + buildupProgress * 0.35})`;
                     ctx.lineWidth = 2;
-                    for (let i = 0; i < 2 + buildupProgress * 5; i++) {
+                    for (let i = 0; i < 3 + buildupProgress * 4; i++) {
                         const arcAngle = time * 5 + i * 2.1;
-                        const startDist = 10;
-                        const endDist = handDist - 5;
-                        const midDist = (startDist + endDist) / 2 + Math.sin(arcAngle * 3) * 10;
-                        const perpOffset = Math.cos(arcAngle * 2) * 15;
-                        
-                        const sx = screenX + Math.cos(handAngle) * startDist;
-                        const sy = screenY + Math.sin(handAngle) * startDist;
-                        const mx = screenX + Math.cos(handAngle) * midDist + Math.cos(handAngle + Math.PI/2) * perpOffset;
-                        const my = screenY + Math.sin(handAngle) * midDist + Math.sin(handAngle + Math.PI/2) * perpOffset;
-                        const ex = handX - Math.cos(handAngle) * 5;
-                        const ey = handY - Math.sin(handAngle) * 5;
+                        const midX = (screenX + fireX) / 2 + Math.cos(arcAngle) * 20;
+                        const midY = (screenY + fireY) / 2 + Math.sin(arcAngle) * 20;
                         
                         ctx.beginPath();
-                        ctx.moveTo(sx, sy);
-                        ctx.quadraticCurveTo(mx, my, ex, ey);
+                        ctx.moveTo(screenX, screenY);
+                        ctx.quadraticCurveTo(midX, midY, fireX, fireY);
                         ctx.stroke();
                     }
                     
@@ -4373,17 +4401,17 @@
                     ctx.fillText(`FUGA CHARGING... ${Math.floor(chargePercent * 100)}%`, player.x - camera.x, player.y - camera.y - 90);
                     
                 } else {
-                    // PHASE 2: 50-100% - flame arrow slowly forms
-                    const formationProgress = (chargePercent - 0.5) / 0.5; // 0 to 1 during formation
+                    // PHASE 2: 50-100% - flame arrow forms at right side
+                    const formationProgress = (chargePercent - 0.5) / 0.5;
                     
-                    // Draw forming fire arrow at hand position
+                    // Draw forming fire arrow at arrow position (right side)
                     ctx.save();
-                    ctx.translate(handX, handY);
-                    ctx.rotate(arrowAngle);
+                    ctx.translate(arrowX, arrowY);
+                    ctx.rotate(player.facing);
                     
                     // Fire aura that grows with formation
                     const auraIntensity = 0.5 + formationProgress * 0.4;
-                    const auraSize = 40 + formationProgress * 40;
+                    const auraSize = 45 + formationProgress * 35;
                     
                     // Outer glow
                     const outerGrad = ctx.createRadialGradient(0, 0, 15, 0, 0, auraSize);
@@ -4476,6 +4504,20 @@
                     
                     ctx.restore();
                     ctx.shadowBlur = 0;
+                    
+                    // Lightning from player to arrow
+                    ctx.strokeStyle = `rgba(255, 200, 100, ${0.3 + formationProgress * 0.3})`;
+                    ctx.lineWidth = 2;
+                    for (let i = 0; i < 4; i++) {
+                        const arcAngle = time * 6 + i * 1.5;
+                        const midX = (screenX + arrowX) / 2 + Math.cos(arcAngle) * 15;
+                        const midY = (screenY + arrowY) / 2 + Math.sin(arcAngle) * 15;
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(screenX, screenY);
+                        ctx.quadraticCurveTo(midX, midY, arrowX, arrowY);
+                        ctx.stroke();
+                    }
                     
                     // Ready text - click to fire
                     const shakeX = (Math.random() - 0.5) * 3;
