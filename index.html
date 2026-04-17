@@ -108,7 +108,7 @@
         };
         
         // Menu options
-        const titleOptions = ['PLAY', 'MODES', 'CHARACTER', 'CUSTOMISATION', 'UPDATE BLOG'];
+        const titleOptions = ['PLAY', 'MODES', 'CHARACTER', 'CUSTOMISATION', 'UPDATE LOG'];
         const modeOptions = ['STORY MODE', 'OPEN WORLD', 'TESTING MODE', 'BACK'];
         const characterOptions = ['GOJO', 'SUKUNA', 'YUKI', 'BACK'];
         const customOptions = ['OUTFIT', 'ABILITY COLOUR', 'BACK'];
@@ -116,8 +116,9 @@
         
         let mobileMode = false;
         
-        // Update blog entries
+        // Update log entries
         const updateBlog = [
+            { date: '2026-04-17', title: 'Major Update - Mobile Optimizations & UI Improvements', content: 'Mobile Mode: Simplified spirit rendering for better performance, reduced particle effects, optimized domain visuals. UI: Mode/Character selection system - select then press PLAY to start. Story Mode now shows Coming Soon screen. Fuga: Click to fire only appears at 100% charge. Fixed: Default game mode is now Open World. Renamed Update Blog to Update Log.' },
             { date: '2026-04-17', title: 'Bug Fixes & Mobile Improvements', content: 'Fixed: Malevolent Shrine now properly kills disaster curses. Fixed: Testing mode now clears boss UI (notification and health bar). Fixed: Mobile control buttons remapped (M1 for punch, 1-4 for abilities). Added: Mobile auto-aim based on joystick direction. Fixed: Infinite Void now freezes all enemy projectiles. Fixed: Disaster curses only aggro when player is near boss structures.' },
             { date: '2026-04-17', title: 'Flashy Slash Effects', content: 'Enhanced cleave and dismantle slash visuals: multi-layer glows (outer, middle, core), bright white core with intense bloom, spark particles along slashes, cross-pattern for dismantle, larger glow radii, more vibrant colors.' },
             { date: '2026-04-17', title: 'Domain Visual Effects Overhaul', content: 'Added improved visual effects to Malevolent Shrine: pulsing crimson slash waves that expand outward, red mist particles floating throughout domain, cursed energy sparks falling like embers, enhanced cleave/dismantle slashes with glow effects. Black-crimson-purple oppressive atmosphere.' },
@@ -134,7 +135,7 @@
         
         let currentMenu = titleOptions;
         let selectedCharacter = 'GOJO';
-        let gameMode = 'STORY';
+        let gameMode = 'OPEN_WORLD'; // Default to Open World
         let testingMode = false;
         let selectedModeIndex = 1; // Default to OPEN WORLD (index 1)
         let selectedCharacterIndex = 0; // Default to GOJO (index 0)
@@ -454,6 +455,7 @@
         // Cursed spirits
         const cursedSpirits = [];
         const SPIRIT_COUNT = 650;
+        const MOBILE_SPIRIT_COUNT = 450; // Reduced for mobile performance
         
         const SPIRIT_GRADES = {
             'GRADE_4': { hp: 30, damage: 5, speed: 1, size: 12, spawnRate: 0.4, attackRange: 60, attackCooldown: 60, projectileSpeed: 3, closeRange: 30 },
@@ -480,7 +482,10 @@
                 return;
             }
             
-            for (let i = 0; i < SPIRIT_COUNT; i++) {
+            // Use fewer spirits on mobile for performance
+            const count = mobileMode ? MOBILE_SPIRIT_COUNT : SPIRIT_COUNT;
+            
+            for (let i = 0; i < count; i++) {
                 const rand = Math.random();
                 let grade = 'GRADE_4';
                 let cumulative = 0;
@@ -2433,7 +2438,7 @@
         }
         
         function drawCursedSpirits() {
-            const viewPadding = 200;
+            const viewPadding = mobileMode ? 50 : 200; // Smaller view area on mobile
             const viewLeft = camera.x - viewPadding;
             const viewRight = camera.x + canvas.width + viewPadding;
             const viewTop = camera.y - viewPadding;
@@ -2448,6 +2453,42 @@
                 const screenY = spirit.y - camera.y;
                 
                 ctx.save();
+                
+                // Mobile: simplified rendering - just draw a circle
+                if (mobileMode) {
+                    // Simple shadow
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.4)';
+                    ctx.beginPath();
+                    ctx.ellipse(screenX, screenY + spirit.size * 0.3, spirit.size * 0.6, spirit.size * 0.2, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Simple body - just a colored circle
+                    ctx.fillStyle = spirit.color;
+                    ctx.beginPath();
+                    ctx.arc(screenX, screenY, spirit.size * 0.7, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Simple glow for special grades
+                    if (spirit.grade === 'SPECIAL' || spirit.grade === 'GRADE_1') {
+                        ctx.strokeStyle = spirit.color;
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        ctx.arc(screenX, screenY, spirit.size * 0.9, 0, Math.PI * 2);
+                        ctx.stroke();
+                    }
+                    
+                    // Simple health bar
+                    const hpPercent = spirit.hp / spirit.maxHp;
+                    const barWidth = spirit.size * 1.2;
+                    const barHeight = 3;
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                    ctx.fillRect(screenX - barWidth/2, screenY - spirit.size - 12, barWidth, barHeight);
+                    ctx.fillStyle = hpPercent > 0.5 ? '#0f0' : (hpPercent > 0.25 ? '#ff0' : '#f00');
+                    ctx.fillRect(screenX - barWidth/2, screenY - spirit.size - 12, barWidth * hpPercent, barHeight);
+                    
+                    ctx.restore();
+                    continue; // Skip detailed rendering on mobile
+                }
                 
                 // Shadow
                 ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
@@ -4432,8 +4473,9 @@
         }
         
         function spawnFugaParticle(x, y, type) {
-            // Limit total particles to prevent performance issues
-            if (fugaParticles.length > 200) {
+            // Limit total particles to prevent performance issues - lower limit on mobile
+            const maxParticles = mobileMode ? 80 : 200;
+            if (fugaParticles.length > maxParticles) {
                 fugaParticles.shift(); // Remove oldest particle
             }
             
@@ -5396,28 +5438,32 @@
                     applySukunaDomainDamage();
                 }
                 
-                // Spawn random slice visuals - increased frequency
-                if (Math.random() < 0.7) {
+                // Spawn random slice visuals - reduced for mobile
+                const sliceChance = mobileMode ? 0.3 : 0.7;
+                if (Math.random() < sliceChance) {
                     spawnSliceEffect();
                 }
-                // Spawn multiple slices at once for more density
-                if (Math.random() < 0.4) {
+                // Spawn multiple slices only on desktop
+                if (!mobileMode && Math.random() < 0.4) {
                     spawnSliceEffect();
                     spawnSliceEffect();
                 }
                 
-                // Spawn pulsing crimson slash waves - increased
-                if (Math.random() < 0.25) {
+                // Spawn pulsing crimson slash waves - reduced for mobile
+                const waveChance = mobileMode ? 0.1 : 0.25;
+                if (Math.random() < waveChance) {
                     spawnSlashWave();
                 }
                 
-                // Spawn red mist particles - increased
-                if (Math.random() < 0.6) {
+                // Spawn red mist particles - reduced for mobile
+                const mistChance = mobileMode ? 0.25 : 0.6;
+                if (Math.random() < mistChance) {
                     spawnRedMist();
                 }
                 
-                // Spawn cursed sparks - increased
-                if (Math.random() < 0.4) {
+                // Spawn cursed sparks - reduced for mobile
+                const sparkChance = mobileMode ? 0.15 : 0.4;
+                if (Math.random() < sparkChance) {
                     spawnCursedSpark();
                 }
                 
@@ -5586,7 +5632,8 @@
         
         function spawnRedMist() {
             // Red mist particles that float upward - spawn multiple for density
-            for (let i = 0; i < 3; i++) {
+            const count = mobileMode ? 1 : 3;
+            for (let i = 0; i < count; i++) {
                 const angle = Math.random() * Math.PI * 2;
                 const dist = Math.random() * sukunaDomain.maxRadius * 0.9;
                 
@@ -5606,7 +5653,8 @@
         
         function spawnCursedSpark() {
             // Cursed energy sparks that fall like embers - spawn multiple
-            for (let i = 0; i < 2; i++) {
+            const count = mobileMode ? 1 : 2;
+            for (let i = 0; i < count; i++) {
                 const angle = Math.random() * Math.PI * 2;
                 const dist = Math.random() * sukunaDomain.maxRadius * 0.8;
                 
@@ -5667,52 +5715,56 @@
                 ctx.restore();
             }
             
-            // Draw red mist particles
-            for (const mist of sukunaDomain.redMist) {
-                const mx = mist.x - camera.x;
-                const my = mist.y - camera.y;
-                
-                ctx.save();
-                const mistAlpha = (mist.life / mist.maxLife) * mist.opacity;
-                ctx.globalAlpha = mistAlpha;
-                ctx.fillStyle = '#8b0000';
-                ctx.shadowBlur = 10;
-                ctx.shadowColor = 'rgba(139, 0, 0, 0.5)';
-                
-                // Draw mist blob
-                ctx.beginPath();
-                ctx.arc(mx, my, mist.size, 0, Math.PI * 2);
-                ctx.fill();
-                
-                ctx.restore();
+            // Draw red mist particles - skip on mobile
+            if (!mobileMode) {
+                for (const mist of sukunaDomain.redMist) {
+                    const mx = mist.x - camera.x;
+                    const my = mist.y - camera.y;
+                    
+                    ctx.save();
+                    const mistAlpha = (mist.life / mist.maxLife) * mist.opacity;
+                    ctx.globalAlpha = mistAlpha;
+                    ctx.fillStyle = '#8b0000';
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = 'rgba(139, 0, 0, 0.5)';
+                    
+                    // Draw mist blob
+                    ctx.beginPath();
+                    ctx.arc(mx, my, mist.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    ctx.restore();
+                }
             }
             
-            // Draw cursed sparks
-            for (const spark of sukunaDomain.cursedSparks) {
-                const sx = spark.x - camera.x;
-                const sy = spark.y - camera.y;
-                
-                ctx.save();
-                const sparkAlpha = spark.life / spark.maxLife;
-                ctx.globalAlpha = sparkAlpha;
-                ctx.fillStyle = spark.color;
-                ctx.shadowBlur = 8;
-                ctx.shadowColor = spark.color;
-                
-                // Draw spark
-                ctx.beginPath();
-                ctx.arc(sx, sy, spark.size, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Spark trail
-                ctx.strokeStyle = spark.color;
-                ctx.lineWidth = 1;
-                ctx.beginPath();
-                ctx.moveTo(sx, sy);
-                ctx.lineTo(sx - spark.vx * 3, sy - spark.vy * 3);
-                ctx.stroke();
-                
-                ctx.restore();
+            // Draw cursed sparks - skip on mobile
+            if (!mobileMode) {
+                for (const spark of sukunaDomain.cursedSparks) {
+                    const sx = spark.x - camera.x;
+                    const sy = spark.y - camera.y;
+                    
+                    ctx.save();
+                    const sparkAlpha = spark.life / spark.maxLife;
+                    ctx.globalAlpha = sparkAlpha;
+                    ctx.fillStyle = spark.color;
+                    ctx.shadowBlur = 8;
+                    ctx.shadowColor = spark.color;
+                    
+                    // Draw spark
+                    ctx.beginPath();
+                    ctx.arc(sx, sy, spark.size, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Spark trail
+                    ctx.strokeStyle = spark.color;
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(sx, sy);
+                    ctx.lineTo(sx - spark.vx * 3, sy - spark.vy * 3);
+                    ctx.stroke();
+                    
+                    ctx.restore();
+                }
             }
             
             // Draw slice effects (ENHANCED FLASHY VERSION)
@@ -5721,6 +5773,24 @@
                 const sy = slice.y - camera.y;
                 const alpha = slice.life / slice.maxLife;
                 const width = slice.width || 3;
+                
+                // Mobile: simplified slash rendering
+                if (mobileMode) {
+                    ctx.save();
+                    ctx.translate(sx, sy);
+                    ctx.rotate(slice.angle);
+                    
+                    const length = slice.length;
+                    ctx.strokeStyle = `rgba(255, 100, 100, ${alpha})`;
+                    ctx.lineWidth = width;
+                    ctx.beginPath();
+                    ctx.moveTo(-length / 2, 0);
+                    ctx.lineTo(length / 2, 0);
+                    ctx.stroke();
+                    
+                    ctx.restore();
+                    continue;
+                }
                 
                 ctx.save();
                 ctx.translate(sx, sy);
@@ -8104,7 +8174,8 @@
         }
         
         function addSlashEffect(x, y) {
-            // Slash effect for Dismantle
+            // Slash effect for Dismantle - limit on mobile
+            if (mobileMode && slashEffects.length > 10) return;
             const angle = Math.random() * Math.PI * 2;
             slashEffects.push({
                 x: x,
@@ -8734,7 +8805,7 @@
                 ctx.fillStyle = '#e94560';
                 ctx.font = 'bold 36px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText('UPDATE BLOG', canvas.width / 2, 60);
+                ctx.fillText('UPDATE LOG', canvas.width / 2, 60);
                 
                 // Draw blog entries
                 const entryHeight = 100;
@@ -8997,7 +9068,7 @@
                     screen = 'customisation';
                     currentMenu = customOptions;
                     selectedOption = 0;
-                } else if (option === 'UPDATE BLOG') {
+                } else if (option === 'UPDATE LOG') {
                     screen = 'blog';
                     selectedOption = 0;
                 }
