@@ -4467,6 +4467,15 @@
                 }
                 
                 
+            }
+            
+            // Draw fired arrow
+            if (fuga.arrow) {
+                const ax = fuga.arrow.x - camera.x;
+                const ay = fuga.arrow.y - camera.y;
+                const angle = Math.atan2(fuga.arrow.vy, fuga.arrow.vx);
+                const lifePercent = fuga.arrow.life / fuga.arrow.maxLife;
+                
                 ctx.save();
                 ctx.translate(ax, ay);
                 ctx.rotate(angle);
