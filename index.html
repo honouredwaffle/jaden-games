@@ -5387,23 +5387,28 @@
                     applySukunaDomainDamage();
                 }
                 
-                // Spawn random slice visuals
-                if (Math.random() < 0.3) {
+                // Spawn random slice visuals - increased frequency
+                if (Math.random() < 0.7) {
+                    spawnSliceEffect();
+                }
+                // Spawn multiple slices at once for more density
+                if (Math.random() < 0.4) {
+                    spawnSliceEffect();
                     spawnSliceEffect();
                 }
                 
-                // Spawn pulsing crimson slash waves
-                if (Math.random() < 0.15) {
+                // Spawn pulsing crimson slash waves - increased
+                if (Math.random() < 0.25) {
                     spawnSlashWave();
                 }
                 
-                // Spawn red mist particles
-                if (Math.random() < 0.4) {
+                // Spawn red mist particles - increased
+                if (Math.random() < 0.6) {
                     spawnRedMist();
                 }
                 
-                // Spawn cursed sparks
-                if (Math.random() < 0.25) {
+                // Spawn cursed sparks - increased
+                if (Math.random() < 0.4) {
                     spawnCursedSpark();
                 }
                 
@@ -5530,19 +5535,28 @@
         }
         
         function spawnSliceEffect() {
-            // Random slice within domain radius
+            // Random slice within domain radius - more dynamic positioning
             const angle = Math.random() * Math.PI * 2;
-            const dist = Math.random() * sukunaDomain.maxRadius * 0.8;
+            const dist = Math.random() * sukunaDomain.maxRadius * 0.85;
+            
+            // Random slice type with weighted distribution
+            const rand = Math.random();
+            let type = 'dismantle';
+            if (rand > 0.6) type = 'cleave';
+            else if (rand > 0.3) type = 'cross';
             
             sukunaDomain.slices.push({
                 x: sukunaDomain.centerX + Math.cos(angle) * dist,
                 y: sukunaDomain.centerY + Math.sin(angle) * dist,
-                vx: (Math.random() - 0.5) * 2,
-                vy: (Math.random() - 0.5) * 2,
+                vx: (Math.random() - 0.5) * 3,
+                vy: (Math.random() - 0.5) * 3,
                 angle: Math.random() * Math.PI * 2,
-                length: 20 + Math.random() * 50,
-                life: 10 + Math.random() * 10,
-                type: Math.random() > 0.5 ? 'cleave' : 'dismantle'
+                length: 30 + Math.random() * 60, // Longer slices
+                width: 2 + Math.random() * 3, // Variable width
+                life: 15 + Math.random() * 15, // Longer lifetime
+                maxLife: 15 + Math.random() * 15,
+                type: type,
+                glowIntensity: 0.5 + Math.random() * 0.5
             });
         }
         
@@ -5562,37 +5576,43 @@
         }
         
         function spawnRedMist() {
-            // Red mist particles that float upward
-            const angle = Math.random() * Math.PI * 2;
-            const dist = Math.random() * sukunaDomain.maxRadius * 0.9;
-            
-            sukunaDomain.redMist.push({
-                x: sukunaDomain.centerX + Math.cos(angle) * dist,
-                y: sukunaDomain.centerY + Math.sin(angle) * dist,
-                vx: (Math.random() - 0.5) * 0.5,
-                vy: -0.5 - Math.random() * 1, // Float upward
-                size: 5 + Math.random() * 15,
-                life: 60 + Math.random() * 40,
-                maxLife: 60 + Math.random() * 40,
-                opacity: 0.3 + Math.random() * 0.4
-            });
+            // Red mist particles that float upward - spawn multiple for density
+            for (let i = 0; i < 3; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = Math.random() * sukunaDomain.maxRadius * 0.9;
+                
+                sukunaDomain.redMist.push({
+                    x: sukunaDomain.centerX + Math.cos(angle) * dist,
+                    y: sukunaDomain.centerY + Math.sin(angle) * dist,
+                    vx: (Math.random() - 0.5) * 0.8,
+                    vy: -0.8 - Math.random() * 1.5, // Float upward faster
+                    size: 8 + Math.random() * 20, // Larger particles
+                    life: 80 + Math.random() * 60, // Longer lifetime
+                    maxLife: 80 + Math.random() * 60,
+                    opacity: 0.4 + Math.random() * 0.4,
+                    color: Math.random() > 0.6 ? '#aa0000' : '#880000'
+                });
+            }
         }
         
         function spawnCursedSpark() {
-            // Cursed energy sparks that fall like embers
-            const angle = Math.random() * Math.PI * 2;
-            const dist = Math.random() * sukunaDomain.maxRadius * 0.8;
-            
-            sukunaDomain.cursedSparks.push({
-                x: sukunaDomain.centerX + Math.cos(angle) * dist,
-                y: sukunaDomain.centerY + Math.sin(angle) * dist - 50, // Start slightly above
-                vx: (Math.random() - 0.5) * 2,
-                vy: -1 - Math.random() * 2, // Initial upward velocity
-                size: 2 + Math.random() * 4,
-                life: 30 + Math.random() * 30,
-                maxLife: 30 + Math.random() * 30,
-                color: Math.random() > 0.5 ? '#ff4400' : '#ff6600'
-            });
+            // Cursed energy sparks that fall like embers - spawn multiple
+            for (let i = 0; i < 2; i++) {
+                const angle = Math.random() * Math.PI * 2;
+                const dist = Math.random() * sukunaDomain.maxRadius * 0.8;
+                
+                sukunaDomain.cursedSparks.push({
+                    x: sukunaDomain.centerX + Math.cos(angle) * dist,
+                    y: sukunaDomain.centerY + Math.sin(angle) * dist - 50, // Start slightly above
+                    vx: (Math.random() - 0.5) * 3,
+                    vy: -1.5 - Math.random() * 3, // Initial upward velocity
+                    size: 3 + Math.random() * 5,
+                    life: 40 + Math.random() * 40,
+                    maxLife: 40 + Math.random() * 40,
+                    color: Math.random() > 0.6 ? '#ff6600' : (Math.random() > 0.5 ? '#ff4400' : '#ffaa00'),
+                    trail: []
+                });
+            }
         }
         
         function drawSukunaDomain() {
@@ -5690,13 +5710,63 @@
             for (const slice of sukunaDomain.slices) {
                 const sx = slice.x - camera.x;
                 const sy = slice.y - camera.y;
-                const alpha = slice.life / 15;
+                const alpha = slice.life / slice.maxLife;
+                const width = slice.width || 3;
                 
                 ctx.save();
                 ctx.translate(sx, sy);
                 ctx.rotate(slice.angle);
                 
-                if (slice.type === 'cleave') {
+                if (slice.type === 'cross') {
+                    // CROSS SLASH - X pattern for maximum impact
+                    const length = slice.length;
+                    const glow = slice.glowIntensity || 0.8;
+                    
+                    // Outer massive glow
+                    ctx.shadowBlur = 35;
+                    ctx.shadowColor = `rgba(255, 0, 0, ${glow})`;
+                    ctx.strokeStyle = `rgba(255, 50, 50, ${alpha * 0.4})`;
+                    ctx.lineWidth = width * 4;
+                    ctx.beginPath();
+                    ctx.moveTo(-length / 2, -length / 4);
+                    ctx.lineTo(length / 2, length / 4);
+                    ctx.moveTo(-length / 2, length / 4);
+                    ctx.lineTo(length / 2, -length / 4);
+                    ctx.stroke();
+                    
+                    // Middle glow
+                    ctx.shadowBlur = 20;
+                    ctx.shadowColor = `rgba(255, 100, 100, ${glow})`;
+                    ctx.strokeStyle = `rgba(255, 100, 100, ${alpha * 0.7})`;
+                    ctx.lineWidth = width * 2;
+                    ctx.beginPath();
+                    ctx.moveTo(-length / 2, -length / 4);
+                    ctx.lineTo(length / 2, length / 4);
+                    ctx.moveTo(-length / 2, length / 4);
+                    ctx.lineTo(length / 2, -length / 4);
+                    ctx.stroke();
+                    
+                    // Core bright slashes
+                    ctx.shadowBlur = 25;
+                    ctx.shadowColor = 'rgba(255, 255, 255, 1)';
+                    ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+                    ctx.lineWidth = width;
+                    ctx.beginPath();
+                    ctx.moveTo(-length / 2, -length / 4);
+                    ctx.lineTo(length / 2, length / 4);
+                    ctx.moveTo(-length / 2, length / 4);
+                    ctx.lineTo(length / 2, -length / 4);
+                    ctx.stroke();
+                    
+                    // Center impact point
+                    ctx.shadowBlur = 30;
+                    ctx.shadowColor = 'rgba(255, 255, 0, 1)';
+                    ctx.fillStyle = `rgba(255, 255, 200, ${alpha})`;
+                    ctx.beginPath();
+                    ctx.arc(0, 0, width * 2, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                } else if (slice.type === 'cleave') {
                     // FLASHY CLEAVE - Multi-layer curved slash
                     const length = slice.length;
                     
