@@ -118,6 +118,7 @@
         
         // Update blog entries
         const updateBlog = [
+            { date: '2026-04-17', title: 'Shrine Visual Overhaul', content: 'Fixed upside-down shrine orientation. Completely redesigned shrine with improved visuals: detailed skulls with proper anatomy, tapered pillar with decorative lines, pointed teeth on mouths, crown ornament with horns and glowing red gem, gradient shading throughout, stronger glow effects.' },
             { date: '2026-04-17', title: 'Malevolent Shrine - Sukuna Domain', content: 'Added Sukuna\'s barrierless domain expansion! Features: 2D side-view shrine with 4 mouths and skull base, 200m sure-hit radius with continuous cleave/dismantle damage, shrine follows player movement, visual slice effects throughout domain. Testing mode respawn fixed for domain kills.' },
             { date: '2026-04-17', title: 'FUGA Ability Overhaul', content: 'Complete rework of Sukuna\'s fire arrow ability. New charging system with fire circle, gradual flame arrow formation, and explosive impact.' },
             { date: '2026-04-17', title: 'Testing Mode Fix', content: 'Fixed testing spirits persisting when switching to Open World. Spirits now properly clear between modes.' },
@@ -5475,8 +5476,8 @@
             const shrineScreenX = sukunaDomain.centerX - camera.x;
             const shrineScreenY = sukunaDomain.centerY - camera.y;
             ctx.translate(shrineScreenX, shrineScreenY);
-            // Rotate to face the direction it was spawned (facing away from player)
-            ctx.rotate(sukunaDomain.shrineFacing + Math.PI);
+            // Face the direction it was spawned (no flip)
+            ctx.rotate(sukunaDomain.shrineFacing);
             ctx.scale(shrineScale * pulse, shrineScale * pulse);
             
             // Draw skulls at base (2D view - arranged horizontally at bottom)
@@ -5496,61 +5497,130 @@
                 ctx.shadowBlur = 15;
                 ctx.shadowColor = `rgba(255, 50, 0, ${glowIntensity})`;
                 
-                // Skull base (2D view - skull shape)
+                // Skull base (improved 2D skull shape)
                 ctx.fillStyle = '#2a1a1a';
+                // Cranium
                 ctx.beginPath();
-                // Skull head
-                ctx.arc(0, -5, 10, 0, Math.PI * 2);
+                ctx.arc(0, -8, 11, Math.PI, 0);
+                ctx.lineTo(11, 0);
+                ctx.lineTo(8, 8);
+                ctx.lineTo(-8, 8);
+                ctx.lineTo(-11, 0);
+                ctx.closePath();
                 ctx.fill();
-                // Jaw
-                ctx.fillRect(-6, 2, 12, 8);
                 
                 // Skull highlight
                 ctx.fillStyle = '#4a2a2a';
                 ctx.beginPath();
-                ctx.arc(-3, -8, 4, 0, Math.PI * 2);
+                ctx.arc(-4, -10, 4, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Eye sockets (glowing red)
+                // Eye sockets (glowing red, larger)
                 ctx.fillStyle = '#ff2200';
-                ctx.shadowBlur = 10;
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = 'rgba(255, 30, 0, 0.9)';
                 ctx.beginPath();
-                ctx.arc(-3, -5, 2.5, 0, Math.PI * 2);
-                ctx.arc(3, -5, 2.5, 0, Math.PI * 2);
+                ctx.arc(-4, -2, 3.5, 0, Math.PI * 2);
+                ctx.arc(4, -2, 3.5, 0, Math.PI * 2);
                 ctx.fill();
+                
+                // Nose cavity
+                ctx.fillStyle = '#1a0a0a';
+                ctx.shadowBlur = 5;
+                ctx.beginPath();
+                ctx.moveTo(0, 2);
+                ctx.lineTo(-2, 6);
+                ctx.lineTo(2, 6);
+                ctx.closePath();
+                ctx.fill();
+                
+                // Teeth row
+                ctx.fillStyle = '#ddd';
+                for (let t = -2; t <= 2; t++) {
+                    ctx.fillRect(t * 3 - 1, 6, 2, 3);
+                }
                 
                 ctx.restore();
             }
             
-            // Draw central shrine structure (2D view - pillar/platform)
-            ctx.shadowBlur = 30;
-            ctx.shadowColor = 'rgba(139, 0, 0, 0.8)';
+            // Draw central shrine structure (improved 2D design)
+            ctx.shadowBlur = 40;
+            ctx.shadowColor = 'rgba(139, 0, 0, 0.9)';
             
-            // Main shrine platform base
-            ctx.fillStyle = '#1a0a0a';
-            ctx.fillRect(-50, 20, 100, 20);
+            // Main shrine platform base (wider, more detailed)
+            const platformGradient = ctx.createLinearGradient(0, 20, 0, 50);
+            platformGradient.addColorStop(0, '#1a0a0a');
+            platformGradient.addColorStop(0.5, '#2a1515');
+            platformGradient.addColorStop(1, '#0f0505');
+            ctx.fillStyle = platformGradient;
+            ctx.fillRect(-60, 20, 120, 30);
             
-            // Main shrine pillar
-            ctx.fillStyle = '#0f0505';
-            ctx.fillRect(-30, -40, 60, 60);
-            
-            // Shrine border/glow
+            // Platform border
             ctx.strokeStyle = '#8b0000';
             ctx.lineWidth = 3;
-            ctx.strokeRect(-30, -40, 60, 60);
-            ctx.strokeRect(-50, 20, 100, 20);
+            ctx.strokeRect(-60, 20, 120, 30);
             
-            // Inner glow on pillar
-            const pillarGlow = ctx.createLinearGradient(-30, -40, -30, 20);
-            pillarGlow.addColorStop(0, 'rgba(139, 0, 0, 0.4)');
-            pillarGlow.addColorStop(0.5, 'rgba(139, 0, 0, 0.1)');
-            pillarGlow.addColorStop(1, 'rgba(139, 0, 0, 0.3)');
+            // Decorative platform edges
+            ctx.fillStyle = '#8b0000';
+            ctx.beginPath();
+            ctx.moveTo(-60, 20);
+            ctx.lineTo(-65, 15);
+            ctx.lineTo(-60, 25);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.moveTo(60, 20);
+            ctx.lineTo(65, 15);
+            ctx.lineTo(60, 25);
+            ctx.fill();
+            
+            // Main shrine pillar (tapered design)
+            ctx.fillStyle = '#0f0505';
+            ctx.beginPath();
+            ctx.moveTo(-35, 20);
+            ctx.lineTo(-25, -60);
+            ctx.lineTo(25, -60);
+            ctx.lineTo(35, 20);
+            ctx.closePath();
+            ctx.fill();
+            
+            // Pillar border
+            ctx.strokeStyle = '#8b0000';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(-35, 20);
+            ctx.lineTo(-25, -60);
+            ctx.lineTo(25, -60);
+            ctx.lineTo(35, 20);
+            ctx.closePath();
+            ctx.stroke();
+            
+            // Inner pillar glow
+            const pillarGlow = ctx.createLinearGradient(0, -60, 0, 20);
+            pillarGlow.addColorStop(0, 'rgba(139, 0, 0, 0.5)');
+            pillarGlow.addColorStop(0.3, 'rgba(100, 0, 0, 0.2)');
+            pillarGlow.addColorStop(1, 'rgba(139, 0, 0, 0.4)');
             ctx.fillStyle = pillarGlow;
-            ctx.fillRect(-25, -35, 50, 50);
+            ctx.beginPath();
+            ctx.moveTo(-28, 15);
+            ctx.lineTo(-20, -55);
+            ctx.lineTo(20, -55);
+            ctx.lineTo(28, 15);
+            ctx.closePath();
+            ctx.fill();
             
-            // Draw 4 mouths (2D view - arranged vertically on the pillar)
-            const mouthSpacing = 18;
-            const startY = -25;
+            // Vertical decorative lines on pillar
+            ctx.strokeStyle = 'rgba(139, 0, 0, 0.5)';
+            ctx.lineWidth = 2;
+            for (let x = -15; x <= 15; x += 15) {
+                ctx.beginPath();
+                ctx.moveTo(x, 15);
+                ctx.lineTo(x * 0.6, -55);
+                ctx.stroke();
+            }
+            
+            // Draw 4 mouths (improved 2D view - arranged vertically on the pillar)
+            const mouthSpacing = 20;
+            const startY = -45;
             
             for (let i = 0; i < 4; i++) {
                 const mouth = sukunaDomain.shrine.mouths[i];
@@ -5559,83 +5629,127 @@
                 ctx.save();
                 ctx.translate(0, my);
                 
-                // Mouth glow
-                ctx.shadowBlur = 20;
-                ctx.shadowColor = 'rgba(255, 0, 0, 0.9)';
+                // Mouth outer glow
+                ctx.shadowBlur = 25;
+                ctx.shadowColor = 'rgba(255, 0, 0, 0.8)';
                 
-                // Mouth opening (horizontal ellipse in 2D)
-                const openSize = 8 * mouth.openAmount;
+                // Mouth opening (improved horizontal ellipse)
+                const openSize = 10 * mouth.openAmount;
                 ctx.fillStyle = '#000';
                 ctx.beginPath();
-                ctx.ellipse(0, 0, 15, openSize, 0, 0, Math.PI * 2);
+                ctx.ellipse(0, 0, 20, openSize, 0, 0, Math.PI * 2);
                 ctx.fill();
+                
+                // Mouth border
+                ctx.strokeStyle = '#8b0000';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.ellipse(0, 0, 20, openSize, 0, 0, Math.PI * 2);
+                ctx.stroke();
                 
                 // Mouth interior glow
                 if (mouth.openAmount > 0.3) {
                     const mouthGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, openSize);
-                    mouthGlow.addColorStop(0, 'rgba(255, 50, 0, 0.9)');
+                    mouthGlow.addColorStop(0, 'rgba(255, 80, 0, 0.95)');
+                    mouthGlow.addColorStop(0.5, 'rgba(200, 30, 0, 0.7)');
                     mouthGlow.addColorStop(1, 'rgba(139, 0, 0, 0)');
                     ctx.fillStyle = mouthGlow;
                     ctx.beginPath();
-                    ctx.ellipse(0, 0, 13, openSize * 0.8, 0, 0, Math.PI * 2);
+                    ctx.ellipse(0, 0, 18, openSize * 0.85, 0, 0, Math.PI * 2);
                     ctx.fill();
                 }
                 
-                // Teeth (top and bottom rows)
+                // Teeth (improved design)
                 ctx.fillStyle = '#fff';
-                ctx.shadowBlur = 5;
-                const teethCount = 4;
+                ctx.shadowBlur = 8;
+                ctx.shadowColor = 'rgba(255, 255, 255, 0.5)';
+                const teethCount = 5;
                 for (let t = 0; t < teethCount; t++) {
                     const tx = (t - teethCount/2 + 0.5) * 7;
-                    // Top teeth
+                    // Top teeth (pointed)
                     ctx.beginPath();
-                    ctx.moveTo(tx - 2, -openSize * 0.6);
-                    ctx.lineTo(tx, -openSize * 0.9);
-                    ctx.lineTo(tx + 2, -openSize * 0.6);
+                    ctx.moveTo(tx - 3, -openSize * 0.5);
+                    ctx.lineTo(tx, -openSize * 0.95);
+                    ctx.lineTo(tx + 3, -openSize * 0.5);
+                    ctx.closePath();
                     ctx.fill();
                     
-                    // Bottom teeth
+                    // Bottom teeth (pointed)
                     ctx.beginPath();
-                    ctx.moveTo(tx - 2, openSize * 0.6);
-                    ctx.lineTo(tx, openSize * 0.9);
-                    ctx.lineTo(tx + 2, openSize * 0.6);
+                    ctx.moveTo(tx - 3, openSize * 0.5);
+                    ctx.lineTo(tx, openSize * 0.95);
+                    ctx.lineTo(tx + 3, openSize * 0.5);
+                    ctx.closePath();
                     ctx.fill();
                 }
                 
                 ctx.restore();
             }
             
-            // Top ornament (horns/spikes)
+            // Top crown/ornament (improved design)
+            ctx.shadowBlur = 30;
+            ctx.shadowColor = 'rgba(139, 0, 0, 0.9)';
+            
+            // Crown base
             ctx.fillStyle = '#1a0a0a';
+            ctx.beginPath();
+            ctx.moveTo(-30, -60);
+            ctx.lineTo(-35, -75);
+            ctx.lineTo(-20, -70);
+            ctx.lineTo(0, -85);
+            ctx.lineTo(20, -70);
+            ctx.lineTo(35, -75);
+            ctx.lineTo(30, -60);
+            ctx.closePath();
+            ctx.fill();
+            ctx.strokeStyle = '#8b0000';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            
+            // Center horn (main spike)
+            ctx.fillStyle = '#0f0505';
+            ctx.beginPath();
+            ctx.moveTo(-8, -75);
+            ctx.lineTo(0, -110);
+            ctx.lineTo(8, -75);
+            ctx.closePath();
+            ctx.fill();
             ctx.strokeStyle = '#8b0000';
             ctx.lineWidth = 2;
+            ctx.stroke();
             
+            // Side horns
+            ctx.fillStyle = '#1a0a0a';
             // Left horn
             ctx.beginPath();
-            ctx.moveTo(-20, -40);
-            ctx.lineTo(-35, -70);
-            ctx.lineTo(-15, -40);
+            ctx.moveTo(-25, -70);
+            ctx.lineTo(-40, -95);
+            ctx.lineTo(-15, -72);
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
-            
             // Right horn
             ctx.beginPath();
-            ctx.moveTo(20, -40);
-            ctx.lineTo(35, -70);
-            ctx.lineTo(15, -40);
+            ctx.moveTo(25, -70);
+            ctx.lineTo(40, -95);
+            ctx.lineTo(15, -72);
             ctx.closePath();
             ctx.fill();
             ctx.stroke();
             
-            // Center spike
+            // Glowing red gem at top
+            ctx.shadowBlur = 40;
+            ctx.shadowColor = 'rgba(255, 0, 0, 1)';
+            ctx.fillStyle = '#ff0000';
             ctx.beginPath();
-            ctx.moveTo(-5, -40);
-            ctx.lineTo(0, -80);
-            ctx.lineTo(5, -40);
-            ctx.closePath();
+            ctx.arc(0, -95, 6, 0, Math.PI * 2);
             ctx.fill();
-            ctx.stroke();
+            
+            // Inner gem glow
+            ctx.fillStyle = '#ff6600';
+            ctx.beginPath();
+            ctx.arc(0, -95, 3, 0, Math.PI * 2);
+            ctx.fill();
             
             ctx.restore(); // End shrine transform
             
