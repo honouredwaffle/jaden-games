@@ -1,55 +1,10 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-    <meta http-equiv="Pragma" content="no-cache">
-    <meta http-equiv="Expires" content="0">
-    <title>JJK Game v4 - Fixed</title>
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
-    <script>
+    
         // Force cache bust on load
         if (!window.location.search.includes('nocache')) {
             window.location.href = window.location.href.split('?')[0] + '?nocache=' + Date.now();
         }
-    </script>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-        body {
-            background: #0a0a0a;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            overflow: hidden;
-        }
-        #game-container {
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            max-width: none;
-        }
-        canvas {
-            display: block;
-            width: 100vw;
-            height: 100vh;
-            cursor: pointer;
-        }
-    </style>
-</head>
-<body>
-    <div id="game-container">
-        <canvas id="game"></canvas>
-    </div>
-    <script>
+    
+    
         const canvas = document.getElementById('game');
         const ctx = canvas.getContext('2d');
         
@@ -5824,7 +5779,6 @@
                         }
                     }
                 }
-            }
             } else {
                 // UNLIMITED VOID background - deep purple-black
                 const voidGrad = ctx.createRadialGradient(domainScreenX, domainScreenY, 0, domainScreenX, domainScreenY, playerDomain.radius);
@@ -8298,7 +8252,4 @@
         });
 
         loop();
-    </script>
-</body>
-</html>
-// Cache bust: 1776391032
+    
