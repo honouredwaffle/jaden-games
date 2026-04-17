@@ -4338,8 +4338,8 @@
             };
             fugaExplosions.push(explosion);
             
-            // Spawn tons of particles
-            for (let i = 0; i < 80; i++) {
+            // Spawn explosion particles - reduced for performance
+            for (let i = 0; i < 40; i++) {
                 const angle = (Math.PI * 2 * i) / 80 + Math.random() * 0.5;
                 const speed = 5 + Math.random() * 12;
                 const particle = {
@@ -4357,8 +4357,8 @@
                 fugaParticles.push(particle);
             }
             
-            // Shockwave particles
-            for (let i = 0; i < 50; i++) {
+            // Shockwave particles - reduced for performance
+            for (let i = 0; i < 25; i++) {
                 const angle = Math.random() * Math.PI * 2;
                 const speed = 8 + Math.random() * 15;
                 const particle = {
@@ -4474,7 +4474,7 @@
         
         function spawnFugaParticle(x, y, type) {
             // Limit total particles to prevent performance issues - lower limit on mobile
-            const maxParticles = mobileMode ? 80 : 200;
+            const maxParticles = mobileMode ? 80 : 150;
             if (fugaParticles.length > maxParticles) {
                 fugaParticles.shift(); // Remove oldest particle
             }
@@ -5438,31 +5438,30 @@
                     applySukunaDomainDamage();
                 }
                 
-                // Spawn random slice visuals - reduced for mobile
-                const sliceChance = mobileMode ? 0.15 : 0.7;
-                if (Math.random() < sliceChance && sukunaDomain.slices.length < (mobileMode ? 15 : 50)) {
+                // Spawn random slice visuals - reduced for performance
+                const sliceChance = mobileMode ? 0.15 : 0.4;
+                if (Math.random() < sliceChance && sukunaDomain.slices.length < (mobileMode ? 15 : 30)) {
                     spawnSliceEffect();
                 }
                 // Spawn multiple slices only on desktop
-                if (!mobileMode && Math.random() < 0.4) {
-                    spawnSliceEffect();
+                if (!mobileMode && Math.random() < 0.2) {
                     spawnSliceEffect();
                 }
                 
-                // Spawn pulsing crimson slash waves - reduced for mobile
-                const waveChance = mobileMode ? 0.05 : 0.25;
+                // Spawn pulsing crimson slash waves - reduced for performance
+                const waveChance = mobileMode ? 0.05 : 0.15;
                 if (Math.random() < waveChance) {
                     spawnSlashWave();
                 }
                 
-                // Spawn red mist particles - reduced for mobile
-                const mistChance = mobileMode ? 0.1 : 0.6;
+                // Spawn red mist particles - reduced for performance
+                const mistChance = mobileMode ? 0.1 : 0.3;
                 if (Math.random() < mistChance) {
                     spawnRedMist();
                 }
                 
-                // Spawn cursed sparks - reduced for mobile
-                const sparkChance = mobileMode ? 0.08 : 0.4;
+                // Spawn cursed sparks - reduced for performance
+                const sparkChance = mobileMode ? 0.08 : 0.2;
                 if (Math.random() < sparkChance) {
                     spawnCursedSpark();
                 }
