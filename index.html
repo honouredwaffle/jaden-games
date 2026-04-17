@@ -4302,16 +4302,9 @@
                 const arrowX = screenX + Math.cos(arrowAngle) * arrowDist;
                 const arrowY = screenY + Math.sin(arrowAngle) * arrowDist;
                 
-                // Fire position - moves from front (0%) to right side (100%)
-                const frontAngle = player.facing;
-                const frontDist = 40;
-                const frontX = screenX + Math.cos(frontAngle) * frontDist;
-                const frontY = screenY + Math.sin(frontAngle) * frontDist;
-                
-                // Interpolate fire position based on charge
-                const firePosT = Math.min(chargePercent * 2, 1); // 0 at 0%, 1 at 50%
-                const fireX = frontX + (arrowX - frontX) * firePosT;
-                const fireY = frontY + (arrowY - frontY) * firePosT;
+                // Fire stays on the right side for entire charge
+                const fireX = arrowX;
+                const fireY = arrowY;
                 
                 const time = Date.now() / 100;
                 const effectTime = Date.now() / 60;
