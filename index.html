@@ -5222,8 +5222,15 @@
             sukunaDomain.phaseTimer = 120; // 2 seconds to manifest
             sukunaDomain.radius = 0;
             sukunaDomain.duration = 1800; // 30 seconds
-            sukunaDomain.centerX = player.x;
-            sukunaDomain.centerY = player.y;
+            
+            // Spawn shrine behind player (80px behind, based on facing direction)
+            const shrineOffset = 80;
+            sukunaDomain.centerX = player.x - Math.cos(player.facing) * shrineOffset;
+            sukunaDomain.centerY = player.y - Math.sin(player.facing) * shrineOffset;
+            
+            // Store shrine facing direction for consistent orientation
+            sukunaDomain.shrineFacing = player.facing;
+            
             sukunaDomain.damageTimer = 0;
             sukunaDomain.sureHitTargets = [];
             
@@ -5300,9 +5307,8 @@
                 // Pulse effect
                 sukunaDomain.shrine.pulse += 0.05;
                 
-                // Shrine follows player
-                sukunaDomain.centerX = player.x;
-                sukunaDomain.centerY = player.y;
+                // Shrine stays stationary (spawned behind player at activation)
+                // The domain center remains at the shrine location for sure-hit damage
                 
                 // Continuous sure-hit damage
                 sukunaDomain.damageTimer++;
@@ -5460,17 +5466,17 @@
                 ctx.restore();
             }
             
-            // Draw shrine (2D side view - behind player)
+            // Draw shrine (2D side view - stationary at spawn location)
             const shrineScale = sukunaDomain.shrine.scale;
             const pulse = 1 + Math.sin(sukunaDomain.shrine.pulse) * 0.05;
             
             ctx.save();
-            // Position shrine behind player (offset by 80px)
-            const shrineX = screenX - Math.cos(player.facing) * 80;
-            const shrineY = screenY - Math.sin(player.facing) * 80;
-            ctx.translate(shrineX, shrineY);
-            // Rotate to face same direction as player
-            ctx.rotate(player.facing + Math.PI); // Face opposite to player (behind them)
+            // Use stationary shrine position (spawned behind player at activation)
+            const shrineScreenX = sukunaDomain.centerX - camera.x;
+            const shrineScreenY = sukunaDomain.centerY - camera.y;
+            ctx.translate(shrineScreenX, shrineScreenY);
+            // Rotate to face the direction it was spawned (facing away from player)
+            ctx.rotate(sukunaDomain.shrineFacing + Math.PI);
             ctx.scale(shrineScale * pulse, shrineScale * pulse);
             
             // Draw skulls at base (2D view - arranged horizontally at bottom)
