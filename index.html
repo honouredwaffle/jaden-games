@@ -8564,6 +8564,31 @@
             ctx.fillText(label, x, y);
         }
 
+        function drawComingSoon() {
+            // Background
+            const bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            bgGrad.addColorStop(0, '#0f0f23');
+            bgGrad.addColorStop(1, '#1a0a2e');
+            ctx.fillStyle = bgGrad;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Title
+            ctx.fillStyle = '#e94560';
+            ctx.font = 'bold 72px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('COMING SOON', canvas.width / 2, canvas.height / 2 - 50);
+            
+            // Subtitle
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.font = '28px "Segoe UI", sans-serif';
+            ctx.fillText('Story Mode is under development', canvas.width / 2, canvas.height / 2 + 20);
+            
+            // Instructions
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.font = '18px "Segoe UI", sans-serif';
+            ctx.fillText('Press ENTER or CLICK to go back', canvas.width / 2, canvas.height - 100);
+        }
+
         function drawBlog() {
             // Background
             const bgGrad = ctx.createLinearGradient(0, 0, 0, canvas.height);
@@ -8833,6 +8858,8 @@
                 drawBlog();
             } else if (screen === 'settings') {
                 drawMenu(settingsOptions, 'SETTINGS');
+            } else if (screen === 'coming_soon') {
+                drawComingSoon();
             } else if (screen === 'game') {
                 drawGame();
             } else {
@@ -8852,6 +8879,11 @@
             
             if (screen === 'title') {
                 if (option === 'PLAY') {
+                    // Check if Story Mode is selected
+                    if (gameMode === 'STORY') {
+                        screen = 'coming_soon';
+                        return;
+                    }
                     // Force canvas resize before entering game
                     resize();
                     // Reset player to center
@@ -9131,6 +9163,12 @@
                 handleSelect();
             }
             
+            // Coming soon screen click handling
+            if (screen === 'coming_soon') {
+                screen = 'title';
+                return;
+            }
+            
             // Blog entry click handling
             if (screen === 'blog') {
                 if (blogSelectedEntry >= 0) {
@@ -9186,6 +9224,10 @@
                         currentMenu = titleOptions;
                         selectedOption = 0;
                     }
+                }
+            } else if (screen === 'coming_soon') {
+                if (e.key === 'Enter' || e.key === 'Escape' || e.key === 'Backspace') {
+                    screen = 'title';
                 }
             } else {
                 if (e.key === 'ArrowUp') {
