@@ -4392,30 +4392,65 @@
                     ctx.translate(handX, handY);
                     ctx.rotate(arrowAngle);
                     
-                    // Pulsing fire aura around arrow
-                    const pulse = Math.sin(Date.now() / 100) * 0.2 + 0.8;
-                    for (let ring = 0; ring < 4; ring++) {
-                        ctx.fillStyle = `rgba(255, ${40 + ring * 50}, 0, ${(0.4 - ring * 0.08) * pulse})`;
-                        ctx.shadowColor = ring < 2 ? '#ff0000' : '#ff6600';
-                        ctx.shadowBlur = (35 - ring * 7) * pulse;
+                    // DYNAMIC FIRE AURA around arrow
+                    const effectTime = Date.now() / 80;
+                    const pulse = Math.sin(effectTime * 2) * 0.3 + 0.7;
+                    
+                    // Outer intense glow
+                    const outerGrad = ctx.createRadialGradient(0, 0, 20, 0, 0, 80);
+                    outerGrad.addColorStop(0, `rgba(255, 100, 0, ${0.5 * pulse})`);
+                    outerGrad.addColorStop(0.4, `rgba(255, 60, 0, ${0.3 * pulse})`);
+                    outerGrad.addColorStop(1, 'rgba(255, 30, 0, 0)');
+                    ctx.fillStyle = outerGrad;
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 80, 50, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    
+                    // Swirling fire rings
+                    for (let ring = 0; ring < 5; ring++) {
+                        const ringPulse = Math.sin(effectTime * 3 + ring * 1.2) * 0.4 + 0.6;
+                        const rx = Math.cos(effectTime * 2 + ring * 1.5) * 8;
+                        const ry = Math.sin(effectTime * 1.5 + ring * 1.2) * 5;
+                        
+                        ctx.fillStyle = `rgba(255, ${30 + ring * 45}, 0, ${(0.5 - ring * 0.08) * ringPulse})`;
+                        ctx.shadowColor = ring % 2 === 0 ? '#ff0000' : '#ff8800';
+                        ctx.shadowBlur = (40 - ring * 6) * ringPulse;
                         ctx.beginPath();
-                        ctx.ellipse(10, 0, 45 + ring * 15, 32 + ring * 10, 0, 0, Math.PI * 2);
+                        ctx.ellipse(10 + rx, ry, 50 + ring * 12, 35 + ring * 8, 0, 0, Math.PI * 2);
                         ctx.fill();
                     }
                     
-                    // Animated flame trails along the arrow
-                    const flameTime = Date.now() / 50;
-                    for (let f = 0; f < 12; f++) {
-                        const fx = -60 + f * 10 + Math.sin(flameTime + f * 0.5) * 5;
-                        const fy = Math.sin(flameTime * 2 + f * 0.8) * (6 + f * 0.5);
-                        const fsize = 4 + Math.sin(flameTime + f) * 2 + f * 0.3;
-                        const alpha = 0.6 + Math.sin(flameTime * 3 + f) * 0.3;
+                    // SPIRALING FLAMES around the arrow
+                    for (let s = 0; s < 20; s++) {
+                        const spiralAngle = effectTime * 4 + s * 0.6;
+                        const spiralDist = 25 + s * 3 + Math.sin(effectTime * 3 + s) * 10;
+                        const sx = Math.cos(spiralAngle) * spiralDist;
+                        const sy = Math.sin(spiralAngle) * (15 + s * 0.8);
+                        const ssize = 5 + Math.sin(effectTime + s) * 3 + s * 0.2;
                         
-                        ctx.fillStyle = `rgba(255, ${80 + Math.sin(f) * 60}, 0, ${alpha})`;
-                        ctx.shadowColor = '#ff4400';
-                        ctx.shadowBlur = 12;
+                        const heat = Math.sin(effectTime * 2 + s * 0.5) * 0.5 + 0.5;
+                        ctx.fillStyle = `rgba(255, ${heat * 150}, ${heat * 50}, ${0.7 + heat * 0.3})`;
+                        ctx.shadowColor = heat > 0.5 ? '#ff0000' : '#ff6600';
+                        ctx.shadowBlur = 15 * heat;
                         ctx.beginPath();
-                        ctx.arc(fx, fy, fsize, 0, Math.PI * 2);
+                        ctx.arc(sx, sy, ssize, 0, Math.PI * 2);
+                        ctx.fill();
+                    }
+                    
+                    // TRAILING FIRE PARTICLES along shaft
+                    for (let t = 0; t < 15; t++) {
+                        const tx = -70 + t * 9;
+                        const wave = Math.sin(effectTime * 4 + t * 0.7) * (8 + t * 0.5);
+                        const ty1 = wave - 5;
+                        const ty2 = -wave + 5;
+                        const tsize = 4 + Math.sin(effectTime * 3 + t) * 2;
+                        
+                        ctx.fillStyle = `rgba(255, ${120 + Math.sin(t) * 80}, 20, 0.8)`;
+                        ctx.shadowColor = '#ff4400';
+                        ctx.shadowBlur = 10;
+                        ctx.beginPath();
+                        ctx.arc(tx, ty1, tsize, 0, Math.PI * 2);
+                        ctx.arc(tx, ty2, tsize, 0, Math.PI * 2);
                         ctx.fill();
                     }
                     
