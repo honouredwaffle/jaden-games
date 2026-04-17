@@ -8979,6 +8979,15 @@
             keys['s'] = dy > 10;
             keys['a'] = dx < -10;
             keys['d'] = dx > 10;
+            
+            // In mobile mode, aim in the direction of joystick movement
+            if (mobileMode && (Math.abs(dx) > 5 || Math.abs(dy) > 5)) {
+                player.facing = Math.atan2(dy, dx);
+                // Also update mouse world position to match facing direction
+                const aimDistance = 200;
+                mouseWorldX = player.x + Math.cos(player.facing) * aimDistance;
+                mouseWorldY = player.y + Math.sin(player.facing) * aimDistance;
+            }
         }
         
         // Add touch listeners
