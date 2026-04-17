@@ -4294,11 +4294,11 @@
                 const screenX = player.x - camera.x;
                 const screenY = player.y - camera.y;
                 
-                // Hand positions - to the right of player (where arrow is held)
-                const handOffsetX = 35;
-                const handOffsetY = 5;
-                const handX = screenX + handOffsetX;
-                const handY = screenY + handOffsetY;
+                // Hand position - offset from player center, rotates with facing
+                const handDist = 35;
+                const handAngle = player.facing;
+                const handX = screenX + Math.cos(handAngle) * handDist;
+                const handY = screenY + Math.sin(handAngle) * handDist;
                 
                 if (!fuga.charged) {
                     // CHARGING PHASE - fire building up
@@ -4327,12 +4327,13 @@
                     ctx.fill();
                     ctx.shadowBlur = 0;
                     
-                    // Swirling embers
+                    // Swirling embers - rotate with player facing
                     for (let i = 0; i < 6 + chargePercent * 8; i++) {
-                        const angle = time * 3 + (i / 14) * Math.PI * 2;
+                        const orbitAngle = time * 3 + (i / 14) * Math.PI * 2;
                         const dist = auraSize * 0.6 + Math.sin(time * 4 + i) * 8;
-                        const ex = handX + Math.cos(angle) * dist;
-                        const ey = handY + Math.sin(angle) * dist;
+                        // Offset by player facing so swirls rotate with player
+                        const ex = handX + Math.cos(orbitAngle + handAngle) * dist;
+                        const ey = handY + Math.sin(orbitAngle + handAngle) * dist;
                         const size = 3 + chargePercent * 5 + Math.random() * 3;
                         
                         ctx.fillStyle = `rgba(255, ${60 + Math.random() * 100}, 0, ${0.7 + Math.random() * 0.3})`;
@@ -4341,6 +4342,29 @@
                         ctx.beginPath();
                         ctx.arc(ex, ey, size, 0, Math.PI * 2);
                         ctx.fill();
+                    }
+                    
+                    // Lightning arcs between hand and player
+                    ctx.strokeStyle = `rgba(255, ${200 + chargePercent * 55}, 100, ${0.3 + chargePercent * 0.5})`;
+                    ctx.lineWidth = 2;
+                    for (let i = 0; i < 3 + chargePercent * 5; i++) {
+                        const arcAngle = time * 5 + i * 2.1;
+                        const startDist = 10;
+                        const endDist = handDist - 5;
+                        const midDist = (startDist + endDist) / 2 + Math.sin(arcAngle * 3) * 10;
+                        const perpOffset = Math.cos(arcAngle * 2) * 15;
+                        
+                        const sx = screenX + Math.cos(handAngle) * startDist;
+                        const sy = screenY + Math.sin(handAngle) * startDist;
+                        const mx = screenX + Math.cos(handAngle) * midDist + Math.cos(handAngle + Math.PI/2) * perpOffset;
+                        const my = screenY + Math.sin(handAngle) * midDist + Math.sin(handAngle + Math.PI/2) * perpOffset;
+                        const ex = handX - Math.cos(handAngle) * 5;
+                        const ey = handY - Math.sin(handAngle) * 5;
+                        
+                        ctx.beginPath();
+                        ctx.moveTo(sx, sy);
+                        ctx.quadraticCurveTo(mx, my, ex, ey);
+                        ctx.stroke();
                     }
                     
                     // Charging text
@@ -4362,9 +4386,10 @@
                     ctx.textAlign = 'center';
                     ctx.fillText('FUGA READY! Press 3', player.x - camera.x + shakeX, player.y - camera.y - 100 + shakeY);
                     
-                    // Draw fire arrow at hand position (same as launched arrow)
-                    const mouseAngle = Math.atan2(mouseWorldY - player.y, mouseWorldX - player.x);
+                    // Draw fire arrow at hand position, rotated with player facing
                     ctx.save();
+                    ctx.translate(handX, handY);
+                    ctx.rotate(handAngle);
                     ctx.translate(handX, handY);
                     ctx.rotate(mouseAngle);
                     
