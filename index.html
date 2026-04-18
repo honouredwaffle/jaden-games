@@ -5046,6 +5046,9 @@
             
             // Draw fired arrow
             if (fuga.arrow) {
+                const colors = getCurrentAbilityColors();
+                const rgb = hexToRgb(colors.primary) || {r: 255, g: 100, b: 0};
+                
                 const ax = fuga.arrow.x - camera.x;
                 const ay = fuga.arrow.y - camera.y;
                 const angle = Math.atan2(fuga.arrow.vy, fuga.arrow.vx);
@@ -5066,9 +5069,9 @@
                     }
                 }
                 
-                // LONG COMET TRAIL - fire streaming behind the arrow - reduced layers and particles
+                // LONG COMET TRAIL - uses custom colors
                 for (let layer = 0; layer < 3; layer++) {
-                    ctx.shadowColor = layer === 0 ? '#ff0000' : layer === 1 ? '#ff3300' : '#ff6600';
+                    ctx.shadowColor = colors.primary;
                     ctx.shadowBlur = 30 - layer * 8;
                     
                     for (let i = 0; i < 12; i++) {
@@ -5077,14 +5080,16 @@
                         const alpha = (0.9 - layer * 0.12 - i * 0.03) * lifePercent;
                         const offsetY = (Math.random() - 0.5) * (6 + i);
                         
-                        ctx.fillStyle = `rgba(255, ${layer === 0 ? 20 : layer === 1 ? 50 : layer === 2 ? 100 : 150}, 0, ${alpha})`;
+                        const gVal = Math.floor(rgb.g * (0.2 + layer * 0.3));
+                        const bVal = Math.floor(rgb.b * (0.1 + layer * 0.2));
+                        ctx.fillStyle = `rgba(${rgb.r}, ${gVal}, ${bVal}, ${alpha})`;
                         ctx.beginPath();
                         ctx.arc(trailX, offsetY, trailSize, 0, Math.PI * 2);
                         ctx.fill();
                     }
                 }
                 
-                // FLAMES ENVELOPING THE ARROW
+                // FLAMES ENVELOPING THE ARROW - uses custom colors
                 ctx.save();
                 
                 // Random flames along the entire arrow
@@ -5093,8 +5098,9 @@
                     const flameY = (Math.random() - 0.5) * 12;
                     const flameSize = 4 + Math.random() * 8;
                     
-                    ctx.fillStyle = `rgba(255, ${60 + Math.random() * 100}, 0, ${0.6 + Math.random() * 0.3})`;
-                    ctx.shadowColor = Math.random() > 0.5 ? '#ff2200' : '#ff6600';
+                    const gVal = Math.floor(rgb.g * (0.3 + Math.random() * 0.4));
+                    ctx.fillStyle = `rgba(${rgb.r}, ${gVal}, ${Math.floor(rgb.b * 0.2)}, ${0.6 + Math.random() * 0.3})`;
+                    ctx.shadowColor = colors.primary;
                     ctx.shadowBlur = 10 + Math.random() * 8;
                     ctx.beginPath();
                     ctx.arc(flameX, flameY, flameSize, 0, Math.PI * 2);
@@ -5107,8 +5113,9 @@
                     const flameY = (Math.random() - 0.5) * 20;
                     const flameSize = 6 + Math.random() * 10;
                     
-                    ctx.fillStyle = `rgba(255, ${40 + Math.random() * 80}, 0, ${0.7 + Math.random() * 0.3})`;
-                    ctx.shadowColor = '#ff0000';
+                    const gVal = Math.floor(rgb.g * (0.2 + Math.random() * 0.3));
+                    ctx.fillStyle = `rgba(${rgb.r}, ${gVal}, ${Math.floor(rgb.b * 0.1)}, ${0.7 + Math.random() * 0.3})`;
+                    ctx.shadowColor = colors.primary;
                     ctx.shadowBlur = 15 + Math.random() * 10;
                     ctx.beginPath();
                     ctx.arc(flameX, flameY, flameSize, 0, Math.PI * 2);
@@ -7873,45 +7880,49 @@
             
             ctx.save();
             
-            // Polished Purple orb with multi-layered effects
+            // Get custom colors
+            const colors = getCurrentAbilityColors();
+            const rgb = hexToRgb(colors.primary) || {r: 170, g: 68, b: 255};
+            
+            // Polished orb with multi-layered effects - uses custom colors
             const pulse = Math.sin(time * 2) * 0.3 + 0.7;
             const fastPulse = Math.sin(time * 4) * 0.5 + 0.5;
             
             // Outer glow halo
             ctx.shadowBlur = 50 + pulse * 30;
-            ctx.shadowColor = '#ff00ff';
-            ctx.fillStyle = `rgba(255, 0, 255, ${0.1 + pulse * 0.1})`;
+            ctx.shadowColor = colors.primary;
+            ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${0.1 + pulse * 0.1})`;
             ctx.beginPath();
             ctx.arc(screenX, screenY, hollowPurple.radius * 2.5, 0, Math.PI * 2);
             ctx.fill();
             
             // Rotating energy rings (3 layers, different speeds)
             ctx.shadowBlur = 20;
-            ctx.shadowColor = '#cc66ff';
+            ctx.shadowColor = colors.glow;
             for (let i = 0; i < 3; i++) {
                 const rotation = time * (1 + i * 0.5) + i * (Math.PI * 2 / 3);
                 const ringRadius = hollowPurple.radius + 15 + i * 10;
-                ctx.strokeStyle = `rgba(200, 100, 255, ${0.4 + fastPulse * 0.3})`;
+                ctx.strokeStyle = `rgba(${rgb.r}, ${Math.floor(rgb.g * 0.8)}, ${Math.floor(rgb.b * 1.2)}, ${0.4 + fastPulse * 0.3})`;
                 ctx.lineWidth = 2 + i;
                 ctx.beginPath();
                 ctx.arc(screenX, screenY, ringRadius, rotation, rotation + Math.PI * 1.8);
                 ctx.stroke();
             }
             
-            // Main orb body with rich gradient
+            // Main orb body with rich gradient - uses custom colors
             const gradient = ctx.createRadialGradient(
                 screenX - 5, screenY - 5, 0,
                 screenX, screenY, hollowPurple.radius
             );
             gradient.addColorStop(0, '#ffffff');
-            gradient.addColorStop(0.15, '#ffccff');
-            gradient.addColorStop(0.35, '#dd88ff');
-            gradient.addColorStop(0.6, '#aa44dd');
-            gradient.addColorStop(0.85, '#6622aa');
-            gradient.addColorStop(1, '#331155');
+            gradient.addColorStop(0.15, colors.light);
+            gradient.addColorStop(0.35, colors.glow);
+            gradient.addColorStop(0.6, colors.primary);
+            gradient.addColorStop(0.85, colors.secondary);
+            gradient.addColorStop(1, `rgba(${Math.floor(rgb.r * 0.2)}, ${Math.floor(rgb.g * 0.2)}, ${Math.floor(rgb.b * 0.3)}, 1)`);
             
             ctx.shadowBlur = 40;
-            ctx.shadowColor = '#aa44ff';
+            ctx.shadowColor = colors.primary;
             ctx.fillStyle = gradient;
             ctx.beginPath();
             ctx.arc(screenX, screenY, hollowPurple.radius, 0, Math.PI * 2);
@@ -7926,25 +7937,25 @@
             ctx.fill();
             
             // Hot center
-            ctx.fillStyle = `rgba(200, 150, 255, ${0.9})`;
+            ctx.fillStyle = `rgba(${Math.min(255, rgb.r + 50)}, ${Math.min(255, rgb.g + 50)}, 255, ${0.9})`;
             ctx.beginPath();
             ctx.arc(screenX, screenY, 5, 0, Math.PI * 2);
             ctx.fill();
             
-            // Energy particles orbiting
+            // Energy particles orbiting - uses custom colors
             ctx.shadowBlur = 15;
             for (let i = 0; i < 6; i++) {
                 const angle = time * 3 + i * (Math.PI / 3);
                 const dist = hollowPurple.radius + 20 + Math.sin(time * 2 + i) * 5;
                 const px = screenX + Math.cos(angle) * dist;
                 const py = screenY + Math.sin(angle) * dist;
-                ctx.fillStyle = i % 2 === 0 ? '#ff88ff' : '#aa66ff';
+                ctx.fillStyle = i % 2 === 0 ? colors.light : colors.glow;
                 ctx.beginPath();
                 ctx.arc(px, py, 2 + fastPulse * 2, 0, Math.PI * 2);
                 ctx.fill();
             }
             
-            // Enhanced energy trail
+            // Enhanced energy trail - uses custom colors
             ctx.shadowBlur = 0;
             for (let i = 1; i <= 8; i++) {
                 const trailX = screenX - hollowPurple.vx * i * 1.5;
@@ -7952,14 +7963,14 @@
                 const alpha = (0.6 - i * 0.07) * (0.5 + fastPulse * 0.3);
                 const size = hollowPurple.radius * (1 - i * 0.1);
                 
-                ctx.fillStyle = `rgba(180, 80, 255, ${alpha})`;
+                ctx.fillStyle = `rgba(${rgb.r}, ${Math.floor(rgb.g * 0.6)}, ${Math.floor(rgb.b * 1.2)}, ${alpha})`;
                 ctx.beginPath();
                 ctx.arc(trailX, trailY, Math.max(0, size), 0, Math.PI * 2);
                 ctx.fill();
                 
                 // Trail sparkles
                 if (i % 2 === 0) {
-                    ctx.fillStyle = `rgba(255, 200, 255, ${alpha * 1.5})`;
+                    ctx.fillStyle = `rgba(${Math.min(255, rgb.r + 80)}, ${Math.min(255, rgb.g + 80)}, 255, ${alpha * 1.5})`;
                     ctx.beginPath();
                     ctx.arc(trailX + (Math.random() - 0.5) * 10, trailY + (Math.random() - 0.5) * 10, 1, 0, Math.PI * 2);
                     ctx.fill();
