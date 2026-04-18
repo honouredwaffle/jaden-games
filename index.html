@@ -8355,7 +8355,13 @@
         }
         
         function drawHollowPurple() {
-            const colors = getCurrentAbilityColors();
+            const hollowPurpleColors = {
+                primary: '#aa44ff',
+                secondary: '#8822cc',
+                glow: '#cc66ff',
+                light: '#dd99ff'
+            };
+            const colors = selectedAbilityColor === 'DEFAULT' ? hollowPurpleColors : getCurrentAbilityColors();
             const rgb = hexToRgb(colors.primary) || {r: 170, g: 68, b: 255};
             
             // Draw fusion phase
@@ -10815,8 +10821,10 @@
             // Check for stats button click in game screen
             if (screen === 'game' && window.statsButton) {
                 const btn = window.statsButton;
+                console.log('Stats button check:', { clickX, clickY, btnX: btn.x, btnY: btn.y, btnW: btn.width, btnH: btn.height });
                 if (clickX >= btn.x && clickX <= btn.x + btn.width &&
                     clickY >= btn.y && clickY <= btn.y + btn.height) {
+                    console.log('Stats button clicked!');
                     openStatMenu();
                     return;
                 }
