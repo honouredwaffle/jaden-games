@@ -1294,31 +1294,33 @@
             ctx.textAlign = 'center';
             ctx.fillText('SELECT MODE', canvas.width / 2, 100);
             
-            // Position buttons with descriptions
-            const buttonWidth = 350;
-            const buttonHeight = 70;
-            const spacing = 100;
-            const startY = canvas.height / 2 - 80;
+            // Position buttons with descriptions on the right
+            const buttonWidth = 280;
+            const buttonHeight = 60;
+            const spacing = 80;
+            const startY = canvas.height / 2 - 100;
+            const descOffset = 320; // Distance from button center to description
             
             modeOptions.forEach((option, i) => {
                 const y = startY + i * spacing;
-                const isHovered = mouseX > canvas.width/2 - buttonWidth/2 && 
-                                  mouseX < canvas.width/2 + buttonWidth/2 &&
+                const buttonX = canvas.width / 2 - 150;
+                const isHovered = mouseX > buttonX - buttonWidth/2 && 
+                                  mouseX < buttonX + buttonWidth/2 &&
                                   mouseY > y - buttonHeight/2 && 
                                   mouseY < y + buttonHeight/2;
                 
                 if (isHovered) selectedOption = i;
                 
                 const isSelected = (i === selectedModeIndex && option !== 'BACK');
-                const rect = drawButton(option, canvas.width / 2, y, buttonWidth, buttonHeight, isHovered, i === selectedOption, isSelected);
+                const rect = drawButton(option, buttonX, y, buttonWidth, buttonHeight, isHovered, i === selectedOption, isSelected);
                 menuItemRects.push(rect);
                 
-                // Draw description below button (except for BACK)
+                // Draw description to the right of button (except for BACK)
                 if (option !== 'BACK' && modeDescriptions[option]) {
-                    ctx.fillStyle = isHovered ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.5)';
-                    ctx.font = '16px "Segoe UI", sans-serif';
-                    ctx.textAlign = 'center';
-                    ctx.fillText(modeDescriptions[option], canvas.width / 2, y + buttonHeight/2 + 25);
+                    ctx.fillStyle = isHovered ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.5)';
+                    ctx.font = isHovered ? 'bold 18px "Segoe UI", sans-serif' : '16px "Segoe UI", sans-serif';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(modeDescriptions[option], buttonX + buttonWidth/2 + 30, y + 5);
                 }
             });
             
@@ -1615,8 +1617,36 @@
                 text: 'BACK' 
             });
             
+            // Show detailed description on the right side when hovering a character
+            if (selectedOption >= 0 && selectedOption < 3) {
+                const hoveredChar = characterOptions[selectedOption];
+                const fullDesc = characterDescriptions[hoveredChar];
+                if (fullDesc) {
+                    const descX = canvas.width - 350;
+                    const descY = canvas.height / 2;
+                    
+                    // Description panel background
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+                    ctx.fillRect(descX - 20, descY - 60, 320, 120);
+                    ctx.strokeStyle = charData[hoveredChar].color;
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(descX - 20, descY - 60, 320, 120);
+                    
+                    // Description text
+                    ctx.fillStyle = '#fff';
+                    ctx.font = 'bold 20px "Segoe UI", sans-serif';
+                    ctx.textAlign = 'left';
+                    ctx.fillText(hoveredChar, descX, descY - 30);
+                    
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                    ctx.font = '16px "Segoe UI", sans-serif';
+                    ctx.fillText(fullDesc, descX, descY + 10);
+                }
+            }
+            
             ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
             ctx.font = '14px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
             ctx.fillText('Click to select  |  ESC to go back', canvas.width / 2, canvas.height - 30);
         }
 
