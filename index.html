@@ -1740,20 +1740,23 @@
         let tutorialStep = 0;
         let tutorialDummy = null;
         let tutorialArenaSize = 1200;
+        let tutorialStepTimer = 0;
+        let tutorialStepCompleteTime = 0;
+        const TUTORIAL_STEP_DELAY = 2000; // 2 seconds between steps
         
         const tutorialSteps = {
             computer: [
                 { title: 'MOVEMENT', text: 'Use WASD to move around', check: () => keys['w'] || keys['a'] || keys['s'] || keys['d'] },
                 { title: 'MINIMAP', text: 'Check the top right corner for the minimap', check: () => true },
                 { title: 'BASIC ATTACK', text: 'Left click to punch (M1)', check: () => punchEffects.length > 0 },
-                { title: 'ABILITIES', text: 'Press 1, 2, 3, 4 to use abilities', check: () => maxBlue.active || reversalRed.charging || reversalRed.active || hollowPurple.active || playerDomain.active || sukunaDomain.active },
+                { title: 'ABILITIES', text: 'Press 1, 2, 3, 4 to use abilities', check: () => maxBlue.active || reversalRed.charging || reversalRed.active || hollowPurple.active || hollowPurple.charging || fuga.charging || fuga.active || playerDomain.active || sukunaDomain.active || sukunaDomain.charging },
                 { title: 'COMBAT', text: 'Defeat the training dummy!', check: () => !tutorialDummy || tutorialDummy.hp <= 0 }
             ],
             mobile: [
                 { title: 'MOVEMENT', text: 'Use the left joystick to move', check: () => window.joystickActive },
                 { title: 'MINIMAP', text: 'Check the top right corner for the minimap', check: () => true },
                 { title: 'BASIC ATTACK', text: 'Tap the PUNCH button to attack', check: () => punchEffects.length > 0 },
-                { title: 'ABILITIES', text: 'Tap ability buttons (1-4) to use them', check: () => maxBlue.active || reversalRed.charging || reversalRed.active || hollowPurple.active || playerDomain.active || sukunaDomain.active },
+                { title: 'ABILITIES', text: 'Tap ability buttons (1-4) to use them', check: () => maxBlue.active || reversalRed.charging || reversalRed.active || hollowPurple.active || hollowPurple.charging || fuga.charging || fuga.active || playerDomain.active || sukunaDomain.active || sukunaDomain.charging },
                 { title: 'COMBAT', text: 'Defeat the training dummy!', check: () => !tutorialDummy || tutorialDummy.hp <= 0 }
             ]
         };
@@ -1761,6 +1764,7 @@
         function startTutorial() {
             // Set up tutorial
             tutorialStep = 0;
+            tutorialStepCompleteTime = 0;
             tutorialCompleted = false;
             showTutorialMessage = false;
             
@@ -1920,12 +1924,23 @@
             if (tutorialStep < steps.length) {
                 const currentStep = steps[tutorialStep];
                 if (currentStep.check()) {
-                    tutorialStep++;
-                    if (tutorialStep >= steps.length) {
-                        // Tutorial complete
-                        tutorialCompleted = true;
-                        showTutorialMessage = true;
+                    // Step completed - start the delay timer
+                    if (tutorialStepCompleteTime === 0) {
+                        tutorialStepCompleteTime = Date.now();
                     }
+                    // Check if 2 seconds have passed
+                    if (Date.now() - tutorialStepCompleteTime >= TUTORIAL_STEP_DELAY) {
+                        tutorialStep++;
+                        tutorialStepCompleteTime = 0; // Reset for next step
+                        if (tutorialStep >= steps.length) {
+                            // Tutorial complete
+                            tutorialCompleted = true;
+                            showTutorialMessage = true;
+                        }
+                    }
+                } else {
+                    // Reset timer if step is no longer complete
+                    tutorialStepCompleteTime = 0;
                 }
             }
             
