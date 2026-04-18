@@ -565,26 +565,28 @@
             const rowH = 40;
             const btnSize = 28;
             
-            ctx.textAlign = 'left';
             for (const stat of stats) {
                 // Row background
                 ctx.fillStyle = 'rgba(255,255,255,0.05)';
                 ctx.fillRect(menuX + 10, rowY - 4, menuW - 20, rowH - 2);
                 
                 // Stat name
+                ctx.textAlign = 'left';
                 ctx.fillStyle = '#fff';
                 ctx.font = 'bold 14px "Segoe UI", sans-serif';
                 ctx.fillText(stat.name, menuX + 20, rowY + 14);
                 
-                // Stat description
+                // Stat description (truncated if too long)
                 ctx.fillStyle = '#888';
                 ctx.font = '10px "Segoe UI", sans-serif';
-                ctx.fillText(stat.desc, menuX + 20, rowY + 28);
+                let desc = stat.desc;
+                if (desc.length > 25) desc = desc.substring(0, 22) + '...';
+                ctx.fillText(desc, menuX + 20, rowY + 28);
                 
                 // Stat value
+                ctx.textAlign = 'right';
                 ctx.fillStyle = '#ffdd00';
                 ctx.font = 'bold 16px "Segoe UI", sans-serif';
-                ctx.textAlign = 'right';
                 ctx.fillText(stat.value, menuX + menuW - 55, rowY + 16);
                 
                 // + button
@@ -595,9 +597,9 @@
                 ctx.strokeStyle = player.statPoints > 0 ? '#00ff88' : '#555';
                 ctx.lineWidth = 1;
                 ctx.strokeRect(btnX, btnY, btnSize, btnSize - 4);
+                ctx.textAlign = 'center';
                 ctx.fillStyle = player.statPoints > 0 ? '#fff' : '#666';
                 ctx.font = 'bold 18px "Segoe UI", sans-serif';
-                ctx.textAlign = 'center';
                 ctx.fillText('+', btnX + btnSize / 2, btnY + btnSize - 8);
                 
                 // Store button rect for click detection
