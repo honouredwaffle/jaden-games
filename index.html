@@ -4573,6 +4573,35 @@
             }
         }
         
+        function resetAbilities() {
+            // Reset all ability states
+            maxBlue.active = false;
+            maxBlue.timer = 0;
+            maxBlue.debris = [];
+            
+            reversalRed.active = false;
+            reversalRed.charging = false;
+            reversalRed.chargeTime = 0;
+            
+            hollowPurple.active = false;
+            hollowPurple.charging = false;
+            hollowPurple.chargeTime = 0;
+            
+            fuga.charging = false;
+            fuga.charged = false;
+            fuga.chargeTime = 0;
+            fuga.arrow = null;
+            fuga.particles = [];
+            
+            playerDomain.active = false;
+            sukunaDomain.active = false;
+            
+            // Reset ability cooldowns
+            for (const ability of abilities) {
+                ability.cooldown = 0;
+            }
+        }
+        
         function drawAbilityBar() {
             const barWidth = 400;
             const barHeight = 60;
@@ -10352,8 +10381,17 @@
                 return;
             }
             
-            // Tutorial screen - M1 punch
+            // Tutorial screen - M1 punch or complete tutorial
             if (screen === 'tutorial') {
+                const steps = mobileMode ? tutorialSteps.mobile : tutorialSteps.computer;
+                // Check if tutorial is complete
+                if (tutorialStep >= steps.length) {
+                    resetAbilities();
+                    screen = 'main_menu';
+                    currentMenu = mainMenuOptions;
+                    selectedOption = 0;
+                    return;
+                }
                 // If charging Fuga at 100%, fire on click instead of punch
                 if (fuga.charging && fuga.chargeTime >= fuga.maxChargeTime) {
                     fireFugaArrow();
@@ -10444,6 +10482,7 @@
                 const steps = mobileMode ? tutorialSteps.mobile : tutorialSteps.computer;
                 if (tutorialStep >= steps.length) {
                     if (e.key === 'Enter' || e.key === 'Escape') {
+                        resetAbilities();
                         screen = 'main_menu';
                         currentMenu = mainMenuOptions;
                         selectedOption = 0;
