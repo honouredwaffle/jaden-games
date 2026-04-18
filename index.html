@@ -455,7 +455,9 @@
                 healthStat: player.healthStat,
                 ceStat: player.ceStat,
                 damageStat: player.damageStat,
-                speedStat: player.speedStat
+                speedStat: player.speedStat,
+                tutorialCompleted: tutorialCompleted,
+                tutorialSkipped: tutorialSkipped
             };
             try {
                 localStorage.setItem('jjkGamePlayerData', JSON.stringify(data));
@@ -478,6 +480,8 @@
                     player.ceStat = data.ceStat || 0;
                     player.damageStat = data.damageStat || 0;
                     player.speedStat = data.speedStat || 0;
+                    tutorialCompleted = data.tutorialCompleted || false;
+                    tutorialSkipped = data.tutorialSkipped || false;
                     recalcPlayerStats();
                 }
             } catch(e) {}
@@ -2325,6 +2329,7 @@
                             // Tutorial complete
                             tutorialCompleted = true;
                             showTutorialMessage = true;
+                            saveGameData(); // Save tutorial completion status
                         }
                     }
                 } else {
@@ -10531,10 +10536,18 @@
                     mobileMode = true;
                     settingsOptions[0] = 'CONTROL MODE: MOBILE';
                 }
-                // Go to tutorial prompt
-                screen = 'tutorial_prompt';
-                currentMenu = tutorialPromptOptions;
-                selectedOption = 0;
+                // Check if player has already played (completed or skipped tutorial)
+                if (tutorialCompleted || tutorialSkipped) {
+                    // Skip tutorial prompt for returning players
+                    screen = 'main_menu';
+                    currentMenu = mainMenuOptions;
+                    selectedOption = 0;
+                } else {
+                    // New player - show tutorial prompt
+                    screen = 'tutorial_prompt';
+                    currentMenu = tutorialPromptOptions;
+                    selectedOption = 0;
+                }
                 return;
             } else if (screen === 'tutorial_prompt') {
                 if (option === 'YES') {
@@ -10544,6 +10557,7 @@
                     // Skip tutorial, go to main menu
                     tutorialSkipped = true;
                     showTutorialMessage = true;
+                    saveGameData(); // Save tutorial skip status
                     screen = 'main_menu';
                     currentMenu = mainMenuOptions;
                     selectedOption = 0;
