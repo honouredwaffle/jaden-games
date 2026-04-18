@@ -1617,30 +1617,18 @@
                 text: 'BACK' 
             });
             
-            // Show detailed description on the right side when hovering a character
+            // Show detailed description at the bottom when hovering a character
             if (selectedOption >= 0 && selectedOption < 3) {
                 const hoveredChar = characterOptions[selectedOption];
                 const fullDesc = characterDescriptions[hoveredChar];
                 if (fullDesc) {
-                    const descX = canvas.width - 350;
-                    const descY = canvas.height / 2;
+                    const descY = canvas.height - 140;
                     
-                    // Description panel background
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                    ctx.fillRect(descX - 20, descY - 60, 320, 120);
-                    ctx.strokeStyle = charData[hoveredChar].color;
-                    ctx.lineWidth = 2;
-                    ctx.strokeRect(descX - 20, descY - 60, 320, 120);
-                    
-                    // Description text
-                    ctx.fillStyle = '#fff';
-                    ctx.font = 'bold 20px "Segoe UI", sans-serif';
-                    ctx.textAlign = 'left';
-                    ctx.fillText(hoveredChar, descX, descY - 30);
-                    
-                    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
-                    ctx.font = '16px "Segoe UI", sans-serif';
-                    ctx.fillText(fullDesc, descX, descY + 10);
+                    // Description text at bottom
+                    ctx.fillStyle = charData[hoveredChar].color;
+                    ctx.font = 'bold 22px "Segoe UI", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(hoveredChar + ' — ' + fullDesc, canvas.width / 2, descY);
                 }
             }
             
