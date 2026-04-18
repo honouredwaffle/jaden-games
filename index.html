@@ -9269,6 +9269,9 @@
             drawStatsButton();
             drawMoneyDisplay();
             
+            // Draw stat menu on top of everything
+            drawStatMenu();
+            
             // Mobile controls
             if (mobileMode) {
                 drawMobileControls();
@@ -9403,10 +9406,6 @@
                 }
             }
         }
-        
-        // Draw stat menu on top of everything
-        console.log('About to draw stat menu, statMenuOpen:', statMenuOpen);
-        drawStatMenu();
         
         function drawHitEffects() {
             const colors = getCurrentAbilityColors();
