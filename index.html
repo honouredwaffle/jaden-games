@@ -126,10 +126,15 @@
         };
         const customOptions = ['OUTFIT', 'ABILITY COLOUR', 'BACK'];
         const abilityColorOptions = ['DEFAULT', 'PURPLE', 'YELLOW', 'BLACK', 'BACK'];
-        const settingsOptions = ['CONTROL MODE: COMPUTER', 'BACK'];
+        const settingsOptions = ['CONTROL MODE: COMPUTER', 'TUTORIAL', 'BACK'];
+        const deviceOptions = ['COMPUTER', 'MOBILE'];
+        const tutorialPromptOptions = ['YES', 'NO'];
         
         // Screen states
         let showingTitleScreen = true;
+        let tutorialCompleted = false;
+        let tutorialSkipped = false;
+        let showTutorialMessage = false;
         
         // Ability color customization
         let selectedAbilityColor = 'DEFAULT'; // DEFAULT, PURPLE, YELLOW, BLACK
@@ -1277,6 +1282,18 @@
                 menuItemRects.push(rect);
             });
             
+            // Tutorial message
+            if (showTutorialMessage) {
+                ctx.fillStyle = 'rgba(0, 200, 100, 0.8)';
+                ctx.font = '16px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                if (tutorialCompleted) {
+                    ctx.fillText('Tutorial completed! Access it again in Settings', canvas.width / 2, 200);
+                } else if (tutorialSkipped) {
+                    ctx.fillText('Skipped tutorial? You can start it from Settings', canvas.width / 2, 200);
+                }
+            }
+            
             // Hint text
             ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
             ctx.font = '14px "Segoe UI", sans-serif';
@@ -1311,8 +1328,7 @@
                 
                 if (isHovered) selectedOption = i;
                 
-                const isSelected = (i === selectedModeIndex && option !== 'BACK');
-                const rect = drawButton(option, buttonX, y, buttonWidth, buttonHeight, isHovered, i === selectedOption, isSelected);
+                const rect = drawButton(option, buttonX, y, buttonWidth, buttonHeight, isHovered, i === selectedOption);
                 menuItemRects.push(rect);
                 
                 // Draw description to the right of button (except for BACK)
@@ -1331,15 +1347,112 @@
             ctx.fillText('Click to select mode  |  ESC to go back', canvas.width / 2, canvas.height - 30);
         }
 
-        function drawButton(text, x, y, width, height, isHovered, isSelected, isModeSelected = false) {
+        function drawDeviceSelect() {
+            drawTitle();
+            menuItemRects = [];
+            
+            // Title
+            ctx.fillStyle = '#e94560';
+            ctx.font = 'bold 48px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('SELECT DEVICE', canvas.width / 2, 150);
+            
+            // Subtitle
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            ctx.font = '20px "Segoe UI", sans-serif';
+            ctx.fillText('How will you be playing?', canvas.width / 2, 200);
+            
+            // Device options
+            const buttonWidth = 250;
+            const buttonHeight = 80;
+            const spacing = 100;
+            const startY = canvas.height / 2 - 40;
+            
+            deviceOptions.forEach((option, i) => {
+                const y = startY + i * spacing;
+                const isHovered = mouseX > canvas.width/2 - buttonWidth/2 && 
+                                  mouseX < canvas.width/2 + buttonWidth/2 &&
+                                  mouseY > y - buttonHeight/2 && 
+                                  mouseY < y + buttonHeight/2;
+                
+                if (isHovered) selectedOption = i;
+                
+                const rect = drawButton(option, canvas.width / 2, y, buttonWidth, buttonHeight, isHovered, i === selectedOption);
+                menuItemRects.push(rect);
+                
+                // Description below button
+                const desc = option === 'COMPUTER' ? 'Keyboard & Mouse' : 'Touch Controls';
+                ctx.fillStyle = isHovered ? 'rgba(255, 255, 255, 0.8)' : 'rgba(255, 255, 255, 0.4)';
+                ctx.font = '16px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(desc, canvas.width / 2, y + buttonHeight/2 + 25);
+            });
+        }
+
+        function drawTutorialPrompt() {
+            drawTitle();
+            menuItemRects = [];
+            
+            // Title
+            ctx.fillStyle = '#e94560';
+            ctx.font = 'bold 48px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('TUTORIAL', canvas.width / 2, 150);
+            
+            // Question
+            ctx.fillStyle = '#fff';
+            ctx.font = '24px "Segoe UI", sans-serif';
+            ctx.fillText('Would you like to play the tutorial?', canvas.width / 2, 220);
+            
+            // Description
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+            ctx.font = '16px "Segoe UI", sans-serif';
+            ctx.fillText('Learn how to move, use abilities, and fight', canvas.width / 2, 260);
+            
+            // Yes/No buttons
+            const buttonWidth = 150;
+            const buttonHeight = 60;
+            const spacing = 200;
+            const startX = canvas.width / 2 - spacing/2;
+            const y = canvas.height / 2 + 50;
+            
+            tutorialPromptOptions.forEach((option, i) => {
+                const x = startX + i * spacing;
+                const isHovered = mouseX > x - buttonWidth/2 && 
+                                  mouseX < x + buttonWidth/2 &&
+                                  mouseY > y - buttonHeight/2 && 
+                                  mouseY < y + buttonHeight/2;
+                
+                if (isHovered) selectedOption = i;
+                
+                // Different colors for yes/no
+                if (option === 'YES') {
+                    ctx.fillStyle = isHovered ? 'rgba(0, 200, 100, 0.4)' : 'rgba(0, 200, 100, 0.2)';
+                    ctx.strokeStyle = '#00c864';
+                } else {
+                    ctx.fillStyle = isHovered ? 'rgba(233, 69, 96, 0.4)' : 'rgba(233, 69, 96, 0.2)';
+                    ctx.strokeStyle = '#e94560';
+                }
+                
+                ctx.fillRect(x - buttonWidth/2, y - buttonHeight/2, buttonWidth, buttonHeight);
+                ctx.lineWidth = 2;
+                ctx.strokeRect(x - buttonWidth/2, y - buttonHeight/2, buttonWidth, buttonHeight);
+                
+                ctx.fillStyle = '#fff';
+                ctx.font = isHovered ? 'bold 24px "Segoe UI", sans-serif' : '20px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(option, x, y);
+                
+                menuItemRects.push({ x: x - buttonWidth/2, y: y - buttonHeight/2, width: buttonWidth, height: buttonHeight, text: option });
+            });
+        }
+
+        function drawButton(text, x, y, width, height, isHovered, isSelected) {
             const hover = isHovered || isSelected;
             
             // Simple button background
-            if (isModeSelected) {
-                // Selected mode gets a distinct color
-                ctx.fillStyle = 'rgba(0, 200, 100, 0.25)';
-                ctx.fillRect(x - width/2, y - height/2, width, height);
-            } else if (hover) {
+            if (hover) {
                 ctx.fillStyle = 'rgba(233, 69, 96, 0.3)';
                 ctx.fillRect(x - width/2, y - height/2, width, height);
             } else {
@@ -1348,28 +1461,16 @@
             }
             
             // Simple border
-            if (isModeSelected) {
-                ctx.strokeStyle = '#00c864';
-                ctx.lineWidth = 3;
-            } else {
-                ctx.strokeStyle = hover ? '#e94560' : 'rgba(255, 255, 255, 0.3)';
-                ctx.lineWidth = hover ? 2 : 1;
-            }
+            ctx.strokeStyle = hover ? '#e94560' : 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = hover ? 2 : 1;
             ctx.strokeRect(x - width/2, y - height/2, width, height);
             
             // Text
-            ctx.fillStyle = hover || isModeSelected ? '#fff' : 'rgba(255, 255, 255, 0.8)';
-            ctx.font = hover || isModeSelected ? 'bold 22px "Segoe UI", sans-serif' : '20px "Segoe UI", sans-serif';
+            ctx.fillStyle = hover ? '#fff' : 'rgba(255, 255, 255, 0.8)';
+            ctx.font = hover ? 'bold 22px "Segoe UI", sans-serif' : '20px "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             ctx.fillText(text, x, y);
-            
-            // Selected indicator (checkmark)
-            if (isModeSelected) {
-                ctx.fillStyle = '#00c864';
-                ctx.font = 'bold 18px "Segoe UI", sans-serif';
-                ctx.fillText('✓', x - width/2 + 20, y);
-            }
             
             // Return clickable rect
             return { x: x - width/2, y: y - height/2, width, height, text };
@@ -1401,13 +1502,7 @@
                 
                 if (isHovered) selectedOption = i;
                 
-                // Check if this option is selected (for modes screen)
-                let isSelected = false;
-                if (screen === 'modes' && i < 3) { // Only for mode options, not BACK
-                    isSelected = (i === selectedModeIndex);
-                }
-                
-                const rect = drawButton(option, canvas.width / 2, y, buttonWidth, buttonHeight, isHovered, i === selectedOption, isSelected);
+                const rect = drawButton(option, canvas.width / 2, y, buttonWidth, buttonHeight, isHovered, i === selectedOption);
                 menuItemRects.push(rect);
             });
             
@@ -1636,6 +1731,243 @@
             ctx.font = '14px "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText('Click to select  |  ESC to go back', canvas.width / 2, canvas.height - 30);
+        }
+
+        // Tutorial system
+        let tutorialStep = 0;
+        let tutorialDummy = null;
+        let tutorialArenaSize = 1200;
+        
+        const tutorialSteps = {
+            computer: [
+                { title: 'MOVEMENT', text: 'Use WASD to move around', check: () => keys['w'] || keys['a'] || keys['s'] || keys['d'] },
+                { title: 'AIMING', text: 'Move your mouse to aim', check: () => true }, // Always pass after delay
+                { title: 'BASIC ATTACK', text: 'Left click to punch (M1)', check: () => punchEffects.length > 0 },
+                { title: 'ABILITIES', text: 'Press 1, 2, 3, 4 to use abilities', check: () => maxBlue.active || reversalRed.active || hollowPurple.active || domainActive },
+                { title: 'COMBAT', text: 'Defeat the training dummy!', check: () => !tutorialDummy || tutorialDummy.hp <= 0 }
+            ],
+            mobile: [
+                { title: 'MOVEMENT', text: 'Use the left joystick to move', check: () => window.joystickActive },
+                { title: 'AIMING', text: 'Aim in the direction you move', check: () => true },
+                { title: 'BASIC ATTACK', text: 'Tap the PUNCH button to attack', check: () => punchEffects.length > 0 },
+                { title: 'ABILITIES', text: 'Tap ability buttons (1-4) to use them', check: () => maxBlue.active || reversalRed.active || hollowPurple.active || domainActive },
+                { title: 'COMBAT', text: 'Defeat the training dummy!', check: () => !tutorialDummy || tutorialDummy.hp <= 0 }
+            ]
+        };
+        
+        function startTutorial() {
+            // Set up tutorial
+            tutorialStep = 0;
+            tutorialCompleted = false;
+            showTutorialMessage = false;
+            
+            // Force Gojo character for tutorial
+            selectedCharacter = 'GOJO';
+            selectedCharacterIndex = 0;
+            abilities = CHARACTER_ABILITIES['GOJO'];
+            
+            // Set up tutorial arena
+            player.x = 0;
+            player.y = 0;
+            camera.x = 0;
+            camera.y = 0;
+            player.hp = player.maxHp;
+            player.ce = player.maxCe;
+            
+            // Create training dummy
+            tutorialDummy = {
+                x: 300,
+                y: 0,
+                hp: 400,
+                maxHp: 400,
+                radius: 25,
+                color: '#ff6600',
+                name: 'Training Dummy'
+            };
+            
+            // Clear other entities
+            cursedSpirits.length = 0;
+            activeDisasterCurse = null;
+            disasterNotification = null;
+            
+            screen = 'tutorial';
+            showNotif('TUTORIAL STARTED - Follow the instructions!');
+        }
+        
+        function drawTutorial() {
+            // Draw game background
+            drawBackground();
+            
+            // Draw tutorial arena boundaries
+            ctx.strokeStyle = 'rgba(233, 69, 96, 0.5)';
+            ctx.lineWidth = 3;
+            ctx.strokeRect(-tutorialArenaSize/2 - camera.x, -tutorialArenaSize/2 - camera.y, tutorialArenaSize, tutorialArenaSize);
+            
+            // Draw training dummy
+            if (tutorialDummy && tutorialDummy.hp > 0) {
+                // Dummy body
+                ctx.fillStyle = tutorialDummy.color;
+                ctx.beginPath();
+                ctx.arc(tutorialDummy.x - camera.x, tutorialDummy.y - camera.y, tutorialDummy.radius, 0, Math.PI * 2);
+                ctx.fill();
+                
+                // Dummy glow
+                ctx.save();
+                ctx.shadowColor = tutorialDummy.color;
+                ctx.shadowBlur = 20;
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 2;
+                ctx.beginPath();
+                ctx.arc(tutorialDummy.x - camera.x, tutorialDummy.y - camera.y, tutorialDummy.radius, 0, Math.PI * 2);
+                ctx.stroke();
+                ctx.restore();
+                
+                // Health bar
+                const barWidth = 60;
+                const barHeight = 8;
+                const hpPercent = tutorialDummy.hp / tutorialDummy.maxHp;
+                
+                ctx.fillStyle = '#333';
+                ctx.fillRect(tutorialDummy.x - camera.x - barWidth/2, tutorialDummy.y - camera.y - 50, barWidth, barHeight);
+                ctx.fillStyle = hpPercent > 0.5 ? '#0f0' : hpPercent > 0.25 ? '#ff0' : '#f00';
+                ctx.fillRect(tutorialDummy.x - camera.x - barWidth/2, tutorialDummy.y - camera.y - 50, barWidth * hpPercent, barHeight);
+                
+                // Name
+                ctx.fillStyle = '#fff';
+                ctx.font = '14px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(tutorialDummy.name, tutorialDummy.x - camera.x, tutorialDummy.y - camera.y - 60);
+            }
+            
+            // Draw player
+            drawPlayer();
+            
+            // Draw mobile controls if in mobile mode
+            if (mobileMode) {
+                drawMobileControls();
+            }
+            
+            // Draw tutorial UI
+            const steps = mobileMode ? tutorialSteps.mobile : tutorialSteps.computer;
+            const currentStep = steps[tutorialStep];
+            
+            if (currentStep) {
+                // Tutorial panel background
+                const panelY = canvas.height - 180;
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(50, panelY, canvas.width - 100, 140);
+                ctx.strokeStyle = '#e94560';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(50, panelY, canvas.width - 100, 140);
+                
+                // Step counter
+                ctx.fillStyle = '#e94560';
+                ctx.font = 'bold 18px "Segoe UI", sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText(`STEP ${tutorialStep + 1} / ${steps.length}`, 70, panelY + 30);
+                
+                // Title
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 32px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(currentStep.title, canvas.width / 2, panelY + 50);
+                
+                // Instruction
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
+                ctx.font = '22px "Segoe UI", sans-serif';
+                ctx.fillText(currentStep.text, canvas.width / 2, panelY + 90);
+                
+                // Progress hint
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.5)';
+                ctx.font = '16px "Segoe UI", sans-serif';
+                ctx.fillText('Complete this step to continue...', canvas.width / 2, panelY + 120);
+            } else {
+                // Tutorial complete
+                ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+                ctx.fillRect(50, canvas.height/2 - 100, canvas.width - 100, 200);
+                ctx.strokeStyle = '#00c864';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(50, canvas.height/2 - 100, canvas.width - 100, 200);
+                
+                ctx.fillStyle = '#00c864';
+                ctx.font = 'bold 36px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('TUTORIAL COMPLETE!', canvas.width / 2, canvas.height/2 - 30);
+                
+                ctx.fillStyle = '#fff';
+                ctx.font = '20px "Segoe UI", sans-serif';
+                ctx.fillText('Press ENTER or CLICK to continue', canvas.width / 2, canvas.height/2 + 30);
+            }
+            
+            // Draw ability bar
+            drawAbilityBar();
+            
+            // Draw notifications
+            drawNotifications();
+        }
+        
+        function updateTutorial() {
+            if (!screen === 'tutorial') return;
+            
+            const steps = mobileMode ? tutorialSteps.mobile : tutorialSteps.computer;
+            
+            if (tutorialStep < steps.length) {
+                const currentStep = steps[tutorialStep];
+                if (currentStep.check()) {
+                    tutorialStep++;
+                    if (tutorialStep >= steps.length) {
+                        // Tutorial complete
+                        tutorialCompleted = true;
+                        showTutorialMessage = true;
+                    }
+                }
+            }
+            
+            // Update player
+            updatePlayer();
+            
+            // Update camera to follow player
+            camera.x = player.x - canvas.width / 2;
+            camera.y = player.y - canvas.height / 2;
+            
+            // Update particles and effects
+            updateParticles();
+            updateDamageNumbers();
+            updateHitEffects();
+            updateSlashEffects();
+            updateDomainEffects();
+            
+            // Check if dummy is hit
+            if (tutorialDummy && tutorialDummy.hp > 0) {
+                checkTutorialDummyHits();
+            }
+        }
+        
+        function checkTutorialDummyHits() {
+            // Check punch hits
+            for (const effect of punchEffects) {
+                const dx = tutorialDummy.x - effect.x;
+                const dy = tutorialDummy.y - effect.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < tutorialDummy.radius + 30) {
+                    tutorialDummy.hp -= 10;
+                    addDamageNumber(tutorialDummy.x, tutorialDummy.y - 30, 10);
+                    addHitEffect(tutorialDummy.x, tutorialDummy.y, '#ff6600');
+                }
+            }
+            
+            // Check ability hits (simplified)
+            if (maxBlue.active && maxBlue.hits.length > 0) {
+                for (const hit of maxBlue.hits) {
+                    const dx = tutorialDummy.x - hit.x;
+                    const dy = tutorialDummy.y - hit.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 100) {
+                        tutorialDummy.hp -= 25;
+                        addDamageNumber(tutorialDummy.x, tutorialDummy.y - 30, 25);
+                    }
+                }
+            }
         }
 
         function updatePlayer() {
@@ -9104,11 +9436,11 @@
             // Store joystick position
             window.joystick = { x: joystickX, y: joystickY, radius: joystickRadius };
             
-            // Ability buttons on right side - 2x2 grid
-            const btnSize = 55;
-            const btnSpacing = 65;
-            const btnStartX = canvas.width - 70;
-            const btnStartY = canvas.height - 180;
+            // Ability buttons on right side - 2x2 grid (BIGGER for tutorial)
+            const btnSize = 75;
+            const btnSpacing = 85;
+            const btnStartX = canvas.width - 90;
+            const btnStartY = canvas.height - 220;
             
             // M1 (Basic Attack/Punch) - top right
             drawMobileButton(btnStartX, btnStartY, btnSize, 'M1', primaryColor);
@@ -9547,8 +9879,19 @@
                 console.log('Screen:', screen, 'Canvas:', canvas.width, 'x', canvas.height);
             }
             
+            // Update tutorial logic
+            if (screen === 'tutorial') {
+                updateTutorial();
+            }
+            
             if (showingTitleScreen) {
                 drawTitleScreen();
+            } else if (screen === 'device_select') {
+                drawDeviceSelect();
+            } else if (screen === 'tutorial_prompt') {
+                drawTutorialPrompt();
+            } else if (screen === 'tutorial') {
+                drawTutorial();
             } else if (screen === 'main_menu') {
                 drawMainMenu();
             } else if (screen === 'modes') {
@@ -9583,15 +9926,41 @@
             // Handle title screen press
             if (showingTitleScreen) {
                 showingTitleScreen = false;
-                screen = 'main_menu';
-                currentMenu = mainMenuOptions;
-                selectedOption = 0;
+                screen = 'device_select';
+                currentMenu = deviceOptions;
+                selectedOption = mobileMode ? 1 : 0; // Default to current mode
                 return;
             }
             
             const option = currentMenu[selectedOption];
             
-            if (screen === 'main_menu') {
+            if (screen === 'device_select') {
+                if (option === 'COMPUTER') {
+                    mobileMode = false;
+                    settingsOptions[0] = 'CONTROL MODE: COMPUTER';
+                } else if (option === 'MOBILE') {
+                    mobileMode = true;
+                    settingsOptions[0] = 'CONTROL MODE: MOBILE';
+                }
+                // Go to tutorial prompt
+                screen = 'tutorial_prompt';
+                currentMenu = tutorialPromptOptions;
+                selectedOption = 0;
+                return;
+            } else if (screen === 'tutorial_prompt') {
+                if (option === 'YES') {
+                    // Start tutorial
+                    startTutorial();
+                } else {
+                    // Skip tutorial, go to main menu
+                    tutorialSkipped = true;
+                    showTutorialMessage = true;
+                    screen = 'main_menu';
+                    currentMenu = mainMenuOptions;
+                    selectedOption = 0;
+                }
+                return;
+            } else if (screen === 'main_menu') {
                 if (option === 'PLAY') {
                     screen = 'modes';
                     currentMenu = modeOptions;
@@ -9613,6 +9982,10 @@
                     screen = 'main_menu';
                     currentMenu = mainMenuOptions;
                     selectedOption = 0;
+                } else if (option === 'TUTORIAL') {
+                    // Restart tutorial from settings
+                    startTutorial();
+                    return;
                 } else if (option.startsWith('CONTROL MODE:')) {
                     mobileMode = !mobileMode;
                     settingsOptions[0] = mobileMode ? 'CONTROL MODE: MOBILE' : 'CONTROL MODE: COMPUTER';
@@ -9960,6 +10333,21 @@
                     currentMenu = mainMenuOptions;
                     selectedOption = 0;
                 }
+            } else if (screen === 'tutorial') {
+                // Tutorial complete - press enter to continue
+                const steps = mobileMode ? tutorialSteps.mobile : tutorialSteps.computer;
+                if (tutorialStep >= steps.length) {
+                    if (e.key === 'Enter' || e.key === 'Escape') {
+                        screen = 'main_menu';
+                        currentMenu = mainMenuOptions;
+                        selectedOption = 0;
+                    }
+                }
+                // Ability keys for tutorial
+                if (e.key === '1') useAbility(0);
+                else if (e.key === '2') useAbility(1);
+                else if (e.key === '3') useAbility(2);
+                else if (e.key === '4') useAbility(3);
             } else if (screen === 'game') {
                 // Ability keys
                 if (e.key === '1') useAbility(0);
