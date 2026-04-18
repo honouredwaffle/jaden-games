@@ -259,6 +259,16 @@
         let selectedCharacterIndex = 0; // Default to GOJO (index 0)
         
         // Player
+        // XP and money values per spirit grade
+        const GRADE_VALUES = {
+            'GRADE_4': { xp: 10, money: 1 },
+            'GRADE_3': { xp: 25, money: 3 },
+            'GRADE_2': { xp: 60, money: 8 },
+            'GRADE_1': { xp: 150, money: 20 },
+            'SPECIAL': { xp: 500, money: 75 }
+        };
+
+        // Player stats (leveling system)
         const player = {
             x: 0,
             y: 0,
@@ -270,7 +280,19 @@
             ce: 100,
             maxCe: 100,
             facing: 0, // angle in radians
-            iframes: 0
+            iframes: 0,
+            // Leveling & Economy
+            level: 1,
+            xp: 0,
+            xpToNextLevel: 100,
+            statPoints: 0,
+            money: 0,
+            // Stats
+            swordStat: 0,
+            healthStat: 0,
+            ceStat: 0,
+            damageStat: 0,
+            speedStat: 0
         };
         
         // Spirit projectiles
@@ -323,6 +345,321 @@
                 ctx.shadowBlur = 4;
                 ctx.fillText(notif.text, canvas.width / 2, y);
                 ctx.restore();
+            }
+        }
+        
+        // Stat Menu System
+        let statMenuOpen = false;
+        let statMenuButton = { x: 0, y: 0, width: 0, height: 0 };
+        
+        function openStatMenu() { statMenuOpen = true; }
+        function closeStatMenu() { statMenuOpen = false; }
+        
+        // XP gain helper
+        function gainXP(amount) {
+            if (player.level >= 2500) return;
+            player.xp += amount;
+            while (player.xp >= player.xpToNextLevel && player.level < 2500) {
+                player.xp -= player.xpToNextLevel;
+                player.level++;
+                player.statPoints += 3;
+                player.xpToNextLevel = Math.floor(100 * Math.pow(1.5, player.level - 1));
+                showNotif('LEVEL UP! LV.' + player.level);
+            }
+            // Clamp at max
+            if (player.level >= 2500) {
+                player.xp = 0;
+                player.xpToNextLevel = Infinity;
+            }
+        }
+        
+        // Money gain helper
+        function gainMoney(amount) {
+            player.money += amount;
+            saveGameData();
+        }
+        
+        // Recalculate derived stats
+        function recalcPlayerStats() {
+            const oldMaxHp = player.maxHp;
+            const oldMaxCe = player.maxCe;
+            const oldSpeed = player.speed;
+            
+            player.maxHp = 100 + player.healthStat * 5;
+            player.maxCe = 100 + player.ceStat * 5;
+            player.speed = 4 * (1 + player.speedStat * 0.005);
+            
+            // Scale current HP/CE proportionally
+            if (oldMaxHp > 0) {
+                player.hp = Math.min(player.hp, player.maxHp);
+                player.ce = Math.min(player.ce, player.maxCe);
+            }
+        }
+        
+        // Stat point allocation
+        function addStatPoint(statName) {
+            if (player.statPoints <= 0) return;
+            switch(statName) {
+                case 'sword': player.swordStat++; break;
+                case 'health': player.healthStat++; recalcPlayerStats(); break;
+                case 'ce': player.ceStat++; recalcPlayerStats(); break;
+                case 'damage': player.damageStat++; break;
+                case 'speed': player.speedStat++; recalcPlayerStats(); break;
+            }
+            player.statPoints--;
+            saveGameData();
+        }
+        
+        // Reset stats for $400
+        function resetStats() {
+            if (player.money < 400) {
+                showNotif('Need $400 to reset!');
+                return;
+            }
+            player.money -= 400;
+            player.swordStat = 0;
+            player.healthStat = 0;
+            player.ceStat = 0;
+            player.damageStat = 0;
+            player.speedStat = 0;
+            player.statPoints += (player.level - 1) * 3;
+            recalcPlayerStats();
+            saveGameData();
+            showNotif('Stats reset!');
+        }
+        
+        // Save game data to localStorage
+        function saveGameData() {
+            const data = {
+                level: player.level,
+                xp: player.xp,
+                xpToNextLevel: player.xpToNextLevel,
+                statPoints: player.statPoints,
+                money: player.money,
+                swordStat: player.swordStat,
+                healthStat: player.healthStat,
+                ceStat: player.ceStat,
+                damageStat: player.damageStat,
+                speedStat: player.speedStat
+            };
+            try {
+                localStorage.setItem('jjkGamePlayerData', JSON.stringify(data));
+            } catch(e) {}
+        }
+        
+        // Load game data from localStorage
+        function loadGameData() {
+            try {
+                const saved = localStorage.getItem('jjkGamePlayerData');
+                if (saved) {
+                    const data = JSON.parse(saved);
+                    player.level = data.level || 1;
+                    player.xp = data.xp || 0;
+                    player.xpToNextLevel = data.xpToNextLevel || 100;
+                    player.statPoints = data.statPoints || 0;
+                    player.money = data.money || 0;
+                    player.swordStat = data.swordStat || 0;
+                    player.healthStat = data.healthStat || 0;
+                    player.ceStat = data.ceStat || 0;
+                    player.damageStat = data.damageStat || 0;
+                    player.speedStat = data.speedStat || 0;
+                    recalcPlayerStats();
+                }
+            } catch(e) {}
+        }
+        loadGameData();
+        
+        function drawStatMenu() {
+            if (!statMenuOpen) return;
+            
+            const menuW = 360;
+            const menuH = 420;
+            const menuX = (canvas.width - menuW) / 2;
+            const menuY = (canvas.height - menuH) / 2;
+            
+            // Background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.92)';
+            ctx.fillRect(menuX, menuY, menuW, menuH);
+            
+            // Border
+            ctx.strokeStyle = '#e94560';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(menuX, menuY, menuW, menuH);
+            
+            // Title
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 22px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('STATS', menuX + menuW / 2, menuY + 30);
+            
+            // Level display
+            ctx.font = 'bold 18px "Segoe UI", sans-serif';
+            ctx.fillStyle = '#ffdd00';
+            ctx.fillText('LV. ' + player.level + ' / 2500', menuX + menuW / 2, menuY + 60);
+            
+            // XP bar
+            const xpBarX = menuX + 20;
+            const xpBarY = menuY + 72;
+            const xpBarW = menuW - 40;
+            const xpBarH = 16;
+            const xpPercent = player.level >= 2500 ? 1 : Math.min(player.xp / player.xpToNextLevel, 1);
+            
+            ctx.fillStyle = 'rgba(0,0,0,0.7)';
+            ctx.fillRect(xpBarX, xpBarY, xpBarW, xpBarH);
+            const xpGrad = ctx.createLinearGradient(xpBarX, 0, xpBarX + xpBarW * xpPercent, 0);
+            xpGrad.addColorStop(0, '#00ff88');
+            xpGrad.addColorStop(1, '#00ffcc');
+            ctx.fillStyle = xpGrad;
+            ctx.fillRect(xpBarX, xpBarY, xpBarW * xpPercent, xpBarH);
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(xpBarX, xpBarY, xpBarW, xpBarH);
+            
+            if (player.level < 2500) {
+                ctx.fillStyle = '#fff';
+                ctx.font = '11px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText(Math.floor(player.xp) + ' / ' + player.xpToNextLevel + ' XP', menuX + menuW / 2, xpBarY + 12);
+            } else {
+                ctx.fillStyle = '#ffdd00';
+                ctx.font = '11px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('MAX LEVEL', menuX + menuW / 2, xpBarY + 12);
+            }
+            
+            // Stat points available
+            ctx.font = 'bold 15px "Segoe UI", sans-serif';
+            ctx.fillStyle = player.statPoints > 0 ? '#00ff88' : '#888';
+            ctx.textAlign = 'center';
+            ctx.fillText('Available Points: ' + player.statPoints, menuX + menuW / 2, menuY + 108);
+            
+            // Stat rows
+            const stats = [
+                { name: 'Sword', key: 'swordStat', desc: '+5 weapon dmg/point', value: player.swordStat },
+                { name: 'Health', key: 'healthStat', desc: '+5 max HP/point', value: player.healthStat },
+                { name: 'CE Output', key: 'ceStat', desc: '+5 max CE/point', value: player.ceStat },
+                { name: 'Damage', key: 'damageStat', desc: '+5 ability dmg/point', value: player.damageStat },
+                { name: 'Speed', key: 'speedStat', desc: '+0.5% move speed/point', value: player.speedStat }
+            ];
+            
+            let rowY = menuY + 130;
+            const rowH = 40;
+            const btnSize = 28;
+            
+            ctx.textAlign = 'left';
+            for (const stat of stats) {
+                // Row background
+                ctx.fillStyle = 'rgba(255,255,255,0.05)';
+                ctx.fillRect(menuX + 10, rowY - 4, menuW - 20, rowH - 2);
+                
+                // Stat name
+                ctx.fillStyle = '#fff';
+                ctx.font = 'bold 14px "Segoe UI", sans-serif';
+                ctx.fillText(stat.name, menuX + 20, rowY + 14);
+                
+                // Stat description
+                ctx.fillStyle = '#888';
+                ctx.font = '10px "Segoe UI", sans-serif';
+                ctx.fillText(stat.desc, menuX + 20, rowY + 28);
+                
+                // Stat value
+                ctx.fillStyle = '#ffdd00';
+                ctx.font = 'bold 16px "Segoe UI", sans-serif';
+                ctx.textAlign = 'right';
+                ctx.fillText(stat.value, menuX + menuW - 55, rowY + 16);
+                
+                // + button
+                const btnX = menuX + menuW - 40;
+                const btnY = rowY + 2;
+                ctx.fillStyle = player.statPoints > 0 ? '#00cc66' : '#333';
+                ctx.fillRect(btnX, btnY, btnSize, btnSize - 4);
+                ctx.strokeStyle = player.statPoints > 0 ? '#00ff88' : '#555';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(btnX, btnY, btnSize, btnSize - 4);
+                ctx.fillStyle = player.statPoints > 0 ? '#fff' : '#666';
+                ctx.font = 'bold 18px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('+', btnX + btnSize / 2, btnY + btnSize - 8);
+                
+                // Store button rect for click detection
+                window['statBtn_' + stat.key] = { x: btnX, y: btnY, w: btnSize, h: btnSize - 4 };
+                
+                rowY += rowH;
+            }
+            
+            // Money display
+            const moneyY = menuY + menuH - 100;
+            ctx.fillStyle = 'rgba(0,0,0,0.5)';
+            ctx.fillRect(menuX + 10, moneyY, menuW - 20, 30);
+            ctx.fillStyle = '#ffcc00';
+            ctx.font = 'bold 16px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('$' + player.money, menuX + menuW / 2, moneyY + 21);
+            
+            // Reset button
+            const resetW = 140;
+            const resetH = 32;
+            const resetX = menuX + (menuW - resetW) / 2;
+            const resetY = menuY + menuH - 55;
+            ctx.fillStyle = player.money >= 400 ? '#cc0000' : '#333';
+            ctx.fillRect(resetX, resetY, resetW, resetH);
+            ctx.strokeStyle = player.money >= 400 ? '#ff4444' : '#555';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(resetX, resetY, resetW, resetH);
+            ctx.fillStyle = player.money >= 400 ? '#fff' : '#666';
+            ctx.font = 'bold 13px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('RESET ($400)', resetX + resetW / 2, resetY + 21);
+            window.statResetBtn = { x: resetX, y: resetY, w: resetW, h: resetH };
+            
+            // Close button
+            const closeW = 100;
+            const closeH = 32;
+            const closeX = menuX + (menuW - closeW) / 2;
+            const closeY = menuY + menuH - 18;
+            ctx.fillStyle = '#e94560';
+            ctx.fillRect(closeX, closeY, closeW, closeH);
+            ctx.strokeStyle = '#ff6688';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(closeX, closeY, closeW, closeH);
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 13px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('CLOSE', closeX + closeW / 2, closeY + 21);
+            window.statCloseBtn = { x: closeX, y: closeY, w: closeW, h: closeH };
+        }
+        
+        function handleStatMenuClick(clickX, clickY) {
+            if (!statMenuOpen) return;
+            
+            // Check close button
+            if (window.statCloseBtn) {
+                const btn = window.statCloseBtn;
+                if (clickX >= btn.x && clickX <= btn.x + btn.w && clickY >= btn.y && clickY <= btn.y + btn.h) {
+                    closeStatMenu();
+                    return;
+                }
+            }
+            
+            // Check reset button
+            if (window.statResetBtn) {
+                const btn = window.statResetBtn;
+                if (clickX >= btn.x && clickX <= btn.x + btn.w && clickY >= btn.y && clickY <= btn.y + btn.h) {
+                    resetStats();
+                    return;
+                }
+            }
+            
+            // Check stat + buttons
+            const stats = ['swordStat', 'healthStat', 'ceStat', 'damageStat', 'speedStat'];
+            for (const key of stats) {
+                if (window['statBtn_' + key]) {
+                    const btn = window['statBtn_' + key];
+                    if (clickX >= btn.x && clickX <= btn.x + btn.w && clickY >= btn.y && clickY <= btn.y + btn.h) {
+                        addStatPoint(key.replace('Stat', ''));
+                        return;
+                    }
+                }
             }
         }
         
@@ -416,7 +753,7 @@
             vy: 0,
             radius: 14,
             speed: 12,
-            damage: 80,
+            damage: 32,
             life: 120
         };
         
@@ -434,7 +771,7 @@
             vy: 0,
             radius: 25,
             speed: 10,
-            damage: 235,
+            damage: 94,
             pierce: true,
             life: 120, // 2 seconds of flight
             maxLife: 120,
@@ -4693,6 +5030,12 @@
             
             console.log('killSpirit:', spirit.grade, 'testingMode:', testingMode);
             
+            // Award XP and money based on spirit grade
+            if (spirit.grade && GRADE_VALUES[spirit.grade]) {
+                gainXP(GRADE_VALUES[spirit.grade].xp);
+                gainMoney(GRADE_VALUES[spirit.grade].money);
+            }
+            
             // Respawn in testing mode
             if (testingMode && spirit.grade) {
                 console.log('Respawning', spirit.grade);
@@ -4720,7 +5063,7 @@
                 
                 if (dist < punchRange) {
                     hitEnemy = true;
-                    const damage = isBlackFlash ? 150 : 20;
+                    const damage = (isBlackFlash ? 60 : 8) + player.damageStat;
                     enemy.hp -= damage;
                     
                     // Knockback
@@ -4798,7 +5141,7 @@
                     if (targets.length > 0) {
                         // Hit random target near mouse
                         const target = targets[Math.floor(Math.random() * targets.length)];
-                        const damage = 25;
+                        const damage = 10 + player.damageStat;
                         target.hp -= damage;
                         
                         // Enhanced slash visual effects around target
@@ -4898,7 +5241,7 @@
             for (let i = 0; i < slashCount; i++) {
                 setTimeout(() => {
                     if (grabbedEnemy && cursedSpirits.includes(grabbedEnemy)) {
-                        const damage = 20;
+                        const damage = 8 + player.damageStat;
                         grabbedEnemy.hp -= damage;
                         
                         // Enhanced slash visual effects - alternating between normal and cross
@@ -5024,7 +5367,7 @@
                     const explosionX = fuga.arrow.x;
                     const explosionY = fuga.arrow.y;
                     const explosionRadius = 350;
-                    const explosionDamage = 1000;
+                    const explosionDamage = 400 + player.damageStat * 4;
                     
                     // Damage all enemies in explosion radius
                     for (let i = cursedSpirits.length - 1; i >= 0; i--) {
@@ -6297,7 +6640,7 @@
         
         function applySukunaDomainDamage() {
             // Cleave and Dismantle damage to all enemies in range
-            const damage = 25; // Base damage per tick
+            const damage = 10 + player.damageStat; // Base damage per tick (nerfed 60% from 25, + damage stat)
             
             // Damage cursed spirits
             for (let i = cursedSpirits.length - 1; i >= 0; i--) {
@@ -7037,9 +7380,10 @@
                 // Larger hitbox for easier collision
                 const hitDist = reversalRed.radius * 2 + spirit.size;
                 if (dist < hitDist) {
-                    spirit.hp -= reversalRed.damage;
-                    addDamageCounter(reversalRed.damage);
-                    addDamageNumber(spirit.x, spirit.y, reversalRed.damage);
+                    const totalDmg = reversalRed.damage + player.damageStat;
+                    spirit.hp -= totalDmg;
+                    addDamageCounter(totalDmg);
+                    addDamageNumber(spirit.x, spirit.y, totalDmg);
                     if (spirit.hp <= 0) {
                         killSpirit(i, 'red');
                     }
@@ -7055,7 +7399,7 @@
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
                 if (dist < reversalRed.radius * 2 + activeDisasterCurse.size) {
-                    const dmg = reversalRed.damage * 2;
+                    const dmg = (reversalRed.damage + player.damageStat) * 2;
                     activeDisasterCurse.hp -= dmg;
                     addDamageCounter(dmg);
                     addDamageNumber(activeDisasterCurse.x, activeDisasterCurse.y, dmg);
@@ -7354,9 +7698,10 @@
                 const alreadyHit = hollowPurple.hitEnemies.includes(spirit.id || i);
                 
                 if (dist < hollowPurple.radius + spirit.size && !alreadyHit) {
-                    spirit.hp -= hollowPurple.damage;
-                    addDamageCounter(hollowPurple.damage);
-                    addDamageNumber(spirit.x, spirit.y, hollowPurple.damage);
+                    const totalDmg = hollowPurple.damage + player.damageStat;
+                    spirit.hp -= totalDmg;
+                    addDamageCounter(totalDmg);
+                    addDamageNumber(spirit.x, spirit.y, totalDmg);
                     addHitEffect(spirit.x, spirit.y, 'purple');
                     hollowPurple.hitEnemies.push(spirit.id || i);
                     
@@ -7374,7 +7719,7 @@
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
                 if (dist < hollowPurple.radius + activeDisasterCurse.size) {
-                    const dmg = hollowPurple.damage * 2;
+                    const dmg = (hollowPurple.damage + player.damageStat) * 2;
                     activeDisasterCurse.hp -= dmg;
                     addDamageCounter(dmg);
                     addDamageNumber(activeDisasterCurse.x, activeDisasterCurse.y, dmg);
@@ -7396,8 +7741,9 @@
                     const dist = Math.sqrt(dx * dx + dy * dy);
                     
                     if (dist < 150) { // Explosion radius
-                        spirit.hp -= 100; // Explosion damage
-                        addDamageCounter(100);
+                        const explDmg = 40 + player.damageStat;
+                        spirit.hp -= explDmg; // Explosion damage
+                        addDamageCounter(explDmg);
                         if (spirit.hp <= 0) {
                             addKillEffect(spirit.x, spirit.y, 'purple');
                             killSpirit(i, 'purple');
@@ -7639,7 +7985,7 @@
                         
                         if (dist < playerDomain.radius) {
                             // Constant damage to all enemies in domain
-                            spirit.hp -= 5; // Divine flame damage
+                            spirit.hp -= (2 + player.damageStat); // Divine flame damage
                             
                             // Visual slash effect on enemy
                             if (Math.random() < 0.3) {
@@ -8895,6 +9241,8 @@
             }
             drawPlayerBars();
             drawMenuButton();
+            drawStatsButton();
+            drawMoneyDisplay();
             
             // Mobile controls
             if (mobileMode) {
@@ -9030,6 +9378,9 @@
                 }
             }
         }
+        
+        // Draw stat menu on top of everything
+        drawStatMenu();
         
         function drawHitEffects() {
             const colors = getCurrentAbilityColors();
@@ -9467,7 +9818,7 @@
         function drawMenuButton() {
             const btnWidth = 60;
             const btnHeight = 30;
-            const btnX = canvas.width - btnWidth - 20;
+            const btnX = 20; // Left side
             const btnY = canvas.height - btnHeight - 20;
             
             // Button background
@@ -9488,6 +9839,67 @@
             
             // Store button position for click detection
             window.menuButton = { x: btnX, y: btnY, width: btnWidth, height: btnHeight };
+        }
+        
+        function drawStatsButton() {
+            const btnWidth = 80;
+            const btnHeight = 28;
+            const btnX = canvas.width - btnWidth - 20;
+            const btnY = 20 + 140 + 10; // Below minimap (mapY=20, mapHeight=140, spacing=10)
+            
+            // Button background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(btnX, btnY, btnWidth, btnHeight);
+            
+            // Bar chart icon
+            const iconX = btnX + 8;
+            const iconY = btnY + btnHeight - 4;
+            const iconW = 3;
+            const iconGap = 4;
+            ctx.fillStyle = '#ffdd00';
+            ctx.fillRect(iconX, iconY - 8, iconW, 8);
+            ctx.fillRect(iconX + iconW + iconGap, iconY - 14, iconW, 14);
+            ctx.fillRect(iconX + (iconW + iconGap) * 2, iconY - 11, iconW, 11);
+            
+            // Button border
+            ctx.strokeStyle = '#ffdd00';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(btnX, btnY, btnWidth, btnHeight);
+            
+            // Button text
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 12px "Segoe UI", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('STATS', btnX + 26, btnY + btnHeight / 2);
+            
+            // Store button position
+            window.statsButton = { x: btnX, y: btnY, width: btnWidth, height: btnHeight };
+        }
+        
+        function drawMoneyDisplay() {
+            const x = 20;
+            const y = canvas.height - 60;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(x, y, 120, 26);
+            ctx.strokeStyle = '#ffcc00';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x, y, 120, 26);
+            ctx.fillStyle = '#ffcc00';
+            ctx.font = 'bold 14px "Segoe UI", sans-serif';
+            ctx.textAlign = 'left';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('$' + player.money, x + 10, y + 13);
+            
+            // Level display next to it
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(x + 125, y, 100, 26);
+            ctx.strokeStyle = '#00ff88';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(x + 125, y, 100, 26);
+            ctx.fillStyle = '#00ff88';
+            ctx.font = 'bold 14px "Segoe UI", sans-serif';
+            ctx.fillText('LV.' + player.level, x + 135, y + 13);
         }
 
         function drawMobileControls() {
@@ -10398,12 +10810,32 @@
                     selectedOption = 0;
                     return;
                 }
+            }
+            
+            // Check for stats button click in game screen
+            if (screen === 'game' && window.statsButton) {
+                const btn = window.statsButton;
+                if (clickX >= btn.x && clickX <= btn.x + btn.width &&
+                    clickY >= btn.y && clickY <= btn.y + btn.height) {
+                    openStatMenu();
+                    return;
+                }
+            }
+            
+            // Handle stat menu clicks
+            if (screen === 'game' && statMenuOpen) {
+                handleStatMenuClick(clickX, clickY);
+                return;
+            }
+            
+            // Game screen click handling (after stat menu check)
+            if (screen === 'game') {
                 // If charging Fuga at 100%, fire on click instead of punch
                 if (fuga.charging && fuga.chargeTime >= fuga.maxChargeTime) {
                     fireFugaArrow();
                     return;
                 }
-                // M1 punch on left click (not on menu button)
+                // M1 punch on left click
                 useM1();
                 return;
             }
