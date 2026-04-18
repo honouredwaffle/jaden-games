@@ -195,7 +195,7 @@
         
         // Update log entries - formatted with category headers and sub-bullets
         const updateBlog = [
-            { date: '2026-04-18', title: 'Ability Colour Customization - All Abilities', content: '• Added:\n  ◦ All abilities now use selected custom colour\n  ◦ Max Blue - orb, glow, rings, and particles\n  ◦ Reversal Red - charging and fired projectile\n  ◦ Hollow Purple - fusion orbs and energy effects\n  ◦ Dismantle/Cleave - slash effects and sparks\n  ◦ Fuga - fire circle and charging effects\n  ◦ Hit effects and kill effects\n  ◦ Ability bar UI and mobile buttons\n• Colour options: Default, Purple, Yellow, Black' },
+            { date: '2026-04-18', title: 'Ability Colour Customization - Complete', content: '• Added:\n  ◦ All abilities use selected custom colour\n  ◦ Player aura rings (Limitless)\n  ◦ Six Eyes glow under blindfold\n  ◦ Punch/M1 attack effects\n  ◦ Max Blue, Reversal Red, Hollow Purple\n  ◦ Dismantle/Cleave slash effects\n  ◦ Fuga fire effects\n  ◦ Hit effects, kill effects, particles\n  ◦ Ability bar and mobile buttons\n• Colour options: Default, Purple, Yellow, Black' },
             { date: '2026-04-18', title: 'Update Log Format Overhaul', content: '• Changed:\n  ◦ All update logs reformatted with descriptive titles\n  ◦ Content now uses bullet points with categories (Added, Fixed, Visuals, etc.)\n  ◦ Clear categorization for better readability\n• Removed: Generic "Major Update" style titles' },
             { date: '2026-04-18', title: 'Enhanced Dismantle & Cleave Slash Effects', content: '• Added:\n  ◦ Multi-layer slash glows (outer red, middle orange, bright white core)\n  ◦ Spark particles along slash paths\n  ◦ Cross-pattern slashes for extra impact\n  ◦ Screen shake during Dismantle and Cleave abilities\n  ◦ Red flash effect on ability activation\n• Visuals:\n  ◦ Slashes now expand slightly as they fade\n  ◦ Longer slash duration for better visibility' },
             { date: '2026-04-18', title: 'Minimap Redesign - Overlapping Biome Zones', content: '• Fixed:\n  ◦ Biome circles now overlap to eliminate black gaps\n  ◦ Player position correctly corresponds to actual biome location\n• Visuals:\n  ◦ Larger biome radius (55% of map) for seamless coverage\n  ◦ Forest center expanded to 45% of map radius' },
@@ -3888,6 +3888,10 @@
             const floatY = Math.sin(time) * 2;
             const drawY = screenY + floatY;
             
+            // Get custom colors
+            const colors = getCurrentAbilityColors();
+            const rgb = hexToRgb(colors.primary) || {r: 0, g: 170, b: 255};
+            
             // Movement animation
             const isMoving = keys['w'] || keys['W'] || keys['s'] || keys['S'] || keys['a'] || keys['A'] || keys['d'] || keys['D'];
             const walkCycle = isMoving ? Math.sin(time * 4) : 0;
@@ -3898,12 +3902,12 @@
             ctx.ellipse(screenX, screenY + player.radius + 25, player.radius * 0.8, player.radius * 0.3, 0, 0, Math.PI * 2);
             ctx.fill();
             
-            // Infinite aura rings (Limitless)
+            // Infinite aura rings (Limitless) - uses custom colors
             ctx.save();
             for (let i = 3; i >= 0; i--) {
                 const ringSize = player.radius + 12 + i * 6;
                 const pulse = Math.sin(time * 2 + i) * 3;
-                ctx.strokeStyle = `rgba(0, 170, 255, ${0.15 - i * 0.03})`;
+                ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${0.15 - i * 0.03})`;
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.arc(screenX, drawY, ringSize + pulse, 0, Math.PI * 2);
@@ -3912,7 +3916,7 @@
             ctx.restore();
             
             ctx.save();
-            ctx.shadowColor = '#00aaff';
+            ctx.shadowColor = colors.primary;
             ctx.shadowBlur = 15;
             
             // Legs with proper walking animation based on facing direction
@@ -4026,9 +4030,9 @@
             ctx.fillStyle = '#1a1a2e';
             ctx.fillRect(screenX - player.radius + 2, drawY - 4, player.radius * 2 - 4, 8);
             
-            // Six Eyes glow under blindfold
-            ctx.fillStyle = '#00ffff';
-            ctx.shadowColor = '#00ffff';
+            // Six Eyes glow under blindfold - uses custom accent color
+            ctx.fillStyle = colors.accent;
+            ctx.shadowColor = colors.accent;
             ctx.shadowBlur = 15;
             ctx.beginPath();
             ctx.arc(screenX - 4, drawY, 2, 0, Math.PI * 2);
@@ -4143,6 +4147,10 @@
             // Basic punch attack - no CE cost
             const isBlackFlash = Math.random() < 0.05; // 5% chance
             
+            // Get custom colors for punch effect
+            const colors = getCurrentAbilityColors();
+            const effectType = isBlackFlash ? 'purple' : 'primary';
+            
             // Find nearby enemies to punch
             const punchRange = 80;
             let hitEnemy = false;
@@ -4161,8 +4169,8 @@
                     enemy.x += Math.cos(knockbackDir) * (isBlackFlash ? 50 : 20);
                     enemy.y += Math.sin(knockbackDir) * (isBlackFlash ? 50 : 20);
                     
-                    // Visual effect
-                    addHitEffect(enemy.x, enemy.y, isBlackFlash ? 'purple' : 'blue');
+                    // Visual effect - uses custom color
+                    addHitEffect(enemy.x, enemy.y, effectType);
                     addDamageNumber(enemy.x, enemy.y, damage);
                     
                     if (isBlackFlash) {
@@ -4173,8 +4181,8 @@
                     }
                     
                     if (enemy.hp <= 0) {
-                        addKillEffect(enemy.x, enemy.y, isBlackFlash ? 'purple' : 'blue');
-                        killSpirit(i, isBlackFlash ? 'purple' : 'blue');
+                        addKillEffect(enemy.x, enemy.y, effectType);
+                        killSpirit(i, effectType);
                     }
                     
                     break; // Only hit one enemy per punch
@@ -4186,7 +4194,7 @@
                 // Create a small punch effect in front of player
                 const punchX = player.x + Math.cos(player.facing) * 40;
                 const punchY = player.y + Math.sin(player.facing) * 40;
-                addHitEffect(punchX, punchY, 'blue');
+                addHitEffect(punchX, punchY, 'primary');
             }
         }
         
@@ -8451,7 +8459,8 @@
                 const screenX = effect.x - camera.x;
                 const screenY = effect.y - camera.y;
                 const alpha = effect.life / effect.maxLife;
-                const color = effect.type === 'blue' ? colors.primary : colors.primary;
+                // Use custom color for all hit types
+                const color = colors.primary;
                 
                 ctx.save();
                 ctx.globalAlpha = alpha;
