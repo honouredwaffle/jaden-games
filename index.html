@@ -10819,12 +10819,15 @@
             }
             
             // Check for stats button click in game screen
-            if (screen === 'game' && window.statsButton) {
-                const btn = window.statsButton;
-                console.log('Stats button check:', { clickX, clickY, btnX: btn.x, btnY: btn.y, btnW: btn.width, btnH: btn.height });
-                if (clickX >= btn.x && clickX <= btn.x + btn.width &&
-                    clickY >= btn.y && clickY <= btn.y + btn.height) {
-                    console.log('Stats button clicked!');
+            // Calculate button position dynamically to ensure accuracy
+            const statsBtnWidth = 80;
+            const statsBtnHeight = 28;
+            const statsBtnX = canvas.width - statsBtnWidth - 20;
+            const statsBtnY = 20 + 140 + 10; // Below minimap
+            
+            if (screen === 'game') {
+                if (clickX >= statsBtnX && clickX <= statsBtnX + statsBtnWidth &&
+                    clickY >= statsBtnY && clickY <= statsBtnY + statsBtnHeight) {
                     openStatMenu();
                     return;
                 }
