@@ -352,9 +352,22 @@
         // Stat Menu System
         let statMenuOpen = false;
         let statMenuButton = { x: 0, y: 0, width: 0, height: 0 };
+        let statMenuLastToggle = 0;
         
-        function openStatMenu() { statMenuOpen = true; }
-        function closeStatMenu() { statMenuOpen = false; }
+        function openStatMenu() { 
+            const now = Date.now();
+            if (now - statMenuLastToggle < 300) return; // Prevent double-toggle
+            statMenuLastToggle = now;
+            statMenuOpen = true; 
+            console.log('Menu opened, statMenuOpen:', statMenuOpen);
+        }
+        function closeStatMenu() { 
+            const now = Date.now();
+            if (now - statMenuLastToggle < 300) return; // Prevent double-toggle
+            statMenuLastToggle = now;
+            statMenuOpen = false; 
+            console.log('Menu closed, statMenuOpen:', statMenuOpen);
+        }
         
         // XP gain helper
         function gainXP(amount) {
