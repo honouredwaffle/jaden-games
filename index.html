@@ -10827,11 +10827,15 @@
             const statsBtnY = 20 + 140 + 10; // Below minimap
             
             if (screen === 'game') {
+                console.log('Stats button check:', { clickX, clickY, statsBtnX, statsBtnY, statsBtnWidth, statsBtnHeight, screen });
                 if (clickX >= statsBtnX && clickX <= statsBtnX + statsBtnWidth &&
                     clickY >= statsBtnY && clickY <= statsBtnY + statsBtnHeight) {
+                    console.log('Stats button clicked! Opening menu...');
                     openStatMenu();
                     return;
                 }
+            } else {
+                console.log('Not in game screen, skipping stats button check. Current screen:', screen);
             }
             
             // Handle stat menu clicks
