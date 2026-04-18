@@ -195,7 +195,7 @@
         
         // Update log entries - formatted with category headers and sub-bullets
         const updateBlog = [
-            { date: '2026-04-18', title: 'Update Log Mobile Fix', content: '• Fixed:\n  ◦ Could accidentally exit single entry view in mobile mode\n  ◦ Now requires clicking bottom area or left edge to go back\n  ◦ Prevents accidental exits when scrolling/tapping content' },
+            { date: '2026-04-18', title: 'Update Log Mobile Fix', content: '• Fixed:\n  ◦ Could accidentally exit single entry view in mobile mode\n  ◦ Added X button at top right to exit update log\n  ◦ X button works in both list view and single entry view\n  ◦ Prevents accidental exits when scrolling/tapping content' },
             { date: '2026-04-18', title: 'Hollow Purple Boss Fix', content: '• Fixed:\n  ◦ Boss no longer takes continuous damage from Hollow Purple\n  ◦ Now only takes damage once per projectile (as intended)\n  ◦ Was applying damage every frame while projectile touched boss\n• Note: Hollow Purple still pierces through boss, but damage applies once' },
             { date: '2026-04-18', title: 'Hollow Purple Damage Buff', content: '• Changed:\n  ◦ Hollow Purple damage increased from 200 to 235 (+35)\n  ◦ Boss damage increased from 400 to 470\n• Reason: Better balance against stronger spirits' },
             { date: '2026-04-18', title: 'Fuga Balance Change - Movement Speed', content: '• Changed:\n  ◦ Player movement speed reduced by 50% while charging Fuga\n  ◦ Applies during entire charging phase (0-100%)\n  ◦ Returns to normal speed after firing or releasing\n• Reason: Adds risk/reward to charging the powerful ability' },
@@ -9160,6 +9160,31 @@
                 ctx.textAlign = 'center';
                 ctx.fillText('Press ENTER or CLICK to go back', canvas.width / 2, canvas.height - 50);
                 
+                // X button at top right for mobile
+                const xButtonSize = 40;
+                const xButtonX = canvas.width - xButtonSize - 20;
+                const xButtonY = 20;
+                
+                // X button background
+                ctx.fillStyle = 'rgba(233, 69, 96, 0.3)';
+                ctx.fillRect(xButtonX, xButtonY, xButtonSize, xButtonSize);
+                ctx.strokeStyle = '#e94560';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(xButtonX, xButtonY, xButtonSize, xButtonSize);
+                
+                // X symbol
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(xButtonX + 10, xButtonY + 10);
+                ctx.lineTo(xButtonX + xButtonSize - 10, xButtonY + xButtonSize - 10);
+                ctx.moveTo(xButtonX + xButtonSize - 10, xButtonY + 10);
+                ctx.lineTo(xButtonX + 10, xButtonY + xButtonSize - 10);
+                ctx.stroke();
+                
+                // Store X button position for click detection
+                window.blogXButton = { x: xButtonX, y: xButtonY, width: xButtonSize, height: xButtonSize };
+                
             } else {
                 // LIST VIEW
                 // Title
@@ -9167,6 +9192,31 @@
                 ctx.font = 'bold 36px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
                 ctx.fillText('UPDATE LOG', canvas.width / 2, 60);
+                
+                // X button at top right for mobile
+                const xButtonSize = 40;
+                const xButtonX = canvas.width - xButtonSize - 20;
+                const xButtonY = 20;
+                
+                // X button background
+                ctx.fillStyle = 'rgba(233, 69, 96, 0.3)';
+                ctx.fillRect(xButtonX, xButtonY, xButtonSize, xButtonSize);
+                ctx.strokeStyle = '#e94560';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(xButtonX, xButtonY, xButtonSize, xButtonSize);
+                
+                // X symbol
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 3;
+                ctx.beginPath();
+                ctx.moveTo(xButtonX + 10, xButtonY + 10);
+                ctx.lineTo(xButtonX + xButtonSize - 10, xButtonY + xButtonSize - 10);
+                ctx.moveTo(xButtonX + xButtonSize - 10, xButtonY + 10);
+                ctx.lineTo(xButtonX + 10, xButtonY + xButtonSize - 10);
+                ctx.stroke();
+                
+                // Store X button position for click detection
+                window.blogXButton = { x: xButtonX, y: xButtonY, width: xButtonSize, height: xButtonSize };
                 
                 // Draw blog entries
                 const entryHeight = 100;
@@ -9710,11 +9760,24 @@
             
             // Blog entry click handling
             if (screen === 'blog') {
+                // Check for X button click first (both views)
+                if (window.blogXButton) {
+                    const btn = window.blogXButton;
+                    if (clickX >= btn.x && clickX <= btn.x + btn.width &&
+                        clickY >= btn.y && clickY <= btn.y + btn.height) {
+                        // X button clicked - go back to title
+                        screen = 'title';
+                        currentMenu = titleOptions;
+                        selectedOption = 0;
+                        blogSelectedEntry = -1;
+                        return;
+                    }
+                }
+                
                 if (blogSelectedEntry >= 0) {
-                    // VIEWING SINGLE ENTRY - only go back if clicking in the bottom area (where instructions are)
-                    // or on the left edge (back button area), not anywhere
+                    // VIEWING SINGLE ENTRY - only go back to list if clicking in the bottom area
                     const backAreaY = canvas.height - 100; // Bottom 100px where instructions are
-                    if (clickY >= backAreaY || clickX < 100) {
+                    if (clickY >= backAreaY) {
                         blogSelectedEntry = -1;
                     }
                 } else if (window.blogEntryRects) {
