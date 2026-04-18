@@ -1907,7 +1907,7 @@
         }
         
         function updateTutorial() {
-            if (!screen === 'tutorial') return;
+            if (screen !== 'tutorial') return;
             
             const steps = mobileMode ? tutorialSteps.mobile : tutorialSteps.computer;
             
