@@ -1524,6 +1524,11 @@
                 else if (currentBiome === 'SNOW') speedMultiplier = 0.7; // 30% slower in snow
                 else if (currentBiome === 'SAND') speedMultiplier = 0.85; // 15% slower in sand
                 
+                // Slow down when charging Fuga
+                if (fuga.charging) {
+                    speedMultiplier *= 0.5; // 50% slower while charging
+                }
+                
                 // Store old position for footstep check
                 const oldX = player.x;
                 const oldY = player.y;
