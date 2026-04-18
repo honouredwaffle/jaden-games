@@ -1746,14 +1746,14 @@
                 { title: 'MOVEMENT', text: 'Use WASD to move around', check: () => keys['w'] || keys['a'] || keys['s'] || keys['d'] },
                 { title: 'AIMING', text: 'Move your mouse to aim', check: () => true }, // Always pass after delay
                 { title: 'BASIC ATTACK', text: 'Left click to punch (M1)', check: () => punchEffects.length > 0 },
-                { title: 'ABILITIES', text: 'Press 1, 2, 3, 4 to use abilities', check: () => maxBlue.active || reversalRed.active || hollowPurple.active || domainActive },
+                { title: 'ABILITIES', text: 'Press 1, 2, 3, 4 to use abilities', check: () => maxBlue.active || reversalRed.active || hollowPurple.active || playerDomain.active || sukunaDomain.active },
                 { title: 'COMBAT', text: 'Defeat the training dummy!', check: () => !tutorialDummy || tutorialDummy.hp <= 0 }
             ],
             mobile: [
                 { title: 'MOVEMENT', text: 'Use the left joystick to move', check: () => window.joystickActive },
                 { title: 'AIMING', text: 'Aim in the direction you move', check: () => true },
                 { title: 'BASIC ATTACK', text: 'Tap the PUNCH button to attack', check: () => punchEffects.length > 0 },
-                { title: 'ABILITIES', text: 'Tap ability buttons (1-4) to use them', check: () => maxBlue.active || reversalRed.active || hollowPurple.active || domainActive },
+                { title: 'ABILITIES', text: 'Tap ability buttons (1-4) to use them', check: () => maxBlue.active || reversalRed.active || hollowPurple.active || playerDomain.active || sukunaDomain.active },
                 { title: 'COMBAT', text: 'Defeat the training dummy!', check: () => !tutorialDummy || tutorialDummy.hp <= 0 }
             ]
         };
