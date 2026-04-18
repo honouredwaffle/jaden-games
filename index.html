@@ -195,6 +195,7 @@
         
         // Update log entries - formatted with category headers and sub-bullets
         const updateBlog = [
+            { date: '2026-04-18', title: 'Hollow Purple Boss Fix', content: '• Fixed:\n  ◦ Boss no longer takes continuous damage from Hollow Purple\n  ◦ Now only takes damage once per projectile (as intended)\n  ◦ Was applying damage every frame while projectile touched boss\n• Note: Hollow Purple still pierces through boss, but damage applies once' },
             { date: '2026-04-18', title: 'Hollow Purple Damage Buff', content: '• Changed:\n  ◦ Hollow Purple damage increased from 200 to 235 (+35)\n  ◦ Boss damage increased from 400 to 470\n• Reason: Better balance against stronger spirits' },
             { date: '2026-04-18', title: 'Fuga Balance Change - Movement Speed', content: '• Changed:\n  ◦ Player movement speed reduced by 50% while charging Fuga\n  ◦ Applies during entire charging phase (0-100%)\n  ◦ Returns to normal speed after firing or releasing\n• Reason: Adds risk/reward to charging the powerful ability' },
             { date: '2026-04-18', title: 'Ability Colour Customization - Complete', content: '• Added:\n  ◦ All abilities use selected custom colour\n  ◦ Player aura rings (Limitless)\n  ◦ Six Eyes glow under blindfold\n  ◦ Punch/M1 attack effects\n  ◦ Max Blue, Reversal Red, Hollow Purple\n  ◦ Dismantle/Cleave slash effects\n  ◦ Fuga fire effects\n  ◦ Hit effects, kill effects, particles\n  ◦ Ability bar and mobile buttons\n• Colour options: Default, Purple, Yellow, Black' },
@@ -396,6 +397,7 @@
             life: 120, // 2 seconds of flight
             maxLife: 120,
             hitEnemies: [], // Track which enemies have been pierced
+            hitBoss: false, // Track if boss has been hit
             blueOrb: { x: 0, y: 0, angle: 0 },
             redOrb: { x: 0, y: 0, angle: Math.PI }
         };
@@ -6750,6 +6752,7 @@
                     hollowPurple.vy = 0;
                     hollowPurple.life = hollowPurple.maxLife;
                     hollowPurple.hitEnemies = [];
+                    hollowPurple.hitBoss = false;
                     hollowPurple.blueOrb = { x: 0, y: 0, angle: 0 };
                     hollowPurple.redOrb = { x: 0, y: 0, angle: Math.PI };
                 }
@@ -6803,8 +6806,8 @@
                 }
             }
             
-            // Check collision with boss (piercing, can hit multiple times)
-            if (activeDisasterCurse) {
+            // Check collision with boss (once per pass)
+            if (activeDisasterCurse && !hollowPurple.hitBoss) {
                 const dx = hollowPurple.x - activeDisasterCurse.x;
                 const dy = hollowPurple.y - activeDisasterCurse.y;
                 const dist = Math.sqrt(dx * dx + dy * dy);
@@ -6815,6 +6818,7 @@
                     addDamageCounter(dmg);
                     addDamageNumber(activeDisasterCurse.x, activeDisasterCurse.y, dmg);
                     addHitEffect(activeDisasterCurse.x, activeDisasterCurse.y, 'purple');
+                    hollowPurple.hitBoss = true; // Only hit once per projectile
                 }
             }
             
