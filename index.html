@@ -4816,7 +4816,7 @@
                 }
                 ctx.shadowBlur = 0;
                 
-                // Rising ember particles
+                // Rising ember particles - uses custom colors
                 for (let i = 0; i < 12 + chargePercent * 8; i++) {
                     const emberAngle = (i / 20) * Math.PI * 2 + circleTime * 0.5;
                     const emberDist = 15 + Math.sin(circleTime * 3 + i) * 10;
@@ -4825,24 +4825,25 @@
                     const emberSize = 2 + Math.random() * 3 * chargePercent;
                     const emberAlpha = Math.max(0, 1 - ((circleTime * 30 + i * 10) % 60) / 60) * chargePercent;
                     
-                    ctx.fillStyle = `rgba(255, ${150 + Math.random() * 80}, 50, ${emberAlpha})`;
+                    const gVal = Math.floor(rgb.g * (0.6 + Math.random() * 0.3));
+                    ctx.fillStyle = `rgba(${rgb.r}, ${gVal}, ${Math.floor(rgb.b * 0.3)}, ${emberAlpha})`;
                     ctx.beginPath();
                     ctx.arc(ex, ey, emberSize, 0, Math.PI * 2);
                     ctx.fill();
                 }
                 
-                // Inner core - clean white-hot center
+                // Inner core - uses custom colors
                 const corePulse = Math.sin(circleTime * 5) * 0.2 + 0.8;
                 const coreSize = 18 + chargePercent * 12 * corePulse;
                 
                 const coreGrad = ctx.createRadialGradient(screenX, screenY, 0, screenX, screenY, coreSize);
                 coreGrad.addColorStop(0, `rgba(255, 255, 220, ${chargePercent})`);
-                coreGrad.addColorStop(0.3, `rgba(255, 200, 80, ${0.8 * chargePercent})`);
-                coreGrad.addColorStop(0.6, `rgba(255, 120, 20, ${0.4 * chargePercent})`);
-                coreGrad.addColorStop(1, 'rgba(255, 60, 0, 0)');
+                coreGrad.addColorStop(0.3, `rgba(${Math.min(255, rgb.r + 50)}, ${Math.min(255, rgb.g + 100)}, ${Math.floor(rgb.b * 0.5)}, ${0.8 * chargePercent})`);
+                coreGrad.addColorStop(0.6, `rgba(${rgb.r}, ${Math.floor(rgb.g * 0.8)}, ${Math.floor(rgb.b * 0.2)}, ${0.4 * chargePercent})`);
+                coreGrad.addColorStop(1, `rgba(${rgb.r}, ${Math.floor(rgb.g * 0.3)}, 0, 0)`);
                 
                 ctx.fillStyle = coreGrad;
-                ctx.shadowColor = '#ff8800';
+                ctx.shadowColor = colors.glow;
                 ctx.shadowBlur = 20 * chargePercent;
                 ctx.beginPath();
                 ctx.arc(screenX, screenY, coreSize, 0, Math.PI * 2);
@@ -7739,21 +7740,21 @@
                     ctx.translate((Math.random() - 0.5) * shakeIntensity, (Math.random() - 0.5) * shakeIntensity);
                 }
                 
-                // Draw fusion percentage with intense glow
+                // Draw fusion percentage with intense glow - uses custom colors
                 const glowIntensity = 10 + fusionProgress * 30;
                 ctx.shadowBlur = glowIntensity;
-                ctx.shadowColor = '#ff00ff';
+                ctx.shadowColor = colors.primary;
                 ctx.fillStyle = '#fff';
                 ctx.font = 'bold 20px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
                 const percentText = Math.floor(fusionProgress * 100) + '%';
                 ctx.fillText(percentText, centerX, centerY - 50);
                 
-                // IMAGINARY TECHNIQUE / KYOSHIKI text when close
+                // IMAGINARY TECHNIQUE / KYOSHIKI text when close - uses custom colors
                 if (fusionProgress > 0.7) {
                     ctx.shadowBlur = 20 + fastPulse * 20;
-                    ctx.shadowColor = '#ff00ff';
-                    ctx.fillStyle = `rgba(255, 0, 255, ${0.5 + fastPulse * 0.5})`;
+                    ctx.shadowColor = colors.primary;
+                    ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${0.5 + fastPulse * 0.5})`;
                     ctx.font = 'bold 12px "Segoe UI", sans-serif';
                     ctx.fillText('IMAGINARY TECHNIQUE', centerX, centerY - 75);
                     ctx.font = 'bold 16px "Segoe UI", sans-serif';
@@ -7789,10 +7790,10 @@
                 
                 ctx.save();
                 
-                // Expanding warning rings with more intensity
-                ctx.strokeStyle = `rgba(255, 100, 255, ${0.6 + pulse * 0.4})`;
+                // Expanding warning rings with more intensity - uses custom colors
+                ctx.strokeStyle = `rgba(${rgb.r}, ${Math.floor(rgb.g * 0.6)}, ${Math.floor(rgb.b * 1.2)}, ${0.6 + pulse * 0.4})`;
                 ctx.lineWidth = 4;
-                ctx.shadowColor = '#ff00ff';
+                ctx.shadowColor = colors.primary;
                 ctx.shadowBlur = 40;
                 for (let i = 0; i < 5; i++) {
                     const ringSize = 25 + i * 12 + holdProgress * 25 + pulse * 15;
@@ -7803,13 +7804,13 @@
                 }
                 ctx.globalAlpha = 1;
                 
-                // Dual rotating energy rings
+                // Dual rotating energy rings - uses custom colors
                 ctx.save();
                 ctx.translate(screenX, screenY);
                 
                 // Outer ring (clockwise)
                 ctx.rotate(time * 3);
-                ctx.strokeStyle = `rgba(255, 150, 255, ${0.6 + pulse * 0.4})`;
+                ctx.strokeStyle = `rgba(${Math.min(255, rgb.r + 50)}, ${Math.floor(rgb.g * 0.8)}, ${Math.floor(rgb.b * 1.2)}, ${0.6 + pulse * 0.4})`;
                 ctx.lineWidth = 3;
                 ctx.shadowBlur = 25;
                 ctx.beginPath();
@@ -7818,15 +7819,15 @@
                 
                 // Inner ring (counter-clockwise)
                 ctx.rotate(-time * 6);
-                ctx.strokeStyle = `rgba(200, 100, 255, ${0.5 + fastPulse * 0.4})`;
+                ctx.strokeStyle = `rgba(${rgb.r}, ${Math.floor(rgb.g * 0.6)}, ${Math.floor(rgb.b * 1.2)}, ${0.5 + fastPulse * 0.4})`;
                 ctx.lineWidth = 2;
                 ctx.beginPath();
                 ctx.arc(0, 0, 35 + holdProgress * 10, 0, Math.PI * 2);
                 ctx.stroke();
                 
-                // Energy spikes
+                // Energy spikes - uses custom colors
                 ctx.rotate(time * 4);
-                ctx.strokeStyle = `rgba(255, 200, 255, ${0.7 + pulse * 0.3})`;
+                ctx.strokeStyle = `rgba(${Math.min(255, rgb.r + 80)}, ${Math.floor(rgb.g * 0.9)}, ${Math.floor(rgb.b * 1.2)}, ${0.7 + pulse * 0.3})`;
                 ctx.lineWidth = 2;
                 for (let i = 0; i < 12; i++) {
                     const angle = (i / 12) * Math.PI * 2;
@@ -7838,13 +7839,13 @@
                 }
                 ctx.restore();
                 
-                // Ultra-intense pulsing orb core
+                // Ultra-intense pulsing orb core - uses custom colors
                 for (let i = 7; i >= 0; i--) {
                     ctx.shadowBlur = 60 + i * 20;
-                    ctx.shadowColor = '#ff00ff';
+                    ctx.shadowColor = colors.primary;
                     const size = (35 + holdProgress * 12) * (0.8 + pulse * 0.5) - i * 3;
                     const alpha = 0.95 - i * 0.08;
-                    ctx.fillStyle = `rgba(${230 + i * 3}, ${60 + i * 30}, 255, ${alpha})`;
+                    ctx.fillStyle = `rgba(${Math.min(255, rgb.r + i * 10)}, ${Math.floor(rgb.g * (0.3 + i * 0.1))}, ${Math.min(255, rgb.b + i * 5)}, ${alpha})`;
                     ctx.beginPath();
                     ctx.arc(screenX, screenY, Math.max(0, size), 0, Math.PI * 2);
                     ctx.fill();
@@ -7858,15 +7859,15 @@
                 ctx.arc(screenX, screenY, 15 + holdProgress * 6 + pulse * 5, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Deep violet inner core
-                ctx.fillStyle = `rgba(150, 50, 255, ${1})`;
+                // Deep colored inner core
+                ctx.fillStyle = `rgba(${Math.floor(rgb.r * 0.8)}, ${Math.floor(rgb.g * 0.3)}, ${Math.floor(rgb.b * 1.2)}, ${1})`;
                 ctx.beginPath();
                 ctx.arc(screenX, screenY, 8, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // HOLLOW PURPLE / 紫 text overlay
+                // HOLLOW PURPLE / 紫 text overlay - uses custom colors
                 ctx.shadowBlur = 30;
-                ctx.shadowColor = '#ff00ff';
+                ctx.shadowColor = colors.primary;
                 ctx.fillStyle = `rgba(255, 255, 255, ${0.8 + fastPulse * 0.2})`;
                 ctx.font = 'bold 12px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
