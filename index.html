@@ -1862,6 +1862,10 @@
                 ctx.fillText(tutorialDummy.name, tutorialDummy.x - camera.x, tutorialDummy.y - camera.y - 60);
             }
             
+            // Draw domain background (behind player)
+            drawPlayerDomainBackground();
+            drawSukunaDomain();
+            
             // Draw abilities
             drawMaxBlue();
             drawReversalRed();
@@ -1871,6 +1875,9 @@
             
             // Draw player
             drawPlayer();
+            
+            // Draw domain foreground (in front of player)
+            drawPlayerDomainForeground();
             
             // Draw minimap for tutorial
             drawTutorialMinimap();
