@@ -471,7 +471,11 @@
         loadGameData();
         
         function drawStatMenu() {
-            if (!statMenuOpen) return;
+            if (!statMenuOpen) {
+                console.log('drawStatMenu: menu not open, skipping draw');
+                return;
+            }
+            console.log('drawStatMenu: drawing menu');
             
             const menuW = 360;
             const menuH = 420;
@@ -10840,6 +10844,7 @@
             
             // Handle stat menu clicks
             if (screen === 'game' && statMenuOpen) {
+                console.log('Handling stat menu click, statMenuOpen:', statMenuOpen);
                 handleStatMenuClick(clickX, clickY);
                 return;
             }
