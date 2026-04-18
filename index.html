@@ -1971,17 +1971,22 @@
             updatePlayer();
             
             // Update camera to follow player
-            camera.x = player.x - canvas.width / 2;
-            camera.y = player.y - canvas.height / 2;
+            const centerX = canvas.width > 0 ? canvas.width / 2 : 400;
+            const centerY = canvas.height > 0 ? canvas.height / 2 : 300;
+            camera.x = player.x - centerX;
+            camera.y = player.y - centerY;
             
             // Update abilities and effects
             updateAbilities();
+            updateMaxBlue();
+            updateReversalRed();
+            updateHollowPurple();
             updateFuga();
+            updatePlayerDomain();
+            updateSukunaDomain();
             updateDamageNumbers();
             updateHitEffects();
             updateSlashEffects();
-            updatePlayerDomain();
-            updateSukunaDomain();
             
             // Check if dummy is hit
             if (tutorialDummy && tutorialDummy.hp > 0) {
