@@ -1827,6 +1827,24 @@
             ctx.strokeRect(-tutorialArenaSize/2 - camera.x, -tutorialArenaSize/2 - camera.y, tutorialArenaSize, tutorialArenaSize);
             
             // Draw training dummy
+            // Draw domain background (behind player)
+            drawPlayerDomainBackground();
+            drawSukunaDomain();
+            
+            // Draw abilities
+            drawMaxBlue();
+            drawReversalRed();
+            drawHollowPurple();
+            drawFuga();
+            updateAndDrawFugaParticles();
+            
+            // Draw player
+            drawPlayer();
+            
+            // Draw domain foreground (in front of player)
+            drawPlayerDomainForeground();
+            
+            // Draw training dummy (on top of domain)
             if (tutorialDummy && tutorialDummy.hp > 0) {
                 // Dummy body
                 ctx.fillStyle = tutorialDummy.color;
@@ -1861,23 +1879,6 @@
                 ctx.textAlign = 'center';
                 ctx.fillText(tutorialDummy.name, tutorialDummy.x - camera.x, tutorialDummy.y - camera.y - 60);
             }
-            
-            // Draw domain background (behind player)
-            drawPlayerDomainBackground();
-            drawSukunaDomain();
-            
-            // Draw abilities
-            drawMaxBlue();
-            drawReversalRed();
-            drawHollowPurple();
-            drawFuga();
-            updateAndDrawFugaParticles();
-            
-            // Draw player
-            drawPlayer();
-            
-            // Draw domain foreground (in front of player)
-            drawPlayerDomainForeground();
             
             // Draw minimap for tutorial
             drawTutorialMinimap();
