@@ -1846,6 +1846,13 @@
                 ctx.fillText(tutorialDummy.name, tutorialDummy.x - camera.x, tutorialDummy.y - camera.y - 60);
             }
             
+            // Draw abilities
+            drawMaxBlue();
+            drawReversalRed();
+            drawHollowPurple();
+            drawFuga();
+            updateAndDrawFugaParticles();
+            
             // Draw player
             drawPlayer();
             
@@ -1951,7 +1958,9 @@
             camera.x = player.x - canvas.width / 2;
             camera.y = player.y - canvas.height / 2;
             
-            // Update effects
+            // Update abilities and effects
+            updateAbilities();
+            updateFuga();
             updateDamageNumbers();
             updateHitEffects();
             updateSlashEffects();
