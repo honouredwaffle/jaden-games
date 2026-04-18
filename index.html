@@ -266,6 +266,9 @@
         // Hit effects (when abilities hit enemies)
         let hitEffects = [];
         
+        // Punch effects (for tutorial tracking)
+        let punchEffects = [];
+        
         // Slash effects (for Dismantle)
         let slashEffects = [];
         
@@ -4663,11 +4666,16 @@
             }
             
             // Punch visual effect even if no enemy hit
-            if (!hitEnemy) {
-                // Create a small punch effect in front of player
-                const punchX = player.x + Math.cos(player.facing) * 40;
-                const punchY = player.y + Math.sin(player.facing) * 40;
-                addHitEffect(punchX, punchY, 'primary');
+            const punchX = player.x + Math.cos(player.facing) * 40;
+            const punchY = player.y + Math.sin(player.facing) * 40;
+            addHitEffect(punchX, punchY, 'primary');
+            
+            // Track punch for tutorial
+            punchEffects.push({ x: punchX, y: punchY, time: Date.now() });
+            // Clean up old punches
+            const now = Date.now();
+            while (punchEffects.length > 0 && now - punchEffects[0].time > 1000) {
+                punchEffects.shift();
             }
         }
         
