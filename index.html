@@ -1744,16 +1744,16 @@
         const tutorialSteps = {
             computer: [
                 { title: 'MOVEMENT', text: 'Use WASD to move around', check: () => keys['w'] || keys['a'] || keys['s'] || keys['d'] },
-                { title: 'AIMING', text: 'Move your mouse to aim', check: () => true }, // Always pass after delay
+                { title: 'MINIMAP', text: 'Check the top right corner for the minimap', check: () => true },
                 { title: 'BASIC ATTACK', text: 'Left click to punch (M1)', check: () => punchEffects.length > 0 },
-                { title: 'ABILITIES', text: 'Press 1, 2, 3, 4 to use abilities', check: () => maxBlue.active || reversalRed.active || hollowPurple.active || playerDomain.active || sukunaDomain.active },
+                { title: 'ABILITIES', text: 'Press 1, 2, 3, 4 to use abilities', check: () => maxBlue.active || reversalRed.charging || reversalRed.active || hollowPurple.active || playerDomain.active || sukunaDomain.active },
                 { title: 'COMBAT', text: 'Defeat the training dummy!', check: () => !tutorialDummy || tutorialDummy.hp <= 0 }
             ],
             mobile: [
                 { title: 'MOVEMENT', text: 'Use the left joystick to move', check: () => window.joystickActive },
-                { title: 'AIMING', text: 'Aim in the direction you move', check: () => true },
+                { title: 'MINIMAP', text: 'Check the top right corner for the minimap', check: () => true },
                 { title: 'BASIC ATTACK', text: 'Tap the PUNCH button to attack', check: () => punchEffects.length > 0 },
-                { title: 'ABILITIES', text: 'Tap ability buttons (1-4) to use them', check: () => maxBlue.active || reversalRed.active || hollowPurple.active || playerDomain.active || sukunaDomain.active },
+                { title: 'ABILITIES', text: 'Tap ability buttons (1-4) to use them', check: () => maxBlue.active || reversalRed.charging || reversalRed.active || hollowPurple.active || playerDomain.active || sukunaDomain.active },
                 { title: 'COMBAT', text: 'Defeat the training dummy!', check: () => !tutorialDummy || tutorialDummy.hp <= 0 }
             ]
         };
@@ -1844,6 +1844,9 @@
             
             // Draw player
             drawPlayer();
+            
+            // Draw minimap for tutorial
+            drawTutorialMinimap();
             
             // Draw mobile controls if in mobile mode
             if (mobileMode) {
@@ -9831,6 +9834,59 @@
             ctx.font = 'bold 10px "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
             ctx.fillText('TESTING ARENA', mapX + mapWidth / 2, mapY + mapHeight - 5);
+        }
+
+        function drawTutorialMinimap() {
+            const mapWidth = 180;
+            const mapHeight = 135;
+            const mapX = canvas.width - mapWidth - 20;
+            const mapY = 20;
+            
+            // Background - grey
+            ctx.fillStyle = 'rgba(40, 40, 40, 0.9)';
+            ctx.fillRect(mapX, mapY, mapWidth, mapHeight);
+            ctx.strokeStyle = '#666';
+            ctx.lineWidth = 2;
+            ctx.strokeRect(mapX, mapY, mapWidth, mapHeight);
+            
+            // Arena bounds (tutorialArenaSize)
+            const scale = Math.min((mapWidth - 20) / tutorialArenaSize, (mapHeight - 20) / tutorialArenaSize);
+            const centerX = mapX + mapWidth / 2;
+            const centerY = mapY + mapHeight / 2;
+            
+            // Draw arena outline
+            ctx.strokeStyle = '#888';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(
+                centerX - tutorialArenaSize * scale / 2,
+                centerY - tutorialArenaSize * scale / 2,
+                tutorialArenaSize * scale,
+                tutorialArenaSize * scale
+            );
+            
+            // Draw player (green dot)
+            const playerMapX = centerX + player.x * scale;
+            const playerMapY = centerY + player.y * scale;
+            ctx.fillStyle = '#0f0';
+            ctx.beginPath();
+            ctx.arc(playerMapX, playerMapY, 4, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Draw training dummy (orange dot)
+            if (tutorialDummy && tutorialDummy.hp > 0) {
+                const dummyMapX = centerX + tutorialDummy.x * scale;
+                const dummyMapY = centerY + tutorialDummy.y * scale;
+                ctx.fillStyle = '#ff6600';
+                ctx.beginPath();
+                ctx.arc(dummyMapX, dummyMapY, 5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            
+            // Label
+            ctx.fillStyle = '#fff';
+            ctx.font = 'bold 10px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('TUTORIAL', mapX + mapWidth / 2, mapY + mapHeight - 5);
         }
 
         // Footstep effects for testing mode
