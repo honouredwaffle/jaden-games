@@ -125,7 +125,7 @@
             'BACK': 'Return to mode select'
         };
         const customOptions = ['OUTFIT', 'ABILITY COLOUR', 'BACK'];
-        const abilityColorOptions = ['DEFAULT', 'PURPLE', 'YELLOW', 'BLACK', 'BACK'];
+        const abilityColorOptions = ['DEFAULT', 'BLUE', 'PURPLE', 'YELLOW', 'BLACK', 'BACK'];
         const settingsOptions = ['CONTROL MODE: COMPUTER', 'TUTORIAL', 'BACK'];
         const deviceOptions = ['COMPUTER', 'MOBILE'];
         const tutorialPromptOptions = ['YES', 'NO'];
@@ -142,6 +142,14 @@
         // Get ability colors based on selected customization
         function getAbilityColors() {
             switch(selectedAbilityColor) {
+                case 'BLUE':
+                    return {
+                        primary: '#0088ff',
+                        secondary: '#0066cc',
+                        glow: '#44aaff',
+                        light: '#88ccff',
+                        accent: '#00ffff'
+                    };
                 case 'PURPLE':
                     return {
                         primary: '#aa44ff',
