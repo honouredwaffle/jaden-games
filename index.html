@@ -1930,8 +1930,7 @@
             camera.x = player.x - canvas.width / 2;
             camera.y = player.y - canvas.height / 2;
             
-            // Update particles and effects
-            updateParticles();
+            // Update effects
             updateDamageNumbers();
             updateHitEffects();
             updateSlashEffects();
@@ -10217,12 +10216,12 @@
             const clickX = (e.clientX - rect.left) * (canvas.width / rect.width);
             const clickY = (e.clientY - rect.top) * (canvas.height / rect.height);
             
-            // Handle title screen click - any click proceeds to main menu
+            // Handle title screen click - any click proceeds to device select
             if (showingTitleScreen) {
                 showingTitleScreen = false;
-                screen = 'main_menu';
-                currentMenu = mainMenuOptions;
-                selectedOption = 0;
+                screen = 'device_select';
+                currentMenu = deviceOptions;
+                selectedOption = mobileMode ? 1 : 0;
                 return;
             }
             
@@ -10326,12 +10325,12 @@
             keys[e.key] = true;
             
             if (showingTitleScreen) {
-                // Any key on title screen proceeds to main menu
+                // Any key on title screen proceeds to device select
                 if (e.key === 'Enter' || e.key === ' ') {
                     showingTitleScreen = false;
-                    screen = 'main_menu';
-                    currentMenu = mainMenuOptions;
-                    selectedOption = 0;
+                    screen = 'device_select';
+                    currentMenu = deviceOptions;
+                    selectedOption = mobileMode ? 1 : 0;
                 }
             } else if (screen === 'tutorial') {
                 // Tutorial complete - press enter to continue
