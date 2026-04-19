@@ -794,7 +794,7 @@
             y: 0,
             vx: 0,
             vy: 0,
-            radius: 25,
+            radius: 45,
             speed: 10,
             damage: 94,
             pierce: true,
@@ -9850,7 +9850,7 @@
         function drawMenuButton() {
             const btnWidth = 60;
             const btnHeight = 30;
-            const btnX = 20; // Left side
+            const btnX = canvas.width - btnWidth - 20; // Right side
             const btnY = canvas.height - btnHeight - 20;
             
             // Button background
