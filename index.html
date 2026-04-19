@@ -111,6 +111,14 @@
         // Hit stop (freeze frames on hard hits)
         let hitStopFrames = 0;
         
+        // Combo system
+        let combo = {
+            count: 0,
+            timer: 0,
+            maxTime: 90, // 1.5 seconds to continue combo
+            lastWasM1: false
+        };
+        
         // Menu options - restructured for better flow
         const pressStartOptions = ['']; // Title screen has no selectable options, just press any key
         const mainMenuOptions = ['PLAY', 'CUSTOMISATION', 'UPDATE LOG', 'SETTINGS'];
@@ -813,6 +821,7 @@
                 speed: 2.5,
                 size: 60,
                 color: '#ff3300',
+                xp: 5000, // Massive XP for killing a disaster curse
                 spawnLocations: [{x: -BIOME_SIZE * 0.8 - 2000, y: -BIOME_SIZE * 0.8 - 2000}, {x: -BIOME_SIZE * 0.8 + 3000, y: -BIOME_SIZE * 0.8 + 2000}] // VOLCANO: top-left
             },
             'HANAMI': {
@@ -823,6 +832,7 @@
                 speed: 3,
                 size: 55,
                 color: '#228b22',
+                xp: 4500,
                 spawnLocations: [{x: -4000, y: -4000}, {x: 3000, y: 3000}] // FOREST: center
             },
             'MAHITO': {
@@ -833,6 +843,7 @@
                 speed: 4,
                 size: 50,
                 color: '#4a0080',
+                xp: 4000,
                 spawnLocations: [{x: BIOME_SIZE * 0.8 + 2000, y: BIOME_SIZE * 0.8 + 2000}, {x: BIOME_SIZE * 0.8 - 2000, y: BIOME_SIZE * 0.8 + 3000}] // CITY: bottom-right
             }
         };
@@ -3286,6 +3297,12 @@
                     if (ddist < playerDomain.maxRadius) {
                         // Check if boss died while frozen
                         if (boss.hp <= 0) {
+                            // Award XP for defeating disaster curse
+                            const curseData = DISASTER_CURSES[boss.name];
+                            if (curseData && curseData.xp) {
+                                gainXP(curseData.xp);
+                                showNotif(`+${curseData.xp} XP for defeating ${boss.name}!`);
+                            }
                             activeDisasterCurse = null;
                             disasterNotification = { text: 'DISASTER CURSE DEFEATED!', color: '#00ff00' };
                             disasterNotifTimer = 600;
@@ -3405,6 +3422,12 @@
                 
                 // Check if boss died
                 if (boss.hp <= 0) {
+                    // Award XP for defeating disaster curse
+                    const curseData = DISASTER_CURSES[boss.name];
+                    if (curseData && curseData.xp) {
+                        gainXP(curseData.xp);
+                        showNotif(`+${curseData.xp} XP for defeating ${boss.name}!`);
+                    }
                     activeDisasterCurse = null;
                     disasterNotification = { text: 'DISASTER CURSE DEFEATED!', color: '#00ff00' };
                     disasterNotifTimer = 600; // 10 seconds at 60fps
@@ -5340,6 +5363,9 @@
                     addHitEffect(enemy.x, enemy.y, effectType);
                     addDamageNumber(enemy.x, enemy.y, damage);
                     
+                    // Add to combo
+                    addToCombo(true);
+                    
                     if (enemy.hp <= 0) {
                         addKillEffect(enemy.x, enemy.y, effectType);
                         killSpirit(i, effectType);
@@ -7177,6 +7203,13 @@
                     
                     // Check if boss died from domain damage
                     if (activeDisasterCurse.hp <= 0) {
+                        // Award XP for defeating disaster curse
+                        const boss = activeDisasterCurse;
+                        const curseData = DISASTER_CURSES[boss.name];
+                        if (curseData && curseData.xp) {
+                            gainXP(curseData.xp);
+                            showNotif(`+${curseData.xp} XP for defeating ${boss.name}!`);
+                        }
                         activeDisasterCurse = null;
                         disasterNotification = { text: 'DISASTER CURSE DEFEATED!', color: '#00ff00' };
                         disasterNotifTimer = 600;
@@ -9703,6 +9736,7 @@
                 updateSlashEffects(dt);
                 updateNotifications(dt);
                 updateDomainBurnout(dt);
+                updateCombo(dt);
             }
             updateSpiritProjectiles(dt);
             updateDisasterCurse(dt);
@@ -9760,6 +9794,9 @@
             
             // Draw level up celebration
             drawLevelUpCelebration();
+            
+            // Draw combo counter
+            drawCombo();
             
             // Draw stat menu on top of everything
             drawStatMenu();
@@ -11044,6 +11081,73 @@
         // Trigger hit stop (freeze frames on hard hits)
         function triggerHitStop(frames) {
             hitStopFrames = Math.max(hitStopFrames, frames);
+        }
+        
+        // Update combo system
+        function updateCombo(dt) {
+            if (combo.timer > 0) {
+                combo.timer -= dt;
+                if (combo.timer <= 0) {
+                    // Combo expired
+                    if (combo.count >= 3) {
+                        showNotif(`Combo x${combo.count} ended!`);
+                    }
+                    combo.count = 0;
+                    combo.lastWasM1 = false;
+                }
+            }
+        }
+        
+        // Draw combo counter
+        function drawCombo() {
+            if (combo.count < 2) return; // Only show at 2+ hits
+            
+            const x = canvas.width / 2;
+            const y = 120;
+            const alpha = Math.min(1, combo.timer / 30);
+            
+            ctx.save();
+            
+            // Combo text
+            ctx.fillStyle = `rgba(255, 215, 0, ${alpha})`;
+            ctx.font = 'bold 36px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = '#ff6600';
+            ctx.shadowBlur = 15;
+            ctx.fillText(`${combo.count} HIT COMBO!`, x, y);
+            
+            // Timer bar
+            const barWidth = 150;
+            const barHeight = 6;
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.fillRect(x - barWidth/2, y + 15, barWidth, barHeight);
+            
+            const progress = combo.timer / combo.maxTime;
+            const barColor = progress > 0.5 ? '#00ff00' : (progress > 0.25 ? '#ffff00' : '#ff0000');
+            ctx.fillStyle = barColor;
+            ctx.fillRect(x - barWidth/2, y + 15, barWidth * progress, barHeight);
+            
+            ctx.restore();
+        }
+        
+        // Add to combo
+        function addToCombo(isM1) {
+            combo.count++;
+            combo.timer = combo.maxTime;
+            combo.lastWasM1 = isM1;
+            
+            // Bonus damage at combo milestones
+            if (combo.count === 3 || combo.count === 5 || combo.count === 10) {
+                showNotif(`Combo x${combo.count}! Damage boosted!`);
+            }
+        }
+        
+        // Get combo damage multiplier
+        function getComboMultiplier() {
+            if (combo.count >= 10) return 1.5;
+            if (combo.count >= 5) return 1.3;
+            if (combo.count >= 3) return 1.15;
+            return 1.0;
         }
         
         function loop(timestamp) {
