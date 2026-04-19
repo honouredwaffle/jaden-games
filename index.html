@@ -69,15 +69,17 @@
             }
         }
         
-        // Resize immediately and multiple times to ensure proper dimensions
+        // Resize immediately and set up ResizeObserver for reliable sizing
         resize();
-        window.addEventListener('resize', resize);
         
-        // Also resize on load and after short delays
-        window.addEventListener('load', resize);
-        setTimeout(resize, 50);
-        setTimeout(resize, 200);
-        setTimeout(resize, 500);
+        // Use ResizeObserver for more reliable resize detection
+        const resizeObserver = new ResizeObserver(() => {
+            resize();
+        });
+        resizeObserver.observe(document.getElementById('game-container'));
+        
+        // Fallback window resize listener
+        window.addEventListener('resize', resize);
         
         // Initial clear to prevent black screen on load
         ctx.fillStyle = '#1a0a2e';
@@ -339,7 +341,18 @@
         // Notification system
         let notifications = [];
         
+        // Particle caps to prevent memory growth
+        const MAX_DAMAGE_NUMBERS = 40;
+        const MAX_HIT_EFFECTS = 30;
+        const MAX_KILL_EFFECTS = 20;
+        const MAX_SLASH_EFFECTS = 25;
+        const MAX_NOTIFICATIONS = 10;
+        
         function showNotif(text) {
+            // Cap notifications array
+            if (notifications.length >= MAX_NOTIFICATIONS) {
+                notifications.shift(); // Remove oldest
+            }
             notifications.push({
                 text: text,
                 life: 120, // 2 seconds at 60fps
@@ -486,7 +499,14 @@
             };
             try {
                 localStorage.setItem('jjkGamePlayerData', JSON.stringify(data));
-            } catch(e) {}
+            } catch(e) {
+                // Show error notification if save fails
+                if (e.name === 'QuotaExceededError') {
+                    showNotif('Save failed: Storage full!');
+                } else {
+                    showNotif('Save failed: Progress not saved!');
+                }
+            }
         }
         
         // Load game data from localStorage
@@ -509,7 +529,9 @@
                     tutorialSkipped = data.tutorialSkipped || false;
                     recalcPlayerStats();
                 }
-            } catch(e) {}
+            } catch(e) {
+                showNotif('Failed to load saved data');
+            }
         }
         loadGameData();
         
@@ -9714,6 +9736,10 @@
         }
         
         function addDamageNumber(x, y, damage) {
+            // Cap damage numbers array
+            if (damageNumbers.length >= MAX_DAMAGE_NUMBERS) {
+                damageNumbers.shift(); // Remove oldest
+            }
             damageNumbers.push({
                 x: x,
                 y: y,
@@ -9725,6 +9751,10 @@
         
         function addHitEffect(x, y, type) {
             // type: 'blue', 'red', or 'purple'
+            // Cap hit effects array
+            if (hitEffects.length >= MAX_HIT_EFFECTS) {
+                hitEffects.shift(); // Remove oldest
+            }
             const colors = { blue: '#4444ff', red: '#ff4444', purple: '#aa44ff' };
             const color = colors[type] || '#ff4444';
             hitEffects.push({
@@ -9742,8 +9772,8 @@
         }
         
         function addSlashEffect(x, y, type = 'normal') {
-            // Slash effect for Dismantle/Cleave - limit on mobile
-            if (mobileMode && slashEffects.length > 15) return;
+            // Slash effect for Dismantle/Cleave - limit on mobile and desktop
+            if (slashEffects.length >= MAX_SLASH_EFFECTS) return;
             const angle = Math.random() * Math.PI * 2;
             slashEffects.push({
                 x: x,
@@ -9766,6 +9796,10 @@
                 purple: customColors ? customColors.primary : '#aa44ff' 
             };
             const color = colors[type] || colors.red;
+            // Cap kill effects array
+            if (killEffects.length >= MAX_KILL_EFFECTS) {
+                killEffects.shift(); // Remove oldest
+            }
             killEffects.push({
                 x: x,
                 y: y,
