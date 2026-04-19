@@ -10954,7 +10954,8 @@
 
         // Delta time for frame-rate independent gameplay
         let lastTime = 0;
-        let dt = 1; // delta time multiplier (1 = 60fps baseline)
+        let dt = 1; // delta time multiplier (1 = baseline)
+        let targetFrameTime = 16.67; // Will be calibrated to actual refresh rate
         
         function drawPauseMenu() {
             // Semi-transparent overlay
@@ -11066,7 +11067,12 @@
             
             // Calculate delta time (cap at 3x to prevent huge jumps)
             if (lastTime > 0) {
-                dt = Math.min((timestamp - lastTime) / 16.67, 3);
+                const frameTime = timestamp - lastTime;
+                // Calibrate target frame time on first 30 frames to detect refresh rate
+                if (frame < 30) {
+                    targetFrameTime = targetFrameTime * 0.8 + frameTime * 0.2;
+                }
+                dt = Math.min(frameTime / targetFrameTime, 3);
             }
             lastTime = timestamp;
             
