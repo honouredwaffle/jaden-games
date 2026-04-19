@@ -118,6 +118,30 @@
             maxTime: 90, // 1.5 seconds to continue combo
             lastWasM1: false
         };
+
+        // Block and Parry system
+        let block = {
+            active: false,
+            parryWindow: 0, // Frames remaining for perfect parry
+            parryMaxWindow: 12, // 0.2 seconds at 60fps
+            cooldown: 0,
+            cooldownMax: 30,
+            damageReduction: 0.6, // 60% damage reduction
+            parryStaggerDuration: 30 // 0.5 seconds stagger
+        };
+
+        // Awakening state
+        let awakening = {
+            active: false,
+            timer: 0,
+            maxTime: 600, // 10 seconds
+            killCount: 0,
+            killThreshold: 5, // 5 kills to trigger
+            hpThreshold: 0.25, // 25% HP to trigger
+            damageBoost: 1.4, // 40% damage boost
+            ceCostReduction: 0.5, // 50% CE cost reduction
+            speedBoost: 1.2 // 20% speed boost
+        };
         
         // Menu options - restructured for better flow
         const pressStartOptions = ['']; // Title screen has no selectable options, just press any key
@@ -3190,7 +3214,21 @@
                         if (dist < data.closeRange && spirit.attackCooldown <= 0 && !testingMode) {
                             // Melee damage
                             if (player.iframes <= 0) {
-                                player.hp -= data.damage * 1.5; // Melee does more damage
+                                let damage = data.damage * 1.5;
+                                // Check for block/parry
+                                if (block.active) {
+                                    if (block.parryWindow > 0) {
+                                        // Perfect parry!
+                                        damage = 0;
+                                        spirit.staggerTimer = block.parryStaggerDuration;
+                                        showNotif('PARRY! Enemy staggered!');
+                                        triggerHitStop(5);
+                                    } else {
+                                        // Regular block
+                                        damage *= (1 - block.damageReduction);
+                                    }
+                                }
+                                player.hp -= damage;
                                 player.iframes = 60;
                             }
                             spirit.attackCooldown = data.attackCooldown;
@@ -3621,7 +3659,24 @@
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
                 if (dist < player.radius + proj.size && player.iframes <= 0 && !testingMode) {
-                    player.hp -= proj.damage;
+                    let damage = proj.damage;
+                    // Check for block/parry
+                    if (block.active) {
+                        if (block.parryWindow > 0) {
+                            // Perfect parry - reflect projectile!
+                            damage = 0;
+                            proj.vx *= -2;
+                            proj.vy *= -2;
+                            proj.damage *= 3; // Reflected projectile does massive damage
+                            showNotif('PARRY! Projectile reflected!');
+                            triggerHitStop(5);
+                            continue; // Don't remove projectile, let it fly back
+                        } else {
+                            // Regular block
+                            damage *= (1 - block.damageReduction);
+                        }
+                    }
+                    player.hp -= damage;
                     player.iframes = 60;
                     spiritProjectiles.splice(i, 1);
                     continue;
@@ -5272,20 +5327,23 @@
                 console.log('killSpirit: no spirit at index', index);
                 return;
             }
-            
+
             console.log('killSpirit:', spirit.grade, 'testingMode:', testingMode);
-            
+
             // Hit stop for special grade kills
             if (spirit.grade === 'SPECIAL' || spirit.grade === 'GRADE_1') {
                 triggerHitStop(6); // Longer hit stop for special grades
             }
-            
+
+            // Track kill for awakening
+            addAwakeningKill();
+
             // Award XP and money based on spirit grade
             if (spirit.grade && GRADE_VALUES[spirit.grade]) {
                 gainXP(GRADE_VALUES[spirit.grade].xp);
                 gainMoney(GRADE_VALUES[spirit.grade].money);
             }
-            
+
             // Respawn in testing mode
             if (testingMode && spirit.grade) {
                 console.log('Respawning', spirit.grade);
@@ -6550,9 +6608,14 @@
                 usePhysicalMove(index);
                 return;
             }
-            
+
             const ability = abilities[index];
-            const ceCost = selectedCharacter === 'SUKUNA' ? [15, 25, 40, 80] : [20, 30, 50, 80];
+            let ceCost = selectedCharacter === 'SUKUNA' ? [15, 25, 40, 80] : [20, 30, 50, 80];
+
+            // Apply awakening CE cost reduction
+            if (awakening.active) {
+                ceCost = ceCost.map(cost => Math.floor(cost * awakening.ceCostReduction));
+            }
             
             // Fuga special handling - only cost CE when starting charge, not when firing
             if (selectedCharacter === 'SUKUNA' && index === 2) {
@@ -9737,6 +9800,9 @@
                 updateNotifications(dt);
                 updateDomainBurnout(dt);
                 updateCombo(dt);
+                updateBlock(dt);
+                updateAwakening(dt);
+                checkAwakeningHP();
             }
             updateSpiritProjectiles(dt);
             updateDisasterCurse(dt);
@@ -9797,7 +9863,13 @@
             
             // Draw combo counter
             drawCombo();
-            
+
+            // Draw block shield
+            drawBlock();
+
+            // Draw awakening effects
+            drawAwakening();
+
             // Draw stat menu on top of everything
             drawStatMenu();
             
@@ -11149,6 +11221,156 @@
             if (combo.count >= 3) return 1.15;
             return 1.0;
         }
+
+        // Calculate total damage with all multipliers
+        function calculateDamage(baseDamage) {
+            let damage = baseDamage;
+            // Apply awakening boost
+            if (awakening.active) {
+                damage *= awakening.damageBoost;
+            }
+            // Apply combo boost
+            damage *= getComboMultiplier();
+            return damage;
+        }
+
+        // Block/Parry functions
+        function startBlock() {
+            if (block.cooldown > 0) return;
+            block.active = true;
+            block.parryWindow = block.parryMaxWindow;
+            player.speed *= 0.5; // Slow down while blocking
+        }
+
+        function endBlock() {
+            block.active = false;
+            block.parryWindow = 0;
+            block.cooldown = block.cooldownMax;
+            player.speed /= 0.5; // Restore speed
+        }
+
+        function updateBlock(dt) {
+            if (block.cooldown > 0) {
+                block.cooldown -= dt;
+                if (block.cooldown < 0) block.cooldown = 0;
+            }
+            if (block.parryWindow > 0) {
+                block.parryWindow -= dt;
+                if (block.parryWindow < 0) block.parryWindow = 0;
+            }
+        }
+
+        function drawBlock() {
+            if (!block.active) return;
+
+            const alpha = block.parryWindow > 0 ? 0.6 : 0.3;
+            const color = block.parryWindow > 0 ? '#00ffff' : '#6666ff';
+
+            ctx.save();
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 3;
+            ctx.globalAlpha = alpha;
+
+            // Draw shield arc in front of player
+            const startAngle = player.facing - Math.PI / 3;
+            const endAngle = player.facing + Math.PI / 3;
+            const shieldDist = 50;
+            const shieldX = player.x - camera.x + Math.cos(player.facing) * shieldDist;
+            const shieldY = player.y - camera.y + Math.sin(player.facing) * shieldDist;
+
+            ctx.beginPath();
+            ctx.arc(shieldX, shieldY, 40, startAngle, endAngle);
+            ctx.stroke();
+
+            // Parry window indicator
+            if (block.parryWindow > 0) {
+                ctx.fillStyle = '#00ffff';
+                ctx.font = 'bold 14px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('PARRY!', shieldX, shieldY - 50);
+            }
+
+            ctx.restore();
+        }
+
+        // Awakening functions
+        function triggerAwakening() {
+            awakening.active = true;
+            awakening.timer = awakening.maxTime;
+            showNotif('AWAKENING! Power unleashed!');
+            triggerHitStop(10);
+        }
+
+        function updateAwakening(dt) {
+            if (awakening.active) {
+                awakening.timer -= dt;
+                if (awakening.timer <= 0) {
+                    awakening.active = false;
+                    awakening.killCount = 0;
+                    showNotif('Awakening ended');
+                }
+            }
+        }
+
+        function drawAwakening() {
+            if (!awakening.active) return;
+
+            const progress = awakening.timer / awakening.maxTime;
+            const alpha = 0.3 + progress * 0.4;
+
+            // Screen tint
+            ctx.fillStyle = `rgba(255, 50, 50, ${alpha * 0.2})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Aura around player
+            const screenX = player.x - camera.x;
+            const screenY = player.y - camera.y;
+
+            ctx.save();
+            ctx.strokeStyle = `rgba(255, 100, 100, ${alpha})`;
+            ctx.lineWidth = 3;
+            ctx.shadowColor = '#ff0000';
+            ctx.shadowBlur = 30;
+
+            const time = Date.now() * 0.005;
+            for (let i = 0; i < 3; i++) {
+                const radius = 60 + i * 20 + Math.sin(time + i) * 10;
+                ctx.beginPath();
+                ctx.arc(screenX, screenY, radius, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            // Timer bar
+            const barWidth = 200;
+            const barHeight = 8;
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+            ctx.fillRect(canvas.width / 2 - barWidth / 2, 80, barWidth, barHeight);
+            ctx.fillStyle = `rgba(255, 50, 50, ${progress})`;
+            ctx.fillRect(canvas.width / 2 - barWidth / 2, 80, barWidth * progress, barHeight);
+
+            // Text
+            ctx.fillStyle = '#ff6666';
+            ctx.font = 'bold 20px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('AWAKENED', canvas.width / 2, 70);
+
+            ctx.restore();
+        }
+
+        // Add kill to awakening counter
+        function addAwakeningKill() {
+            awakening.killCount++;
+            if (!awakening.active && awakening.killCount >= awakening.killThreshold) {
+                triggerAwakening();
+            }
+        }
+
+        // Check if awakening should trigger from HP
+        function checkAwakeningHP() {
+            if (!awakening.active && player.hp / player.maxHp <= awakening.hpThreshold) {
+                triggerAwakening();
+            }
+        }
         
         function loop(timestamp) {
             frame++;
@@ -11775,6 +11997,9 @@
                 else if (e.key === '2') useAbility(1);
                 else if (e.key === '3') useAbility(2);
                 else if (e.key === '4') useAbility(3);
+                else if (e.key === 'Shift') {
+                    if (!block.active) startBlock();
+                }
                 else if (e.key === 'Escape') {
                     isPaused = true;
                     selectedOption = 0;
@@ -11828,6 +12053,9 @@
         
         window.addEventListener('keyup', (e) => {
             keys[e.key] = false;
+            if (e.key === 'Shift' && block.active) {
+                endBlock();
+            }
         });
 
         loop();
