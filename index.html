@@ -11058,6 +11058,8 @@
                         drawPauseMenu();
                     }
                 }
+                // Update lastTime to prevent dt spike after hit stop
+                lastTime = timestamp;
                 requestAnimationFrame(loop);
                 return;
             }
