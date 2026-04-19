@@ -104,6 +104,13 @@
             maxTime: 240 // 4 seconds at 60fps
         };
         
+        // Pause menu state
+        let isPaused = false;
+        const pauseMenuOptions = ['RESUME', 'SETTINGS', 'RETURN TO MAIN MENU'];
+        
+        // Hit stop (freeze frames on hard hits)
+        let hitStopFrames = 0;
+        
         // Menu options - restructured for better flow
         const pressStartOptions = ['']; // Title screen has no selectable options, just press any key
         const mainMenuOptions = ['PLAY', 'CUSTOMISATION', 'UPDATE LOG', 'SETTINGS'];
@@ -270,7 +277,7 @@
         const player = {
             x: 0,
             y: 0,
-            speed: 4,
+            speed: 5.5,
             radius: 15,
             color: '#00aaff',
             hp: 100,
@@ -409,6 +416,14 @@
         }
         
         // XP gain helper
+        // Level up celebration state
+        let levelUpCelebration = {
+            active: false,
+            timer: 0,
+            maxTime: 180, // 3 seconds
+            newLevel: 0
+        };
+        
         function gainXP(amount) {
             if (player.level >= 2500) return;
             player.xp += amount;
@@ -417,12 +432,57 @@
                 player.level++;
                 player.statPoints += 3;
                 player.xpToNextLevel = Math.floor(100 * Math.pow(1.5, player.level - 1));
+                
+                // Trigger level up celebration
+                levelUpCelebration.active = true;
+                levelUpCelebration.timer = levelUpCelebration.maxTime;
+                levelUpCelebration.newLevel = player.level;
+                
                 showNotif('LEVEL UP! LV.' + player.level);
+                triggerHitStop(8); // Long hit stop for level up
             }
             // Clamp at max
             if (player.level >= 2500) {
                 player.xp = 0;
                 player.xpToNextLevel = Infinity;
+            }
+        }
+        
+        function drawLevelUpCelebration() {
+            if (!levelUpCelebration.active) return;
+            
+            const progress = 1 - (levelUpCelebration.timer / levelUpCelebration.maxTime);
+            const alpha = Math.sin(progress * Math.PI); // Fade in then out
+            
+            // Flash effect
+            ctx.fillStyle = `rgba(255, 215, 0, ${alpha * 0.3})`;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Level up text
+            ctx.save();
+            ctx.fillStyle = `rgba(255, 215, 0, ${alpha})`;
+            ctx.font = 'bold 72px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.shadowColor = '#ffaa00';
+            ctx.shadowBlur = 30;
+            ctx.fillText('LEVEL UP!', canvas.width / 2, canvas.height / 2 - 50);
+            
+            // New level number
+            ctx.font = 'bold 96px "Segoe UI", sans-serif';
+            ctx.fillStyle = `rgba(255, 255, 255, ${alpha})`;
+            ctx.fillText('LV. ' + levelUpCelebration.newLevel, canvas.width / 2, canvas.height / 2 + 50);
+            
+            // Stat points gained
+            ctx.font = 'bold 28px "Segoe UI", sans-serif';
+            ctx.fillStyle = `rgba(0, 255, 100, ${alpha})`;
+            ctx.fillText('+3 Stat Points', canvas.width / 2, canvas.height / 2 + 100);
+            
+            ctx.restore();
+            
+            // Update timer
+            levelUpCelebration.timer--;
+            if (levelUpCelebration.timer <= 0) {
+                levelUpCelebration.active = false;
             }
         }
         
@@ -5192,6 +5252,11 @@
             
             console.log('killSpirit:', spirit.grade, 'testingMode:', testingMode);
             
+            // Hit stop for special grade kills
+            if (spirit.grade === 'SPECIAL' || spirit.grade === 'GRADE_1') {
+                triggerHitStop(6); // Longer hit stop for special grades
+            }
+            
             // Award XP and money based on spirit grade
             if (spirit.grade && GRADE_VALUES[spirit.grade]) {
                 gainXP(GRADE_VALUES[spirit.grade].xp);
@@ -7810,6 +7875,7 @@
                     spirit.hp -= totalDmg;
                     addDamageCounter(totalDmg);
                     addDamageNumber(spirit.x, spirit.y, totalDmg);
+                    triggerHitStop(3); // Hit stop on ability hit
                     if (spirit.hp <= 0) {
                         killSpirit(i, 'red');
                     }
@@ -8129,6 +8195,7 @@
                     addDamageCounter(totalDmg);
                     addDamageNumber(spirit.x, spirit.y, totalDmg);
                     addHitEffect(spirit.x, spirit.y, 'purple');
+                    triggerHitStop(4); // Longer hit stop for Hollow Purple
                     hollowPurple.hitEnemies.push(spirit.id || i);
                     
                     if (spirit.hp <= 0) {
@@ -9612,27 +9679,31 @@
             ctx.fillStyle = '#0a0a0a';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            updatePlayer(dt);
-            
-            // Validate camera values
-            if (!isFinite(camera.x) || !isFinite(camera.y)) {
-                camera.x = 0;
-                camera.y = 0;
+            // Only update game state if not paused
+            if (!isPaused) {
+                updatePlayer(dt);
+                
+                // Validate camera values
+                if (!isFinite(camera.x) || !isFinite(camera.y)) {
+                    camera.x = 0;
+                    camera.y = 0;
+                }
+                updateAbilities(dt);
+                updateCursedSpirits(dt);
+                updateMaxBlue(dt);
+                updateReversalRed(dt);
+                updateHollowPurple(dt);
+                updateFuga(dt);
+                updatePlayerDomain(dt);
+                updateSukunaDomain(dt);
+                updateDamageCounter(dt);
+                updateDamageNumbers(dt);
+                updateHitEffects(dt);
+                updateKillEffects(dt);
+                updateSlashEffects(dt);
+                updateNotifications(dt);
+                updateDomainBurnout(dt);
             }
-            updateAbilities(dt);
-            updateCursedSpirits(dt);
-            updateMaxBlue(dt);
-            updateReversalRed(dt);
-            updateHollowPurple(dt);
-            updateFuga(dt);
-            updatePlayerDomain(dt);
-            updateSukunaDomain(dt);
-            updateDamageCounter(dt);
-            updateDamageNumbers(dt);
-            updateHitEffects(dt);
-            updateKillEffects(dt);
-            updateSlashEffects(dt);
-            updateNotifications(dt);
             updateSpiritProjectiles(dt);
             updateDisasterCurse(dt);
             updateDomainBurnout(dt);
@@ -9686,6 +9757,9 @@
             drawMenuButton();
             drawStatsButton();
             drawMoneyDisplay();
+            
+            // Draw level up celebration
+            drawLevelUpCelebration();
             
             // Draw stat menu on top of everything
             drawStatMenu();
@@ -10882,8 +10956,111 @@
         let lastTime = 0;
         let dt = 1; // delta time multiplier (1 = 60fps baseline)
         
+        function drawPauseMenu() {
+            // Semi-transparent overlay
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            // Title
+            ctx.fillStyle = '#e94560';
+            ctx.font = 'bold 48px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('PAUSED', canvas.width / 2, 150);
+            
+            // Menu options
+            const buttonWidth = 300;
+            const buttonHeight = 60;
+            const spacing = 80;
+            const startY = canvas.height / 2 - 60;
+            
+            menuItemRects = []; // Clear for pause menu
+            
+            pauseMenuOptions.forEach((option, i) => {
+                const y = startY + i * spacing;
+                const isHovered = mouseY > y - buttonHeight/2 && 
+                                  mouseY < y + buttonHeight/2 &&
+                                  mouseX > canvas.width/2 - buttonWidth/2 &&
+                                  mouseX < canvas.width/2 + buttonWidth/2;
+                
+                if (isHovered) selectedOption = i;
+                
+                // Button background
+                if (isHovered || i === selectedOption) {
+                    ctx.fillStyle = 'rgba(233, 69, 96, 0.3)';
+                    ctx.fillRect(canvas.width/2 - buttonWidth/2, y - buttonHeight/2, buttonWidth, buttonHeight);
+                }
+                
+                // Border
+                ctx.strokeStyle = (isHovered || i === selectedOption) ? '#e94560' : 'rgba(255, 255, 255, 0.3)';
+                ctx.lineWidth = (isHovered || i === selectedOption) ? 2 : 1;
+                ctx.strokeRect(canvas.width/2 - buttonWidth/2, y - buttonHeight/2, buttonWidth, buttonHeight);
+                
+                // Text
+                ctx.fillStyle = (isHovered || i === selectedOption) ? '#fff' : 'rgba(255, 255, 255, 0.8)';
+                ctx.font = (isHovered || i === selectedOption) ? 'bold 24px "Segoe UI", sans-serif' : '22px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(option, canvas.width / 2, y);
+                
+                // Store clickable area
+                menuItemRects.push({
+                    x: canvas.width/2 - buttonWidth/2,
+                    y: y - buttonHeight/2,
+                    width: buttonWidth,
+                    height: buttonHeight,
+                    text: option
+                });
+            });
+            
+            // Hint text
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
+            ctx.font = '14px "Segoe UI", sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('UP/DOWN to select • ENTER/CLICK to confirm • ESC to resume', canvas.width / 2, canvas.height - 50);
+        }
+        
+        function handlePauseSelect() {
+            const option = pauseMenuOptions[selectedOption];
+            
+            if (option === 'RESUME') {
+                isPaused = false;
+            } else if (option === 'SETTINGS') {
+                // Store that we're in pause menu settings
+                isPaused = false;
+                screen = 'settings';
+                currentMenu = settingsOptions;
+                selectedOption = 0;
+            } else if (option === 'RETURN TO MAIN MENU') {
+                isPaused = false;
+                screen = 'main_menu';
+                currentMenu = mainMenuOptions;
+                selectedOption = 0;
+                // Reset game state
+                resetAbilities();
+            }
+        }
+        
+        // Trigger hit stop (freeze frames on hard hits)
+        function triggerHitStop(frames) {
+            hitStopFrames = Math.max(hitStopFrames, frames);
+        }
+        
         function loop(timestamp) {
             frame++;
+            
+            // Handle hit stop (freeze frames on hard hits)
+            if (hitStopFrames > 0) {
+                hitStopFrames--;
+                // Still draw the frame, but don't update
+                if (screen === 'game') {
+                    drawGame();
+                    if (isPaused) {
+                        drawPauseMenu();
+                    }
+                }
+                requestAnimationFrame(loop);
+                return;
+            }
             
             // Calculate delta time (cap at 3x to prevent huge jumps)
             if (lastTime > 0) {
@@ -10937,6 +11114,10 @@
                 drawComingSoon();
             } else if (screen === 'game') {
                 drawGame();
+                // Draw pause menu overlay if paused
+                if (isPaused) {
+                    drawPauseMenu();
+                }
             } else {
                 // Unknown screen state
                 ctx.fillStyle = '#ff00ff';
@@ -11288,13 +11469,25 @@
                 }
             }
             
-            // Check for menu button click in game screen
-            if (screen === 'game' && window.menuButton) {
+            // Check for pause menu clicks
+            if (screen === 'game' && isPaused) {
+                for (const rect of menuItemRects) {
+                    if (clickX >= rect.x && clickX <= rect.x + rect.width &&
+                        clickY >= rect.y && clickY <= rect.y + rect.height) {
+                        selectedOption = pauseMenuOptions.indexOf(rect.text);
+                        handlePauseSelect();
+                        return;
+                    }
+                }
+                return; // Don't process other clicks while paused
+            }
+            
+            // Check for menu button click in game screen (now opens pause menu)
+            if (screen === 'game' && window.menuButton && !isPaused) {
                 const btn = window.menuButton;
                 if (clickX >= btn.x && clickX <= btn.x + btn.width &&
                     clickY >= btn.y && clickY <= btn.y + btn.height) {
-                    screen = 'main_menu';
-                    currentMenu = mainMenuOptions;
+                    isPaused = true;
                     selectedOption = 0;
                     return;
                 }
@@ -11451,14 +11644,27 @@
                 else if (e.key === '3') useAbility(2);
                 else if (e.key === '4') useAbility(3);
             } else if (screen === 'game') {
-                // Ability keys
+                // Handle pause menu input
+                if (isPaused) {
+                    if (e.key === 'Escape') {
+                        isPaused = false;
+                    } else if (e.key === 'ArrowUp') {
+                        selectedOption = (selectedOption - 1 + pauseMenuOptions.length) % pauseMenuOptions.length;
+                    } else if (e.key === 'ArrowDown') {
+                        selectedOption = (selectedOption + 1) % pauseMenuOptions.length;
+                    } else if (e.key === 'Enter') {
+                        handlePauseSelect();
+                    }
+                    return;
+                }
+                
+                // Ability keys (only when not paused)
                 if (e.key === '1') useAbility(0);
                 else if (e.key === '2') useAbility(1);
                 else if (e.key === '3') useAbility(2);
                 else if (e.key === '4') useAbility(3);
                 else if (e.key === 'Escape') {
-                    screen = 'main_menu';
-                    currentMenu = mainMenuOptions;
+                    isPaused = true;
                     selectedOption = 0;
                 }
             } else if (screen === 'blog') {
