@@ -296,6 +296,36 @@
             speedStat: 0
         };
         
+        // Domain Burnout System
+        let domainBurnout = {
+            active: false,
+            timer: 0,
+            maxTimer: 4800, // 80 seconds at 60fps
+            domainUseCount: 0,
+            burnoutChance: 0, // Starts at 0%, increases by 10% each use after 1st
+            blackFlashCount: 0 // Track Black Flashes to regain CT early
+        };
+        
+        // Black Flash System
+        let blackFlash = {
+            inTheZone: false,
+            zoneTimer: 0,
+            zoneMaxTime: 300, // 5 seconds of "in the zone"
+            baseChance: 0.15, // 15% for physical moves
+            m1Chance: 0.05, // 5% for M1
+            zoneBonus: 0.35, // +35% when in the zone
+            damageBonus: 0.40, // +40% damage for Black Flash
+            m1DamageBonus: 2.50 // +250% for M1 Black Flash
+        };
+        
+        // Physical Moveset (during Domain Burnout)
+        let physicalMoves = {
+            kick: { cooldown: 0, maxCooldown: 60, damage: 25, range: 60 },
+            beatdown: { cooldown: 0, maxCooldown: 120, damage: 45, range: 50 },
+            sneak: { cooldown: 0, maxCooldown: 90, damage: 35, range: 70 },
+            jab: { cooldown: 0, maxCooldown: 30, damage: 15, range: 45 }
+        };
+        
         // Spirit projectiles
         const spiritProjectiles = [];
         
@@ -2358,6 +2388,7 @@
             updateDamageNumbers();
             updateHitEffects();
             updateSlashEffects();
+            updateDomainBurnout();
             
             // Check if dummy is hit
             if (tutorialDummy && tutorialDummy.hp > 0) {
@@ -5007,14 +5038,60 @@
             ctx.lineWidth = 2;
             ctx.strokeRect(barX, barY, barWidth, barHeight);
             
-            // Draw abilities
+            // Draw Domain Burnout warning if active
+            if (domainBurnout.active) {
+                ctx.fillStyle = '#ff0000';
+                ctx.font = 'bold 14px "Segoe UI", sans-serif';
+                ctx.textAlign = 'center';
+                ctx.fillText('DOMAIN BURNOUT - PHYSICAL MODE', barX + barWidth / 2, barY - 10);
+                
+                // Draw timer
+                const secondsLeft = Math.ceil(domainBurnout.timer / 60);
+                ctx.fillStyle = '#ffaa00';
+                ctx.font = '12px "Segoe UI", sans-serif';
+                ctx.fillText(secondsLeft + 's remaining | Black Flashes: ' + domainBurnout.blackFlashCount + '/3', barX + barWidth / 2, barY - 25);
+            }
+            
+            // Draw "in the zone" indicator
+            if (blackFlash.inTheZone) {
+                ctx.fillStyle = '#ff0000';
+                ctx.font = 'bold 12px "Segoe UI", sans-serif';
+                ctx.textAlign = 'left';
+                ctx.fillText('IN THE ZONE!', barX + barWidth + 10, barY + barHeight / 2);
+            }
+            
+            // Draw abilities or physical moves
             const centerY = barY + barHeight / 2;
-            abilities.forEach((ability, i) => {
+            
+            // Use physical moves during burnout, otherwise use abilities
+            const moveNames = ['KICK', 'BEATDOWN', 'SNEAK', 'JAB'];
+            const moveKeys = ['1', '2', '3', '4'];
+            
+            for (let i = 0; i < 4; i++) {
                 const slotX = barX + i * slotWidth;
                 const centerX = slotX + slotWidth / 2;
                 
+                let name, key, cooldown, maxCooldown;
+                
+                if (domainBurnout.active) {
+                    // Physical move
+                    const moveName = moveNames[i].toLowerCase();
+                    const move = physicalMoves[moveName];
+                    name = moveNames[i];
+                    key = moveKeys[i];
+                    cooldown = move.cooldown;
+                    maxCooldown = move.maxCooldown;
+                } else {
+                    // Regular ability
+                    const ability = abilities[i];
+                    name = ability.name;
+                    key = ability.key;
+                    cooldown = ability.cooldown;
+                    maxCooldown = ability.maxCooldown;
+                }
+                
                 // Slot background
-                if (ability.cooldown === 0) {
+                if (cooldown === 0) {
                     ctx.fillStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.3)`;
                 } else {
                     ctx.fillStyle = 'rgba(50, 50, 50, 0.8)';
@@ -5022,8 +5099,8 @@
                 ctx.fillRect(slotX + 2, barY + 2, slotWidth - 4, barHeight - 4);
                 
                 // Cooldown overlay
-                if (ability.cooldown > 0) {
-                    const cooldownHeight = (ability.cooldown / ability.maxCooldown) * (barHeight - 4);
+                if (cooldown > 0) {
+                    const cooldownHeight = (cooldown / maxCooldown) * (barHeight - 4);
                     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
                     ctx.fillRect(slotX + 2, barY + 2, slotWidth - 4, cooldownHeight);
                     
@@ -5031,20 +5108,20 @@
                     ctx.fillStyle = '#fff';
                     ctx.font = 'bold 20px "Segoe UI", sans-serif';
                     ctx.textAlign = 'center';
-                    ctx.fillText(Math.ceil(ability.cooldown / 60), centerX, centerY + 7);
+                    ctx.fillText(Math.ceil(cooldown / 60), centerX, centerY + 7);
                 }
                 
-                // Ability name
-                ctx.fillStyle = ability.cooldown === 0 ? '#fff' : '#888';
+                // Ability/Move name
+                ctx.fillStyle = cooldown === 0 ? '#fff' : '#888';
                 ctx.font = 'bold 12px "Segoe UI", sans-serif';
                 ctx.textAlign = 'center';
-                ctx.fillText(ability.name, centerX, barY + 18);
+                ctx.fillText(name, centerX, barY + 18);
                 
                 // Key number
                 ctx.fillStyle = primaryColor;
                 ctx.font = 'bold 16px "Segoe UI", sans-serif';
-                ctx.fillText(ability.key, centerX, barY + barHeight - 8);
-            });
+                ctx.fillText(key, centerX, barY + barHeight - 8);
+            }
         }
         
         function killSpirit(index, type) {
@@ -5073,7 +5150,12 @@
         
         function useM1() {
             // Basic punch attack - no CE cost
-            const isBlackFlash = Math.random() < 0.05; // 5% chance
+            // Calculate Black Flash chance (base + in the zone bonus)
+            let bfChance = blackFlash.m1Chance;
+            if (blackFlash.inTheZone) {
+                bfChance += blackFlash.zoneBonus;
+            }
+            const isBlackFlash = Math.random() < bfChance;
             
             // Get custom colors for punch effect
             const colors = getCurrentAbilityColors();
@@ -5089,7 +5171,40 @@
                 
                 if (dist < punchRange) {
                     hitEnemy = true;
-                    const damage = (isBlackFlash ? 60 : 8) + player.damageStat;
+                    let damage = 8 + player.damageStat;
+                    
+                    // Apply Black Flash damage multiplier (+250% for M1)
+                    if (isBlackFlash) {
+                        damage *= (1 + blackFlash.m1DamageBonus);
+                        domainBurnout.blackFlashCount++;
+                        
+                        // Enter "in the zone" state
+                        blackFlash.inTheZone = true;
+                        blackFlash.zoneTimer = blackFlash.zoneMaxTime;
+                        
+                        showNotif('BLACK FLASH! M1 (' + domainBurnout.blackFlashCount + '/3)');
+                        
+                        // Check if 3 Black Flashes achieved - regain CT
+                        if (domainBurnout.blackFlashCount >= 3 && domainBurnout.active) {
+                            domainBurnout.active = false;
+                            domainBurnout.timer = 0;
+                            domainBurnout.blackFlashCount = 0;
+                            showNotif('CURSED TECHNIQUE RESTORED!');
+                        }
+                        
+                        // Screen shake effect
+                        camera.x += (Math.random() - 0.5) * 20;
+                        camera.y += (Math.random() - 0.5) * 20;
+                        
+                        // Create Black Flash visual effect
+                        createBlackFlashEffect(enemy.x, enemy.y);
+                    }
+                    
+                    // Apply "in the zone" damage bonus
+                    if (blackFlash.inTheZone) {
+                        damage *= 1.10; // +10% damage
+                    }
+                    
                     enemy.hp -= damage;
                     
                     // Knockback
@@ -5100,13 +5215,6 @@
                     // Visual effect - uses custom color
                     addHitEffect(enemy.x, enemy.y, effectType);
                     addDamageNumber(enemy.x, enemy.y, damage);
-                    
-                    if (isBlackFlash) {
-                        showNotif('BLACK FLASH!');
-                        // Screen shake effect
-                        camera.x += (Math.random() - 0.5) * 20;
-                        camera.y += (Math.random() - 0.5) * 20;
-                    }
                     
                     if (enemy.hp <= 0) {
                         addKillEffect(enemy.x, enemy.y, effectType);
@@ -6287,6 +6395,12 @@
         }
         
         function useAbility(index) {
+            // Check for Domain Burnout - use physical moveset instead
+            if (domainBurnout.active) {
+                usePhysicalMove(index);
+                return;
+            }
+            
             const ability = abilities[index];
             const ceCost = selectedCharacter === 'SUKUNA' ? [15, 25, 40, 80] : [20, 30, 50, 80];
             
@@ -6352,7 +6466,206 @@
             }
         }
         
+        // Physical moveset during Domain Burnout
+        function usePhysicalMove(index) {
+            const moveNames = ['kick', 'beatdown', 'sneak', 'jab'];
+            const move = physicalMoves[moveNames[index]];
+            
+            if (move.cooldown > 0) {
+                showNotif(moveNames[index].toUpperCase() + ' on cooldown!');
+                return;
+            }
+            
+            move.cooldown = move.maxCooldown;
+            
+            // Calculate damage with Black Flash chance
+            let damage = move.damage;
+            let isBlackFlash = false;
+            
+            // Calculate Black Flash chance (base + in the zone bonus)
+            let bfChance = blackFlash.baseChance;
+            if (blackFlash.inTheZone) {
+                bfChance += blackFlash.zoneBonus;
+            }
+            
+            // Roll for Black Flash
+            if (Math.random() < bfChance) {
+                isBlackFlash = true;
+                damage *= (1 + blackFlash.damageBonus);
+                domainBurnout.blackFlashCount++;
+                
+                // Enter "in the zone" state
+                blackFlash.inTheZone = true;
+                blackFlash.zoneTimer = blackFlash.zoneMaxTime;
+                
+                showNotif('BLACK FLASH! (' + domainBurnout.blackFlashCount + '/3)');
+                
+                // Check if 3 Black Flashes achieved - regain CT
+                if (domainBurnout.blackFlashCount >= 3) {
+                    domainBurnout.active = false;
+                    domainBurnout.timer = 0;
+                    domainBurnout.blackFlashCount = 0;
+                    showNotif('CURSED TECHNIQUE RESTORED!');
+                }
+            }
+            
+            // Apply "in the zone" damage bonus
+            if (blackFlash.inTheZone) {
+                damage *= 1.10; // +10% damage
+            }
+            
+            // Apply damage to enemies in range
+            const hitEnemies = [];
+            for (const spirit of spirits) {
+                const dist = Math.hypot(spirit.x - player.x, spirit.y - player.y);
+                if (dist < move.range + spirit.size) {
+                    spirit.hp -= damage;
+                    hitEnemies.push(spirit);
+                    
+                    // Create hit effect
+                    hitEffects.push({
+                        x: spirit.x,
+                        y: spirit.y,
+                        life: 15,
+                        maxLife: 15,
+                        color: isBlackFlash ? '#ff0000' : '#ffffff',
+                        isBlackFlash: isBlackFlash
+                    });
+                    
+                    // Create Black Flash visual effect
+                    if (isBlackFlash) {
+                        createBlackFlashEffect(spirit.x, spirit.y);
+                    }
+                }
+            }
+            
+            // Also check boss
+            if (activeDisasterCurse) {
+                const dist = Math.hypot(activeDisasterCurse.x - player.x, activeDisasterCurse.y - player.y);
+                if (dist < move.range + activeDisasterCurse.size) {
+                    activeDisasterCurse.hp -= damage;
+                    
+                    hitEffects.push({
+                        x: activeDisasterCurse.x,
+                        y: activeDisasterCurse.y,
+                        life: 15,
+                        maxLife: 15,
+                        color: isBlackFlash ? '#ff0000' : '#ffffff',
+                        isBlackFlash: isBlackFlash
+                    });
+                    
+                    if (isBlackFlash) {
+                        createBlackFlashEffect(activeDisasterCurse.x, activeDisasterCurse.y);
+                    }
+                }
+            }
+            
+            // Create visual effect for the move
+            createPhysicalMoveEffect(moveNames[index], isBlackFlash);
+        }
+        
+        // Create Black Flash visual effect
+        function createBlackFlashEffect(x, y) {
+            // Create multiple red/black particles
+            for (let i = 0; i < 20; i++) {
+                const angle = (Math.PI * 2 * i) / 20;
+                const speed = 3 + Math.random() * 4;
+                hitEffects.push({
+                    x: x + Math.cos(angle) * 10,
+                    y: y + Math.sin(angle) * 10,
+                    vx: Math.cos(angle) * speed,
+                    vy: Math.sin(angle) * speed,
+                    life: 30,
+                    maxLife: 30,
+                    color: Math.random() > 0.5 ? '#ff0000' : '#000000',
+                    isBlackFlash: true,
+                    size: 4 + Math.random() * 4
+                });
+            }
+        }
+        
+        // Create visual effect for physical moves
+        function createPhysicalMoveEffect(moveName, isBlackFlash) {
+            const colors = {
+                kick: '#ffaa00',
+                beatdown: '#ff6600',
+                sneak: '#aa00ff',
+                jab: '#00aaff'
+            };
+            
+            const color = isBlackFlash ? '#ff0000' : colors[moveName];
+            
+            // Create arc effect in front of player
+            const arcAngle = Math.PI / 3; // 60 degree arc
+            const startAngle = player.facing - arcAngle / 2;
+            
+            for (let i = 0; i < 10; i++) {
+                const angle = startAngle + (arcAngle * i) / 10;
+                const dist = 30 + Math.random() * 20;
+                hitEffects.push({
+                    x: player.x + Math.cos(angle) * dist,
+                    y: player.y + Math.sin(angle) * dist,
+                    life: 10,
+                    maxLife: 10,
+                    color: color,
+                    isPhysicalMove: true,
+                    moveName: moveName
+                });
+            }
+        }
+        
+        // Update Domain Burnout and Black Flash systems
+        function updateDomainBurnout() {
+            if (domainBurnout.active) {
+                domainBurnout.timer--;
+                
+                if (domainBurnout.timer <= 0) {
+                    // Burnout expired - CT restored
+                    domainBurnout.active = false;
+                    domainBurnout.blackFlashCount = 0;
+                    showNotif('Cursed Technique restored!');
+                }
+            }
+            
+            // Update physical move cooldowns
+            for (const moveName in physicalMoves) {
+                const move = physicalMoves[moveName];
+                if (move.cooldown > 0) {
+                    move.cooldown--;
+                }
+            }
+            
+            // Update "in the zone" state
+            if (blackFlash.inTheZone) {
+                blackFlash.zoneTimer--;
+                if (blackFlash.zoneTimer <= 0) {
+                    blackFlash.inTheZone = false;
+                }
+            }
+        }
+        
         function activateDomain() {
+            // Check for Domain Burnout
+            domainBurnout.domainUseCount++;
+            
+            if (domainBurnout.domainUseCount >= 2) {
+                // Increase burnout chance by 10% each use after the 1st
+                domainBurnout.burnoutChance += 0.10;
+                
+                // Roll for burnout
+                if (Math.random() < domainBurnout.burnoutChance) {
+                    // Burnout occurred!
+                    domainBurnout.active = true;
+                    domainBurnout.timer = domainBurnout.maxTimer;
+                    domainBurnout.burnoutChance = 0; // Reset chance
+                    domainBurnout.blackFlashCount = 0; // Reset Black Flash count
+                    showNotif('DOMAIN BURNOUT! Cursed Technique sealed!');
+                    
+                    // Don't activate the domain - it failed
+                    return;
+                }
+            }
+            
             playerDomain.active = true;
             playerDomain.phase = 'expanding';
             playerDomain.phaseTimer = 90; // 1.5 seconds to expand
