@@ -110,13 +110,21 @@
         
         // Hit stop (freeze frames on hard hits)
         let hitStopFrames = 0;
-        
+
         // Combo system
         let combo = {
             count: 0,
             timer: 0,
             maxTime: 90, // 1.5 seconds to continue combo
             lastWasM1: false
+        };
+
+        // Elite enemy modifiers
+        const ELITE_MODIFIERS = {
+            FRENZIED: { name: 'Frenzied', color: '#ff3333', speedMult: 1.4, damageMult: 1.3, hpMult: 0.8, telegraphMult: 0.7 },
+            TANKY: { name: 'Tanky', color: '#33ff33', speedMult: 0.7, damageMult: 1.1, hpMult: 2.0, telegraphMult: 1.3 },
+            SWIFT: { name: 'Swift', color: '#3333ff', speedMult: 1.6, damageMult: 0.9, hpMult: 0.7, telegraphMult: 0.6 },
+            EXPLOSIVE: { name: 'Explosive', color: '#ffaa00', speedMult: 1.0, damageMult: 1.5, hpMult: 0.6, telegraphMult: 0.8, explodeOnDeath: true }
         };
 
         // Block and Parry system
@@ -1134,14 +1142,36 @@
                 const isSpecial = grade === 'SPECIAL';
                 const color = isSpecial ? biomeColors.special : biomeColors.normal;
                 
+                // Chance for elite modifier (10% for grade 2+, 5% for grade 3)
+                let eliteModifier = null;
+                const eliteChance = (grade === 'GRADE_2' || grade === 'GRADE_1' || grade === 'SPECIAL') ? 0.10 : 0.05;
+                if (Math.random() < eliteChance) {
+                    const modifiers = Object.keys(ELITE_MODIFIERS);
+                    eliteModifier = modifiers[Math.floor(Math.random() * modifiers.length)];
+                }
+
+                // Apply elite modifiers
+                let hp = data.hp;
+                let damage = data.damage;
+                let speed = data.speed;
+                let telegraphTime = 45; // Base telegraph time (0.75s)
+
+                if (eliteModifier) {
+                    const mod = ELITE_MODIFIERS[eliteModifier];
+                    hp *= mod.hpMult;
+                    damage *= mod.damageMult;
+                    speed *= mod.speedMult;
+                    telegraphTime *= mod.telegraphMult;
+                }
+
                 cursedSpirits.push({
                     id: i,
                     x, y,
                     grade,
-                    hp: data.hp,
-                    maxHp: data.hp,
-                    damage: data.damage,
-                    speed: data.speed,
+                    hp: hp,
+                    maxHp: hp,
+                    damage: damage,
+                    speed: speed,
                     color: color,
                     size: data.size,
                     vx: 0,
@@ -1155,7 +1185,18 @@
                     targetX: x,
                     targetY: y,
                     charging: false,
-                    chargeTime: 0
+                    chargeTime: 0,
+                    // Attack telegraph
+                    telegraph: {
+                        active: false,
+                        timer: 0,
+                        maxTime: telegraphTime,
+                        type: 'melee' // 'melee' or 'projectile'
+                    },
+                    // Elite modifier
+                    eliteModifier: eliteModifier,
+                    // Stagger
+                    staggerTimer: 0
                 });
             }
         }
@@ -3210,43 +3251,28 @@
                         break;
                         
                     case 'ATTACK':
-                        // Close range melee attack
-                        if (dist < data.closeRange && spirit.attackCooldown <= 0 && !testingMode) {
-                            // Melee damage
-                            if (player.iframes <= 0) {
-                                let damage = data.damage * 1.5;
-                                // Check for block/parry
-                                if (block.active) {
-                                    if (block.parryWindow > 0) {
-                                        // Perfect parry!
-                                        damage = 0;
-                                        spirit.staggerTimer = block.parryStaggerDuration;
-                                        showNotif('PARRY! Enemy staggered!');
-                                        triggerHitStop(5);
-                                    } else {
-                                        // Regular block
-                                        damage *= (1 - block.damageReduction);
-                                    }
-                                }
-                                player.hp -= damage;
-                                player.iframes = 60;
+                        // Handle telegraph and attack
+                        if (spirit.telegraph.active) {
+                            // Count down telegraph
+                            spirit.telegraph.timer -= dt;
+                            if (spirit.telegraph.timer <= 0) {
+                                // Telegraph complete - execute attack
+                                spirit.telegraph.active = false;
+                                executeSpiritAttack(spirit, data, dist, dx, dy);
                             }
-                            spirit.attackCooldown = data.attackCooldown;
-                        }
-                        // Mid range projectile
-                        else if (dist < data.attackRange && dist >= data.closeRange && spirit.attackCooldown <= 0 && !testingMode) {
-                            spiritProjectiles.push({
-                                x: spirit.x,
-                                y: spirit.y,
-                                vx: (dx / dist) * data.projectileSpeed,
-                                vy: (dy / dist) * data.projectileSpeed,
-                                damage: data.damage,
-                                size: spirit.size * 0.3,
-                                color: spirit.color,
-                                life: 180,
-                                type: 'normal'
-                            });
-                            spirit.attackCooldown = data.attackCooldown;
+                        } else if (spirit.attackCooldown <= 0 && !testingMode) {
+                            // Start telegraph for melee
+                            if (dist < data.closeRange) {
+                                spirit.telegraph.active = true;
+                                spirit.telegraph.timer = spirit.telegraph.maxTime;
+                                spirit.telegraph.type = 'melee';
+                            }
+                            // Start telegraph for projectile
+                            else if (dist < data.attackRange && dist >= data.closeRange) {
+                                spirit.telegraph.active = true;
+                                spirit.telegraph.timer = spirit.telegraph.maxTime;
+                                spirit.telegraph.type = 'projectile';
+                            }
                         }
                         
                         // Special move for grade 2+
@@ -3785,6 +3811,37 @@
                         break;
                 }
                 
+                // Attack telegraph indicator
+                if (spirit.telegraph.active) {
+                    const telegraphPercent = 1 - (spirit.telegraph.timer / spirit.telegraph.maxTime);
+                    const indicatorColor = telegraphPercent > 0.7 ? '#ff0000' : (telegraphPercent > 0.4 ? '#ffaa00' : '#ffff00');
+
+                    // Telegraph arc in attack direction
+                    ctx.strokeStyle = indicatorColor;
+                    ctx.lineWidth = 4;
+                    ctx.globalAlpha = 0.7 + telegraphPercent * 0.3;
+
+                    const attackAngle = spirit.telegraph.type === 'melee'
+                        ? Math.atan2(player.y - spirit.y, player.x - spirit.x)
+                        : spirit.angle;
+                    const arcStart = attackAngle - Math.PI / 4;
+                    const arcEnd = attackAngle + Math.PI / 4;
+
+                    ctx.beginPath();
+                    ctx.arc(screenX, screenY, spirit.size + 15, arcStart, arcEnd);
+                    ctx.stroke();
+
+                    // Telegraph progress bar
+                    const barWidth = spirit.size * 1.2;
+                    const barHeight = 4;
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                    ctx.fillRect(screenX - barWidth/2, screenY - spirit.size - 30, barWidth, barHeight);
+                    ctx.fillStyle = indicatorColor;
+                    ctx.fillRect(screenX - barWidth/2, screenY - spirit.size - 30, barWidth * telegraphPercent, barHeight);
+
+                    ctx.globalAlpha = 1;
+                }
+
                 // Charging indicator
                 if (spirit.charging) {
                     ctx.strokeStyle = '#ff0000';
@@ -3793,11 +3850,26 @@
                     ctx.beginPath();
                     ctx.arc(screenX, screenY, spirit.size + 10 + chargePercent * 20, 0, Math.PI * 2);
                     ctx.stroke();
-                    
+
                     ctx.fillStyle = '#ff0000';
                     ctx.font = 'bold 14px "Segoe UI", sans-serif';
                     ctx.textAlign = 'center';
                     ctx.fillText('!', screenX, screenY - spirit.size - 25);
+                }
+
+                // Elite modifier indicator
+                if (spirit.eliteModifier) {
+                    const mod = ELITE_MODIFIERS[spirit.eliteModifier];
+                    ctx.strokeStyle = mod.color;
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(screenX, screenY, spirit.size + 5, 0, Math.PI * 2);
+                    ctx.stroke();
+
+                    ctx.fillStyle = mod.color;
+                    ctx.font = 'bold 10px "Segoe UI", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText(mod.name, screenX, screenY - spirit.size - 35);
                 }
                 
                 // Health bar
@@ -5338,6 +5410,42 @@
             // Track kill for awakening
             addAwakeningKill();
 
+            // Explosive elite death
+            if (spirit.eliteModifier === 'EXPLOSIVE') {
+                // Create explosion
+                const explosionRadius = 150;
+                const explosionDamage = spirit.damage * 2;
+
+                // Visual effect
+                addKillEffect(spirit.x, spirit.y, 'purple');
+                triggerHitStop(4);
+
+                // Damage player if in range
+                const dx = player.x - spirit.x;
+                const dy = player.y - spirit.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+                if (dist < explosionRadius && player.iframes <= 0) {
+                    let damage = explosionDamage;
+                    if (block.active) {
+                        damage *= (1 - block.damageReduction);
+                    }
+                    player.hp -= damage;
+                    player.iframes = 60;
+                    showNotif('Explosive enemy detonated!');
+                }
+
+                // Damage nearby spirits
+                for (const other of cursedSpirits) {
+                    if (other === spirit) continue;
+                    const odx = other.x - spirit.x;
+                    const ody = other.y - spirit.y;
+                    const odist = Math.sqrt(odx * odx + ody * ody);
+                    if (odist < explosionRadius) {
+                        other.hp -= explosionDamage;
+                    }
+                }
+            }
+
             // Award XP and money based on spirit grade
             if (spirit.grade && GRADE_VALUES[spirit.grade]) {
                 gainXP(GRADE_VALUES[spirit.grade].xp);
@@ -5349,7 +5457,7 @@
                 console.log('Respawning', spirit.grade);
                 respawnTestingSpirit(spirit.grade);
             }
-            
+
             cursedSpirits.splice(index, 1);
         }
         
@@ -11214,6 +11322,46 @@
             }
         }
         
+        // Execute spirit attack after telegraph
+        function executeSpiritAttack(spirit, data, dist, dx, dy) {
+            if (spirit.telegraph.type === 'melee') {
+                // Melee damage
+                if (player.iframes <= 0) {
+                    let damage = spirit.damage * 1.5;
+                    // Check for block/parry
+                    if (block.active) {
+                        if (block.parryWindow > 0) {
+                            // Perfect parry!
+                            damage = 0;
+                            spirit.staggerTimer = block.parryStaggerDuration;
+                            showNotif('PARRY! Enemy staggered!');
+                            triggerHitStop(5);
+                        } else {
+                            // Regular block
+                            damage *= (1 - block.damageReduction);
+                        }
+                    }
+                    player.hp -= damage;
+                    player.iframes = 60;
+                }
+                spirit.attackCooldown = data.attackCooldown;
+            } else if (spirit.telegraph.type === 'projectile') {
+                // Fire projectile
+                spiritProjectiles.push({
+                    x: spirit.x,
+                    y: spirit.y,
+                    vx: (dx / dist) * data.projectileSpeed,
+                    vy: (dy / dist) * data.projectileSpeed,
+                    damage: spirit.damage,
+                    size: spirit.size * 0.3,
+                    color: spirit.color,
+                    life: 180,
+                    type: 'normal'
+                });
+                spirit.attackCooldown = data.attackCooldown;
+            }
+        }
+
         // Get combo damage multiplier
         function getComboMultiplier() {
             if (combo.count >= 10) return 1.5;
