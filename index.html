@@ -8,12 +8,7 @@
     <meta http-equiv="Expires" content="0">
     <title>JJK Game v4 - Fixed</title>
     <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🔥</text></svg>">
-    <script>
-        // Force cache bust on load
-        if (!window.location.search.includes('nocache')) {
-            window.location.href = window.location.href.split('?')[0] + '?nocache=' + Date.now();
-        }
-    </script>
+
     <style>
         * {
             margin: 0;
@@ -352,9 +347,9 @@
             });
         }
         
-        function updateNotifications() {
+        function updateNotifications(dt) {
             for (let i = notifications.length - 1; i >= 0; i--) {
-                notifications[i].life--;
+                notifications[i].life -= dt;
                 if (notifications[i].life <= 0) {
                     notifications.splice(i, 1);
                 }
@@ -1739,15 +1734,30 @@
                 
                 if (isHovered) selectedOption = i;
                 
-                const rect = drawButton(option, buttonX, y, buttonWidth, buttonHeight, isHovered, i === selectedOption);
+                // Check if mode is available
+                const isAvailable = option !== 'STORY MODE';
+                
+                // Draw button (greyed out if unavailable)
+                let buttonColor = null;
+                if (!isAvailable) {
+                    buttonColor = '#666';
+                }
+                const rect = drawButton(option, buttonX, y, buttonWidth, buttonHeight, isHovered && isAvailable, i === selectedOption, buttonColor);
                 menuItemRects.push(rect);
                 
                 // Draw description to the right of button (except for BACK)
                 if (option !== 'BACK' && modeDescriptions[option]) {
-                    ctx.fillStyle = isHovered ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.5)';
-                    ctx.font = isHovered ? 'bold 18px "Segoe UI", sans-serif' : '16px "Segoe UI", sans-serif';
-                    ctx.textAlign = 'left';
-                    ctx.fillText(modeDescriptions[option], buttonX + buttonWidth/2 + 30, y + 5);
+                    if (!isAvailable) {
+                        ctx.fillStyle = '#ffaa00';
+                        ctx.font = 'bold 16px "Segoe UI", sans-serif';
+                        ctx.textAlign = 'left';
+                        ctx.fillText('🔒 COMING SOON', buttonX + buttonWidth/2 + 30, y + 5);
+                    } else {
+                        ctx.fillStyle = isHovered ? 'rgba(255, 255, 255, 0.9)' : 'rgba(255, 255, 255, 0.5)';
+                        ctx.font = isHovered ? 'bold 18px "Segoe UI", sans-serif' : '16px "Segoe UI", sans-serif';
+                        ctx.textAlign = 'left';
+                        ctx.fillText(modeDescriptions[option], buttonX + buttonWidth/2 + 30, y + 5);
+                    }
                 }
             });
             
@@ -1859,25 +1869,34 @@
             });
         }
 
-        function drawButton(text, x, y, width, height, isHovered, isSelected) {
+        function drawButton(text, x, y, width, height, isHovered, isSelected, overrideColor) {
             const hover = isHovered || isSelected;
             
             // Simple button background
-            if (hover) {
+            if (overrideColor) {
+                ctx.fillStyle = 'rgba(100, 100, 100, 0.3)';
+            } else if (hover) {
                 ctx.fillStyle = 'rgba(233, 69, 96, 0.3)';
-                ctx.fillRect(x - width/2, y - height/2, width, height);
             } else {
                 ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
-                ctx.fillRect(x - width/2, y - height/2, width, height);
             }
+            ctx.fillRect(x - width/2, y - height/2, width, height);
             
             // Simple border
-            ctx.strokeStyle = hover ? '#e94560' : 'rgba(255, 255, 255, 0.3)';
+            if (overrideColor) {
+                ctx.strokeStyle = '#666';
+            } else {
+                ctx.strokeStyle = hover ? '#e94560' : 'rgba(255, 255, 255, 0.3)';
+            }
             ctx.lineWidth = hover ? 2 : 1;
             ctx.strokeRect(x - width/2, y - height/2, width, height);
             
             // Text
-            ctx.fillStyle = hover ? '#fff' : 'rgba(255, 255, 255, 0.8)';
+            if (overrideColor) {
+                ctx.fillStyle = '#888';
+            } else {
+                ctx.fillStyle = hover ? '#fff' : 'rgba(255, 255, 255, 0.8)';
+            }
             ctx.font = hover ? 'bold 22px "Segoe UI", sans-serif' : '20px "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
@@ -2005,9 +2024,9 @@
             ctx.fillText('SELECT CHARACTER', canvas.width / 2, 80);
             
             const charData = {
-                'GOJO': { color: '#00aaff', desc: 'Limitless & Six Eyes' },
-                'SUKUNA': { color: '#ff2244', desc: 'King of Curses' },
-                'YUKI': { color: '#ffaa00', desc: 'Star Rage' }
+                'GOJO': { color: '#00aaff', desc: 'Limitless & Six Eyes', available: true },
+                'SUKUNA': { color: '#ff2244', desc: 'King of Curses', available: true },
+                'YUKI': { color: '#ffaa00', desc: 'Star Rage', available: false }
             };
             
             const startX = canvas.width / 2 - 250;
@@ -2029,9 +2048,15 @@
                 const isHighlighted = i === selectedOption;
                 const isCharSelected = i === selectedCharacterIndex;
                 
+                // Check if character is available
+                const isAvailable = data.available !== false;
+                
                 // Card background
                 ctx.save();
-                if (isCharSelected) {
+                if (!isAvailable) {
+                    // Grey out unavailable characters
+                    ctx.fillStyle = 'rgba(50,50,50,0.5)';
+                } else if (isCharSelected) {
                     // Selected character gets green glow
                     ctx.shadowColor = '#00c864';
                     ctx.shadowBlur = 30;
@@ -2047,7 +2072,10 @@
                 ctx.restore();
                 
                 // Border
-                if (isCharSelected) {
+                if (!isAvailable) {
+                    ctx.strokeStyle = '#666';
+                    ctx.lineWidth = 2;
+                } else if (isCharSelected) {
                     ctx.strokeStyle = '#00c864';
                     ctx.lineWidth = 4;
                 } else {
@@ -2056,39 +2084,46 @@
                 }
                 ctx.strokeRect(x - cardWidth/2, y - cardHeight/2, cardWidth, cardHeight);
                 
-                // Selected indicator (checkmark)
-                if (isCharSelected) {
+                // Selected indicator (checkmark) or Coming Soon lock
+                if (!isAvailable) {
+                    ctx.fillStyle = '#ffaa00';
+                    ctx.font = 'bold 18px "Segoe UI", sans-serif';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('🔒 COMING SOON', x, y - cardHeight/2 + 25);
+                } else if (isCharSelected) {
                     ctx.fillStyle = '#00c864';
                     ctx.font = 'bold 24px "Segoe UI", sans-serif';
                     ctx.textAlign = 'left';
                     ctx.fillText('✓ SELECTED', x - cardWidth/2 + 10, y - cardHeight/2 + 25);
                 }
                 
-                // Character circle
-                ctx.fillStyle = data.color;
+                // Character circle (dimmed if unavailable)
+                ctx.fillStyle = isAvailable ? data.color : '#666';
                 ctx.beginPath();
                 ctx.arc(x, y - 40, 50, 0, Math.PI * 2);
                 ctx.fill();
                 
-                // Glow on circle
-                ctx.save();
-                ctx.shadowColor = data.color;
-                ctx.shadowBlur = 20;
-                ctx.strokeStyle = '#fff';
-                ctx.lineWidth = 2;
-                ctx.beginPath();
-                ctx.arc(x, y - 40, 50, 0, Math.PI * 2);
-                ctx.stroke();
-                ctx.restore();
+                // Glow on circle (only if available)
+                if (isAvailable) {
+                    ctx.save();
+                    ctx.shadowColor = data.color;
+                    ctx.shadowBlur = 20;
+                    ctx.strokeStyle = '#fff';
+                    ctx.lineWidth = 2;
+                    ctx.beginPath();
+                    ctx.arc(x, y - 40, 50, 0, Math.PI * 2);
+                    ctx.stroke();
+                    ctx.restore();
+                }
                 
                 // Name
-                ctx.fillStyle = '#fff';
-                ctx.font = isCharSelected ? 'bold 28px "Segoe UI", sans-serif' : (isHighlighted ? 'bold 26px "Segoe UI", sans-serif' : '22px "Segoe UI", sans-serif');
+                ctx.fillStyle = isAvailable ? '#fff' : '#888';
+                ctx.font = isCharSelected ? 'bold 28px "Segoe UI", sans-serif' : (isHighlighted && isAvailable ? 'bold 26px "Segoe UI", sans-serif' : '22px "Segoe UI", sans-serif');
                 ctx.textAlign = 'center';
                 ctx.fillText(char, x, y + 40);
                 
                 // Description
-                ctx.fillStyle = 'rgba(255,255,255,0.6)';
+                ctx.fillStyle = isAvailable ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.3)';
                 ctx.font = '14px "Segoe UI", sans-serif';
                 ctx.fillText(data.desc, x, y + 70);
                 
@@ -2421,7 +2456,7 @@
             }
         }
 
-        function updatePlayer() {
+        function updatePlayer(dt) {
             // WASD movement
             let dx = 0;
             let dy = 0;
@@ -2452,11 +2487,11 @@
                 const oldX = player.x;
                 const oldY = player.y;
                 
-                player.x += dx * player.speed * speedMultiplier;
-                player.y += dy * player.speed * speedMultiplier;
+                player.x += dx * player.speed * speedMultiplier * dt;
+                player.y += dy * player.speed * speedMultiplier * dt;
                 
                 // Add footstep effect in testing mode
-                if (testingMode && frame % 15 === 0) {
+                if (testingMode && frame % Math.round(15 / dt) === 0) {
                     addFootstepEffect(player.x, player.y + 15);
                 }
                 
@@ -2496,15 +2531,16 @@
             
             // Regen CE and HP
             if (player.ce < player.maxCe) {
-                player.ce += 0.08; // Faster CE regen
+                player.ce += 0.08 * dt; // Faster CE regen
             }
             if (player.hp < player.maxHp) {
-                player.hp += 0.05; // HP regen stays slow
+                player.hp += 0.05 * dt; // HP regen stays slow
             }
             
             // Iframes
             if (player.iframes > 0) {
-                player.iframes--;
+                player.iframes -= dt;
+                if (player.iframes < 0) player.iframes = 0;
             }
             
             // Update camera to follow player (ensure canvas dimensions are valid)
@@ -2996,7 +3032,7 @@
             }
         }
         
-        function updateCursedSpirits() {
+        function updateCursedSpirits(dt) {
             for (let i = cursedSpirits.length - 1; i >= 0; i--) {
                 const spirit = cursedSpirits[i];
                 const data = SPIRIT_GRADES[spirit.grade];
@@ -3029,8 +3065,8 @@
                 const dist = Math.sqrt(dx * dx + dy * dy);
                 
                 // State machine
-                spirit.stateTimer--;
-                spirit.attackCooldown--;
+                spirit.stateTimer -= dt;
+                spirit.attackCooldown -= dt;
                 
                 if (spirit.stateTimer <= 0) {
                     // Pick new state
@@ -3090,12 +3126,12 @@
                         }
                         
                         if (spirit.charging) {
-                            spirit.chargeTime--;
+                            spirit.chargeTime -= dt;
                             // Charge visual effect - spirit grows
                             if (spirit.chargeTime > 0) {
                                 spirit.vx *= 0.5;
                                 spirit.vy *= 0.5;
-                            } else if (spirit.chargeTime === 0) {
+                            } else if (spirit.chargeTime <= 0) {
                                 // Release special attack - AOE burst
                                 spirit.charging = false;
                                 // Create burst of projectiles in all directions
@@ -3147,16 +3183,16 @@
                 }
                 
                 // Apply friction
-                spirit.vx *= 0.95;
-                spirit.vy *= 0.95;
+                spirit.vx *= Math.pow(0.95, dt);
+                spirit.vy *= Math.pow(0.95, dt);
                 
                 // Update position
-                spirit.x += spirit.vx;
-                spirit.y += spirit.vy;
+                spirit.x += spirit.vx * dt;
+                spirit.y += spirit.vy * dt;
             }
         }
         
-        function updateDisasterCurse() {
+        function updateDisasterCurse(dt) {
             if (activeDisasterCurse) {
                 const boss = activeDisasterCurse;
                 
@@ -3174,13 +3210,13 @@
                             return;
                         }
                         // Boss is frozen - only update visual effects, not movement or attacks
-                        boss.domainTimer--;
+                        boss.domainTimer -= dt;
                         if (boss.domainTimer <= 0) {
                             boss.domainActive = true;
                             boss.domainTimer = 900;
                         }
                         if (boss.domainActive) {
-                            boss.domainDuration--;
+                            boss.domainDuration -= dt;
                             if (boss.domainDuration <= 0) {
                                 boss.domainActive = false;
                                 boss.domainDuration = 300;
@@ -3460,7 +3496,7 @@
             ctx.restore();
         }
         
-        function updateSpiritProjectiles() {
+        function updateSpiritProjectiles(dt) {
             // If domain is active (not expanding), all enemy projectiles are frozen/negated
             if (playerDomain.active && playerDomain.phase !== 'expanding') {
                 // Clear all enemy projectiles during domain
@@ -3470,9 +3506,9 @@
             
             for (let i = spiritProjectiles.length - 1; i >= 0; i--) {
                 const proj = spiritProjectiles[i];
-                proj.x += proj.vx;
-                proj.y += proj.vy;
-                proj.life--;
+                proj.x += proj.vx * dt;
+                proj.y += proj.vy * dt;
+                proj.life -= dt;
                 
                 // Check collision with player
                 const dx = player.x - proj.x;
@@ -4980,10 +5016,11 @@
             ctx.restore();
         }
         
-        function updateAbilities() {
+        function updateAbilities(dt) {
             for (const ability of abilities) {
                 if (ability.cooldown > 0) {
-                    ability.cooldown--;
+                    ability.cooldown -= dt;
+                    if (ability.cooldown < 0) ability.cooldown = 0;
                 }
             }
         }
@@ -5461,9 +5498,9 @@
             showNotif('FUGA!');
         }
         
-        function updateFuga() {
+        function updateFuga(dt) {
             if (fuga.charging) {
-                fuga.chargeTime++;
+                fuga.chargeTime += dt;
                 if (fuga.chargeTime >= fuga.maxChargeTime) {
                     fuga.charged = true;
                     // Cap charge time to prevent issues
@@ -5473,9 +5510,9 @@
             
             if (fuga.arrow) {
                 // Move arrow
-                fuga.arrow.x += fuga.arrow.vx;
-                fuga.arrow.y += fuga.arrow.vy;
-                fuga.arrow.life--;
+                fuga.arrow.x += fuga.arrow.vx * dt;
+                fuga.arrow.y += fuga.arrow.vy * dt;
+                fuga.arrow.life -= dt;
                 
                 // Check collisions with enemies - EXPLODES on first hit
                 let hitSomething = false;
@@ -6631,13 +6668,14 @@
             for (const moveName in physicalMoves) {
                 const move = physicalMoves[moveName];
                 if (move.cooldown > 0) {
-                    move.cooldown--;
+                    move.cooldown -= dt;
+                    if (move.cooldown < 0) move.cooldown = 0;
                 }
             }
             
             // Update "in the zone" state
             if (blackFlash.inTheZone) {
-                blackFlash.zoneTimer--;
+                blackFlash.zoneTimer -= dt;
                 if (blackFlash.zoneTimer <= 0) {
                     blackFlash.inTheZone = false;
                 }
@@ -6860,12 +6898,12 @@
             sukunaDomain.domainText.showTime = 60;
         }
         
-        function updateSukunaDomain() {
+        function updateSukunaDomain(dt) {
             if (!sukunaDomain.active) return;
             
             // Update phase
             if (sukunaDomain.phase === 'activating') {
-                sukunaDomain.phaseTimer--;
+                sukunaDomain.phaseTimer -= dt;
                 
                 // Expand radius to max
                 const progress = 1 - (sukunaDomain.phaseTimer / 120);
@@ -6894,16 +6932,16 @@
                     sukunaDomain.duration = 1800;
                 }
             } else if (sukunaDomain.phase === 'active') {
-                sukunaDomain.duration--;
+                sukunaDomain.duration -= dt;
                 
                 // Pulse effect
-                sukunaDomain.shrine.pulse += 0.05;
+                sukunaDomain.shrine.pulse += 0.05 * dt;
                 
                 // Shrine stays stationary (spawned behind player at activation)
                 // The domain center remains at the shrine location for sure-hit damage
                 
                 // Continuous sure-hit damage
-                sukunaDomain.damageTimer++;
+                sukunaDomain.damageTimer += dt;
                 if (sukunaDomain.damageTimer >= 10) { // Damage every 10 frames (6 times per second)
                     sukunaDomain.damageTimer = 0;
                     applySukunaDomainDamage();
@@ -6911,30 +6949,30 @@
                 
                 // Spawn random slice visuals - increased for mobile
                 const sliceChance = mobileMode ? 0.5 : 0.4;
-                if (Math.random() < sliceChance && sukunaDomain.slices.length < (mobileMode ? 40 : 30)) {
+                if (Math.random() < sliceChance * dt && sukunaDomain.slices.length < (mobileMode ? 40 : 30)) {
                     spawnSliceEffect();
                 }
                 // Spawn multiple slices
-                if (Math.random() < 0.3) {
+                if (Math.random() < 0.3 * dt) {
                     spawnSliceEffect();
                     if (mobileMode) spawnSliceEffect();
                 }
                 
                 // Spawn pulsing crimson slash waves - enabled for mobile
                 const waveChance = mobileMode ? 0.2 : 0.15;
-                if (Math.random() < waveChance) {
+                if (Math.random() < waveChance * dt) {
                     spawnSlashWave();
                 }
                 
                 // Spawn red mist particles - enabled for mobile
                 const mistChance = mobileMode ? 0.4 : 0.3;
-                if (Math.random() < mistChance) {
+                if (Math.random() < mistChance * dt) {
                     spawnRedMist();
                 }
                 
                 // Spawn cursed sparks - enabled for mobile
                 const sparkChance = mobileMode ? 0.25 : 0.2;
-                if (Math.random() < sparkChance) {
+                if (Math.random() < sparkChance * dt) {
                     spawnCursedSpark();
                 }
                 
@@ -6952,8 +6990,8 @@
                 // Update slash waves (expand and fade)
                 for (let i = sukunaDomain.slashWaves.length - 1; i >= 0; i--) {
                     const wave = sukunaDomain.slashWaves[i];
-                    wave.radius += wave.expansionRate;
-                    wave.life--;
+                    wave.radius += wave.expansionRate * dt;
+                    wave.life -= dt;
                     wave.opacity = wave.life / wave.maxLife;
                     if (wave.life <= 0) {
                         sukunaDomain.slashWaves.splice(i, 1);
@@ -6963,9 +7001,9 @@
                 // Update red mist (float upward and fade)
                 for (let i = sukunaDomain.redMist.length - 1; i >= 0; i--) {
                     const mist = sukunaDomain.redMist[i];
-                    mist.y += mist.vy;
-                    mist.x += Math.sin(mist.life * 0.1) * 0.5;
-                    mist.life--;
+                    mist.y += mist.vy * dt;
+                    mist.x += Math.sin(mist.life * 0.1) * 0.5 * dt;
+                    mist.life -= dt;
                     if (mist.life <= 0) {
                         sukunaDomain.redMist.splice(i, 1);
                     }
@@ -6974,10 +7012,10 @@
                 // Update cursed sparks (fall and fade)
                 for (let i = sukunaDomain.cursedSparks.length - 1; i >= 0; i--) {
                     const spark = sukunaDomain.cursedSparks[i];
-                    spark.x += spark.vx;
-                    spark.y += spark.vy;
-                    spark.vy += 0.1; // gravity
-                    spark.life--;
+                    spark.x += spark.vx * dt;
+                    spark.y += spark.vy * dt;
+                    spark.vy += 0.1 * dt; // gravity
+                    spark.life -= dt;
                     if (spark.life <= 0) {
                         sukunaDomain.cursedSparks.splice(i, 1);
                     }
@@ -6985,7 +7023,7 @@
                 
                 // Fade text after a while
                 if (sukunaDomain.duration < 1740) {
-                    sukunaDomain.domainText.opacity = Math.max(0, sukunaDomain.domainText.opacity - 0.02);
+                    sukunaDomain.domainText.opacity = Math.max(0, sukunaDomain.domainText.opacity - 0.02 * dt);
                 }
                 
                 if (sukunaDomain.duration <= 0) {
@@ -6993,7 +7031,7 @@
                     sukunaDomain.phaseTimer = 60;
                 }
             } else if (sukunaDomain.phase === 'fading') {
-                sukunaDomain.phaseTimer--;
+                sukunaDomain.phaseTimer -= dt;
                 const fadeProgress = sukunaDomain.phaseTimer / 60;
                 sukunaDomain.shrine.scale = fadeProgress;
                 sukunaDomain.radius = sukunaDomain.maxRadius * fadeProgress;
@@ -7709,10 +7747,10 @@
             ctx.restore(); // End domain drawing
         }
         
-        function updateReversalRed() {
+        function updateReversalRed(dt) {
             // Handle charging
             if (reversalRed.charging) {
-                reversalRed.chargeTime--;
+                reversalRed.chargeTime -= dt;
                 
                 // Position orb in front of player
                 const chargeDistance = 40;
@@ -7732,9 +7770,9 @@
             
             if (!reversalRed.active) return;
             
-            reversalRed.x += reversalRed.vx;
-            reversalRed.y += reversalRed.vy;
-            reversalRed.life--;
+            reversalRed.x += reversalRed.vx * dt;
+            reversalRed.y += reversalRed.vy * dt;
+            reversalRed.life -= dt;
             
             // Check collision with spirits
             for (let i = cursedSpirits.length - 1; i >= 0; i--) {
@@ -7981,10 +8019,10 @@
             ctx.restore();
         }
         
-        function updateHollowPurple() {
+        function updateHollowPurple(dt) {
             // Handle fusion phase
             if (hollowPurple.charging && hollowPurple.fusing) {
-                hollowPurple.chargeTime--;
+                hollowPurple.chargeTime -= dt;
                 
                 // Position orbs in front of player
                 const orbDistance = 50;
@@ -8049,9 +8087,9 @@
             }
             
             // Move projectile
-            hollowPurple.x += hollowPurple.vx;
-            hollowPurple.y += hollowPurple.vy;
-            hollowPurple.life--;
+            hollowPurple.x += hollowPurple.vx * dt;
+            hollowPurple.y += hollowPurple.vy * dt;
+            hollowPurple.life -= dt;
             
             // Check collisions with spirits (piercing)
             for (let i = cursedSpirits.length - 1; i >= 0; i--) {
@@ -8134,17 +8172,17 @@
             }
         }
         
-        function updatePlayerDomain() {
+        function updatePlayerDomain(dt) {
             if (!playerDomain.active) return;
             
-            playerDomain.duration--;
+            playerDomain.duration -= dt;
             
             // Phase management
             switch(playerDomain.phase) {
                 case 'expanding':
                     // Expand black circle
-                    playerDomain.radius += (playerDomain.maxRadius - playerDomain.radius) * 0.05;
-                    playerDomain.phaseTimer--;
+                    playerDomain.radius += (playerDomain.maxRadius - playerDomain.radius) * 0.05 * dt;
+                    playerDomain.phaseTimer -= dt;
                     if (playerDomain.phaseTimer <= 0 || playerDomain.radius > playerDomain.maxRadius * 0.95) {
                         playerDomain.phase = 'lines';
                         playerDomain.phaseTimer = 180; // 3 seconds of speed lines
@@ -8153,9 +8191,9 @@
                     
                 case 'lines':
                     // Update speed lines
-                    playerDomain.phaseTimer--;
+                    playerDomain.phaseTimer -= dt;
                     for (const line of playerDomain.lines) {
-                        line.z -= line.speed;
+                        line.z -= line.speed * dt;
                         if (line.z <= 0) {
                             line.z = 1000;
                             line.x = (Math.random() - 0.5) * canvas.width * 2;
@@ -8170,8 +8208,8 @@
                     
                 case 'cosmic':
                     // Generate paint splats during this phase
-                    playerDomain.phaseTimer--;
-                    if (playerDomain.phaseTimer > 0 && Math.random() < 0.3) {
+                    playerDomain.phaseTimer -= dt;
+                    if (playerDomain.phaseTimer > 0 && Math.random() < 0.3 * dt) {
                         playerDomain.paintSplats.push({
                             x: (Math.random() - 0.5) * canvas.width,
                             y: (Math.random() - 0.5) * canvas.height,
@@ -8201,9 +8239,19 @@
             
             // Update paint splats
             for (let i = playerDomain.paintSplats.length - 1; i >= 0; i--) {
-                playerDomain.paintSplats[i].life--;
+                playerDomain.paintSplats[i].life -= dt;
                 if (playerDomain.paintSplats[i].life <= 0) {
                     playerDomain.paintSplats.splice(i, 1);
+                }
+            }
+            
+            // Update footstep ripples
+            for (let i = playerDomain.footstepRipples.length - 1; i >= 0; i--) {
+                const ripple = playerDomain.footstepRipples[i];
+                ripple.radius += 2 * dt;
+                ripple.life -= dt;
+                if (ripple.life <= 0) {
+                    playerDomain.footstepRipples.splice(i, 1);
                 }
             }
             
@@ -9267,11 +9315,11 @@
             ctx.restore();
         }
         
-        function updateMaxBlue() {
+        function updateMaxBlue(dt) {
             if (!maxBlue.active) return;
             
-            maxBlue.timer--;
-            maxBlue.angle += 0.015;
+            maxBlue.timer -= dt;
+            maxBlue.angle += 0.015 * dt;
             
             // Calculate orb world position
             const orbWorldX = player.x + Math.cos(maxBlue.angle) * maxBlue.radius;
@@ -9542,29 +9590,30 @@
             ctx.fillStyle = '#0a0a0a';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             
-            updatePlayer();
+            updatePlayer(dt);
             
             // Validate camera values
             if (!isFinite(camera.x) || !isFinite(camera.y)) {
                 camera.x = 0;
                 camera.y = 0;
             }
-            updateAbilities();
-            updateCursedSpirits();
-            updateMaxBlue();
-            updateReversalRed();
-            updateHollowPurple();
-            updateFuga();
-            updatePlayerDomain();
-            updateSukunaDomain();
-            updateDamageCounter();
-            updateDamageNumbers();
-            updateHitEffects();
-            updateKillEffects();
-            updateSlashEffects();
-            updateNotifications();
-            updateSpiritProjectiles();
-            updateDisasterCurse();
+            updateAbilities(dt);
+            updateCursedSpirits(dt);
+            updateMaxBlue(dt);
+            updateReversalRed(dt);
+            updateHollowPurple(dt);
+            updateFuga(dt);
+            updatePlayerDomain(dt);
+            updateSukunaDomain(dt);
+            updateDamageCounter(dt);
+            updateDamageNumbers(dt);
+            updateHitEffects(dt);
+            updateKillEffects(dt);
+            updateSlashEffects(dt);
+            updateNotifications(dt);
+            updateSpiritProjectiles(dt);
+            updateDisasterCurse(dt);
+            updateDomainBurnout(dt);
             
             // Check player death - boss stays alive
             if (player.hp <= 0) {
@@ -9733,21 +9782,21 @@
             });
         }
         
-        function updateHitEffects() {
+        function updateHitEffects(dt) {
             for (let i = hitEffects.length - 1; i >= 0; i--) {
                 const effect = hitEffects[i];
-                effect.life--;
+                effect.life -= dt;
                 if (effect.life <= 0) {
                     hitEffects.splice(i, 1);
                 }
             }
         }
         
-        function updateKillEffects() {
+        function updateKillEffects(dt) {
             for (let i = killEffects.length - 1; i >= 0; i--) {
                 const effect = killEffects[i];
-                effect.life--;
-                effect.ringSize += 2;
+                effect.life -= dt;
+                effect.ringSize += 2 * dt;
                 if (effect.life <= 0) {
                     killEffects.splice(i, 1);
                 }
@@ -9872,9 +9921,9 @@
             }
         }
         
-        function updateSlashEffects() {
+        function updateSlashEffects(dt) {
             for (let i = slashEffects.length - 1; i >= 0; i--) {
-                slashEffects[i].life--;
+                slashEffects[i].life -= dt;
                 if (slashEffects[i].life <= 0) {
                     slashEffects.splice(i, 1);
                 }
@@ -9921,11 +9970,11 @@
             }
         }
         
-        function updateDamageNumbers() {
+        function updateDamageNumbers(dt) {
             for (let i = damageNumbers.length - 1; i >= 0; i--) {
                 const num = damageNumbers[i];
-                num.y += num.vy;
-                num.life--;
+                num.y += num.vy * dt;
+                num.life -= dt;
                 if (num.life <= 0) {
                     damageNumbers.splice(i, 1);
                 }
@@ -9951,9 +10000,9 @@
             }
         }
         
-        function updateDamageCounter() {
+        function updateDamageCounter(dt) {
             if (damageCounter.timer > 0) {
-                damageCounter.timer--;
+                damageCounter.timer -= dt;
                 if (damageCounter.timer <= 0) {
                     damageCounter.total = 0;
                 }
@@ -10795,8 +10844,18 @@
             }
         }
 
-        function loop() {
+        // Delta time for frame-rate independent gameplay
+        let lastTime = 0;
+        let dt = 1; // delta time multiplier (1 = 60fps baseline)
+        
+        function loop(timestamp) {
             frame++;
+            
+            // Calculate delta time (cap at 3x to prevent huge jumps)
+            if (lastTime > 0) {
+                dt = Math.min((timestamp - lastTime) / 16.67, 3);
+            }
+            lastTime = timestamp;
             
             // Ensure canvas is properly sized
             if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
@@ -10955,6 +11014,9 @@
                     screen = 'main_menu';
                     currentMenu = mainMenuOptions;
                     selectedOption = 0;
+                } else if (option === 'STORY MODE') {
+                    // Story mode is not available yet
+                    showNotif('Story Mode is coming soon!');
                 } else {
                     // Select the mode
                     selectedModeIndex = selectedOption;
@@ -10971,6 +11033,17 @@
                     currentMenu = modeOptions;
                     selectedOption = selectedModeIndex;
                 } else {
+                    // Check if character is available
+                    const charAvailability = {
+                        'GOJO': true,
+                        'SUKUNA': true,
+                        'YUKI': false
+                    };
+                    if (!charAvailability[option]) {
+                        showNotif('This character is coming soon!');
+                        return;
+                    }
+                    
                     // Select the character and start game
                     selectedCharacterIndex = selectedOption;
                     selectedCharacter = option;
