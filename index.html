@@ -6652,6 +6652,9 @@
                 // Increase burnout chance by 10% each use after the 1st
                 domainBurnout.burnoutChance += 0.10;
                 
+                // Show burnout chance
+                showNotif('Domain #' + domainBurnout.domainUseCount + ' - Burnout chance: ' + Math.round(domainBurnout.burnoutChance * 100) + '%');
+                
                 // Roll for burnout
                 if (Math.random() < domainBurnout.burnoutChance) {
                     // Burnout occurred!
@@ -6784,6 +6787,30 @@
         }
         
         function activateSukunaDomain() {
+            // Check for Domain Burnout
+            domainBurnout.domainUseCount++;
+            
+            if (domainBurnout.domainUseCount >= 2) {
+                // Increase burnout chance by 10% each use after the 1st
+                domainBurnout.burnoutChance += 0.10;
+                
+                // Show burnout chance
+                showNotif('Domain #' + domainBurnout.domainUseCount + ' - Burnout chance: ' + Math.round(domainBurnout.burnoutChance * 100) + '%');
+                
+                // Roll for burnout
+                if (Math.random() < domainBurnout.burnoutChance) {
+                    // Burnout occurred!
+                    domainBurnout.active = true;
+                    domainBurnout.timer = domainBurnout.maxTimer;
+                    domainBurnout.burnoutChance = 0; // Reset chance
+                    domainBurnout.blackFlashCount = 0; // Reset Black Flash count
+                    showNotif('DOMAIN BURNOUT! Cursed Technique sealed!');
+                    
+                    // Don't activate the domain - it failed
+                    return;
+                }
+            }
+            
             sukunaDomain.active = true;
             sukunaDomain.phase = 'activating';
             sukunaDomain.phaseTimer = 120; // 2 seconds to manifest
