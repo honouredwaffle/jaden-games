@@ -5405,14 +5405,14 @@
                     ctx.fill();
                     ctx.restore();
 
-                    // Cooldown seconds with decimal for precision
-                    const seconds = (cooldown / 60).toFixed(1);
+                    // Cooldown seconds (whole number, cleaner look)
+                    const seconds = Math.ceil(cooldown / 60);
                     ctx.fillStyle = '#ffaa00';
-                    ctx.font = 'bold 18px "Segoe UI", sans-serif';
+                    ctx.font = 'bold 20px "Segoe UI", sans-serif';
                     ctx.textAlign = 'center';
                     ctx.shadowColor = '#000';
                     ctx.shadowBlur = 4;
-                    ctx.fillText(seconds + 's', centerX, centerY + 6);
+                    ctx.fillText(seconds, centerX, centerY + 7);
                     ctx.shadowBlur = 0;
 
                     // Cooldown progress ring
@@ -7042,7 +7042,7 @@
             
             playerDomain.active = true;
             playerDomain.phase = 'expanding';
-            playerDomain.phaseTimer = 90; // 1.5 seconds to expand
+            playerDomain.phaseTimer = 180; // 3 seconds to expand (more dramatic)
             playerDomain.radius = 0;
             playerDomain.duration = 1800; // 30 seconds
             playerDomain.frozenEnemies = [];
@@ -7184,7 +7184,7 @@
             
             sukunaDomain.active = true;
             sukunaDomain.phase = 'activating';
-            sukunaDomain.phaseTimer = 120; // 2 seconds to manifest
+            sukunaDomain.phaseTimer = 240; // 4 seconds to manifest (more dramatic)
             sukunaDomain.radius = 0;
             sukunaDomain.duration = 1800; // 30 seconds
             
@@ -8527,7 +8527,7 @@
                     playerDomain.phaseTimer -= dt;
                     if (playerDomain.phaseTimer <= 0 || playerDomain.radius > playerDomain.maxRadius * 0.95) {
                         playerDomain.phase = 'lines';
-                        playerDomain.phaseTimer = 180; // 3 seconds of speed lines
+                        playerDomain.phaseTimer = 240; // 4 seconds of speed lines
                     }
                     break;
                     
@@ -8544,7 +8544,7 @@
                     }
                     if (playerDomain.phaseTimer <= 0) {
                         playerDomain.phase = 'cosmic';
-                        playerDomain.phaseTimer = 90; // 1.5 seconds of paint
+                        playerDomain.phaseTimer = 180; // 3 seconds of paint
                     }
                     break;
                     
