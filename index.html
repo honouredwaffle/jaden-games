@@ -103,6 +103,13 @@
             timer: 0,
             maxTime: 240 // 4 seconds at 60fps
         };
+
+        // Smooth bar animation
+        let smoothBars = {
+            hpDisplay: 100,
+            ceDisplay: 100,
+            lerpSpeed: 0.15 // How fast bars catch up to actual values
+        };
         
         // Pause menu state
         let isPaused = false;
@@ -1022,7 +1029,16 @@
         // Camera
         const camera = {
             x: 0,
-            y: 0
+            y: 0,
+            shake: 0,
+            shakeTimer: 0
+        };
+
+        // Settings
+        let gameSettings = {
+            screenShakeIntensity: 1.0, // 0.0 to 2.0
+            showDamageNumbers: true,
+            showHitEffects: true
         };
         
         // Keys
@@ -5370,17 +5386,47 @@
                 }
                 ctx.fillRect(slotX + 2, barY + 2, slotWidth - 4, barHeight - 4);
                 
-                // Cooldown overlay
+                // Cooldown overlay with radial sweep
                 if (cooldown > 0) {
-                    const cooldownHeight = (cooldown / maxCooldown) * (barHeight - 4);
-                    ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-                    ctx.fillRect(slotX + 2, barY + 2, slotWidth - 4, cooldownHeight);
-                    
-                    // Cooldown number
-                    ctx.fillStyle = '#fff';
-                    ctx.font = 'bold 20px "Segoe UI", sans-serif';
+                    const cooldownPercent = cooldown / maxCooldown;
+
+                    // Darken the entire slot
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.6)';
+                    ctx.fillRect(slotX + 2, barY + 2, slotWidth - 4, barHeight - 4);
+
+                    // Radial cooldown sweep
+                    ctx.save();
+                    ctx.translate(centerX, centerY);
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.arc(0, 0, slotWidth / 2, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * cooldownPercent));
+                    ctx.closePath();
+                    ctx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+                    ctx.fill();
+                    ctx.restore();
+
+                    // Cooldown seconds with decimal for precision
+                    const seconds = (cooldown / 60).toFixed(1);
+                    ctx.fillStyle = '#ffaa00';
+                    ctx.font = 'bold 18px "Segoe UI", sans-serif';
                     ctx.textAlign = 'center';
-                    ctx.fillText(Math.ceil(cooldown / 60), centerX, centerY + 7);
+                    ctx.shadowColor = '#000';
+                    ctx.shadowBlur = 4;
+                    ctx.fillText(seconds + 's', centerX, centerY + 6);
+                    ctx.shadowBlur = 0;
+
+                    // Cooldown progress ring
+                    ctx.strokeStyle = '#ffaa00';
+                    ctx.lineWidth = 3;
+                    ctx.beginPath();
+                    ctx.arc(centerX, centerY, slotWidth / 2 - 5, -Math.PI / 2, -Math.PI / 2 + (Math.PI * 2 * (1 - cooldownPercent)));
+                    ctx.stroke();
+                } else {
+                    // Ready indicator - subtle pulse
+                    const pulse = Math.sin(Date.now() * 0.005) * 0.3 + 0.7;
+                    ctx.strokeStyle = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${pulse})`;
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(slotX + 3, barY + 3, slotWidth - 6, barHeight - 6);
                 }
                 
                 // Ability/Move name
@@ -9868,7 +9914,7 @@
                 canvas.width = window.innerWidth;
                 canvas.height = window.innerHeight;
             }
-            
+
             // Ensure canvas has valid dimensions
             if (canvas.width < 100 || canvas.height < 100) {
                 canvas.width = window.innerWidth || 800;
@@ -9881,7 +9927,24 @@
                 ctx.fillText('Loading...', canvas.width / 2, canvas.height / 2);
                 return;
             }
-            
+
+            // Handle camera shake
+            let shakeX = 0;
+            let shakeY = 0;
+            if (camera.shakeTimer > 0) {
+                const intensity = camera.shake * gameSettings.screenShakeIntensity;
+                shakeX = (Math.random() - 0.5) * intensity;
+                shakeY = (Math.random() - 0.5) * intensity;
+                camera.shakeTimer -= dt;
+                if (camera.shakeTimer <= 0) {
+                    camera.shake = 0;
+                }
+            }
+
+            // Apply shake to camera temporarily
+            camera.x += shakeX;
+            camera.y += shakeY;
+
             // Clear with dark background
             ctx.fillStyle = '#0a0a0a';
             ctx.fillRect(0, 0, canvas.width, canvas.height);
@@ -9983,6 +10046,10 @@
 
             // Draw stat menu on top of everything
             drawStatMenu();
+
+            // Remove camera shake offset
+            camera.x -= shakeX;
+            camera.y -= shakeY;
             
             // Mobile controls
             if (mobileMode) {
@@ -10313,17 +10380,48 @@
             for (const num of damageNumbers) {
                 const screenX = num.x - camera.x;
                 const screenY = num.y - camera.y;
-                const alpha = Math.min(1, num.life / 20);
-                
+                const lifePercent = num.life / 60;
+                const alpha = Math.min(1, lifePercent * 2);
+
+                // Scale up at start, then fade
+                const scale = lifePercent > 0.8 ? 1 + (1 - lifePercent) * 2 : 1;
+
                 ctx.save();
+                ctx.translate(screenX, screenY);
+                ctx.scale(scale, scale);
                 ctx.globalAlpha = alpha;
-                ctx.fillStyle = '#ff4444';
+
+                // Color based on damage amount
+                let color = '#ff6666'; // Normal
+                let fontSize = 16;
+                if (num.damage >= 100) {
+                    color = '#ffaa00'; // High damage - orange
+                    fontSize = 20;
+                }
+                if (num.damage >= 500) {
+                    color = '#ff00ff'; // Massive damage - purple
+                    fontSize = 24;
+                }
+                if (num.damage >= 1000) {
+                    color = '#00ffff'; // Extreme damage - cyan
+                    fontSize = 28;
+                }
+
+                // Glow effect for big hits
+                if (num.damage >= 100) {
+                    ctx.shadowColor = color;
+                    ctx.shadowBlur = 10;
+                }
+
+                // Text with outline
+                ctx.fillStyle = color;
                 ctx.strokeStyle = '#000';
-                ctx.lineWidth = 2;
-                ctx.font = 'bold 16px "Segoe UI", sans-serif';
+                ctx.lineWidth = 3;
+                ctx.font = `bold ${fontSize}px "Segoe UI", sans-serif`;
                 ctx.textAlign = 'center';
-                ctx.strokeText(num.damage, screenX, screenY);
-                ctx.fillText(num.damage, screenX, screenY);
+                ctx.strokeText(num.damage, 0, 0);
+                ctx.fillText(num.damage, 0, 0);
+
                 ctx.restore();
             }
         }
@@ -10371,46 +10469,73 @@
         }
         
         function drawPlayerBars() {
-            const barWidth = 200;
-            const barHeight = 18;
+            const barWidth = 220;
+            const barHeight = 22;
             const x = 15;
-            
-            // Health bar
-            const hpPercent = player.hp / player.maxHp;
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+
+            // Update smooth bar values
+            const targetHp = (player.hp / player.maxHp) * 100;
+            const targetCe = (player.ce / player.maxCe) * 100;
+            smoothBars.hpDisplay += (targetHp - smoothBars.hpDisplay) * smoothBars.lerpSpeed;
+            smoothBars.ceDisplay += (targetCe - smoothBars.ceDisplay) * smoothBars.lerpSpeed;
+
+            // Health bar background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
             ctx.fillRect(x, 15, barWidth, barHeight);
-            
-            const hpGradient = ctx.createLinearGradient(x, 0, x + barWidth * hpPercent, 0);
-            hpGradient.addColorStop(0, '#ff4444');
-            hpGradient.addColorStop(1, '#ff8888');
+
+            // Health bar fill with smooth animation
+            const hpPercent = smoothBars.hpDisplay / 100;
+            const hpGradient = ctx.createLinearGradient(x, 15, x + barWidth * hpPercent, 15);
+            hpGradient.addColorStop(0, '#cc0000');
+            hpGradient.addColorStop(0.5, '#ff3333');
+            hpGradient.addColorStop(1, '#ff6666');
             ctx.fillStyle = hpGradient;
             ctx.fillRect(x, 15, barWidth * hpPercent, barHeight);
-            
+
+            // Health bar glow effect when low
+            if (player.hp / player.maxHp < 0.25) {
+                ctx.shadowColor = '#ff0000';
+                ctx.shadowBlur = 15;
+                ctx.fillStyle = 'rgba(255, 0, 0, 0.3)';
+                ctx.fillRect(x, 15, barWidth * hpPercent, barHeight);
+                ctx.shadowBlur = 0;
+            }
+
+            // Health bar border
             ctx.strokeStyle = '#fff';
             ctx.lineWidth = 2;
             ctx.strokeRect(x, 15, barWidth, barHeight);
-            
-            ctx.fillStyle = '#fff';
-            ctx.font = 'bold 12px "Segoe UI", sans-serif';
+
+            // Health text with shadow
+            ctx.fillStyle = '#000';
+            ctx.font = 'bold 13px "Segoe UI", sans-serif';
             ctx.textAlign = 'center';
-            ctx.fillText(`HP ${Math.floor(player.hp)}/${player.maxHp}`, x + barWidth / 2, 28);
-            
-            // CE bar
-            const cePercent = player.ce / player.maxCe;
-            ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
-            ctx.fillRect(x, 38, barWidth, barHeight);
-            
-            const ceGradient = ctx.createLinearGradient(x, 0, x + barWidth * cePercent, 0);
-            ceGradient.addColorStop(0, '#4444ff');
-            ceGradient.addColorStop(1, '#8888ff');
-            ctx.fillStyle = ceGradient;
-            ctx.fillRect(x, 38, barWidth * cePercent, barHeight);
-            
-            ctx.strokeStyle = '#fff';
-            ctx.strokeRect(x, 38, barWidth, barHeight);
-            
+            ctx.fillText(`HP ${Math.floor(player.hp)}/${player.maxHp}`, x + barWidth / 2 + 1, 30 + 1);
             ctx.fillStyle = '#fff';
-            ctx.fillText(`CE ${Math.floor(player.ce)}/${player.maxCe}`, x + barWidth / 2, 51);
+            ctx.fillText(`HP ${Math.floor(player.hp)}/${player.maxHp}`, x + barWidth / 2, 30);
+
+            // CE bar background
+            ctx.fillStyle = 'rgba(0, 0, 0, 0.8)';
+            ctx.fillRect(x, 42, barWidth, barHeight);
+
+            // CE bar fill with smooth animation
+            const cePercent = smoothBars.ceDisplay / 100;
+            const ceGradient = ctx.createLinearGradient(x, 42, x + barWidth * cePercent, 42);
+            ceGradient.addColorStop(0, '#0000cc');
+            ceGradient.addColorStop(0.5, '#3333ff');
+            ceGradient.addColorStop(1, '#6666ff');
+            ctx.fillStyle = ceGradient;
+            ctx.fillRect(x, 42, barWidth * cePercent, barHeight);
+
+            // CE bar border
+            ctx.strokeStyle = '#fff';
+            ctx.strokeRect(x, 42, barWidth, barHeight);
+
+            // CE text with shadow
+            ctx.fillStyle = '#000';
+            ctx.fillText(`CE ${Math.floor(player.ce)}/${player.maxCe}`, x + barWidth / 2 + 1, 57 + 1);
+            ctx.fillStyle = '#fff';
+            ctx.fillText(`CE ${Math.floor(player.ce)}/${player.maxCe}`, x + barWidth / 2, 57);
         }
         
         function drawMinimap() {
