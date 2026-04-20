@@ -339,7 +339,7 @@
             // Leveling & Economy
             level: 1,
             xp: 0,
-            xpToNextLevel: 100,
+            xpToNextLevel: 60, // Reduced by 40% (was 100)
             statPoints: 0,
             money: 0,
             // Stats
@@ -481,7 +481,7 @@
                 player.xp -= player.xpToNextLevel;
                 player.level++;
                 player.statPoints += 3;
-                player.xpToNextLevel = Math.floor(100 * Math.pow(1.5, player.level - 1));
+                player.xpToNextLevel = Math.floor(60 * Math.pow(1.5, player.level - 1)); // Reduced by 40% (was 100)
                 
                 // Trigger level up celebration
                 levelUpCelebration.active = true;
@@ -627,7 +627,7 @@
                     const data = JSON.parse(saved);
                     player.level = data.level || 1;
                     player.xp = data.xp || 0;
-                    player.xpToNextLevel = data.xpToNextLevel || 100;
+                    player.xpToNextLevel = data.xpToNextLevel || 60;
                     player.statPoints = data.statPoints || 0;
                     player.money = data.money || 0;
                     player.swordStat = data.swordStat || 0;
@@ -3831,7 +3831,7 @@
                 }
                 
                 // Attack telegraph indicator
-                if (spirit.telegraph.active) {
+                if (spirit.telegraph && spirit.telegraph.active) {
                     const telegraphPercent = 1 - (spirit.telegraph.timer / spirit.telegraph.maxTime);
                     const indicatorColor = telegraphPercent > 0.7 ? '#ff0000' : (telegraphPercent > 0.4 ? '#ffaa00' : '#ffff00');
 
