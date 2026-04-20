@@ -5270,7 +5270,10 @@
         function updateAbilities(dt) {
             for (const ability of abilities) {
                 if (ability.cooldown > 0) {
-                    ability.cooldown -= dt;
+                    // Cooldowns are defined in frames at 60fps baseline (16.67ms)
+                    // Scale dt so cooldowns last the same real time regardless of refresh rate
+                    const baselineDt = 16.67 / targetFrameTime;
+                    ability.cooldown -= dt * baselineDt;
                     if (ability.cooldown < 0) ability.cooldown = 0;
                 }
             }
@@ -7018,7 +7021,8 @@
             for (const moveName in physicalMoves) {
                 const move = physicalMoves[moveName];
                 if (move.cooldown > 0) {
-                    move.cooldown -= dt;
+                    const baselineDt = 16.67 / targetFrameTime;
+                    move.cooldown -= dt * baselineDt;
                     if (move.cooldown < 0) move.cooldown = 0;
                 }
             }
@@ -11574,7 +11578,8 @@
 
         function updateBlock(dt) {
             if (block.cooldown > 0) {
-                block.cooldown -= dt;
+                const baselineDt = 16.67 / targetFrameTime;
+                block.cooldown -= dt * baselineDt;
                 if (block.cooldown < 0) block.cooldown = 0;
             }
             if (block.parryWindow > 0) {
