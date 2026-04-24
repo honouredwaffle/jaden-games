@@ -44,6 +44,23 @@
     <div id="game-container">
         <canvas id="game"></canvas>
     </div>
+
+    <!-- FPS Counter -->
+    <div id="fps-counter" style="position:fixed;top:clamp(8px,2vw,16px);right:clamp(8px,2vw,16px);color:rgba(255,255,255,0.6);font-size:clamp(10px,2vw,13px);pointer-events:none;z-index:100;display:none;font-family:'Segoe UI',sans-serif;">FPS: <span id="fps-val">0</span></div>
+
+    <!-- Settings Panel Overlay -->
+    <div id="settings-overlay" style="display:none;position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:rgba(10,10,20,0.97);border:2px solid #333;border-radius:16px;padding:clamp(20px,4vw,32px) clamp(24px,5vw,40px);color:#fff;text-align:center;z-index:200;min-width:280px;max-width:90vw;">
+        <h2 style="font-size:clamp(20px,4vw,28px);margin-bottom:clamp(16px,3vw,24px);color:#f1c40f;text-shadow:0 0 12px rgba(241,196,15,0.5);">SETTINGS</h2>
+        <div id="audio-settings">
+            <label style="display:block;margin:10px 0;font-size:clamp(12px,2.5vw,14px);color:#ccc;">SFX Volume <span id="sfx-vol-display" style="float:right;color:#f1c40f;">80%</span></label>
+            <input type="range" id="sfx-vol" min="0" max="100" value="80" style="width:100%;margin-top:4px;cursor:pointer;accent-color:#f1c40f;">
+            <label style="display:block;margin:10px 0;font-size:clamp(12px,2.5vw,14px);color:#ccc;">Music Volume <span id="music-vol-display" style="float:right;color:#f1c40f;">50%</span></label>
+            <input type="range" id="music-vol" min="0" max="100" value="50" style="width:100%;margin-top:4px;cursor:pointer;accent-color:#f1c40f;">
+            <p style="font-size:11px;color:#888;margin-top:12px;line-height:1.4;">🔊 Audio generated via Web Audio API</p>
+        </div>
+        <button id="close-settings-overlay" style="margin-top:clamp(16px,3vw,20px);padding:clamp(8px,2vw,12px) clamp(20px,4vw,30px);font-size:clamp(14px,3vw,18px);background:#333;color:#fff;border:2px solid #555;border-radius:8px;cursor:pointer;min-height:44px;">BACK</button>
+    </div>
+
     <script>
         const canvas = document.getElementById('game');
         const ctx = canvas.getContext('2d');
@@ -114,6 +131,130 @@
         // Pause menu state
         let isPaused = false;
         const pauseMenuOptions = ['RESUME', 'SETTINGS', 'RETURN TO MAIN MENU'];
+
+        // FPS counter
+        let showFps = false;
+        let lastFrameTime = performance.now();
+        let frameCount = 0;
+        let currentFps = 0;
+        var fpsCounter = document.getElementById('fps-val');
+
+        // ============================================================
+        // AUDIO MANAGER - Web Audio API generated sounds
+        // ============================================================
+        var sfxVolume = 0.8, musicVolume = 0.5;
+        var AudioMgr = function() {
+            this.ctx = null; this.sfxGain = null; this.musicGain = null; this.musicNodes = []; this.masterGain = null; this.initialized = false;
+        };
+        AudioMgr.prototype.init = function() {
+            if (this.initialized) return;
+            try {
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+                this.masterGain = this.ctx.createGain(); this.masterGain.connect(this.ctx.destination); this.masterGain.gain.value = 1.0;
+                this.sfxGain = this.ctx.createGain(); this.sfxGain.connect(this.masterGain); this.sfxGain.gain.value = sfxVolume;
+                this.musicGain = this.ctx.createGain(); this.musicGain.connect(this.masterGain); this.musicGain.gain.value = musicVolume;
+                this.initialized = true; this.startBgMusic();
+            } catch(e) {}
+        };
+        AudioMgr.prototype.resumeContext = function() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); };
+        AudioMgr.prototype.setSfxVolume = function(v) { if (this.sfxGain) this.sfxGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05); };
+        AudioMgr.prototype.setMusicVolume = function(v) { if (this.musicGain) this.musicGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.1); };
+        AudioMgr.prototype.play = function(type) { if (!this.initialized || !this.ctx) return; var t = this.ctx.currentTime; switch(type) { case 'shoot': this.sndShoot(t); break; case 'hit': this.sndHit(t); break; case 'enemyDied': this.sndEnemyDied(t); break; case 'playerHit': this.sndPlayerHit(t); break; case 'levelUp': this.sndLevelUp(t); break; } };
+        AudioMgr.prototype.sndShoot = function(t) {
+            var osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+            osc.connect(g); g.connect(this.sfxGain); osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(600, t); osc.frequency.exponentialRampToValueAtTime(80, t + 0.08);
+            g.gain.setValueAtTime(0.3, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+            osc.start(t); osc.stop(t + 0.1);
+            var osc2 = this.ctx.createOscillator(), g2 = this.ctx.createGain();
+            osc2.connect(g2); g2.connect(this.sfxGain); osc2.type = 'square';
+            osc2.frequency.setValueAtTime(1200, t); osc2.frequency.exponentialRampToValueAtTime(200, t + 0.05);
+            g2.gain.setValueAtTime(0.1, t); g2.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+            osc2.start(t); osc2.stop(t + 0.06);
+        };
+        AudioMgr.prototype.sndHit = function(t) {
+            var osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+            osc.connect(g); g.connect(this.sfxGain); osc.type = 'triangle';
+            osc.frequency.setValueAtTime(200, t); osc.frequency.exponentialRampToValueAtTime(60, t + 0.12);
+            g.gain.setValueAtTime(0.4, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+            osc.start(t); osc.stop(t + 0.15);
+            var buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.05, this.ctx.sampleRate);
+            var data = buf.getChannelData(0); for (var i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.3;
+            var src = this.ctx.createBufferSource(); src.buffer = buf;
+            var ng = this.ctx.createGain(); src.connect(ng); ng.connect(this.sfxGain);
+            ng.gain.setValueAtTime(0.2, t); ng.gain.exponentialRampToValueAtTime(0.001, t + 0.05); src.start(t);
+        };
+        AudioMgr.prototype.sndEnemyDied = function(t) {
+            var osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+            osc.connect(g); g.connect(this.sfxGain); osc.type = 'sine';
+            osc.frequency.setValueAtTime(150, t); osc.frequency.exponentialRampToValueAtTime(30, t + 0.25);
+            g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3); osc.start(t); osc.stop(t + 0.3);
+            var osc2 = this.ctx.createOscillator(), g2 = this.ctx.createGain();
+            osc2.connect(g2); g2.connect(this.sfxGain); osc2.type = 'sawtooth';
+            osc2.frequency.setValueAtTime(400, t); osc2.frequency.exponentialRampToValueAtTime(50, t + 0.15);
+            g2.gain.setValueAtTime(0.2, t); g2.gain.exponentialRampToValueAtTime(0.001, t + 0.2); osc2.start(t); osc2.stop(t + 0.2);
+            var buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.1, this.ctx.sampleRate);
+            var data = buf.getChannelData(0); for (var i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+            var src = this.ctx.createBufferSource(); src.buffer = buf;
+            var ng = this.ctx.createGain(); src.connect(ng); ng.connect(this.sfxGain);
+            ng.gain.setValueAtTime(0.3, t); ng.gain.exponentialRampToValueAtTime(0.001, t + 0.1); src.start(t);
+        };
+        AudioMgr.prototype.sndPlayerHit = function(t) {
+            var osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+            osc.connect(g); g.connect(this.sfxGain); osc.type = 'square';
+            osc.frequency.setValueAtTime(300, t); osc.frequency.setValueAtTime(100, t + 0.05); osc.frequency.setValueAtTime(400, t + 0.1); osc.frequency.setValueAtTime(80, t + 0.15);
+            g.gain.setValueAtTime(0.25, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.2); osc.start(t); osc.stop(t + 0.2);
+            var osc2 = this.ctx.createOscillator(), g2 = this.ctx.createGain();
+            osc2.connect(g2); g2.connect(this.sfxGain); osc2.type = 'sine';
+            osc2.frequency.setValueAtTime(60, t); osc2.frequency.exponentialRampToValueAtTime(20, t + 0.2);
+            g2.gain.setValueAtTime(0.3, t); g2.gain.exponentialRampToValueAtTime(0.001, t + 0.25); osc2.start(t); osc2.stop(t + 0.25);
+        };
+        AudioMgr.prototype.sndLevelUp = function(t) {
+            var notes = [523.25, 659.25, 783.99, 1046.5];
+            for (var i = 0; i < notes.length; i++) {
+                var osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+                osc.connect(g); g.connect(this.sfxGain); osc.type = 'sine';
+                var start = t + i * 0.1; osc.frequency.value = notes[i];
+                g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(0.3, start + 0.02); g.gain.exponentialRampToValueAtTime(0.001, start + 0.4);
+                osc.start(start); osc.stop(start + 0.4);
+            }
+        };
+        AudioMgr.prototype.startBgMusic = function() {
+            if (!this.initialized) return; this.stopBgMusic();
+            var t = this.ctx.currentTime, droneFreqs = [55, 82.5, 110, 165];
+            for (var i = 0; i < droneFreqs.length; i++) {
+                var osc = this.ctx.createOscillator(), g = this.ctx.createGain(), filter = this.ctx.createBiquadFilter();
+                osc.type = i < 2 ? 'sawtooth' : 'triangle'; osc.frequency.value = droneFreqs[i];
+                filter.type = 'lowpass'; filter.frequency.value = 400; filter.Q.value = 1;
+                var lfo = this.ctx.createOscillator(), lfoGain = this.ctx.createGain();
+                lfo.frequency.value = 0.1 + i * 0.05; lfoGain.gain.value = 0.03;
+                lfo.connect(lfoGain); lfoGain.connect(g.gain); lfo.start(t);
+                var vol = i === 0 ? 0.08 : i === 1 ? 0.05 : i === 2 ? 0.04 : 0.02;
+                g.gain.value = vol; osc.connect(filter); filter.connect(g); g.connect(this.musicGain); osc.start(t);
+                this.musicNodes.push(osc, lfo);
+            }
+            var shimmer = this.ctx.createOscillator(), shimmerGain = this.ctx.createGain(), shimmerFilter = this.ctx.createBiquadFilter();
+            shimmer.type = 'sine'; shimmer.frequency.value = 880;
+            shimmerFilter.type = 'bandpass'; shimmerFilter.frequency.value = 880; shimmerFilter.Q.value = 5;
+            shimmerGain.gain.value = 0.01;
+            shimmer.connect(shimmerFilter); shimmerFilter.connect(shimmerGain); shimmerGain.connect(this.musicGain); shimmer.start(t);
+            this.musicNodes.push(shimmer);
+            var shimmerLfo = this.ctx.createOscillator(), shimmerLfoGain = this.ctx.createGain();
+            shimmerLfo.frequency.value = 0.3; shimmerLfoGain.gain.value = 0.008;
+            shimmerLfo.connect(shimmerLfoGain); shimmerLfoGain.connect(shimmerGain.gain); shimmerLfo.start(t);
+            this.musicNodes.push(shimmerLfo);
+        };
+        AudioMgr.prototype.stopBgMusic = function() { for (var i = 0; i < this.musicNodes.length; i++) { try { this.musicNodes[i].stop(); } catch(e) {} } this.musicNodes = []; };
+        var audioMgr = new AudioMgr();
+        var audioUnlocked = false;
+        function unlockAudio() { if (audioUnlocked) return; audioUnlocked = true; audioMgr.init(); document.removeEventListener('click', unlockAudio); document.removeEventListener('keydown', unlockAudio); }
+        document.addEventListener('click', unlockAudio);
+        document.addEventListener('keydown', unlockAudio);
+
+        // Settings overlay event listeners
+        document.getElementById('sfx-vol').addEventListener('input', function(e) { sfxVolume = e.target.value / 100; document.getElementById('sfx-vol-display').textContent = e.target.value + '%'; if (audioMgr) audioMgr.setSfxVolume(sfxVolume); });
+        document.getElementById('music-vol').addEventListener('input', function(e) { musicVolume = e.target.value / 100; document.getElementById('music-vol-display').textContent = e.target.value + '%'; if (audioMgr) audioMgr.setMusicVolume(musicVolume); });
+        document.getElementById('close-settings-overlay').addEventListener('click', function() { document.getElementById('settings-overlay').style.display = 'none'; });
         
         // Hit stop (freeze frames on hard hits)
         let hitStopFrames = 0;
@@ -10110,6 +10251,15 @@
                 ctx.fillStyle = BIOME_COLORS[currentBiome].grid.replace('0.15', '1');
                 ctx.fillText(`BIOME: ${currentBiome}`, 20, 118);
             }
+
+            // Controls hint
+            const hintText = mobileMode
+                ? 'WASD/Arrows: Move | Tap joystick | M1/1-4: Abilities | ESC: Pause | Touch | F: FPS'
+                : 'WASD/Arrows: Move | Click: Shoot | 1-4: Abilities | Shift: Block | ESC: Pause | F: FPS';
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.35)';
+            ctx.font = `clamp(10px, 1.8vw, 13px) 'Segoe UI', sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.fillText(hintText, canvas.width / 2, canvas.height - 15);
         }
         
         function addDamageCounter(damage) {
@@ -11422,11 +11572,8 @@
             if (option === 'RESUME') {
                 isPaused = false;
             } else if (option === 'SETTINGS') {
-                // Store that we're in pause menu settings
-                isPaused = false;
-                screen = 'settings';
-                currentMenu = settingsOptions;
-                selectedOption = 0;
+                // Show audio settings overlay instead of navigating away from game
+                document.getElementById('settings-overlay').style.display = 'block';
             } else if (option === 'RETURN TO MAIN MENU') {
                 isPaused = false;
                 screen = 'main_menu';
@@ -11702,7 +11849,16 @@
         
         function loop(timestamp) {
             frame++;
-            
+
+            // Update FPS counter
+            frameCount++;
+            if (timestamp - lastFrameTime >= 500) {
+                currentFps = Math.round(frameCount * 1000 / (timestamp - lastFrameTime));
+                frameCount = 0;
+                lastFrameTime = timestamp;
+                if (showFps && fpsCounter) fpsCounter.textContent = currentFps;
+            }
+
             // Handle hit stop (freeze frames on hard hits)
             if (hitStopFrames > 0) {
                 hitStopFrames--;
@@ -12331,6 +12487,10 @@
                 else if (e.key === 'Escape') {
                     isPaused = true;
                     selectedOption = 0;
+                }
+                else if (e.key === 'f' || e.key === 'F') {
+                    showFps = !showFps;
+                    document.getElementById('fps-counter').style.display = showFps ? 'block' : 'none';
                 }
             } else if (screen === 'blog') {
                 if (blogSelectedEntry >= 0) {
