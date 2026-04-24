@@ -8,18 +8,27 @@
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body { background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
 canvas { display: block; }
-#ui { position: fixed; top: 16px; left: 16px; color: #fff; font-size: 14px; pointer-events: none; z-index: 10; text-shadow: 0 0 8px #000, 0 0 16px #000; }
-#ui div { margin-bottom: 6px; }
-#hp-bar-wrap { width: 200px; height: 14px; background: #222; border: 2px solid #555; border-radius: 8px; overflow: hidden; }
+#ui { position: fixed; top: clamp(8px, 2vw, 16px); left: clamp(8px, 2vw, 16px); color: #fff; font-size: clamp(12px, 2.5vw, 16px); pointer-events: none; z-index: 10; text-shadow: 0 0 8px #000, 0 0 16px #000; }
+#ui div { margin-bottom: clamp(4px, 1vw, 6px); }
+#hp-bar-wrap { width: clamp(120px, 25vw, 200px); height: clamp(10px, 2vw, 14px); background: #222; border: 2px solid #555; border-radius: 8px; overflow: hidden; }
 #hp-bar { height: 100%; width: 100%; background: linear-gradient(90deg, #c0392b, #e74c3c); transition: width 0.2s; }
-#game-over { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; text-align: center; font-size: 32px; display: none; z-index: 20; text-shadow: 0 0 20px #c0392b; }
-#game-over button { margin-top: 20px; padding: 12px 32px; font-size: 18px; background: #c0392b; color: #fff; border: none; border-radius: 8px; cursor: pointer; pointer-events: all; }
+#game-over { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; text-align: center; font-size: clamp(20px, 5vw, 36px); display: none; z-index: 20; text-shadow: 0 0 20px #c0392b; }
+#game-over button { margin-top: clamp(12px, 3vw, 24px); padding: clamp(10px, 2vw, 14px) clamp(24px, 5vw, 36px); font-size: clamp(14px, 3vw, 20px); background: #c0392b; color: #fff; border: none; border-radius: 8px; cursor: pointer; pointer-events: all; }
 #game-over button:hover { background: #e74c3c; }
-#controls { position: fixed; bottom: 16px; left: 16px; color: rgba(255,255,255,0.5); font-size: 12px; pointer-events: none; z-index: 10; }
+#controls { position: fixed; bottom: clamp(8px, 2vw, 16px); left: clamp(8px, 2vw, 16px); color: rgba(255,255,255,0.5); font-size: clamp(10px, 2vw, 13px); pointer-events: none; z-index: 10; }
+#fps-counter { position: fixed; top: clamp(8px, 2vw, 16px); right: clamp(8px, 2vw, 16px); color: rgba(255,255,255,0.6); font-size: clamp(10px, 2vw, 13px); pointer-events: none; z-index: 10; display: none; }
+#fps-counter.visible { display: block; }
+
+/* Mobile touch controls */
+#touch-controls { position: fixed; bottom: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; touch-action: none; }
+#joystick-zone { position: absolute; bottom: clamp(60px, 15vw, 120px); left: clamp(20px, 5vw, 40px); width: clamp(80px, 20vw, 120px); height: clamp(80px, 20vw, 120px); border-radius: 50%; background: rgba(255,255,255,0.1); border: 2px solid rgba(255,255,255,0.3); pointer-events: none; opacity: 0; transition: opacity 0.15s; }
+#joystick-zone.active { opacity: 1; }
+#joystick-knob { position: absolute; width: 40%; height: 40%; top: 30%; left: 30%; border-radius: 50%; background: rgba(255,255,255,0.5); border: 2px solid rgba(255,255,255,0.7); }
+#fire-btn { position: absolute; bottom: clamp(60px, 15vw, 120px); right: clamp(20px, 5vw, 40px); width: clamp(70px, 18vw, 100px); height: clamp(70px, 18vw, 100px); border-radius: 50%; background: rgba(241,196,15,0.4); border: 3px solid rgba(241,196,15,0.7); pointer-events: all; display: flex; align-items: center; justify-content: center; font-size: clamp(14px, 3vw, 20px); color: #fff; text-shadow: 0 0 8px #000; }
 #crosshair { position: fixed; width: 24px; height: 24px; pointer-events: none; z-index: 15; transform: translate(-50%, -50%); }
 #pause-menu { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(10,10,20,0.95); border: 2px solid #333; border-radius: 16px; padding: 32px 40px; color: #fff; text-align: center; display: none; z-index: 30; min-width: 280px; }
 #pause-menu h2 { font-size: 28px; margin-bottom: 24px; color: #f1c40f; text-shadow: 0 0 12px rgba(241,196,15,0.5); }
-#pause-menu button { display: block; width: 100%; padding: 12px; margin: 10px 0; font-size: 16px; background: #1a1a2e; color: #fff; border: 2px solid #444; border-radius: 8px; cursor: pointer; transition: background 0.2s, border-color 0.2s; }
+#pause-menu button { display: block; width: 100%; padding: clamp(10px, 2vw, 14px); margin: 10px 0; font-size: clamp(14px, 3vw, 18px); background: #1a1a2e; color: #fff; border: 2px solid #444; border-radius: 8px; cursor: pointer; transition: background 0.2s, border-color 0.2s; min-height: 48px; }
 #pause-menu button:hover { background: #2a2a4e; border-color: #f1c40f; }
 #pause-menu button:active { background: #3a3a5e; }
 #settings-panel { display: none; margin-top: 16px; padding-top: 16px; border-top: 1px solid #333; text-align: left; }
@@ -39,7 +48,12 @@ canvas { display: block; }
   <div>Kills: <span id="kills-val">0</span></div>
 </div>
 <div id="crosshair"><svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.7)" stroke-width="1.5" fill="none"/><line x1="12" y1="2" x2="12" y2="7" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/><line x1="12" y1="17" x2="12" y2="22" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/><line x1="2" y1="12" x2="7" y2="12" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/><line x1="17" y1="12" x2="22" y2="12" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/></svg></div>
-<div id="controls">WASD: Move | Mouse: Aim | Click/Space: Shoot | ESC: Pause</div>
+<div id="fps-counter">FPS: <span id="fps-val">0</span></div>
+<div id="touch-controls">
+  <div id="joystick-zone"><div id="joystick-knob"></div></div>
+  <div id="fire-btn">FIRE</div>
+</div>
+<div id="controls">WASD/Arrows: Move | Click/Space: Shoot | ESC: Pause | Touch: Mobile controls</div>
 <div id="game-over"><div>YOU FELL IN BATTLE</div><button onclick="restartGame()">Rise Again</button></div>
 
 <div id="pause-menu">
@@ -100,10 +114,98 @@ var paused = false, inSettings = false;
 var pauseMenu = document.getElementById('pause-menu');
 var settingsPanel = document.getElementById('settings-panel');
 
+// FPS counter
+var showFps = false, lastFrameTime = performance.now(), frameCount = 0, fps = 0;
+var fpsCounter = document.getElementById('fps-counter');
+var fpsVal = document.getElementById('fps-val');
+
+// Touch controls
+var touchActive = false, joystickX = 0, joystickY = 0;
+var joystickZone = document.getElementById('joystick-zone');
+var joystickKnob = document.getElementById('joystick-knob');
+var fireBtn = document.getElementById('fire-btn');
+
+function setupTouchControls() {
+  var c = document.getElementById('touch-controls');
+  c.addEventListener('touchstart', onTouchStart, { passive: false });
+  c.addEventListener('touchmove', onTouchMove, { passive: false });
+  c.addEventListener('touchend', onTouchEnd, { passive: false });
+  c.addEventListener('touchcancel', onTouchEnd, { passive: false });
+  fireBtn.addEventListener('touchstart', function(e) { e.preventDefault(); shooting = true; }, { passive: false });
+  fireBtn.addEventListener('touchend', function(e) { e.preventDefault(); shooting = false; }, { passive: false });
+}
+
+function onTouchStart(e) {
+  e.preventDefault();
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    var t = e.changedTouches[i];
+    var rect = joystickZone.getBoundingClientRect();
+    var cx = rect.left + rect.width / 2;
+    var cy = rect.top + rect.height / 2;
+    var dx = t.clientX - cx;
+    var dy = t.clientY - cy;
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < rect.width * 0.7) {
+      touchActive = true;
+      joystickZone.classList.add('active');
+      updateJoystick(t, rect);
+    }
+  }
+}
+
+function onTouchMove(e) {
+  e.preventDefault();
+  if (!touchActive) return;
+  for (var i = 0; i < e.changedTouches.length; i++) {
+    var t = e.changedTouches[i];
+    var rect = joystickZone.getBoundingClientRect();
+    var r = rect.width / 2;
+    var dx = t.clientX - (rect.left + r);
+    var dy = t.clientY - (rect.top + r);
+    var dist = Math.sqrt(dx * dx + dy * dy);
+    var clampedDist = Math.min(dist, r * 0.6);
+    var angle = Math.atan2(dy, dx);
+    joystickX = (dx / (dist || 1)) * clampedDist / (r * 0.6);
+    joystickY = (dy / (dist || 1)) * clampedDist / (r * 0.6);
+    var kx = r + Math.cos(angle) * clampedDist - r * 0.2;
+    var ky = r + Math.sin(angle) * clampedDist - r * 0.2;
+    joystickKnob.style.left = kx + 'px';
+    joystickKnob.style.top = ky + 'px';
+  }
+}
+
+function onTouchEnd(e) {
+  e.preventDefault();
+  touchActive = false;
+  joystickX = 0;
+  joystickY = 0;
+  joystickZone.classList.remove('active');
+  joystickKnob.style.left = '30%';
+  joystickKnob.style.top = '30%';
+}
+
+function updateJoystick(t, rect) {
+  var r = rect.width / 2;
+  var dx = t.clientX - (rect.left + r);
+  var dy = t.clientY - (rect.top + r);
+  var dist = Math.sqrt(dx * dx + dy * dy);
+  var clampedDist = Math.min(dist, r * 0.6);
+  var angle = Math.atan2(dy, dx);
+  joystickX = (dx / (dist || 1)) * clampedDist / (r * 0.6);
+  joystickY = (dy / (dist || 1)) * clampedDist / (r * 0.6);
+  var kx = r + Math.cos(angle) * clampedDist - r * 0.2;
+  var ky = r + Math.sin(angle) * clampedDist - r * 0.2;
+  joystickKnob.style.left = kx + 'px';
+  joystickKnob.style.top = ky + 'px';
+}
+
+setupTouchControls();
+
 window.addEventListener('keydown', function(e) {
   keys[e.key.toLowerCase()] = true;
   if (e.key === ' ') { e.preventDefault(); shooting = true; }
   if (e.key === 'Escape') { e.preventDefault(); if (inSettings) closeSettings(); else togglePause(); }
+  if (e.key === 'f' || e.key === 'F') { showFps = !showFps; fpsCounter.classList.toggle('visible', showFps); }
 });
 window.addEventListener('keyup', function(e) { keys[e.key.toLowerCase()] = false; if (e.key === ' ') shooting = false; });
 window.addEventListener('mousemove', function(e) { mouseX = e.clientX; mouseY = e.clientY; crosshair.style.left = e.clientX + 'px'; crosshair.style.top = e.clientY + 'px'; });
@@ -276,7 +378,8 @@ function update() {
   if (gameOver || paused) return;
   var mx = 0, my = 0;
   if (keys['w'] || keys['arrowup']) my -= 1; if (keys['s'] || keys['arrowdown']) my += 1; if (keys['a'] || keys['arrowleft']) mx -= 1; if (keys['d'] || keys['arrowright']) mx += 1;
-  if (mx !== 0 || my !== 0) { var len = Math.sqrt(mx*mx + my*my); player.x += (mx/len) * PLAYER_SPEED; player.y += (my/len) * PLAYER_SPEED; }
+  if (touchActive) { mx += joystickX; my += joystickY; }
+  if (mx !== 0 || my !== 0) { var len = Math.sqrt(mx*mx + my*my) || 1; player.x += (mx/len) * PLAYER_SPEED; player.y += (my/len) * PLAYER_SPEED; }
   player.x = Math.max(PLAYER_RADIUS, Math.min(WORLD_W - PLAYER_RADIUS, player.x)); player.y = Math.max(PLAYER_RADIUS, Math.min(WORLD_H - PLAYER_RADIUS, player.y));
   var wmx = camera.x + mouseX, wmy = camera.y + mouseY; player.angle = Math.atan2(wmy - player.y, wmx - player.x);
   if (shooting) shoot();
@@ -299,4 +402,38 @@ function render() {
   ctx.fillStyle = biome.bg; ctx.fillRect(0, 0, W, H);
   ctx.save(); ctx.translate(-camera.x, -camera.y);
   ctx.strokeStyle = biome.accent + '22'; ctx.lineWidth = 1;
-  var gs = 200, sx = Math.floor(camera.x/gs)*gs, sy = Math.floor(camera.y/gs)*gs
+  var gs = 200, sx = Math.floor(camera.x/gs)*gs, sy = Math.floor(camera.y/gs)*gs;
+  for (var gxi = 0; gxi < W/gs + 2; gxi++) { ctx.beginPath(); ctx.moveTo(sx + gxi*gs, camera.y - 10); ctx.lineTo(sx + gxi*gs, camera.y + H + 10); ctx.stroke(); }
+  for (var gyi = 0; gyi < H/gs + 2; gyi++) { ctx.beginPath(); ctx.moveTo(camera.x - 10, sy + gyi*gs); ctx.lineTo(camera.x + W + 10, sy + gyi*gs); ctx.stroke(); }
+  for (var si = 0; si < scenery.length; si++) { var s = scenery[si]; if (s.biome !== biome.label.replace('Cursed ','').replace(' ','').toUpperCase().slice(0,6)) continue; var bx = s.x - camera.x, by = s.y - camera.y; if (bx < -200 || bx > W+200 || by < -200 || by > H+200) continue; ctx.save(); ctx.translate(bx, by); ctx.rotate(s.rot); if (s.type === 'tree') { ctx.fillStyle = '#0d2d0d'; ctx.fillRect(-3, -s.size, 6, s.size); ctx.fillStyle = '#1a5c1a'; ctx.beginPath(); ctx.ellipse(0, -s.size, s.size*0.5, s.size*0.7, 0, 0, Math.PI*2); ctx.fill(); } else if (s.type === 'shroom') { ctx.fillStyle = '#3a1a3a'; ctx.fillRect(-2, -s.size*0.6, 4, s.size*0.6); ctx.fillStyle = '#8e44ad'; ctx.beginPath(); ctx.ellipse(0, -s.size*0.6, s.size*0.4, s.size*0.3, 0, 0, Math.PI*2); ctx.fill(); } else if (s.type === 'fstone') { ctx.fillStyle = '#2a3a2a'; ctx.beginPath(); ctx.ellipse(0, 0, s.size*0.6, s.size*0.4, 0, 0, Math.PI*2); ctx.fill(); } else if (s.type === 'boulder') { ctx.fillStyle = '#4a2000'; ctx.beginPath(); ctx.ellipse(0, 0, s.size*0.7, s.size*0.5, 0, 0, Math.PI*2); ctx.fill(); } else if (s.type === 'lavapit') { ctx.fillStyle = '#ff4500'; ctx.beginPath(); ctx.ellipse(0, 0, s.size*0.5, s.size*0.3, 0, 0, Math.PI*2); ctx.fill(); } else if (s.type === 'deadtr') { ctx.fillStyle = '#2a1a0a'; ctx.fillRect(-4, -s.size, 8, s.size); } else if (s.type === 'icecrack') { ctx.strokeStyle = '#4a8aaa'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(-s.size*0.5, 0); ctx.lineTo(s.size*0.5, 0); ctx.moveTo(0, -s.size*0.3); ctx.lineTo(0, s.size*0.3); ctx.stroke(); } else if (s.type === 'snowdrift') { ctx.fillStyle = '#aab8c8'; ctx.beginPath(); ctx.ellipse(0, 0, s.size*0.8, s.size*0.3, 0, 0, Math.PI*2); ctx.fill(); } else if (s.type === 'iceboulder') { ctx.fillStyle = '#3a5a8a'; ctx.beginPath(); ctx.ellipse(0, 0, s.size*0.6, s.size*0.5, 0, 0, Math.PI*2); ctx.fill(); } else if (s.type === 'voidknot') { ctx.fillStyle = '#3a005a'; ctx.beginPath(); ctx.ellipse(0, 0, s.size*0.5, s.size*0.7, 0, 0, Math.PI*2); ctx.fill(); } else if (s.type === 'voidpool') { ctx.fillStyle = '#1a003a'; ctx.beginPath(); ctx.ellipse(0, 0, s.size*0.6, s.size*0.4, 0, 0, Math.PI*2); ctx.fill(); } else if (s.type === 'rune') { ctx.strokeStyle = '#8e44ad'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(0, 0, s.size*0.5, s.size*0.5, 0, 0, Math.PI*2); ctx.stroke(); ctx.beginPath(); ctx.moveTo(-s.size*0.3, -s.size*0.3); ctx.lineTo(s.size*0.3, s.size*0.3); ctx.moveTo(s.size*0.3, -s.size*0.3); ctx.lineTo(-s.size*0.3, s.size*0.3); ctx.stroke(); } ctx.restore(); }
+  var MARGIN = 150;
+  for (var ei = 0; ei < enemies.length; ei++) { var en = enemies[ei]; var ex = en.x - camera.x, ey = en.y - camera.y; if (ex < -MARGIN || ex > W+MARGIN || ey < -MARGIN || ey > H+MARGIN) continue; ctx.save(); ctx.translate(ex, ey); ctx.fillStyle = en.flash > 0 ? '#fff' : en.color; ctx.beginPath(); ctx.arc(0, 0, en.radius, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = en.lblColor; ctx.font = 'bold 10px sans-serif'; ctx.textAlign = 'center'; ctx.fillText(en.name, 0, -en.radius - 4); ctx.fillStyle = '#300a00'; ctx.fillRect(-12, -3, 24, 4); ctx.fillStyle = '#e74c3c'; ctx.fillRect(-12, -3, 24 * (en.hp / en.maxHp), 4); ctx.restore(); }
+  for (var pi = 0; pi < blasts.length; pi++) { var bp = blasts[pi]; var px = bp.x - camera.x, py = bp.y - camera.y; ctx.fillStyle = '#f1c40f'; ctx.beginPath(); ctx.arc(px, py, BLAST_RADIUS, 0, Math.PI*2); ctx.fill(); }
+  for (var pi2 = 0; pi2 < particles.length; pi2++) { var pp = particles[pi2]; var ppx = pp.x - camera.x, ppy = pp.y - camera.y; ctx.globalAlpha = pp.life / pp.maxLife; ctx.fillStyle = pp.color; ctx.beginPath(); ctx.arc(ppx, ppy, pp.size, 0, Math.PI*2); ctx.fill(); }
+  ctx.globalAlpha = 1;
+  var ppx2 = player.x - camera.x, ppy2 = player.y - camera.y;
+  ctx.save(); ctx.translate(ppx2, ppy2); ctx.rotate(player.angle);
+  if (player.invincible > 0 && Math.floor(player.invincible / 4) % 2 === 0) ctx.globalAlpha = 0.5;
+  ctx.fillStyle = '#f1c40f'; ctx.beginPath(); ctx.arc(0, 0, PLAYER_RADIUS, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = 'bold 11px sans-serif'; ctx.textAlign = 'center'; ctx.fillText('PLAYER', 0, 4); ctx.restore();
+  ctx.restore();
+}
+
+function loop(timestamp) {
+  frameCount++;
+  if (timestamp - lastFrameTime >= 500) {
+    fps = Math.round(frameCount * 1000 / (timestamp - lastFrameTime));
+    frameCount = 0;
+    lastFrameTime = timestamp;
+    if (showFps) fpsVal.textContent = fps;
+  }
+  update();
+  render();
+  requestAnimationFrame(loop);
+}
+
+initGame();
+resize();
+window.addEventListener('resize', resize);
+document.getElementById('game-over').style.display = 'none';
+requestAnimationFrame(loop);
+})();
