@@ -1,0 +1,302 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>JJK - Cursed Realm</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #000; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+canvas { display: block; }
+#ui { position: fixed; top: 16px; left: 16px; color: #fff; font-size: 14px; pointer-events: none; z-index: 10; text-shadow: 0 0 8px #000, 0 0 16px #000; }
+#ui div { margin-bottom: 6px; }
+#hp-bar-wrap { width: 200px; height: 14px; background: #222; border: 2px solid #555; border-radius: 8px; overflow: hidden; }
+#hp-bar { height: 100%; width: 100%; background: linear-gradient(90deg, #c0392b, #e74c3c); transition: width 0.2s; }
+#game-over { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); color: #fff; text-align: center; font-size: 32px; display: none; z-index: 20; text-shadow: 0 0 20px #c0392b; }
+#game-over button { margin-top: 20px; padding: 12px 32px; font-size: 18px; background: #c0392b; color: #fff; border: none; border-radius: 8px; cursor: pointer; pointer-events: all; }
+#game-over button:hover { background: #e74c3c; }
+#controls { position: fixed; bottom: 16px; left: 16px; color: rgba(255,255,255,0.5); font-size: 12px; pointer-events: none; z-index: 10; }
+#crosshair { position: fixed; width: 24px; height: 24px; pointer-events: none; z-index: 15; transform: translate(-50%, -50%); }
+#pause-menu { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: rgba(10,10,20,0.95); border: 2px solid #333; border-radius: 16px; padding: 32px 40px; color: #fff; text-align: center; display: none; z-index: 30; min-width: 280px; }
+#pause-menu h2 { font-size: 28px; margin-bottom: 24px; color: #f1c40f; text-shadow: 0 0 12px rgba(241,196,15,0.5); }
+#pause-menu button { display: block; width: 100%; padding: 12px; margin: 10px 0; font-size: 16px; background: #1a1a2e; color: #fff; border: 2px solid #444; border-radius: 8px; cursor: pointer; transition: background 0.2s, border-color 0.2s; }
+#pause-menu button:hover { background: #2a2a4e; border-color: #f1c40f; }
+#pause-menu button:active { background: #3a3a5e; }
+#settings-panel { display: none; margin-top: 16px; padding-top: 16px; border-top: 1px solid #333; text-align: left; }
+#settings-panel h3 { font-size: 18px; margin-bottom: 16px; color: #f1c40f; text-align: center; }
+#settings-panel label { display: block; margin: 10px 0; font-size: 14px; color: #ccc; }
+#settings-panel input[type="range"] { width: 100%; margin-top: 4px; cursor: pointer; accent-color: #f1c40f; }
+#settings-panel .vol-display { float: right; color: #f1c40f; }
+#settings-panel .close-settings { margin-top: 16px; background: #333; border-color: #555; }
+#audio-note { font-size: 11px; color: #888; margin-top: 12px; text-align: center; line-height: 1.4; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="ui">
+  <div>HP: <span id="hp-val">100</span>/100</div>
+  <div id="hp-bar-wrap"><div id="hp-bar"></div></div>
+  <div>Kills: <span id="kills-val">0</span></div>
+</div>
+<div id="crosshair"><svg width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" stroke="rgba(255,255,255,0.7)" stroke-width="1.5" fill="none"/><line x1="12" y1="2" x2="12" y2="7" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/><line x1="12" y1="17" x2="12" y2="22" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/><line x1="2" y1="12" x2="7" y2="12" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/><line x1="17" y1="12" x2="22" y2="12" stroke="rgba(255,255,255,0.7)" stroke-width="1.5"/></svg></div>
+<div id="controls">WASD: Move | Mouse: Aim | Click/Space: Shoot | ESC: Pause</div>
+<div id="game-over"><div>YOU FELL IN BATTLE</div><button onclick="restartGame()">Rise Again</button></div>
+
+<div id="pause-menu">
+  <h2>⏸ PAUSED</h2>
+  <button id="btn-resume">Resume</button>
+  <button id="btn-settings">Settings</button>
+  <div id="settings-panel">
+    <h3>Audio</h3>
+    <label>SFX Volume <span id="sfx-vol-display" class="vol-display">80%</span></label>
+    <input type="range" id="sfx-vol" min="0" max="100" value="80">
+    <label>Music Volume <span id="music-vol-display" class="vol-display">50%</span></label>
+    <input type="range" id="music-vol" min="0" max="100" value="50">
+    <p id="audio-note">🔊 Audio is generated in-browser via Web Audio API.<br>Click anywhere to enable audio.</p>
+    <button id="btn-close-settings" class="close-settings">Back</button>
+  </div>
+  <button id="btn-mainmenu">Main Menu</button>
+</div>
+
+<script>
+(function() {
+'use strict';
+
+var WORLD_W = 8000, WORLD_H = 8000;
+const MAX_PARTICLES = 400;
+const MAX_BLASTS = 60;
+const MAX_SCENERY = 1600;
+
+var AGGRO_RANGE = 400, PLAYER_SPEED = 4, PLAYER_RADIUS = 18;
+var BLAST_SPEED = 14, BLAST_RADIUS = 6;
+var MAX_HP = 100, REGEN_RATE = 0.06, REGEN_DELAY = 3000;
+
+var BIOMES = {
+  FOREST:  { bg: '#0a1a0a', accent: '#1a4a1a', label: 'Cursed Forest' },
+  BURNING: { bg: '#1a0a00', accent: '#4a1500', label: 'Burning Wasteland' },
+  FROZEN:  { bg: '#0a0a1a', accent: '#0a1a4a', label: 'Frozen Domain' },
+  VOID:    { bg: '#0a000a', accent: '#2a003a', label: 'Void Realm' }
+};
+
+var ETYPES = {
+  G2:  { name: 'Grade 2',      radius: 16, speed: 1.4, hp: 30,  color: '#2ecc71', lblColor: '#2ecc71', dmg: 8  },
+  SG1: { name: 'Semi-Grade 1', radius: 22, speed: 1.8, hp: 60,  color: '#e74c3c', lblColor: '#e74c3c', dmg: 18 },
+  SP:  { name: 'Special Grade',radius: 30, speed: 2.2, hp: 120, color: '#9b59b6', lblColor: '#f1c40f', dmg: 30 }
+};
+
+var canvas = document.getElementById('c');
+var ctx = canvas.getContext('2d');
+var W, H;
+
+function resize() { W = canvas.width = window.innerWidth; H = canvas.height = window.innerHeight; }
+resize();
+window.addEventListener('resize', resize);
+
+var player, camera, enemies, blasts, particles, scenery, kills, gameOver, lastHitTime;
+var keys = {}, mouseX = 0, mouseY = 0, shooting = false;
+var crosshair = document.getElementById('crosshair');
+
+var paused = false, inSettings = false;
+var pauseMenu = document.getElementById('pause-menu');
+var settingsPanel = document.getElementById('settings-panel');
+
+window.addEventListener('keydown', function(e) {
+  keys[e.key.toLowerCase()] = true;
+  if (e.key === ' ') { e.preventDefault(); shooting = true; }
+  if (e.key === 'Escape') { e.preventDefault(); if (inSettings) closeSettings(); else togglePause(); }
+});
+window.addEventListener('keyup', function(e) { keys[e.key.toLowerCase()] = false; if (e.key === ' ') shooting = false; });
+window.addEventListener('mousemove', function(e) { mouseX = e.clientX; mouseY = e.clientY; crosshair.style.left = e.clientX + 'px'; crosshair.style.top = e.clientY + 'px'; });
+window.addEventListener('mousedown', function(e) { if (e.button === 0) shooting = true; });
+window.addEventListener('mouseup',   function(e) { if (e.button === 0) shooting = false; });
+
+document.getElementById('btn-resume').addEventListener('click', function() { togglePause(); });
+document.getElementById('btn-settings').addEventListener('click', function() { showSettings(); });
+document.getElementById('btn-close-settings').addEventListener('click', function() { closeSettings(); });
+document.getElementById('btn-mainmenu').addEventListener('click', function() { closeSettings(); togglePause(); restartGame(); });
+
+function togglePause() { if (gameOver) return; paused = !paused; pauseMenu.style.display = paused ? 'block' : 'none'; if (!paused) inSettings = false; settingsPanel.style.display = 'none'; if (paused && audioMgr) audioMgr.resumeContext(); }
+function showSettings() { inSettings = true; settingsPanel.style.display = 'block'; }
+function closeSettings() { inSettings = false; settingsPanel.style.display = 'none'; }
+
+var sfxVolume = 0.8, musicVolume = 0.5;
+document.getElementById('sfx-vol').addEventListener('input', function(e) { sfxVolume = e.target.value / 100; document.getElementById('sfx-vol-display').textContent = e.target.value + '%'; if (audioMgr) audioMgr.setSfxVolume(sfxVolume); });
+document.getElementById('music-vol').addEventListener('input', function(e) { musicVolume = e.target.value / 100; document.getElementById('music-vol-display').textContent = e.target.value + '%'; if (audioMgr) audioMgr.setMusicVolume(musicVolume); });
+
+// ============================================================
+// AUDIO MANAGER - Web Audio API generated sounds
+// ============================================================
+var AudioMgr = function() {
+  this.ctx = null; this.sfxGain = null; this.musicGain = null; this.musicNodes = []; this.masterGain = null; this.initialized = false;
+};
+AudioMgr.prototype.init = function() {
+  if (this.initialized) return;
+  try {
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    this.masterGain = this.ctx.createGain(); this.masterGain.connect(this.ctx.destination); this.masterGain.gain.value = 1.0;
+    this.sfxGain = this.ctx.createGain(); this.sfxGain.connect(this.masterGain); this.sfxGain.gain.value = sfxVolume;
+    this.musicGain = this.ctx.createGain(); this.musicGain.connect(this.masterGain); this.musicGain.gain.value = musicVolume;
+    this.initialized = true; this.startBgMusic();
+  } catch(e) {}
+};
+AudioMgr.prototype.resumeContext = function() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); };
+AudioMgr.prototype.setSfxVolume = function(v) { if (this.sfxGain) this.sfxGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.05); };
+AudioMgr.prototype.setMusicVolume = function(v) { if (this.musicGain) this.musicGain.gain.setTargetAtTime(v, this.ctx.currentTime, 0.1); };
+AudioMgr.prototype.play = function(type) { if (!this.initialized || !this.ctx) return; var t = this.ctx.currentTime; switch(type) { case 'shoot': this.sndShoot(t); break; case 'hit': this.sndHit(t); break; case 'enemyDied': this.sndEnemyDied(t); break; case 'playerHit': this.sndPlayerHit(t); break; case 'levelUp': this.sndLevelUp(t); break; } };
+
+AudioMgr.prototype.sndShoot = function(t) {
+  var osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+  osc.connect(g); g.connect(this.sfxGain); osc.type = 'sawtooth';
+  osc.frequency.setValueAtTime(600, t); osc.frequency.exponentialRampToValueAtTime(80, t + 0.08);
+  g.gain.setValueAtTime(0.3, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
+  osc.start(t); osc.stop(t + 0.1);
+  var osc2 = this.ctx.createOscillator(), g2 = this.ctx.createGain();
+  osc2.connect(g2); g2.connect(this.sfxGain); osc2.type = 'square';
+  osc2.frequency.setValueAtTime(1200, t); osc2.frequency.exponentialRampToValueAtTime(200, t + 0.05);
+  g2.gain.setValueAtTime(0.1, t); g2.gain.exponentialRampToValueAtTime(0.001, t + 0.06);
+  osc2.start(t); osc2.stop(t + 0.06);
+};
+AudioMgr.prototype.sndHit = function(t) {
+  var osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+  osc.connect(g); g.connect(this.sfxGain); osc.type = 'triangle';
+  osc.frequency.setValueAtTime(200, t); osc.frequency.exponentialRampToValueAtTime(60, t + 0.12);
+  g.gain.setValueAtTime(0.4, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.15);
+  osc.start(t); osc.stop(t + 0.15);
+  var buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.05, this.ctx.sampleRate);
+  var data = buf.getChannelData(0); for (var i = 0; i < data.length; i++) data[i] = (Math.random() * 2 - 1) * 0.3;
+  var src = this.ctx.createBufferSource(); src.buffer = buf;
+  var ng = this.ctx.createGain(); src.connect(ng); ng.connect(this.sfxGain);
+  ng.gain.setValueAtTime(0.2, t); ng.gain.exponentialRampToValueAtTime(0.001, t + 0.05); src.start(t);
+};
+AudioMgr.prototype.sndEnemyDied = function(t) {
+  var osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+  osc.connect(g); g.connect(this.sfxGain); osc.type = 'sine';
+  osc.frequency.setValueAtTime(150, t); osc.frequency.exponentialRampToValueAtTime(30, t + 0.25);
+  g.gain.setValueAtTime(0.5, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.3); osc.start(t); osc.stop(t + 0.3);
+  var osc2 = this.ctx.createOscillator(), g2 = this.ctx.createGain();
+  osc2.connect(g2); g2.connect(this.sfxGain); osc2.type = 'sawtooth';
+  osc2.frequency.setValueAtTime(400, t); osc2.frequency.exponentialRampToValueAtTime(50, t + 0.15);
+  g2.gain.setValueAtTime(0.2, t); g2.gain.exponentialRampToValueAtTime(0.001, t + 0.2); osc2.start(t); osc2.stop(t + 0.2);
+  var buf = this.ctx.createBuffer(1, this.ctx.sampleRate * 0.1, this.ctx.sampleRate);
+  var data = buf.getChannelData(0); for (var i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+  var src = this.ctx.createBufferSource(); src.buffer = buf;
+  var ng = this.ctx.createGain(); src.connect(ng); ng.connect(this.sfxGain);
+  ng.gain.setValueAtTime(0.3, t); ng.gain.exponentialRampToValueAtTime(0.001, t + 0.1); src.start(t);
+};
+AudioMgr.prototype.sndPlayerHit = function(t) {
+  var osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+  osc.connect(g); g.connect(this.sfxGain); osc.type = 'square';
+  osc.frequency.setValueAtTime(300, t); osc.frequency.setValueAtTime(100, t + 0.05); osc.frequency.setValueAtTime(400, t + 0.1); osc.frequency.setValueAtTime(80, t + 0.15);
+  g.gain.setValueAtTime(0.25, t); g.gain.exponentialRampToValueAtTime(0.001, t + 0.2); osc.start(t); osc.stop(t + 0.2);
+  var osc2 = this.ctx.createOscillator(), g2 = this.ctx.createGain();
+  osc2.connect(g2); g2.connect(this.sfxGain); osc2.type = 'sine';
+  osc2.frequency.setValueAtTime(60, t); osc2.frequency.exponentialRampToValueAtTime(20, t + 0.2);
+  g2.gain.setValueAtTime(0.3, t); g2.gain.exponentialRampToValueAtTime(0.001, t + 0.25); osc2.start(t); osc2.stop(t + 0.25);
+};
+AudioMgr.prototype.sndLevelUp = function(t) {
+  var notes = [523.25, 659.25, 783.99, 1046.5];
+  for (var i = 0; i < notes.length; i++) {
+    var osc = this.ctx.createOscillator(), g = this.ctx.createGain();
+    osc.connect(g); g.connect(this.sfxGain); osc.type = 'sine';
+    var start = t + i * 0.1; osc.frequency.value = notes[i];
+    g.gain.setValueAtTime(0, start); g.gain.linearRampToValueAtTime(0.3, start + 0.02); g.gain.exponentialRampToValueAtTime(0.001, start + 0.4);
+    osc.start(start); osc.stop(start + 0.4);
+  }
+};
+AudioMgr.prototype.startBgMusic = function() {
+  if (!this.initialized) return; this.stopBgMusic();
+  var t = this.ctx.currentTime, droneFreqs = [55, 82.5, 110, 165];
+  for (var i = 0; i < droneFreqs.length; i++) {
+    var osc = this.ctx.createOscillator(), g = this.ctx.createGain(), filter = this.ctx.createBiquadFilter();
+    osc.type = i < 2 ? 'sawtooth' : 'triangle'; osc.frequency.value = droneFreqs[i];
+    filter.type = 'lowpass'; filter.frequency.value = 400; filter.Q.value = 1;
+    var lfo = this.ctx.createOscillator(), lfoGain = this.ctx.createGain();
+    lfo.frequency.value = 0.1 + i * 0.05; lfoGain.gain.value = 0.03;
+    lfo.connect(lfoGain); lfoGain.connect(g.gain); lfo.start(t);
+    var vol = i === 0 ? 0.08 : i === 1 ? 0.05 : i === 2 ? 0.04 : 0.02;
+    g.gain.value = vol; osc.connect(filter); filter.connect(g); g.connect(this.musicGain); osc.start(t);
+    this.musicNodes.push(osc, lfo);
+  }
+  var shimmer = this.ctx.createOscillator(), shimmerGain = this.ctx.createGain(), shimmerFilter = this.ctx.createBiquadFilter();
+  shimmer.type = 'sine'; shimmer.frequency.value = 880;
+  shimmerFilter.type = 'bandpass'; shimmerFilter.frequency.value = 880; shimmerFilter.Q.value = 5;
+  shimmerGain.gain.value = 0.01;
+  shimmer.connect(shimmerFilter); shimmerFilter.connect(shimmerGain); shimmerGain.connect(this.musicGain); shimmer.start(t);
+  this.musicNodes.push(shimmer);
+  var shimmerLfo = this.ctx.createOscillator(), shimmerLfoGain = this.ctx.createGain();
+  shimmerLfo.frequency.value = 0.3; shimmerLfoGain.gain.value = 0.008;
+  shimmerLfo.connect(shimmerLfoGain); shimmerLfoGain.connect(shimmerGain.gain); shimmerLfo.start(t);
+  this.musicNodes.push(shimmerLfo);
+};
+AudioMgr.prototype.stopBgMusic = function() { for (var i = 0; i < this.musicNodes.length; i++) { try { this.musicNodes[i].stop(); } catch(e) {} } this.musicNodes = []; };
+
+var audioMgr = new AudioMgr();
+var audioUnlocked = false;
+function unlockAudio() { if (audioUnlocked) return; audioUnlocked = true; audioMgr.init(); document.removeEventListener('click', unlockAudio); document.removeEventListener('keydown', unlockAudio); }
+document.addEventListener('click', unlockAudio);
+document.addEventListener('keydown', unlockAudio);
+
+function rand(n) { return Math.random() * n; }
+
+function initGame() {
+  player = { x: WORLD_W/2, y: WORLD_H/2, hp: MAX_HP, angle: 0, shootCD: 0, invincible: 180 };
+  camera = { x: 0, y: 0 };
+  enemies = []; blasts = []; particles = []; scenery = [];
+  kills = 0; gameOver = false; lastHitTime = 0; paused = false; inSettings = false;
+  pauseMenu.style.display = 'none'; settingsPanel.style.display = 'none';
+  genScenery(); genEnemies(); updateUI();
+  document.getElementById('game-over').style.display = 'none';
+}
+window.restartGame = initGame;
+
+function genScenery() {
+  scenery = [];
+  addScenery('FOREST', 'tree', 180, 20, 50); addScenery('FOREST', 'shroom', 180, 6, 16); addScenery('FOREST', 'fstone', 90, 8, 24);
+  addScenery('BURNING', 'boulder', 160, 15, 50); addScenery('BURNING', 'lavapit', 80, 20, 60); addScenery('BURNING', 'deadtr', 80, 25, 50);
+  addScenery('FROZEN', 'icecrack', 160, 15, 45); addScenery('FROZEN', 'snowdrift', 160, 12, 32); addScenery('FROZEN', 'iceboulder', 80, 18, 46);
+  addScenery('VOID', 'voidknot', 160, 20, 55); addScenery('VOID', 'voidpool', 80, 25, 40); addScenery('VOID', 'rune', 160, 10, 25);
+}
+function addScenery(biome, type, count, minSize, maxSize) { for (var i = 0; i < count; i++) { scenery.push({ x: rand(WORLD_W), y: rand(WORLD_H), type: type, biome: biome, size: minSize + rand(maxSize - minSize), rot: rand(Math.PI * 2) }); } }
+function genEnemies() { enemies = []; spawnType(ETYPES.G2, 60); spawnType(ETYPES.SG1, 25); spawnType(ETYPES.SP, 10); }
+function spawnType(t, count) { for (var i = 0; i < count; i++) { var ex = rand(WORLD_W), ey = rand(WORLD_H); var dx = ex - WORLD_W/2, dy = ey - WORLD_H/2; if (Math.sqrt(dx*dx + dy*dy) < 800) { i--; continue; } enemies.push({ x: ex, y: ey, hp: t.hp, maxHp: t.hp, radius: t.radius, speed: t.speed, color: t.color, lblColor: t.lblColor, name: t.name, dmg: t.dmg, angle: rand(Math.PI*2), flash: 0 }); } }
+
+function shoot() {
+  if (player.shootCD > 0 || gameOver || paused) return;
+  player.shootCD = 12;
+  var a = player.angle;
+  blasts.push({ x: player.x + Math.cos(a)*25, y: player.y + Math.sin(a)*25, vx: Math.cos(a)*BLAST_SPEED, vy: Math.sin(a)*BLAST_SPEED, life: 80 });
+  for (var i = 0; i < 6; i++) { var sp = (Math.random()-0.5)*0.5; particles.push({ x: player.x + Math.cos(a)*25, y: player.y + Math.sin(a)*25, vx: Math.cos(a+sp)*(3+rand(4)), vy: Math.sin(a+sp)*(3+rand(4)), life: 15, maxLife: 15, color: '#f1c40f', size: 3+rand(3) }); }
+  audioMgr.play('shoot');
+}
+function hitParts(x, y, color, n) { for (var i = 0; i < n; i++) { var ang = rand(Math.PI*2), spd = 2+rand(4); particles.push({ x: x, y: y, vx: Math.cos(ang)*spd, vy: Math.sin(ang)*spd, life: 20+rand(20), maxLife: 40, color: color, size: 2+rand(4) }); } }
+function deathParts(x, y, color) { for (var i = 0; i < 30; i++) { var ang = rand(Math.PI*2), spd = 3+rand(6); particles.push({ x: x, y: y, vx: Math.cos(ang)*spd, vy: Math.sin(ang)*spd, life: 30+rand(30), maxLife: 60, color: color, size: 3+rand(6) }); } }
+function getBiome(x, y) { var qx = x - WORLD_W/2, qy = y - WORLD_H/2; if (qx < 0 && qy < 0) return BIOMES.FOREST; if (qx >= 0 && qy < 0) return BIOMES.BURNING; if (qx < 0) return BIOMES.FROZEN; return BIOMES.VOID; }
+
+function update() {
+  if (gameOver || paused) return;
+  var mx = 0, my = 0;
+  if (keys['w'] || keys['arrowup']) my -= 1; if (keys['s'] || keys['arrowdown']) my += 1; if (keys['a'] || keys['arrowleft']) mx -= 1; if (keys['d'] || keys['arrowright']) mx += 1;
+  if (mx !== 0 || my !== 0) { var len = Math.sqrt(mx*mx + my*my); player.x += (mx/len) * PLAYER_SPEED; player.y += (my/len) * PLAYER_SPEED; }
+  player.x = Math.max(PLAYER_RADIUS, Math.min(WORLD_W - PLAYER_RADIUS, player.x)); player.y = Math.max(PLAYER_RADIUS, Math.min(WORLD_H - PLAYER_RADIUS, player.y));
+  var wmx = camera.x + mouseX, wmy = camera.y + mouseY; player.angle = Math.atan2(wmy - player.y, wmx - player.x);
+  if (shooting) shoot();
+  if (player.shootCD > 0) player.shootCD--; if (player.invincible > 0) player.invincible--;
+  camera.x = player.x - W/2; camera.y = player.y - H/2;
+  if (Date.now() - lastHitTime > REGEN_DELAY && player.hp < MAX_HP) { player.hp = Math.min(MAX_HP, player.hp + REGEN_RATE); }
+  if (blasts.length > MAX_BLASTS) blasts.splice(0, blasts.length - MAX_BLASTS);
+  for (var bi = blasts.length - 1; bi >= 0; bi--) { var b = blasts[bi]; b.x += b.vx; b.y += b.vy; b.life--; if (b.life <= 0) { blasts.splice(bi, 1); continue; } var hit = false; for (var ej = enemies.length - 1; ej >= 0; ej--) { var e = enemies[ej]; var dx = b.x - e.x, dy = b.y - e.y; if (Math.sqrt(dx*dx+dy*dy) < e.radius + BLAST_RADIUS) { e.hp -= 20; e.flash = 8; hitParts(b.x, b.y, e.color, 8); hit = true; audioMgr.play('hit'); if (e.hp <= 0) { deathParts(e.x, e.y, e.color); enemies.splice(ej, 1); kills++; audioMgr.play('enemyDied'); } break; } } if (hit) blasts.splice(bi, 1); }
+  for (var ki = enemies.length - 1; ki >= 0; ki--) { var en = enemies[ki]; if (en.flash > 0) en.flash--; var edx = player.x - en.x, edy = player.y - en.y; var edist = Math.sqrt(edx*edx+edy*edy); if (edist < AGGRO_RANGE) { var a2 = Math.atan2(edy, edx); en.x += Math.cos(a2) * en.speed; en.y += Math.sin(a2) * en.speed; en.angle = a2; if (edist < en.radius + PLAYER_RADIUS && player.invincible <= 0) { player.hp -= en.dmg; player.invincible = 30; lastHitTime = Date.now(); hitParts(player.x, player.y, '#e74c3c', 10); audioMgr.play('playerHit'); } } en.x = Math.max(en.radius, Math.min(WORLD_W - en.radius, en.x)); en.y = Math.max(en.radius, Math.min(WORLD_H - en.radius, en.y)); }
+  if (particles.length > MAX_PARTICLES) particles.splice(0, particles.length - MAX_PARTICLES);
+  for (var pi = particles.length - 1; pi >= 0; pi--) { var pt = particles[pi]; pt.x += pt.vx; pt.y += pt.vy; pt.vx *= 0.92; pt.vy *= 0.92; pt.life--; if (pt.life <= 0) particles.splice(pi, 1); }
+  if (player.hp <= 0) { player.hp = 0; gameOver = true; document.getElementById('game-over').style.display = 'block'; }
+  updateUI();
+}
+
+function updateUI() { document.getElementById('hp-val').textContent = Math.floor(player.hp); document.getElementById('hp-bar').style.width = (player.hp / MAX_HP * 100) + '%'; document.getElementById('kills-val').textContent = kills; }
+
+function render() {
+  var biome = getBiome(player.x, player.y);
+  ctx.fillStyle = biome.bg; ctx.fillRect(0, 0, W, H);
+  ctx.save(); ctx.translate(-camera.x, -camera.y);
+  ctx.strokeStyle = biome.accent + '22'; ctx.lineWidth = 1;
+  var gs = 200, sx = Math.floor(camera.x/gs)*gs, sy = Math.floor(camera.y/gs)*gs
