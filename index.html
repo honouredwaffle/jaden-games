@@ -3704,348 +3704,490 @@
         // =====================================================
         // DISASTER CURSE DESIGNS - Anime-accurate redraws
         // =====================================================
-        // HANAMI: Stitched humanoid, branch antlers, dark tendril arm, cloth sash, hakama
+// HANAMI: Flower blossom head, tree-bark body, branch arms, leaves & small flowers
         function drawHanamiDisaster(ctx, x, y, boss, time) {
-            const s = boss.size; // base size
-            const sway = Math.sin(time * 1.2) * 0.05; // gentle sway
-            const breathe = Math.sin(time * 1.5) * 0.04;
-            const armReach = Math.sin(time * 0.8) * 8;
-            const tendrilWave = time * 2;
-            
+            const s = boss.size;
+            const sway = Math.sin(time * 1.2) * 0.04;
+            const breathe = Math.sin(time * 1.5) * 0.03;
+            const petalPulse = Math.sin(time * 2) * 0.05;
+            const tendrilWave = time * 1.5;
+            const leafDrift = time * 0.8;
+
             ctx.save();
             ctx.translate(x, y);
             ctx.scale(1 + sway, 1 - sway);
-            
-            // === Domain expansion aura (if active) ===
+
+            // === Domain expansion aura (forest of deadly flowers) ===
             if (boss.domainActive) {
-                ctx.fillStyle = 'rgba(50, 100, 30, 0.25)';
+                ctx.fillStyle = 'rgba(80, 30, 20, 0.28)';
                 ctx.beginPath();
-                ctx.arc(0, 0, 400, 0, Math.PI * 2);
+                ctx.arc(0, 0, 420, 0, Math.PI * 2);
                 ctx.fill();
-                ctx.strokeStyle = 'rgba(120, 200, 80, 0.6)';
+                ctx.strokeStyle = 'rgba(200, 60, 80, 0.6)';
                 ctx.lineWidth = 2;
-                ctx.setLineDash([8, 8]);
+                ctx.setLineDash([10, 8]);
                 ctx.beginPath();
-                ctx.arc(0, 0, 400, 0, Math.PI * 2);
+                ctx.arc(0, 0, 420, 0, Math.PI * 2);
                 ctx.stroke();
                 ctx.setLineDash([]);
+                // Floating petals in domain
+                for (let p = 0; p < 8; p++) {
+                    const pa = (p / 8) * Math.PI * 2 + time * 0.3;
+                    const pr = 350 + Math.sin(time + p) * 40;
+                    const px = Math.cos(pa) * pr;
+                    const py = Math.sin(pa) * pr;
+                    ctx.save();
+                    ctx.translate(px, py);
+                    ctx.rotate(pa + time);
+                    ctx.fillStyle = 'rgba(180, 40, 60, 0.6)';
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 8, 4, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
             }
-            
-            // === Ground shadow (long, humanoid shape) ===
+
+            // === Ground shadow (organic, root-like) ===
             ctx.fillStyle = 'rgba(0, 0, 0, 0.55)';
             ctx.beginPath();
-            ctx.ellipse(0, s * 0.85, s * 0.55, s * 0.15, 0, 0, Math.PI * 2);
+            ctx.ellipse(0, s * 0.85, s * 0.6, s * 0.16, 0, 0, Math.PI * 2);
             ctx.fill();
-            
-            // === Hakama (dark wide pants) ===
-            ctx.fillStyle = '#1a1a28';
+            // Root tendrils on ground
+            ctx.strokeStyle = 'rgba(30, 20, 10, 0.7)';
+            ctx.lineWidth = 2;
+            for (let r = 0; r < 5; r++) {
+                const rAng = -Math.PI * 0.1 + r * 0.4;
+                ctx.beginPath();
+                ctx.moveTo(0, s * 0.85);
+                ctx.quadraticCurveTo(
+                    Math.cos(rAng) * s * 0.3,
+                    s * 0.88,
+                    Math.cos(rAng) * s * 0.6,
+                    s * 0.82
+                );
+                ctx.stroke();
+            }
+
+            // === LEFT ARM (viewer's left) - Branching wood arm ===
+            ctx.save();
+            ctx.translate(-s * 0.35, -s * 0.18);
+            ctx.rotate(-0.4 + Math.sin(time * 0.5) * 0.08);
+            // Main branch
+            ctx.fillStyle = '#3d2818';
             ctx.beginPath();
-            ctx.moveTo(-s * 0.4, s * 0.1);
-            ctx.lineTo(s * 0.4, s * 0.1);
-            ctx.lineTo(s * 0.55, s * 0.85);
-            ctx.lineTo(s * 0.15, s * 0.85);
-            ctx.lineTo(s * 0.05, s * 0.4);
-            ctx.lineTo(-s * 0.05, s * 0.4);
-            ctx.lineTo(-s * 0.15, s * 0.85);
-            ctx.lineTo(-s * 0.55, s * 0.85);
+            ctx.moveTo(0, 0);
+            ctx.lineTo(s * 0.08, 0);
+            ctx.lineTo(s * 0.09, s * 0.5);
+            ctx.lineTo(s * 0.02, s * 0.55);
+            ctx.lineTo(-s * 0.03, s * 0.5);
+            ctx.lineTo(-s * 0.04, 0);
             ctx.closePath();
             ctx.fill();
-            
+            // Bark texture
+            ctx.strokeStyle = '#1a0e08';
+            ctx.lineWidth = 1;
+            for (let i = 0; i < 4; i++) {
+                const ly = i * s * 0.12;
+                ctx.beginPath();
+                ctx.moveTo(-s * 0.03, ly);
+                ctx.lineTo(s * 0.08, ly + s * 0.02);
+                ctx.stroke();
+            }
+            // Small flower at end (cursed bloom)
+            ctx.save();
+            ctx.translate(s * 0.04, s * 0.55);
+            const flowerPulse = 1 + Math.sin(time * 2 + 0.5) * 0.1;
+            ctx.scale(flowerPulse, flowerPulse);
+            for (let p = 0; p < 5; p++) {
+                const pAng = (p / 5) * Math.PI * 2;
+                ctx.fillStyle = '#8a1a28';
+                ctx.beginPath();
+                ctx.ellipse(Math.cos(pAng) * 5, Math.sin(pAng) * 5, 5, 3, pAng, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.fillStyle = '#3a0808';
+            ctx.beginPath();
+            ctx.arc(0, 0, 3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+            // Small leaf sprouting from shoulder
+            ctx.fillStyle = '#3a6b25';
+            ctx.beginPath();
+            ctx.ellipse(-s * 0.06, s * 0.05, 5, 3, -0.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // === RIGHT ARM (viewer's right) - Thorned vine tendrils ===
+            ctx.save();
+            ctx.translate(s * 0.35, -s * 0.18);
+            // Shoulder stump (bark)
+            ctx.fillStyle = '#3d2818';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, s * 0.1, s * 0.12, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Vine tendrils extending out
+            ctx.strokeStyle = '#2a1810';
+            ctx.lineWidth = 4;
+            ctx.lineCap = 'round';
+            for (let t = 0; t < 5; t++) {
+                const baseAngle = -0.6 + t * 0.3;
+                const wave = Math.sin(tendrilWave + t * 0.8) * 0.25;
+                const reach = s * 0.6 + Math.sin(tendrilWave * 0.5 + t) * s * 0.08;
+                ctx.beginPath();
+                ctx.moveTo(0, 0);
+                const cp1x = Math.cos(baseAngle + wave * 0.5) * s * 0.25;
+                const cp1y = Math.sin(baseAngle + wave * 0.5) * s * 0.25;
+                const cp2x = Math.cos(baseAngle + wave) * s * 0.45;
+                const cp2y = Math.sin(baseAngle + wave) * s * 0.45;
+                const endX = Math.cos(baseAngle + wave * 0.3) * reach;
+                const endY = Math.sin(baseAngle + wave * 0.3) * reach;
+                ctx.bezierCurveTo(cp1x, cp1y, cp2x, cp2y, endX, endY);
+                ctx.stroke();
+                // Thorns along tendril
+                for (let th = 0; th < 3; th++) {
+                    const tt = (th + 1) / 4;
+                    const tx = Math.cos(baseAngle + wave * tt) * reach * tt;
+                    const ty = Math.sin(baseAngle + wave * tt) * reach * tt;
+                    ctx.fillStyle = '#1a0a05';
+                    ctx.beginPath();
+                    ctx.arc(tx + Math.cos(baseAngle + Math.PI/2) * 3, ty + Math.sin(baseAngle + Math.PI/2) * 3, 1.5, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                // Tendril tip with small bud
+                ctx.fillStyle = '#5a8030';
+                ctx.shadowColor = '#80c040';
+                ctx.shadowBlur = 8;
+                ctx.beginPath();
+                ctx.arc(endX, endY, 3.5, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.shadowBlur = 0;
+                // Small crimson petal at tip
+                ctx.fillStyle = '#a01828';
+                ctx.beginPath();
+                ctx.arc(endX, endY, 2, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.restore();
+
+            // === HAKAMA (wide dark pants) ===
+            ctx.fillStyle = '#1a1820';
+            ctx.beginPath();
+            ctx.moveTo(-s * 0.42, s * 0.12);
+            ctx.lineTo(s * 0.42, s * 0.12);
+            ctx.lineTo(s * 0.58, s * 0.85);
+            ctx.lineTo(s * 0.16, s * 0.85);
+            ctx.lineTo(s * 0.06, s * 0.4);
+            ctx.lineTo(-s * 0.06, s * 0.4);
+            ctx.lineTo(-s * 0.16, s * 0.85);
+            ctx.lineTo(-s * 0.58, s * 0.85);
+            ctx.closePath();
+            ctx.fill();
             // Hakama folds
-            ctx.strokeStyle = '#0a0a14';
+            ctx.strokeStyle = '#0a0810';
             ctx.lineWidth = 2;
             for (let i = 0; i < 4; i++) {
                 const fy = s * 0.3 + i * s * 0.12;
                 ctx.beginPath();
-                ctx.moveTo(-s * 0.45 + i * 0.04, fy);
-                ctx.lineTo(s * 0.45 - i * 0.04, fy);
+                ctx.moveTo(-s * 0.48 + i * 0.04, fy);
+                ctx.lineTo(s * 0.48 - i * 0.04, fy);
                 ctx.stroke();
             }
-            
-            // === Clawed feet (3 toes each) ===
-            ctx.fillStyle = '#d8c8a8';
+
+            // === ROOTED FEET (like tree roots) ===
+            ctx.fillStyle = '#3d2818';
             for (const side of [-1, 1]) {
                 const fx = side * s * 0.32;
                 const fy = s * 0.82;
-                // Foot base
+                // Root base
                 ctx.beginPath();
                 ctx.ellipse(fx, fy, s * 0.12, s * 0.06, 0, 0, Math.PI * 2);
                 ctx.fill();
-                // Claws
-                ctx.fillStyle = '#2a2a35';
+                // Root toes
+                ctx.fillStyle = '#1a0e08';
                 for (let c = -1; c <= 1; c++) {
                     ctx.beginPath();
                     ctx.moveTo(fx + c * s * 0.06, fy + s * 0.04);
-                    ctx.lineTo(fx + c * s * 0.08, fy + s * 0.12);
+                    ctx.lineTo(fx + c * s * 0.08, fy + s * 0.14);
                     ctx.lineTo(fx + c * s * 0.04, fy + s * 0.04);
                     ctx.closePath();
                     ctx.fill();
                 }
-                ctx.fillStyle = '#d8c8a8';
+                ctx.fillStyle = '#3d2818';
             }
-            
-            // === Cloth sash (white wrap tied at waist) ===
-            ctx.fillStyle = '#e8e4d8';
+
+            // === CLOTH SASH (white wrap at waist) ===
+            ctx.fillStyle = '#d8d4c8';
             ctx.beginPath();
-            ctx.ellipse(0, s * 0.08, s * 0.42, s * 0.1, 0, 0, Math.PI * 2);
+            ctx.ellipse(0, s * 0.1, s * 0.44, s * 0.11, 0, 0, Math.PI * 2);
             ctx.fill();
-            // Sash knot in front
+            // Sash knot
             ctx.beginPath();
-            ctx.moveTo(0, s * 0.05);
-            ctx.lineTo(-s * 0.08, s * 0.18);
-            ctx.lineTo(s * 0.08, s * 0.18);
+            ctx.moveTo(0, s * 0.06);
+            ctx.lineTo(-s * 0.08, s * 0.2);
+            ctx.lineTo(s * 0.08, s * 0.2);
             ctx.closePath();
             ctx.fill();
-            // Sash tails
+            // Sash tails (flowing)
             ctx.beginPath();
-            ctx.moveTo(-s * 0.05, s * 0.18);
-            ctx.quadraticCurveTo(-s * 0.15, s * 0.3, -s * 0.18, s * 0.4);
-            ctx.lineTo(-s * 0.12, s * 0.4);
-            ctx.quadraticCurveTo(-s * 0.1, s * 0.3, -s * 0.02, s * 0.22);
+            ctx.moveTo(-s * 0.05, s * 0.2);
+            ctx.quadraticCurveTo(-s * 0.18, s * 0.32 + Math.sin(time) * 2, -s * 0.22, s * 0.45);
+            ctx.lineTo(-s * 0.14, s * 0.43);
+            ctx.quadraticCurveTo(-s * 0.12, s * 0.3, -s * 0.02, s * 0.24);
             ctx.closePath();
             ctx.fill();
             ctx.beginPath();
-            ctx.moveTo(s * 0.05, s * 0.18);
-            ctx.quadraticCurveTo(s * 0.15, s * 0.3, s * 0.18, s * 0.42);
-            ctx.lineTo(s * 0.12, s * 0.4);
-            ctx.quadraticCurveTo(s * 0.1, s * 0.3, s * 0.02, s * 0.22);
+            ctx.moveTo(s * 0.05, s * 0.2);
+            ctx.quadraticCurveTo(s * 0.18, s * 0.32 + Math.cos(time) * 2, s * 0.22, s * 0.47);
+            ctx.lineTo(s * 0.14, s * 0.43);
+            ctx.quadraticCurveTo(s * 0.12, s * 0.3, s * 0.02, s * 0.24);
             ctx.closePath();
             ctx.fill();
-            // Sash fold lines
-            ctx.strokeStyle = '#c8c0a8';
+            // Sash fold line
+            ctx.strokeStyle = '#a8a090';
             ctx.lineWidth = 1;
             ctx.beginPath();
-            ctx.moveTo(-s * 0.4, s * 0.08);
-            ctx.lineTo(s * 0.4, s * 0.08);
+            ctx.moveTo(-s * 0.42, s * 0.1);
+            ctx.lineTo(s * 0.42, s * 0.1);
             ctx.stroke();
-            
-            // === Torso (pale stitched body) ===
-            const torsoBreathe = s * 0.04 * breathe;
-            ctx.fillStyle = '#e8dcc4';
+
+            // === TORSO (tree bark texture, dark and gnarled) ===
+            const torsoBreathe = s * 0.03 * breathe;
+            ctx.fillStyle = '#4a3220';
             ctx.beginPath();
-            ctx.moveTo(-s * 0.38, s * 0.1);
-            ctx.quadraticCurveTo(-s * 0.45, -s * 0.1, -s * 0.3, -s * 0.35 + torsoBreathe);
-            ctx.lineTo(s * 0.3, -s * 0.35 + torsoBreathe);
-            ctx.quadraticCurveTo(s * 0.45, -s * 0.1, s * 0.38, s * 0.1);
+            ctx.moveTo(-s * 0.4, s * 0.12);
+            ctx.quadraticCurveTo(-s * 0.48, -s * 0.08, -s * 0.32, -s * 0.38 + torsoBreathe);
+            ctx.lineTo(s * 0.32, -s * 0.38 + torsoBreathe);
+            ctx.quadraticCurveTo(s * 0.48, -s * 0.08, s * 0.4, s * 0.12);
             ctx.closePath();
             ctx.fill();
-            
-            // === Stitching lines across chest (iconic X pattern) ===
-            ctx.strokeStyle = '#3a2820';
+            // Bark texture (vertical grooves)
+            ctx.strokeStyle = '#1a0e08';
             ctx.lineWidth = 1.5;
-            ctx.setLineDash([4, 3]);
-            // Big diagonal stitches
-            ctx.beginPath();
-            ctx.moveTo(-s * 0.3, -s * 0.05);
-            ctx.lineTo(s * 0.3, -s * 0.25);
-            ctx.moveTo(s * 0.3, -s * 0.05);
-            ctx.lineTo(-s * 0.3, -s * 0.25);
-            ctx.stroke();
-            // Vertical stitch
-            ctx.beginPath();
-            ctx.moveTo(0, -s * 0.3);
-            ctx.lineTo(0, s * 0.05);
-            ctx.stroke();
-            // Small X stitches
-            for (let i = 0; i < 3; i++) {
-                const sx = -s * 0.2 + i * s * 0.2;
+            for (let i = 0; i < 6; i++) {
+                const bx = -s * 0.3 + i * s * 0.12;
                 ctx.beginPath();
-                ctx.moveTo(sx - 4, s * 0);
-                ctx.lineTo(sx + 4, s * 0.06);
-                ctx.moveTo(sx + 4, s * 0);
-                ctx.lineTo(sx - 4, s * 0.06);
+                ctx.moveTo(bx, s * 0.1);
+                ctx.quadraticCurveTo(bx + Math.sin(time + i) * 2, -s * 0.1, bx, -s * 0.35 + torsoBreathe);
                 ctx.stroke();
             }
-            ctx.setLineDash([]);
-            
-            // === Neck (small pale column) ===
-            ctx.fillStyle = '#e8dcc4';
-            ctx.fillRect(-s * 0.1, -s * 0.42, s * 0.2, s * 0.1);
-            
-            // === Head (skull-like face) ===
-            // Skull shape
-            ctx.fillStyle = '#e8dcc4';
-            ctx.beginPath();
-            ctx.ellipse(0, -s * 0.55, s * 0.22, s * 0.22, 0, 0, Math.PI * 2);
-            ctx.fill();
-            // Brow ridge shadow
-            ctx.fillStyle = '#c8b894';
-            ctx.beginPath();
-            ctx.ellipse(0, -s * 0.6, s * 0.22, s * 0.08, 0, 0, Math.PI * 2);
-            ctx.fill();
-            
-            // === Branch antlers/horns (growing from head) ===
-            // Main antler stalks
-            ctx.strokeStyle = '#3a2410';
-            ctx.lineWidth = 3;
-            ctx.lineCap = 'round';
-            // Left antler
-            ctx.beginPath();
-            ctx.moveTo(-s * 0.15, -s * 0.68);
-            ctx.quadraticCurveTo(-s * 0.35, -s * 0.85, -s * 0.45, -s * 1.0);
-            ctx.stroke();
-            // Right antler
-            ctx.beginPath();
-            ctx.moveTo(s * 0.15, -s * 0.68);
-            ctx.quadraticCurveTo(s * 0.35, -s * 0.85, s * 0.5, -s * 1.0);
-            ctx.stroke();
-            // Antler branches
-            ctx.lineWidth = 2;
-            // Left branches
-            ctx.beginPath();
-            ctx.moveTo(-s * 0.25, -s * 0.78);
-            ctx.lineTo(-s * 0.32, -s * 0.85);
-            ctx.moveTo(-s * 0.35, -s * 0.92);
-            ctx.lineTo(-s * 0.42, -s * 0.97);
-            ctx.stroke();
-            // Right branches
-            ctx.beginPath();
-            ctx.moveTo(s * 0.25, -s * 0.78);
-            ctx.lineTo(s * 0.33, -s * 0.85);
-            ctx.moveTo(s * 0.38, -s * 0.92);
-            ctx.lineTo(s * 0.46, -s * 0.97);
-            ctx.stroke();
-            // Small twigs with buds
-            ctx.fillStyle = '#5a8030';
-            for (const [bx, by] of [[-s*0.32, -s*0.86], [-s*0.42, -s*0.98], [s*0.33, -s*0.86], [s*0.46, -s*0.98], [-s*0.45, -s*1.0], [s*0.5, -s*1.0]]) {
+            // Bark knots/wounds
+            ctx.fillStyle = '#1a0e08';
+            for (const [kx, ky] of [[-s*0.2, -s*0.15], [s*0.15, -s*0.2], [0, -s*0.05]]) {
                 ctx.beginPath();
-                ctx.arc(bx, by, 2, 0, Math.PI * 2);
+                ctx.ellipse(kx, ky, 4, 3, 0, 0, Math.PI * 2);
                 ctx.fill();
             }
-            
-            // === Eyes (small, dark, with red glint) ===
-            ctx.fillStyle = '#1a0a0a';
-            ctx.beginPath();
-            ctx.ellipse(-s * 0.1, -s * 0.58, s * 0.05, s * 0.03, 0, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.ellipse(s * 0.1, -s * 0.58, s * 0.05, s * 0.03, 0, 0, Math.PI * 2);
-            ctx.fill();
-            // Red pupils
-            ctx.fillStyle = '#ff2020';
-            ctx.shadowColor = '#ff0000';
-            ctx.shadowBlur = 8;
-            ctx.beginPath();
-            ctx.arc(-s * 0.1, -s * 0.58, s * 0.02, 0, Math.PI * 2);
-            ctx.arc(s * 0.1, -s * 0.58, s * 0.02, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.shadowBlur = 0;
-            
-            // === Vertical slash mouth (iconic) ===
-            ctx.fillStyle = '#1a0a0a';
-            ctx.beginPath();
-            ctx.ellipse(0, -s * 0.45, s * 0.05, s * 0.1, 0, 0, Math.PI * 2);
-            ctx.fill();
-            // Jagged teeth
-            ctx.fillStyle = '#f0e0c0';
-            for (let i = 0; i < 4; i++) {
-                const ty = -s * 0.5 + i * s * 0.025;
-                ctx.fillRect(-s * 0.025, ty, s * 0.05, s * 0.012);
-            }
-            
-            // === Right arm (viewer's left) - BANDAGED, raised ===
+            // Small flower growing from torso
             ctx.save();
-            ctx.translate(-s * 0.38, -s * 0.25);
-            ctx.rotate(-0.8 + Math.sin(time * 0.6) * 0.1);
-            // Upper arm - white bandage wrap
-            ctx.fillStyle = '#f0e8d8';
-            ctx.fillRect(-s * 0.1, 0, s * 0.2, s * 0.3);
-            // Bandage lines
-            ctx.strokeStyle = '#c8b894';
+            ctx.translate(s * 0.25, -s * 0.1);
+            const torsoFlowerPulse = 1 + Math.sin(time * 2.5) * 0.15;
+            ctx.scale(torsoFlowerPulse, torsoFlowerPulse);
+            for (let p = 0; p < 4; p++) {
+                const pAng = (p / 4) * Math.PI * 2;
+                ctx.fillStyle = '#8a1a28';
+                ctx.beginPath();
+                ctx.ellipse(Math.cos(pAng) * 4, Math.sin(pAng) * 4, 4, 2.5, pAng, 0, Math.PI * 2);
+                ctx.fill();
+            }
+            ctx.fillStyle = '#2a0608';
+            ctx.beginPath();
+                ctx.arc(0, 0, 2.5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+
+            // === NECK (bark column) ===
+            ctx.fillStyle = '#4a3220';
+            ctx.fillRect(-s * 0.1, -s * 0.44, s * 0.2, s * 0.08);
+            ctx.strokeStyle = '#1a0e08';
             ctx.lineWidth = 1;
-            for (let i = 0; i < 4; i++) {
+            for (let i = 0; i < 2; i++) {
                 ctx.beginPath();
-                ctx.moveTo(-s * 0.1, i * s * 0.075);
-                ctx.lineTo(s * 0.1, i * s * 0.075);
+                ctx.moveTo(-s * 0.1, -s * 0.42 + i * s * 0.04);
+                ctx.lineTo(s * 0.1, -s * 0.42 + i * s * 0.04);
                 ctx.stroke();
             }
-            // Forearm extending toward viewer
+
+            // === FLOWER BLOSSOM HEAD (iconic Hanami feature) ===
+            // Glow behind flower
             ctx.save();
-            ctx.translate(0, s * 0.3);
-            ctx.rotate(-0.5);
-            ctx.fillStyle = '#f0e8d8';
-            ctx.fillRect(-s * 0.08, 0, s * 0.16, s * 0.32);
-            ctx.strokeStyle = '#c8b894';
-            for (let i = 0; i < 4; i++) {
-                ctx.beginPath();
-                ctx.moveTo(-s * 0.08, i * s * 0.08);
-                ctx.lineTo(s * 0.08, i * s * 0.08);
-                ctx.stroke();
-            }
-            // Hand (open palm, reaching out)
-            ctx.fillStyle = '#d8c8a8';
+            ctx.translate(0, -s * 0.58);
+            const glowPulse = 1 + petalPulse;
+            ctx.scale(glowPulse, glowPulse);
+            const headGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, s * 0.4);
+            headGlow.addColorStop(0, 'rgba(220, 60, 90, 0.35)');
+            headGlow.addColorStop(0.6, 'rgba(120, 20, 40, 0.15)');
+            headGlow.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = headGlow;
             ctx.beginPath();
-            ctx.ellipse(0, s * 0.36, s * 0.1, s * 0.12, 0, 0, Math.PI * 2);
+            ctx.arc(0, 0, s * 0.4, 0, Math.PI * 2);
             ctx.fill();
-            // Fingers spread
-            for (let f = -1; f <= 1; f++) {
-                ctx.fillStyle = '#d8c8a8';
+            ctx.restore();
+
+            ctx.save();
+            ctx.translate(0, -s * 0.58);
+            ctx.scale(glowPulse, glowPulse);
+
+            // Back layer petals (darker, larger)
+            const petalCount = 8;
+            for (let layer = 0; layer < 2; layer++) {
+                const layerOffset = layer * 0.4 + Math.sin(time * 0.5) * 0.03;
+                const petalSize = layer === 0 ? s * 0.28 : s * 0.22;
+                const petalColor = layer === 0 ? '#5a0a18' : '#8a1828';
+                for (let p = 0; p < petalCount; p++) {
+                    const pAng = (p / petalCount) * Math.PI * 2 + layerOffset;
+                    const petalWiggle = Math.sin(time * 1.5 + p + layer) * 0.08;
+                    ctx.save();
+                    ctx.rotate(pAng + petalWiggle);
+                    // Petal shape (teardrop)
+                    ctx.fillStyle = petalColor;
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.quadraticCurveTo(petalSize * 0.6, -petalSize * 0.3, petalSize, 0);
+                    ctx.quadraticCurveTo(petalSize * 0.6, petalSize * 0.3, 0, 0);
+                    ctx.fill();
+                    // Petal vein
+                    ctx.strokeStyle = layer === 0 ? '#3a0608' : '#5a0a14';
+                    ctx.lineWidth = 1;
+                    ctx.beginPath();
+                    ctx.moveTo(0, 0);
+                    ctx.lineTo(petalSize * 0.85, 0);
+                    ctx.stroke();
+                    // Petal highlight
+                    ctx.fillStyle = layer === 0 ? 'rgba(180, 40, 60, 0.4)' : 'rgba(220, 80, 100, 0.4)';
+                    ctx.beginPath();
+                    ctx.ellipse(petalSize * 0.5, -petalSize * 0.08, petalSize * 0.25, petalSize * 0.1, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    ctx.restore();
+                }
+            }
+
+            // Center of flower (dark receptacle)
+            ctx.fillStyle = '#2a0608';
+            ctx.beginPath();
+            ctx.arc(0, 0, s * 0.13, 0, Math.PI * 2);
+            ctx.fill();
+            // Inner glow
+            const innerGlow = ctx.createRadialGradient(0, 0, 0, 0, 0, s * 0.13);
+            innerGlow.addColorStop(0, 'rgba(180, 30, 50, 0.6)');
+            innerGlow.addColorStop(1, 'rgba(40, 5, 10, 0)');
+            ctx.fillStyle = innerGlow;
+            ctx.beginPath();
+            ctx.arc(0, 0, s * 0.13, 0, Math.PI * 2);
+            ctx.fill();
+
+            // === ICONIC CENTRAL EYE ===
+            // Eye white
+            ctx.fillStyle = '#f0e4c8';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, s * 0.09, s * 0.06, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Iris (yellow/amber)
+            ctx.fillStyle = '#d8a020';
+            ctx.beginPath();
+            ctx.arc(0, 0, s * 0.055, 0, Math.PI * 2);
+            ctx.fill();
+            // Pupil (vertical slit - curse eye)
+            ctx.fillStyle = '#1a0a0a';
+            ctx.beginPath();
+            ctx.ellipse(0, 0, s * 0.012, s * 0.045, 0, 0, Math.PI * 2);
+            ctx.fill();
+            // Eye highlight
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(-s * 0.025, -s * 0.02, s * 0.012, 0, Math.PI * 2);
+            ctx.fill();
+            // Eye glow
+            ctx.shadowColor = '#ff4040';
+            ctx.shadowBlur = 15;
+            ctx.strokeStyle = '#ff2020';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.ellipse(0, 0, s * 0.09, s * 0.06, 0, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
+
+            // Small stamen filaments around eye
+            ctx.strokeStyle = '#3a0608';
+            ctx.lineWidth = 1.5;
+            for (let f = 0; f < 6; f++) {
+                const fAng = (f / 6) * Math.PI * 2 + time * 0.2;
+                const fx = Math.cos(fAng) * s * 0.1;
+                const fy = Math.sin(fAng) * s * 0.1;
                 ctx.beginPath();
-                ctx.ellipse(f * s * 0.05, s * 0.46, s * 0.025, s * 0.07, 0, 0, Math.PI * 2);
+                ctx.moveTo(0, 0);
+                ctx.lineTo(fx, fy);
+                ctx.stroke();
+                // Anther tip
+                ctx.fillStyle = '#d8a020';
+                ctx.beginPath();
+                ctx.arc(fx, fy, 1.5, 0, Math.PI * 2);
                 ctx.fill();
             }
             ctx.restore();
-            ctx.restore();
-            
-            // === Left arm (viewer's right) - DARK TENDRIL/VINE ARM ===
-            // Arm stump (bandaged shoulder)
-            ctx.fillStyle = '#f0e8d8';
-            ctx.fillRect(s * 0.32, -s * 0.25, s * 0.15, s * 0.18);
-            // Dark tendrils extending out
-            ctx.strokeStyle = '#1a1a28';
-            ctx.lineWidth = 4;
-            ctx.lineCap = 'round';
-            for (let t = 0; t < 4; t++) {
-                const baseAngle = -0.3 + t * 0.3;
-                const wave = Math.sin(tendrilWave + t * 0.7) * 0.2;
-                const reach = s * 0.55 + Math.sin(tendrilWave * 0.5 + t) * s * 0.05;
-                ctx.beginPath();
-                ctx.moveTo(s * 0.4, -s * 0.2);
-                const cp1x = s * 0.55 + Math.cos(baseAngle + wave) * s * 0.2;
-                const cp1y = -s * 0.1 + Math.sin(baseAngle + wave) * s * 0.2;
-                const endX = s * 0.45 + Math.cos(baseAngle) * reach;
-                const endY = -s * 0.2 + Math.sin(baseAngle) * reach;
-                ctx.quadraticCurveTo(cp1x, cp1y, endX, endY);
-                ctx.stroke();
-            }
-            // Tendril tips with green glow
-            ctx.fillStyle = '#5a8030';
-            ctx.shadowColor = '#80c040';
-            ctx.shadowBlur = 10;
-            for (let t = 0; t < 4; t++) {
-                const baseAngle = -0.3 + t * 0.3;
-                const reach = s * 0.55 + Math.sin(tendrilWave * 0.5 + t) * s * 0.05;
-                const tx = s * 0.45 + Math.cos(baseAngle) * reach;
-                const ty = -s * 0.2 + Math.sin(baseAngle) * reach;
-                ctx.beginPath();
-                ctx.arc(tx, ty, 3, 0, Math.PI * 2);
-                ctx.fill();
-            }
-            ctx.shadowBlur = 0;
-            
-            // === Subtle green cursed energy aura ===
-            ctx.strokeStyle = `rgba(90, 160, 60, ${0.3 + Math.sin(time * 2) * 0.1})`;
+
+            // === LEAVES GROWING FROM SHOULDERS ===
+            ctx.fillStyle = '#3a6b25';
+            ctx.strokeStyle = '#1a3a15';
             ctx.lineWidth = 1;
-            ctx.beginPath();
-            ctx.ellipse(0, -s * 0.1, s * 0.5, s * 0.55, 0, 0, Math.PI * 2);
-            ctx.stroke();
-            
-            // Floating leaf particles
-            ctx.fillStyle = `rgba(120, 200, 80, ${0.5 + Math.sin(time * 3) * 0.3})`;
-            for (let p = 0; p < 5; p++) {
-                const pa = (p / 5) * Math.PI * 2 + time * 0.5;
-                const pr = s * 0.7;
-                const px = Math.cos(pa) * pr;
-                const py = Math.sin(pa) * pr - s * 0.2;
+            for (const [lx, ly, lAng] of [
+                [-s * 0.4, -s * 0.32, -0.7],
+                [s * 0.4, -s * 0.32, 0.7],
+                [-s * 0.35, -s * 0.05, -1.2],
+                [s * 0.35, -s * 0.05, 1.2]
+            ]) {
                 ctx.save();
-                ctx.translate(px, py);
-                ctx.rotate(pa + time);
+                ctx.translate(lx, ly);
+                ctx.rotate(lAng + Math.sin(time + lx) * 0.05);
                 ctx.beginPath();
-                ctx.ellipse(0, 0, 4, 2, 0, 0, Math.PI * 2);
+                ctx.ellipse(0, 0, 8, 4, 0, 0, Math.PI * 2);
                 ctx.fill();
+                // Leaf vein
+                ctx.beginPath();
+                ctx.moveTo(-7, 0);
+                ctx.lineTo(7, 0);
+                ctx.stroke();
                 ctx.restore();
             }
-            
+
+            // === FLOATING CURSE PETALS & LEAVES around body ===
+            ctx.save();
+            ctx.globalAlpha = 0.7;
+            for (let p = 0; p < 6; p++) {
+                const pa = (p / 6) * Math.PI * 2 + leafDrift;
+                const pr = s * 0.75 + Math.sin(time * 1.5 + p) * s * 0.1;
+                const px = Math.cos(pa) * pr;
+                const py = Math.sin(pa) * pr * 0.6 - s * 0.1;
+                ctx.save();
+                ctx.translate(px, py);
+                ctx.rotate(pa + time * 0.5);
+                if (p % 2 === 0) {
+                    // Petal
+                    ctx.fillStyle = '#8a1a28';
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 5, 3, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                } else {
+                    // Leaf
+                    ctx.fillStyle = '#3a6b25';
+                    ctx.beginPath();
+                    ctx.ellipse(0, 0, 5, 2.5, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                }
+                ctx.restore();
+            }
+            ctx.restore();
+
+            // === CURSED ENERGY AURA (subtle green/red mix) ===
+            const auraAlpha = 0.25 + Math.sin(time * 2) * 0.1;
+            const auraGrad = ctx.createRadialGradient(0, -s * 0.1, 0, 0, -s * 0.1, s * 0.7);
+            auraGrad.addColorStop(0, `rgba(120, 180, 80, ${auraAlpha * 0.5})`);
+            auraGrad.addColorStop(0.7, `rgba(80, 30, 40, ${auraAlpha * 0.3})`);
+            auraGrad.addColorStop(1, 'rgba(0, 0, 0, 0)');
+            ctx.fillStyle = auraGrad;
+            ctx.beginPath();
+            ctx.ellipse(0, -s * 0.1, s * 0.6, s * 0.7, 0, 0, Math.PI * 2);
+            ctx.fill();
+
             ctx.restore();
         }
         
