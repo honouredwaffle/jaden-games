@@ -8218,10 +8218,10 @@
                 // Update slash waves (expand and fade)
                 for (let i = sukunaDomain.slashWaves.length - 1; i >= 0; i--) {
                     const wave = sukunaDomain.slashWaves[i];
-                    wave.radius += wave.expansionRate * dt;
+                    wave.radius = Math.min(wave.maxRadius, wave.radius + wave.expansionRate * dt);
                     wave.life -= dt;
-                    wave.opacity = wave.life / wave.maxLife;
-                    if (wave.life <= 0) {
+                    wave.opacity = Math.max(0, wave.life / wave.maxLife);
+                    if (wave.life <= 0 || wave.radius >= wave.maxRadius) {
                         sukunaDomain.slashWaves.splice(i, 1);
                     }
                 }
@@ -8446,14 +8446,14 @@
                 
                 // Draw expanding circle
                 ctx.beginPath();
-                ctx.arc(wx, wy, wave.radius, 0, Math.PI * 2);
+                ctx.arc(wx, wy, Math.max(0, wave.radius), 0, Math.PI * 2);
                 ctx.stroke();
                 
                 // Inner glow
                 ctx.globalAlpha = wave.opacity * 0.2;
                 ctx.fillStyle = wave.color;
                 ctx.beginPath();
-                ctx.arc(wx, wy, wave.radius * 0.9, 0, Math.PI * 2);
+                ctx.arc(wx, wy, Math.max(0, wave.radius * 0.9), 0, Math.PI * 2);
                 ctx.fill();
                 
                 ctx.restore();
