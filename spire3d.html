@@ -323,7 +323,7 @@ player.attacking=false;player.attackT=0;player.attackCD=0;
 player.dodging=false;player.dodgeT=0;player.dodgeCD=0;
 player.jumping=false;player.jumpT=0;
 
-player.position.set(0,th(0,0)+0.05,0);
+player.position.set(0,th(0,0),0);
 scene.add(player);
 
 // === CAMERA ===
@@ -415,7 +415,7 @@ function update(dt){
 
   // Perfect ground clamp — every frame, no exceptions
   const ty=th(player.position.x,player.position.z);
-  const targetY=ty+0.05;
+  const targetY=ty;
   if(!player.dodging && player.vel.y<0.5){
     // Force lock to ground when not jumping/dodging upward
     player.position.y=targetY;
