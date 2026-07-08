@@ -305,15 +305,66 @@ function dodge(){
 
 function attack(){
   player.attacking=true;player.attackT=0.25;player.attackCD=0.35;
-  const smat=new THREE.MeshBasicMaterial({color:0x88ddff,transparent:true,opacity:0.6,side:THREE.DoubleSide,depthWrite:false});
-  const s=new THREE.Mesh(new THREE.RingGeometry(0.1,1.2,12,1),smat);
-  const fwd=new THREE.Vector3(-Math.sin(cTheta),0.4,-Math.cos(cTheta));
-  s.position.copy(player.position);s.position.add(fwd.multiplyScalar(1.8));s.position.y+=1.2;
-  s.lookAt(cam.position);s.rotation.z=Math.random()*0.3-0.15;s.scale.set(0.3,0.3,0.3);
-  scene.add(s);
-  let t=0;
-  const anim=()=>{t+=0.03;s.scale.setScalar(0.3+t*4);s.material.opacity=Math.max(0,0.6-t*1.5);if(t>0.5){scene.remove(s);return}requestAnimationFrame(anim);};
-  anim();
+  
+  const fwd=new THREE.Vector3(-Math.sin(cTheta),0,-Math.cos(cTheta));
+  const right=new THREE.Vector3(Math.cos(cTheta),0,-Math.sin(cTheta));
+  const origin=new THREE.Vector3().copy(player.position).add(fwd.clone().multiplyScalar(1.5));
+  origin.y+=1.0;
+  
+  // Create 3 slash arcs in a fan pattern
+  const colors=[0x88ddff,0x66bbff,0x44aaff];
+  for(let i=0;i<3;i++){
+    const smat=new THREE.MeshBasicMaterial({color:colors[i],transparent:true,opacity:0.5-i*0.1,side:THREE.DoubleSide,depthWrite:false});
+    const s=new THREE.Mesh(new THREE.RingGeometry(0.05,0.3+i*0.25,8,1),smat);
+    // Position in arc
+    const angle=(i-1)*0.6;
+    const p=origin.clone().add(right.clone().multiplyScalar(angle*0.4));
+    p.y+=angle*0.2;
+    s.position.copy(p);
+    s.lookAt(cam.position);
+    s.rotation.z=-Math.PI/4+angle*0.5;
+    s.scale.set(0.5,0.5,0.5);
+    scene.add(s);
+    
+    let t=0;
+    const anim=()=>{
+      t+=0.02;
+      const sc=0.5+i*0.15+t*3;
+      s.scale.set(sc,sc,sc);
+      s.rotation.z+=0.02;
+      s.material.opacity=Math.max(0,(0.5-i*0.1)-t*1.2);
+      if(t>0.5){scene.remove(s);return}
+      requestAnimationFrame(anim);
+    };
+    setTimeout(()=>anim(),i*30);
+  }
+  
+  // Spark particles
+  const sparkMat=new THREE.PointsMaterial({color:0x88ddff,size:0.08,transparent:true,opacity:0.8,sizeAttenuation:true});
+  const sparkGeo=new THREE.BufferGeometry();
+  const sparkPos=new Float32Array(10*3);
+  for(let i=0;i<10;i++){
+    sparkPos[i*3]=(Math.random()-0.5)*0.5;
+    sparkPos[i*3+1]=(Math.random()-0.5)*0.5;
+    sparkPos[i*3+2]=(Math.random()-0.5)*0.5;
+  }
+  sparkGeo.setAttribute('position',new THREE.BufferAttribute(sparkPos,3));
+  const sparks=new THREE.Points(sparkGeo,sparkMat);
+  sparks.position.copy(origin);
+  scene.add(sparks);
+  let st=0;
+  const sparkAnim=()=>{
+    st+=0.03;
+    const sp=sparks.geometry.attributes.position.array;
+    for(let i=0;i<10;i++){
+      sp[i*3]*=1.2;sp[i*3+1]*=1.2;sp[i*3+2]*=1.2;
+    }
+    sparks.geometry.attributes.position.needsUpdate=true;
+    sparks.material.opacity=Math.max(0,0.8-st*2);
+    if(st>0.6){scene.remove(sparks);return}
+    requestAnimationFrame(sparkAnim);
+  };
+  setTimeout(()=>sparkAnim(),50);
 }
 
 let prevT=performance.now();
