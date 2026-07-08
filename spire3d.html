@@ -428,12 +428,8 @@ function update(dt){
   const mx=gs/2-3;
   if(Math.abs(player.position.x)>mx){player.position.x=Math.sign(player.position.x)*mx;player.vel.x*=-0.5}
   if(Math.abs(player.position.z)>mx){player.position.z=Math.sign(player.position.z)*mx;player.vel.z*=-0.5}
-  if(player.vel.lengthSq()>0.3&&!player.dodging){
-    const tr=Math.atan2(player.vel.x,player.vel.z);
-    let d=tr-player.rotation.y;
-    while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;
-    player.rotation.y+=d*Math.min(1,8*dt);
-  }
+  // Lock character facing -Z (back always toward camera)
+  player.rotation.y=Math.PI;
 }
 
 function updateCam(){
