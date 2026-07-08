@@ -297,6 +297,7 @@ player.hp=100;player.maxHp=100;
 player.stamina=100;player.maxStamina=100;
 player.attacking=false;player.attackT=0;player.attackCD=0;
 player.dodging=false;player.dodgeT=0;player.dodgeCD=0;
+player.jumping=false;player.jumpT=0;
 
 player.position.set(0,th(0,0)+0.05,0);
 scene.add(player);
@@ -371,7 +372,17 @@ function update(dt){
     if(K['d']||K['arrowright'])md.add(r);
     if(md.length()>0){md.normalize();player.vel.x+=(md.x*spd-player.vel.x)*Math.min(1,acc*dt);player.vel.z+=(md.z*spd-player.vel.z)*Math.min(1,acc*dt);}
     else{player.vel.x*=Math.max(0,1-10*dt);player.vel.z*=Math.max(0,1-10*dt);}
-    if(K[' ']&&player.onGround&&player.stamina>=10){player.vel.y=7;player.onGround=false;player.stamina-=10;K[' ']=false;}
+    if(K[' ']&&player.onGround&&player.stamina>=10){
+      // Smooth jump — accelerate upward instead of instant 7
+      if(!player.jumping){player.vel.y=5;player.jumping=true;player.jumpT=0;player.onGround=false;player.stamina-=10;}
+      K[' ']=false;
+    }
+    // Hold space to jump higher
+    if(player.jumping && (K[' ']||K['space']) && player.jumpT<0.3){
+      player.vel.y+=18*dt;
+      player.jumpT+=dt;
+    }
+    if(!K[' ']&&!K['space']&&player.jumping&&!player.dodging)player.jumping=false;
   }
 
   player.vel.y-=22*dt;
@@ -386,6 +397,7 @@ function update(dt){
     player.position.y=targetY;
     player.vel.y=0;
     player.onGround=true;
+    player.jumping=false;
   }else if(player.position.y<targetY+0.01){
     player.position.y=targetY;
     player.vel.y=0;
