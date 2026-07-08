@@ -57,7 +57,6 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.3;
 document.body.appendChild(renderer.domElement);
 
-// === LIGHTS ===
 const sun = new THREE.DirectionalLight(0xffeedd, 2.2);
 sun.position.set(60, 100, 40);
 sun.castShadow = true;
@@ -71,7 +70,6 @@ const fill = new THREE.DirectionalLight(0x88bbff, 0.3);
 fill.position.set(-30, 20, -40); scene.add(fill);
 scene.add(new THREE.HemisphereLight(0x87CEEB, 0xc8a060, 0.4));
 
-// === SMOOTH DUNE TERRAIN ===
 const gs = 120, seg = 80;
 const gGeo = new THREE.PlaneGeometry(gs,gs,seg,seg);
 gGeo.rotateX(-Math.PI/2);
@@ -93,25 +91,17 @@ const ground = new THREE.Mesh(gGeo,gMat);
 ground.receiveShadow = true;
 scene.add(ground);
 
-// === TERRAIN HEIGHT: bilinear interpolation for smooth sampling ===
-function th(x,z){
-  // Clamp to terrain bounds
+function getTerrainHeight(x,z){
   x=Math.max(-gs/2+0.01,Math.min(gs/2-0.01,x));
   z=Math.max(-gs/2+0.01,Math.min(gs/2-0.01,z));
   const fx=(x/gs+0.5)*seg, fz=(z/gs+0.5)*seg;
   const ix=Math.floor(fx), iz=Math.floor(fz);
   const dx=fx-ix, dz=fz-iz;
   const ix1=Math.min(ix+1,seg), iz1=Math.min(iz+1,seg);
-  const get=(ix,iz)=>{
-    const idx=iz*(seg+1)+ix;
-    return idx>=0&&idx<gp.count?gp.getY(idx):0;
-  };
-  const h00=get(ix,iz), h10=get(ix1,iz);
-  const h01=get(ix,iz1), h11=get(ix1,iz1);
-  return h00*(1-dx)*(1-dz)+h10*dx*(1-dz)+h01*(1-dx)*dz+h11*dx*dz;
+  const get=(ix,iz)=>{const idx=iz*(seg+1)+ix;return idx>=0&&idx<gp.count?gp.getY(idx):0;};
+  return get(ix,iz)*(1-dx)*(1-dz)+get(ix1,iz)*dx*(1-dz)+get(ix,iz1)*(1-dx)*dz+get(ix1,iz1)*dx*dz;
 }
 
-// === RUINS ===
 function ruins(){
   const p = [[-14,-12],[18,-8],[-22,16],[24,20],[-8,-28],[32,-18],[12,-30],[-28,-24],[34,10],[-34,-6]];
   const mats = [
@@ -120,84 +110,57 @@ function ruins(){
     new THREE.MeshStandardMaterial({color:0x9a8a6a,roughness:0.7,metalness:0.1,flatShading:true}),
   ];
   for(const [px,pz] of p){
-    const ty=th(px,pz);
+    const ty=getTerrainHeight(px,pz);
     const g=new THREE.Group();g.position.set(px,ty,pz);
     g.rotation.y=Math.random()*6;
-    const m=mats[Math.floor(Math.random()*mats.length)];
+    const m=mats[Math.floor(Math.random()*3)];
     const h=1.5+Math.random()*2.5;
-    const pillar = new THREE.Mesh(new THREE.BoxGeometry(1.0,h,1.0),m);
-    pillar.position.y=h/2;pillar.castShadow=true;pillar.receiveShadow=true;g.add(pillar);
+    const pillar=new THREE.Mesh(new THREE.BoxGeometry(1.0,h,1.0),m);
+    pillar.position.y=h/2;pillar.castShadow=true;g.add(pillar);
     const top=new THREE.Mesh(new THREE.BoxGeometry(1.5,0.25,1.5),mats[1]);
-    top.position.y=h+0.12;g.add(top);
-    // Fallen blocks — reduce how many float
-    for(let i=0;i<1+Math.floor(Math.random()*2);i++){
-      const fb=new THREE.Mesh(new THREE.BoxGeometry(0.4+0.5*Math.random(),0.15+0.2*Math.random(),0.4+0.5*Math.random()),mats[2]);
-      const a=Math.random()*6,d=1.2+Math.random()*2;
-      // Sample height at rubble position
-      const rx=px+Math.cos(a)*d, rz=pz+Math.sin(a)*d;
-      const rty=th(rx,rz)-ty;
-      fb.position.set(Math.cos(a)*d,Math.max(0.05,rty+0.05),Math.sin(a)*d);
-      fb.rotation.x=(Math.random()-0.5)*0.4;
-      fb.rotation.z=(Math.random()-0.5)*0.4;
-      fb.castShadow=true;fb.receiveShadow=true;g.add(fb);
-    }
+    top.position.y=h+0.12;top.castShadow=true;g.add(top);
     scene.add(g);
   }
 }
 ruins();
 
-// === SPIRE ===
 function spire(){
   const sm=[new THREE.MeshStandardMaterial({color:0x8a7a6a,roughness:0.6,metalness:0.2,flatShading:true}),
     new THREE.MeshStandardMaterial({color:0x9a8a7a,roughness:0.5,metalness:0.3,flatShading:true})];
-  const sx=35,sz=-28,sy=th(sx,sz);
-  const b=new THREE.Mesh(new THREE.CylinderGeometry(2.5,3.5,0.8,7),sm[1]);
-  b.position.set(sx,sy+0.4,sz);b.castShadow=true;b.receiveShadow=true;scene.add(b);
-  const b2=new THREE.Mesh(new THREE.CylinderGeometry(0.7,2,6,8),sm[0]);
-  b2.position.set(sx,sy+3.8,sz);b2.castShadow=true;b2.receiveShadow=true;scene.add(b2);
-  const t=new THREE.Mesh(new THREE.ConeGeometry(0.5,1.5,6),sm[1]);
-  t.position.set(sx,sy+8.2,sz);t.castShadow=true;scene.add(t);
-  const orb=new THREE.Mesh(new THREE.SphereGeometry(0.35,8,8),
-    new THREE.MeshStandardMaterial({color:0xffaa44,emissive:0xff8833,emissiveIntensity:0.6}));
+  const sx=35,sz=-28,sy=getTerrainHeight(sx,sz);
+  const b1=new THREE.Mesh(new THREE.CylinderGeometry(2.5,3.5,0.8,7),sm[1]);b1.position.set(sx,sy+0.4,sz);b1.castShadow=true;scene.add(b1);
+  const b2=new THREE.Mesh(new THREE.CylinderGeometry(0.7,2,6,8),sm[0]);b2.position.set(sx,sy+3.8,sz);b2.castShadow=true;scene.add(b2);
+  const t1=new THREE.Mesh(new THREE.ConeGeometry(0.5,1.5,6),sm[1]);t1.position.set(sx,sy+8.2,sz);t1.castShadow=true;scene.add(t1);
+  const orb=new THREE.Mesh(new THREE.SphereGeometry(0.35,8,8),new THREE.MeshStandardMaterial({color:0xffaa44,emissive:0xff8833,emissiveIntensity:0.6}));
   orb.position.set(sx,sy+9.2,sz);scene.add(orb);
-  const sl=new THREE.PointLight(0xff8833,0.3,15);
-  sl.position.set(sx,sy+8.5,sz);scene.add(sl);
+  const pl1=new THREE.PointLight(0xff8833,0.3,15);pl1.position.set(sx,sy+8.5,sz);scene.add(pl1);
 }
 spire();
 
-// === ROCKS ===
 function rocks(){
   const mats=[new THREE.MeshStandardMaterial({color:0x7a6a4a,roughness:0.9,flatShading:true}),
     new THREE.MeshStandardMaterial({color:0x8a7a5a,roughness:0.8,flatShading:true})];
   for(let i=0;i<35;i++){
-    const a=Math.random()*6,d=10+Math.random()*45;
-    const x=Math.cos(a)*d,z=Math.sin(a)*d,ty=th(x,z);
-    const s=0.5+Math.random()*1.5;
-    const r=new THREE.Mesh(new THREE.DodecahedronGeometry(s,0),mats[Math.floor(Math.random()*2)]);
-    r.position.set(x,ty+s*0.15,z);
-    r.rotation.set(Math.random()*6,Math.random()*6,Math.random()*6);
-    r.scale.set(1,0.5+Math.random()*0.8,0.7+Math.random()*0.6);
-    r.castShadow=true;r.receiveShadow=true;scene.add(r);
+    const a=Math.random()*6,d=10+Math.random()*45,x=Math.cos(a)*d,z=Math.sin(a)*d,ty=getTerrainHeight(x,z),s=0.5+Math.random()*1.5;
+    const r=new THREE.Mesh(new THREE.DodecahedronGeometry(s,0),mats[i%2]);
+    r.position.set(x,ty+s*0.15,z);r.rotation.set(Math.random()*6,Math.random()*6,Math.random()*6);
+    r.scale.set(1,0.5+Math.random()*0.8,0.7+Math.random()*0.6);r.castShadow=true;r.receiveShadow=true;scene.add(r);
   }
 }
 rocks();
 
-// === OASIS ===
 (function(){
   const wMat=new THREE.MeshStandardMaterial({color:0x3a8a9a,roughness:0.3,metalness:0.2,transparent:true,opacity:0.75});
   const w=new THREE.Mesh(new THREE.CircleGeometry(4.5,24),wMat);
-  w.rotation.x=-Math.PI/2;
-  w.position.set(-28,th(-28,22)+0.05,22);w.receiveShadow=true;scene.add(w);
-  const tMat=new THREE.MeshStandardMaterial({color:0x5a3a1a,roughness:0.9,flatShading:true});
-  const lMat=new THREE.MeshStandardMaterial({color:0x3a8a3a,roughness:0.8,flatShading:true});
-  const lMat2=new THREE.MeshStandardMaterial({color:0x4a9a4a,roughness:0.8,flatShading:true});
+  w.rotation.x=-Math.PI/2;w.position.set(-28,getTerrainHeight(-28,22)+0.05,22);scene.add(w);
   const pp=[[-25,24],[-31,20],[-25,18],[-33,26],[-30,23]];
   for(const [px,pz] of pp){
-    const ty=th(px,pz);
-    const trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.25,2+Math.random()),tMat);
+    const ty=getTerrainHeight(px,pz);
+    const trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.25,2+Math.random()),new THREE.MeshStandardMaterial({color:0x5a3a1a,roughness:0.9,flatShading:true}));
     trunk.position.set(px,ty+1,pz);trunk.castShadow=true;scene.add(trunk);
+    const lMat=new THREE.MeshStandardMaterial({color:0x3a8a3a,roughness:0.8,flatShading:true});
     for(let f=0;f<5;f++){
-      const fr=new THREE.Mesh(new THREE.ConeGeometry(0.7,0.08,4),f%2?lMat:lMat2);
+      const fr=new THREE.Mesh(new THREE.ConeGeometry(0.7,0.08,4),lMat);
       const a=f/5*Math.PI*2+Math.random()*0.4;
       fr.position.set(px+Math.cos(a)*0.5,ty+2.3+Math.random()*0.3,pz+Math.sin(a)*0.5);
       fr.rotation.x=Math.cos(a)*0.5;fr.rotation.z=Math.sin(a)*0.5;scene.add(fr);
@@ -205,29 +168,25 @@ rocks();
   }
 })();
 
-// === CLOUDS ===
 (function(){
   const m=new THREE.MeshStandardMaterial({color:0xffffff,transparent:true,opacity:0.35,roughness:1,metalness:0,depthWrite:false});
   for(let i=0;i<25;i++){
     const c=new THREE.Mesh(new THREE.SphereGeometry(4+Math.random()*8,6,6),m);
-    c.position.set((Math.random()-0.5)*140,30+Math.random()*20,(Math.random()-0.5)*140);
-    c.scale.y=0.25;scene.add(c);
+    c.position.set((Math.random()-0.5)*140,30+Math.random()*20,(Math.random()-0.5)*140);c.scale.y=0.25;scene.add(c);
   }
 })();
 
-// === CACTI ===
 (function(){
-  const m=new THREE.MeshStandardMaterial({color:0x3a6a3a,roughness:0.8,flatShading:true});
+  const m1=new THREE.MeshStandardMaterial({color:0x3a6a3a,roughness:0.8,flatShading:true});
   const m2=new THREE.MeshStandardMaterial({color:0x4a7a4a,roughness:0.8,flatShading:true});
   for(let i=0;i<15;i++){
-    const a=Math.random()*6,d=12+Math.random()*35;
-    const x=Math.cos(a)*d,z=Math.sin(a)*d,ty=th(x,z);
+    const a=Math.random()*6,d=12+Math.random()*35,x=Math.cos(a)*d,z=Math.sin(a)*d,ty=getTerrainHeight(x,z);
     const h=0.8+Math.random()*1.5;
-    const trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.08+0.1*Math.random(),0.15,0.2+h,5),Math.random()>.5?m:m2);
+    const trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.08+0.1*Math.random(),0.15,0.2+h,5),i%2?m1:m2);
     trunk.position.set(x,ty+h/2,z);trunk.castShadow=true;scene.add(trunk);
     if(Math.random()>.5){
       for(let j=0;j<2;j++){
-        const arm=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.08,0.3+0.4*Math.random(),4),m);
+        const arm=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.08,0.3+0.4*Math.random(),4),m1);
         const ang=j*Math.PI+(Math.random()-0.5)*0.5;
         arm.position.set(x+Math.cos(ang)*0.2,ty+h*0.6,z+Math.sin(ang)*0.2);
         arm.rotation.z=Math.cos(ang)*0.8;arm.rotation.x=Math.sin(ang)*0.8;arm.castShadow=true;scene.add(arm);
@@ -236,7 +195,6 @@ rocks();
   }
 })();
 
-// === HEAT HAZE ===
 const hhGeo=new THREE.BufferGeometry();
 const hhPos=new Float32Array(100*3);
 for(let i=0;i<100;i++){
@@ -247,74 +205,65 @@ hhGeo.setAttribute('position',new THREE.BufferAttribute(hhPos,3));
 const hh=new THREE.Points(hhGeo,new THREE.PointsMaterial({color:0xffeedd,size:0.05,transparent:true,opacity:0.15,sizeAttenuation:true}));
 scene.add(hh);
 
-// === PLAYER ===
+// ===== PLAYER =====
 const player=new THREE.Group();
 
-// Body
-const bm=new THREE.MeshStandardMaterial({color:0x2a4a6a,roughness:0.6,metalness:0.1,flatShading:true});
-const body=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.6,1.1,6),bm);
-body.position.y=1.1;body.castShadow=true;player.add(body);
-
-const cm=new THREE.MeshStandardMaterial({color:0x6a5a4a,roughness:0.8,flatShading:true});
-const cloak=new THREE.Mesh(new THREE.CylinderGeometry(0.7,0.85,0.4,6),cm);
-cloak.position.y=0.3;player.add(cloak);
-
-const hm=new THREE.MeshStandardMaterial({color:0xc8a88a,roughness:0.7,flatShading:true});
-const head=new THREE.Mesh(new THREE.SphereGeometry(0.35,6,6),hm);
-head.position.y=1.6;head.castShadow=true;player.add(head);
-
-const em=new THREE.MeshStandardMaterial({color:0x2a1a0a,depthWrite:true});
-const e1=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,6),em);
-e1.position.set(-0.1,1.7,0.32);player.add(e1);
-const e2=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,6),em);
-e2.position.set(0.1,1.7,0.32);player.add(e2);
-
-// Sword — katana style
-const sMat=new THREE.MeshStandardMaterial({color:0x8899aa,roughness:0.3,metalness:0.7,flatShading:true});
-const shMat=new THREE.MeshStandardMaterial({color:0x1a1a1a,roughness:0.9,metalness:0.0,flatShading:true});
-const goldMat=new THREE.MeshStandardMaterial({color:0xccaa44,roughness:0.4,metalness:0.6,flatShading:true});
-const tsbMat=new THREE.MeshStandardMaterial({color:0x2a2a3a,roughness:0.5,metalness:0.3,flatShading:true});
-const sg=new THREE.Group();
-// Curved blade — tapered box
-const bladeMat=new THREE.MeshStandardMaterial({color:0x8899aa,roughness:0.3,metalness:0.7,flatShading:true});
-const blade=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.65,0.12),bladeMat);
-blade.position.set(0.01,0.38,0);
-blade.rotation.z=-0.08;
-sg.add(blade);
-// Blade edge
-const edgeMat=new THREE.MeshStandardMaterial({color:0xaabbcc,roughness:0.2,metalness:0.8,flatShading:true});
-const edge=new THREE.Mesh(new THREE.BoxGeometry(0.005,0.6,0.13),edgeMat);
-edge.position.set(0.025,0.37,0);
-edge.rotation.z=-0.08;
-sg.add(edge);
-// Handle (tsuka)
-const handle=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.08,0.3,6),shMat);
-handle.position.set(0,-0.15,0);
-sg.add(handle);
-// Tsuba
-const tsuba=new THREE.Mesh(new THREE.BoxGeometry(0.25,0.02,0.12),tsbMat);
-tsuba.position.set(0,0,0);sg.add(tsuba);
-// Gold menuki
-const mk1=new THREE.Mesh(new THREE.SphereGeometry(0.025,4,4),goldMat);mk1.position.set(0,-0.1,0.05);sg.add(mk1);
-const mk2=new THREE.Mesh(new THREE.SphereGeometry(0.025,4,4),goldMat);mk2.position.set(0,-0.2,0.05);sg.add(mk2);
-// Habaki
-const hbkiMat=new THREE.MeshStandardMaterial({color:0xccbb88,roughness:0.4,metalness:0.4,flatShading:true});
-const hbki=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.05,0.04),hbkiMat);
-hbki.position.set(0,0.03,0);sg.add(hbki);
-sg.position.set(0.6,0.5,0.2);
-sg.rotation.z=-0.2;
-player.add(sg);
-player.sword=sg;
-player.swordBP=new THREE.Vector3(0.55,0.65,0.3);
-
-// Legs — longer
-const lm=new THREE.MeshStandardMaterial({color:0x1a2a3a,roughness:0.7,flatShading:true});
+// Build character from feet up, origin at foot level
+const legMat=new THREE.MeshStandardMaterial({color:0x1a2a3a,roughness:0.7,flatShading:true});
 for(const s of[-0.18,0.18]){
-  const l=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.13,1.0,4),lm);
-  l.position.set(s,0.5,0);l.castShadow=true;player.add(l);
+  const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.12,1.0,4),legMat);
+  leg.position.set(s,0.5,0);leg.castShadow=true;player.add(leg);
 }
 
-// State
+const torsoMat=new THREE.MeshStandardMaterial({color:0x2a4a6a,roughness:0.6,flatShading:true});
+const torso=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.55,0.8,6),torsoMat);
+torso.position.y=1.1;torso.castShadow=true;player.add(torso);
+
+const cloakMat=new THREE.MeshStandardMaterial({color:0x6a5a4a,roughness:0.8,flatShading:true});
+const cloak=new THREE.Mesh(new THREE.CylinderGeometry(0.7,0.8,0.4,6),cloakMat);
+cloak.position.y=0.7;player.add(cloak);
+
+const headMat=new THREE.MeshStandardMaterial({color:0xc8a88a,roughness:0.7,flatShading:true});
+const headMesh=new THREE.Mesh(new THREE.SphereGeometry(0.35,6,6),headMat);
+headMesh.position.y=1.7;headMesh.castShadow=true;player.add(headMesh);
+
+const eyeMat=new THREE.MeshStandardMaterial({color:0x1a1a1a,depthWrite:true});
+const eyeL=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,6),eyeMat);
+eyeL.position.set(-0.1,1.78,0.32);player.add(eyeL);
+const eyeR=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,6),eyeMat);
+eyeR.position.set(0.1,1.78,0.32);player.add(eyeR);
+
+// Katana on RIGHT side (positive X in local space)
+const swordGrp=new THREE.Group();
+const bladeMat2=new THREE.MeshStandardMaterial({color:0x8899aa,roughness:0.3,metalness:0.7,flatShading:true});
+const edgeMat2=new THREE.MeshStandardMaterial({color:0xaabbcc,roughness:0.2,metalness:0.8,flatShading:true});
+const handleMat=new THREE.MeshStandardMaterial({color:0x1a1a1a,roughness:0.9,flatShading:true});
+const tsubaMat=new THREE.MeshStandardMaterial({color:0x2a2a3a,roughness:0.5,flatShading:true});
+const goldMat2=new THREE.MeshStandardMaterial({color:0xccaa44,roughness:0.4,metalness:0.6,flatShading:true});
+const habakiMat2=new THREE.MeshStandardMaterial({color:0xccbb88,roughness:0.4,metalness:0.4,flatShading:true});
+
+const blade2=new THREE.Mesh(new THREE.BoxGeometry(0.03,0.65,0.12),bladeMat2);
+blade2.position.set(0.01,0.38,0);blade2.rotation.z=-0.08;swordGrp.add(blade2);
+const edge2=new THREE.Mesh(new THREE.BoxGeometry(0.005,0.6,0.13),edgeMat2);
+edge2.position.set(0.03,0.37,0);edge2.rotation.z=-0.08;swordGrp.add(edge2);
+const handle2=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.08,0.3,6),handleMat);
+handle2.position.set(0,-0.15,0);swordGrp.add(handle2);
+const tsuba2=new THREE.Mesh(new THREE.BoxGeometry(0.25,0.02,0.12),tsubaMat);
+tsuba2.position.set(0,0,0);swordGrp.add(tsuba2);
+const mk1=new THREE.Mesh(new THREE.SphereGeometry(0.025,4,4),goldMat2);
+mk1.position.set(0,-0.1,0.05);swordGrp.add(mk1);
+const mk2=new THREE.Mesh(new THREE.SphereGeometry(0.025,4,4),goldMat2);
+mk2.position.set(0,-0.2,0.05);swordGrp.add(mk2);
+const habaki2=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.05,0.04),habakiMat2);
+habaki2.position.set(0,0.03,0);swordGrp.add(habaki2);
+
+swordGrp.position.set(0.55,1.0,0.3);
+swordGrp.rotation.set(0,0,-0.2);
+player.add(swordGrp);
+player.sword=swordGrp;
+player.swordBP=new THREE.Vector3(0.55,1.0,0.3);
+
+// Player state
 player.vel=new THREE.Vector3();
 player.onGround=true;
 player.hp=100;player.maxHp=100;
@@ -323,10 +272,10 @@ player.attacking=false;player.attackT=0;player.attackCD=0;
 player.dodging=false;player.dodgeT=0;player.dodgeCD=0;
 player.jumping=false;player.jumpT=0;
 
-player.position.set(0,th(0,0),0);
+player.position.set(0,getTerrainHeight(0,0),0);
 scene.add(player);
 
-// === CAMERA ===
+// ===== CAMERA =====
 let cTheta=0,cPhi=Math.PI/3.2,cDist=7;
 const lookT=new THREE.Vector3();
 let locked=false;
@@ -335,7 +284,6 @@ document.addEventListener('keydown',e=>{if(e.key==='Shift'){if(locked)document.e
 document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===renderer.domElement});
 document.addEventListener('mousemove',e=>{if(!locked||player.dodging)return;cTheta-=e.movementX*0.003;cPhi=Math.max(0.3,Math.min(Math.PI-0.3,cPhi-e.movementY*0.003));});
 
-// === INPUT ===
 const K={};
 document.addEventListener('keydown',e=>{
   K[e.key.toLowerCase()]=true;
@@ -367,79 +315,47 @@ function attack(){
   anim();
 }
 
-// === UPDATE (smooth movement) ===
 let prevT=performance.now();
 function update(dt){
   if(dt>0.1)dt=0.1;
-
   if(player.dodging){player.dodgeT-=dt;if(player.dodgeT<=0){player.dodging=false;player.dodgeCD=0.5}}
   if(player.dodgeCD>0)player.dodgeCD-=dt;
   if(player.attacking){player.attackT-=dt;if(player.attackT<=0)player.attacking=false}
   if(player.attackCD>0)player.attackCD-=dt;
-
-  // Sword bob/attack
   if(!player.attacking){
     player.sword.position.set(player.swordBP.x,player.swordBP.y+Math.sin(performance.now()*0.004)*0.04,player.swordBP.z);
     player.sword.rotation.x=0;
   }else player.sword.rotation.x=-Math.sin(player.attackT*10)*1.2;
-
   if(!player.dodging&&player.stamina<player.maxStamina)player.stamina=Math.min(player.maxStamina,player.stamina+8*dt);
-
   if(!player.dodging){
     const spd=5.5,acc=12;
     const f=new THREE.Vector3(-Math.sin(cTheta),0,-Math.cos(cTheta));
     const r=new THREE.Vector3(Math.cos(cTheta),0,-Math.sin(cTheta));
     const md=new THREE.Vector3();
-    if(K['w']||K['arrowup'])md.add(f);
-    if(K['s']||K['arrowdown'])md.sub(f);
-    if(K['a']||K['arrowleft'])md.sub(r);
-    if(K['d']||K['arrowright'])md.add(r);
+    if(K['w'])md.add(f);if(K['s'])md.sub(f);if(K['a'])md.sub(r);if(K['d'])md.add(r);
     if(md.length()>0){md.normalize();player.vel.x+=(md.x*spd-player.vel.x)*Math.min(1,acc*dt);player.vel.z+=(md.z*spd-player.vel.z)*Math.min(1,acc*dt);}
     else{player.vel.x*=Math.max(0,1-10*dt);player.vel.z*=Math.max(0,1-10*dt);}
     if(K[' ']&&player.onGround&&player.stamina>=10){
-      // Smooth jump — accelerate upward instead of instant 7
       if(!player.jumping){player.vel.y=5;player.jumping=true;player.jumpT=0;player.onGround=false;player.stamina-=10;}
       K[' ']=false;
     }
-    // Hold space to jump higher
-    if(player.jumping && (K[' ']||K['space']) && player.jumpT<0.3){
-      player.vel.y+=18*dt;
-      player.jumpT+=dt;
-    }
-    if(!K[' ']&&!K['space']&&player.jumping&&!player.dodging)player.jumping=false;
+    if(player.jumping&&K[' ']&&player.jumpT<0.3){player.vel.y+=18*dt;player.jumpT+=dt;}
+    if(!K[' ']&&player.jumping&&!player.dodging)player.jumping=false;
   }
-
   player.vel.y-=22*dt;
   player.position.x+=player.vel.x*dt;
   player.position.z+=player.vel.z*dt;
-
-  // Perfect ground clamp — every frame, no exceptions
-  const ty=th(player.position.x,player.position.z);
+  const ty=getTerrainHeight(player.position.x,player.position.z);
   const targetY=ty;
   if(!player.dodging && player.vel.y<0.5){
-    // Force lock to ground when not jumping/dodging upward
-    player.position.y=targetY;
-    player.vel.y=0;
-    player.onGround=true;
-    player.jumping=false;
+    player.position.y=targetY;player.vel.y=0;player.onGround=true;player.jumping=false;
   }else if(player.position.y<targetY+0.01){
-    player.position.y=targetY;
-    player.vel.y=0;
-    player.onGround=true;
-  }else{
-    // In air — let gravity work
-    player.onGround=false;
-  }
-  // Always follow terrain height when grounded — this runs every frame
-  if(player.onGround){
-    const newTy=th(player.position.x,player.position.z);
-    player.position.y=newTy+0.5;
-  }
-
+    player.position.y=targetY;player.vel.y=0;player.onGround=true;player.jumping=false;
+  }else player.onGround=false;
+  if(player.onGround){player.position.y=getTerrainHeight(player.position.x,player.position.z);}
   const mx=gs/2-3;
   if(Math.abs(player.position.x)>mx){player.position.x=Math.sign(player.position.x)*mx;player.vel.x*=-0.5}
   if(Math.abs(player.position.z)>mx){player.position.z=Math.sign(player.position.z)*mx;player.vel.z*=-0.5}
-
   if(player.vel.lengthSq()>0.3&&!player.dodging){
     const tr=Math.atan2(player.vel.x,player.vel.z);
     let d=tr-player.rotation.y;
@@ -450,7 +366,7 @@ function update(dt){
 
 function updateCam(){
   const off=new THREE.Vector3(cDist*Math.sin(cTheta)*Math.sin(cPhi),cDist*Math.cos(cPhi),cDist*Math.cos(cTheta)*Math.sin(cPhi));
-  cam.position.lerp(new THREE.Vector3(player.position.x+off.x,player.position.y+off.y,player.position.z+off.z),0.12);
+  cam.position.lerp(new THREE.Vector3(player.position.x+off.x,player.position.y+off.y+0.3,player.position.z+off.z),0.12);
   lookT.lerp(new THREE.Vector3(player.position.x,player.position.y+1.2,player.position.z),0.12);
   cam.lookAt(lookT);
 }
