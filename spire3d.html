@@ -227,11 +227,11 @@ const headMat=new THREE.MeshStandardMaterial({color:0xc8a88a,roughness:0.7,flatS
 const headMesh=new THREE.Mesh(new THREE.SphereGeometry(0.35,6,6),headMat);
 headMesh.position.y=1.2;headMesh.castShadow=true;player.add(headMesh);
 
-const eyeMat=new THREE.MeshStandardMaterial({color:0x1a1a1a,depthWrite:true});
-const eyeL=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,6),eyeMat);
-eyeL.position.set(-0.1,1.28,-0.32);player.add(eyeL);
-const eyeR=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,6),eyeMat);
-eyeR.position.set(0.1,1.28,-0.32);player.add(eyeR);
+const eyeMat=new THREE.MeshStandardMaterial({color:0x000000});
+const eyeL=new THREE.Mesh(new THREE.SphereGeometry(0.07,6,6),eyeMat);
+eyeL.position.set(-0.12,1.28,-0.35);player.add(eyeL);
+const eyeR=new THREE.Mesh(new THREE.SphereGeometry(0.07,6,6),eyeMat);
+eyeR.position.set(0.12,1.28,-0.35);player.add(eyeR);
 
 // Katana on RIGHT side (positive X in local space)
 const swordGrp=new THREE.Group();
@@ -259,11 +259,11 @@ habaki2.position.set(0,0.03,0);swordGrp.add(habaki2);
 
 // Sword at character's right side, upper back area
 // Character faces -Z (back to camera), right side = -X, back = +Z
-swordGrp.position.set(-0.3,1.0,0.35);
-swordGrp.rotation.set(1.0,0.0,-0.5);
+swordGrp.position.set(-0.2,0.7,0.25);
+swordGrp.rotation.set(0.3,0.0,-0.3);
 player.add(swordGrp);
 player.sword=swordGrp;
-player.swordBP=new THREE.Vector3(-0.3,1.0,0.35);
+player.swordBP=new THREE.Vector3(-0.2,0.7,0.25);
 
 // Player state
 player.vel=new THREE.Vector3();
