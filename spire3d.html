@@ -228,16 +228,10 @@ const headMesh=new THREE.Mesh(new THREE.SphereGeometry(0.35,6,6),headMat);
 headMesh.position.y=1.2;headMesh.castShadow=true;player.add(headMesh);
 
 const eyeMat=new THREE.MeshStandardMaterial({color:0x000000});
-// Front eyes
 const eyeL=new THREE.Mesh(new THREE.SphereGeometry(0.07,6,6),eyeMat);
 eyeL.position.set(-0.12,1.28,-0.35);player.add(eyeL);
 const eyeR=new THREE.Mesh(new THREE.SphereGeometry(0.07,6,6),eyeMat);
 eyeR.position.set(0.12,1.28,-0.35);player.add(eyeR);
-// Back eyes (so visible from all angles)
-const eyeLB=new THREE.Mesh(new THREE.SphereGeometry(0.07,6,6),eyeMat);
-eyeLB.position.set(-0.12,1.28,0.35);player.add(eyeLB);
-const eyeRB=new THREE.Mesh(new THREE.SphereGeometry(0.07,6,6),eyeMat);
-eyeRB.position.set(0.12,1.28,0.35);player.add(eyeRB);
 
 // Katana on RIGHT side (positive X in local space)
 const swordGrp=new THREE.Group();
