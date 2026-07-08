@@ -396,7 +396,8 @@ function update(dt){
       player.sword.rotation.y=0.45-swing*0.6;
       const swoosh=Math.sin(swing*Math.PI);
       player.sword.position.set(player.swordBP.x+swoosh*0.05,player.swordBP.y-swoosh*0.1+swoosh*0.15,player.swordBP.z+swoosh*0.08);
-    }
+    } // closes inner else
+  } // closes outer if(!player.attacking) else block
   if(!player.dodging&&player.stamina<player.maxStamina)player.stamina=Math.min(player.maxStamina,player.stamina+8*dt);
   if(!player.dodging){
     const spd=5.5,acc=12;
