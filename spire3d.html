@@ -272,7 +272,7 @@ e2.position.set(0.1,1.7,0.32);player.add(e2);
 // Sword — katana style
 const sMat=new THREE.MeshStandardMaterial({color:0x8899aa,roughness:0.3,metalness:0.7,flatShading:true});
 const shMat=new THREE.MeshStandardMaterial({color:0x1a1a1a,roughness:0.9,metalness:0.0,flatShading:true});
-const gMat=new THREE.MeshStandardMaterial({color:0xccaa44,roughness:0.4,metalness:0.6,flatShading:true});
+const goldMat=new THREE.MeshStandardMaterial({color:0xccaa44,roughness:0.4,metalness:0.6,flatShading:true});
 const tsbMat=new THREE.MeshStandardMaterial({color:0x2a2a3a,roughness:0.5,metalness:0.3,flatShading:true});
 const sg=new THREE.Group();
 // Curved blade — tapered box
@@ -295,8 +295,8 @@ sg.add(handle);
 const tsuba=new THREE.Mesh(new THREE.BoxGeometry(0.25,0.02,0.12),tsbMat);
 tsuba.position.set(0,0,0);sg.add(tsuba);
 // Gold menuki
-const mk1=new THREE.Mesh(new THREE.SphereGeometry(0.025,4,4),gMat);mk1.position.set(0,-0.1,0.05);sg.add(mk1);
-const mk2=new THREE.Mesh(new THREE.SphereGeometry(0.025,4,4),gMat);mk2.position.set(0,-0.2,0.05);sg.add(mk2);
+const mk1=new THREE.Mesh(new THREE.SphereGeometry(0.025,4,4),goldMat);mk1.position.set(0,-0.1,0.05);sg.add(mk1);
+const mk2=new THREE.Mesh(new THREE.SphereGeometry(0.025,4,4),goldMat);mk2.position.set(0,-0.2,0.05);sg.add(mk2);
 // Habaki
 const hbkiMat=new THREE.MeshStandardMaterial({color:0xccbb88,roughness:0.4,metalness:0.4,flatShading:true});
 const hbki=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.05,0.04),hbkiMat);
