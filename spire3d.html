@@ -258,11 +258,11 @@ mk2.position.set(0,-0.2,0.05);swordGrp.add(mk2);
 const habaki2=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.05,0.04),habakiMat2);
 habaki2.position.set(0,0.03,0);swordGrp.add(habaki2);
 
-swordGrp.position.set(0.55,0.7,0.3);
-swordGrp.rotation.set(0,0,-0.2);
+swordGrp.position.set(0.45,0.65,-0.25);
+swordGrp.rotation.set(0.3,0.1,-0.3);
 player.add(swordGrp);
 player.sword=swordGrp;
-player.swordBP=new THREE.Vector3(0.55,0.7,0.3);
+player.swordBP=new THREE.Vector3(0.45,0.65,-0.25);
 
 // Player state
 player.vel=new THREE.Vector3();
@@ -325,8 +325,12 @@ function update(dt){
   if(player.attackCD>0)player.attackCD-=dt;
   if(!player.attacking){
     player.sword.position.set(player.swordBP.x,player.swordBP.y+Math.sin(performance.now()*0.004)*0.04,player.swordBP.z);
-    player.sword.rotation.x=0;
-  }else player.sword.rotation.x=-Math.sin(player.attackT*10)*1.2;
+  }else{
+    // Swing forward — rotate the entire sword group around local Z for a forward slash
+    const swing=Math.sin(player.attackT*10)*1.5;
+    player.sword.rotation.x=0.3+swing*0.2;
+    player.sword.rotation.y=0.1-swing*0.15;
+  }
   if(!player.dodging&&player.stamina<player.maxStamina)player.stamina=Math.min(player.maxStamina,player.stamina+8*dt);
   if(!player.dodging){
     const spd=5.5,acc=12;
