@@ -229,9 +229,9 @@ headMesh.position.y=1.2;headMesh.castShadow=true;player.add(headMesh);
 
 const eyeMat=new THREE.MeshStandardMaterial({color:0x000000});
 const eyeL=new THREE.Mesh(new THREE.SphereGeometry(0.07,6,6),eyeMat);
-eyeL.position.set(-0.12,1.28,-0.35);player.add(eyeL);
+eyeL.position.set(-0.12,1.28,0.35);player.add(eyeL);
 const eyeR=new THREE.Mesh(new THREE.SphereGeometry(0.07,6,6),eyeMat);
-eyeR.position.set(0.12,1.28,-0.35);player.add(eyeR);
+eyeR.position.set(0.12,1.28,0.35);player.add(eyeR);
 
 // Katana on RIGHT side (positive X in local space)
 const swordGrp=new THREE.Group();
@@ -257,12 +257,12 @@ mk2.position.set(0,-0.2,0.05);swordGrp.add(mk2);
 const habaki2=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.05,0.04),habakiMat2);
 habaki2.position.set(0,0.03,0);swordGrp.add(habaki2);
 
-// Sword on character's RIGHT side, blade forward, slightly offset outward
-swordGrp.position.set(-0.45,0.6,0.0);
+// Sword on character's right side (back), blade forward
+swordGrp.position.set(-0.45,0.6,0.25);
 swordGrp.rotation.set(1.5,0.15,0.4);
 player.add(swordGrp);
 player.sword=swordGrp;
-player.swordBP=new THREE.Vector3(-0.45,0.6,0.0);
+player.swordBP=new THREE.Vector3(-0.45,0.6,0.25);
 
 // Player state
 player.vel=new THREE.Vector3();
@@ -428,8 +428,13 @@ function update(dt){
   const mx=gs/2-3;
   if(Math.abs(player.position.x)>mx){player.position.x=Math.sign(player.position.x)*mx;player.vel.x*=-0.5}
   if(Math.abs(player.position.z)>mx){player.position.z=Math.sign(player.position.z)*mx;player.vel.z*=-0.5}
-  // Lock character facing -Z (back always toward camera)
-  player.rotation.y=Math.PI;
+  // Face toward camera = back visible from behind when walking
+  if(player.vel.lengthSq()>0.3&&!player.dodging){
+    const tr=Math.atan2(player.vel.x,player.vel.z);
+    let d=tr-player.rotation.y;
+    while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;
+    player.rotation.y+=d*Math.min(1,8*dt);
+  }
 }
 
 function updateCam(){
