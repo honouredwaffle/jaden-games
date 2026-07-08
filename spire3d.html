@@ -257,11 +257,13 @@ mk2.position.set(0,-0.2,0.05);swordGrp.add(mk2);
 const habaki2=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.05,0.04),habakiMat2);
 habaki2.position.set(0,0.03,0);swordGrp.add(habaki2);
 
-swordGrp.position.set(-0.25,0.95,0.45);
-swordGrp.rotation.set(0.5,-0.1,-0.3);
+// Sword at character's right side, upper back area
+// Character faces -Z (back to camera), right side = -X, back = +Z
+swordGrp.position.set(-0.3,1.0,0.35);
+swordGrp.rotation.set(1.0,0.0,-0.5);
 player.add(swordGrp);
 player.sword=swordGrp;
-player.swordBP=new THREE.Vector3(-0.25,0.95,0.45);
+player.swordBP=new THREE.Vector3(-0.3,1.0,0.35);
 
 // Player state
 player.vel=new THREE.Vector3();
