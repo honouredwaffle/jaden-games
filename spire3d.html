@@ -211,16 +211,16 @@ const player=new THREE.Group();
 // Build character from feet up, origin at foot level
 const legMat=new THREE.MeshStandardMaterial({color:0x1a2a3a,roughness:0.7,flatShading:true});
 for(const s of[-0.18,0.18]){
-  const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.12,0.5,4),legMat);
-  leg.position.set(s,0.25,0);leg.castShadow=true;player.add(leg);
+  const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.12,0.68,4),legMat);
+  leg.position.set(s,0.34,0);leg.castShadow=true;player.add(leg);
 }
 
 const torsoMat=new THREE.MeshStandardMaterial({color:0x2a4a6a,roughness:0.6,flatShading:true});
-const torso=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.55,0.8,6),torsoMat);
+const torso=new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.4,0.8,6),torsoMat);
 torso.position.y=0.75;torso.castShadow=true;player.add(torso);
 
 const cloakMat=new THREE.MeshStandardMaterial({color:0x6a5a4a,roughness:0.8,flatShading:true});
-const cloak=new THREE.Mesh(new THREE.CylinderGeometry(0.7,0.8,0.4,6),cloakMat);
+const cloak=new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.6,0.4,6),cloakMat);
 cloak.position.y=0.45;player.add(cloak);
 
 const headMat=new THREE.MeshStandardMaterial({color:0xc8a88a,roughness:0.7,flatShading:true});
