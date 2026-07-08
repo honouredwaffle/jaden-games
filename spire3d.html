@@ -219,8 +219,9 @@ const torsoMat=new THREE.MeshStandardMaterial({color:0x2a4a6a,roughness:0.6,flat
 const torso=new THREE.Mesh(new THREE.CylinderGeometry(0.35,0.4,0.8,6),torsoMat);
 torso.position.y=0.75;torso.castShadow=true;player.add(torso);
 
-const cloakMat=new THREE.MeshStandardMaterial({color:0x6a5a4a,roughness:0.8,flatShading:true});
-const cloak=new THREE.Mesh(new THREE.CylinderGeometry(0.55,0.6,0.4,6),cloakMat);
+const pantsMat=new THREE.MeshStandardMaterial({color:0x1a2a3a,roughness:0.7,flatShading:true});
+const pants=new THREE.Mesh(new THREE.CylinderGeometry(0.32,0.38,0.35,6),pantsMat);
+pants.position.y=0.45;player.add(pants);
 cloak.position.y=0.45;player.add(cloak);
 
 const headMat=new THREE.MeshStandardMaterial({color:0xc8a88a,roughness:0.7,flatShading:true});
