@@ -382,11 +382,21 @@ function update(dt){
   if(!player.attacking){
     player.sword.position.set(player.swordBP.x,player.swordBP.y+Math.sin(performance.now()*0.004)*0.04,player.swordBP.z);
   }else{
-    // Swing forward — rotate the entire sword group around local Z for a forward slash
-    const swing=Math.sin(player.attackT*10)*1.5;
-    player.sword.rotation.x=0.3+swing*0.2;
-    player.sword.rotation.y=0.1-swing*0.15;
-  }
+    // Overhand slash animation — wind back then swing forward
+    const progress=1-player.attackT/0.25; // 0 to 1 over the attack duration
+    // Wind back first 30%, then swing the rest
+    if(progress<0.3){
+      const wind=progress/0.3;
+      player.sword.rotation.x=1.5-wind*0.8; // pull back
+      player.sword.rotation.y=0.15+wind*0.3;
+      player.sword.position.set(player.swordBP.x-wind*0.08,player.swordBP.y+wind*0.1,player.swordBP.z-wind*0.05);
+    }else{
+      const swing=(progress-0.3)/0.7;
+      player.sword.rotation.x=0.7-swing*1.5; // swing through
+      player.sword.rotation.y=0.45-swing*0.6;
+      const swoosh=Math.sin(swing*Math.PI);
+      player.sword.position.set(player.swordBP.x+swoosh*0.05,player.swordBP.y-swoosh*0.1+swoosh*0.15,player.swordBP.z+swoosh*0.08);
+    }
   if(!player.dodging&&player.stamina<player.maxStamina)player.stamina=Math.min(player.maxStamina,player.stamina+8*dt);
   if(!player.dodging){
     const spd=5.5,acc=12;
