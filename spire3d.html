@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Spire 3D</title>
+<style>
+* { margin: 0; padding: 0; overflow: hidden; }
+body { background: #000; }
+canvas { display: block; }
+#ui {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  color: #ffd7a0; font-family: monospace; font-size: 14px;
+  text-align: center; background: rgba(0,0,0,0.5); padding: 8px 16px;
+  border-radius: 8px; pointer-events: none;
+}
+#health-bar {
+  position: fixed; top: 30px; left: 30px; width: 200px; height: 16px;
+  background: rgba(0,0,0,0.6); border-radius: 8px; border: 1px solid #ff6b35;
+  overflow: hidden;
+}
+#health-fill {
+  width: 100%; height: 100%; background: linear-gradient(90deg, #ff4444, #ff6b35);
+  border-radius: 8px; transition: width 0.3s;
+}
+#hp-label {
+  position: fixed; top: 12px; left: 30px; color: #ffd7a0;
+  font-family: monospace; font-size: 12px;
+}
+</style>
+</head>
+<body>
+<div id="ui">WASD move | Mouse look | Click slash | E dodge | Explore!</div>
+<div id="hp-label">HP</div>
+<div id="health-bar"><div id="health-fill"></div></div>
+
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"
+  }
+}
+</script>
+
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+// --- SETUP ---
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87CEEB);
+scene.fog = new THREE.Fog(0x87CEEB, 80, 150);
+
+const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 200);
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.toneMappingExposure = 1.2;
+document.body.appendChild(renderer.domElement);
+
+// --- LIGHTS ---
+const sun = new THREE.DirectionalLight(0xffeebb, 2);
+sun.position.set(50, 80, 30);
+sun.castShadow = true;
+sun.shadow.mapSize.width = 2048;
+sun.shadow.mapSize.height = 2048;
+sun.shadow.camera.near = 1;
+sun.shadow.camera.far = 150;
+sun.shadow.camera.left = -60;
+sun.shadow.camera.right = 60;
+sun.shadow.camera.top = 60;
+sun.shadow.camera.bottom = -60;
+scene.add(sun);
+
+const ambient = new THREE.AmbientLight(0x445566, 0.4);
+scene.add(ambient);
+
+const fill = new THREE.DirectionalLight(0x88bbff, 0.3);
+fill.position.set(-30, 20, -30);
+scene.add(fill);
+
+// --- DESERT TERRAIN ---
+const terrainSize = 120;
+const segments = 80;
+const geo = new THREE.PlaneGeometry(terrainSize, terrainSize, segments, segments);
+geo.rotateX(-Math.PI / 2);
+
+const pos = geo.attributes.position;
+for (let i = 0; i < pos.count; i++) {
+  const x = pos.getX(i);
+  const z = pos.getZ(i);
+  let y = 0;
+  // Sand dunes
+  y += Math.sin(x * 0.08) * Math.cos(z * 0.1) * 2.5;
+  y += Math.sin(x * 0.15 + z * 0.12) * 1.5;
+  y += Math.sin(x * 0.05 + 1.3) * Math.cos(z * 0.07 + 0.7) * 1.8;
+  // Flatten center spawning area
+  const dist = Math.sqrt(x * x + z * z);
+  if (dist < 6) y *= Math.max(0, (dist - 2) / 4);
+  pos.setY(i, y);
+}
+geo.computeVertexNormals();
+
+const sandMat = new THREE.MeshStandardMaterial({
+  color: 0xd4a76a,
+  roughness: 0.9,
+  metalness: 0.0,
+  flatShading: true,
+});
+const terrain = new THREE.Mesh(geo, sandMat);
+terrain.receiveShadow = true;
+terrain.position.y = -0.5;
+scene.add(terrain);
+
+// Add subtle colour variation (slightly greener/darker patches)
+const sandMat2 = new THREE.MeshStandardMaterial({
+  color: 0xc99b5c,
+  roughness: 0.9,
+  metalness: 0.0,
+  flatShading: true,
+});
+
+// --- RUINS (low-poly pillars and arches) ---
+function createRuins() {
+  const ruinPositions = [
+    { x: -15, z: -12 }, { x: 18, z: -8 }, { x: -20, z: 15 },
+    { x: 22, z: 20 }, { x: -8, z: -25 }, { x: 30, z: -18 },
+  ];
+  const stoneMat = new THREE.MeshStandardMaterial({
+    color: 0x8a7a6a, roughness: 0.8, metalness: 0.1, flatShading: true,
+  });
+  const stoneMatDark = new THREE.MeshStandardMaterial({
+    color: 0x6a5a4a, roughness: 0.9, metalness: 0.0, flatShading: true,
+  });
+
+  for (const rp of ruinPositions) {
+    const group = new THREE.Group();
+    group.position.set(rp.x, 0, rp.z);
+    const rot = Math.random() * Math.PI * 2;
+    group.rotation.y = rot;
+
+    // Main pillar
+    const h = 1.5 + Math.random() * 2;
+    const pillar = new THREE.Mesh(new THREE.BoxGeometry(1.2, h, 1.2), stoneMat);
+    pillar.position.y = h / 2;
+    pillar.castShadow = true;
+    pillar.receiveShadow = true;
+    group.add(pillar);
+
+    // Top block
+    const top = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.3, 1.8), stoneMatDark);
+    top.position.y = h + 0.15;
+    top.castShadow = true;
+    top.receiveShadow = true;
+    group.add(top);
+
+    // Fallen blocks nearby
+    const fallCount = 1 + Math.floor(Math.random() * 3);
+    for (let i = 0; i < fallCount; i++) {
+      const fb = new THREE.Mesh(
+        new THREE.BoxGeometry(0.5 + Math.random() * 0.8, 0.2 + Math.random() * 0.4, 0.5 + Math.random() * 0.8),
+        stoneMatDark
+      );
+      const angle = Math.random() * Math.PI * 2;
+      const dist = 1 + Math.random() * 2.5;
+      fb.position.set(Math.cos(angle) * dist, 0.1, Math.sin(angle) * dist);
+      fb.rotation.x = (Math.random() - 0.5) * 0.5;
+      fb.rotation.z = (Math.random() - 0.5) * 0.5;
+      fb.castShadow = true;
+      fb.receiveShadow = true;
+      group.add(fb);
+    }
+    scene.add(group);
+  }
+}
+createRuins();
+
+// --- ROCK FORMATIONS ---
+function createRocks() {
+  const rockMat = new THREE.MeshStandardMaterial({
+    color: 0x7a6a5a, roughness: 0.9, metalness: 0.0, flatShading: true,
+  });
+  const rockMat2 = new THREE.MeshStandardMaterial({
+    color: 0x8a7a5a, roughness: 0.8, metalness: 0.0, flatShading: true,
+  });
+
+  for (let i = 0; i < 40; i++) {
+    const angle = Math.random() * Math.PI * 2;
+    const dist = 10 + Math.random() * 45;
+    const x = Math.cos(angle) * dist;
+    const z = Math.sin(angle) * dist;
+
+    const scale = 0.5 + Math.random() * 1.5;
+    const rock = new THREE.Mesh(
+      new THREE.DodecahedronGeometry(scale, 0),
+      Math.random() > 0.5 ? rockMat : rockMat2
+    );
+    rock.position.set(x, 0, z);
+    rock.rotation.set(Math.random() * 6, Math.random() * 6, Math.random() * 6);
+    rock.scale.set(1, 0.6 + Math.random() * 0.8, 0.8 + Math.random() * 0.6);
+    rock.castShadow = true;
+    rock.receiveShadow = true;
+
+    // Height from terrain
+    const tx = Math.floor((x / terrainSize + 0.5) * segments);
+    const tz = Math.floor((z / terrainSize + 0.5) * segments);
+    const idx = tz * (segments + 1) + tx;
+    if (idx < pos.count && idx >= 0) {
+      rock.position.y = pos.getY(idx) + scale * 0.3;
+    }
+
+    scene.add(rock);
+  }
+}
+createRocks();
+
+// --- OASIS ---
+function createOasis() {
+  const oasisMat = new THREE.MeshStandardMaterial({
+    color: 0x4a8a9a, roughness: 0.3, metalness: 0.2,
+    transparent: true, opacity: 0.8,
+  });
+  const oasis = new THREE.Mesh(new THREE.CircleGeometry(4, 24), oasisMat);
+  oasis.rotation.x = -Math.PI / 2;
+  oasis.position.set(-25, 0.1, 20);
+  oasis.receiveShadow = true;
+  scene.add(oasis);
+
+  // Palm trees (simple low-poly)
+  const trunkMat = new THREE.MeshStandardMaterial({ color: 0x5a3a1a, roughness: 0.9, flatShading: true });
+  const leafMat = new THREE.MeshStandardMaterial({ color: 0x2a7a3a, roughness: 0.8, flatShading: true });
+  const leafMatLight = new THREE.MeshStandardMaterial({ color: 0x3a9a4a, roughness: 0.8, flatShading: true });
+
+  const palmPos = [
+    [-22, 22], [-28, 18], [-22, 16], [-30, 24], [-27, 21]
+  ];
+  for (const [px, pz] of palmPos) {
+    const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.3, 2 + Math.random()), trunkMat);
+    trunk.position.set(px, 1, pz);
+    trunk.rotation.z = (Math.random() - 0.5) * 0.15;
+    trunk.rotation.x = (Math.random() - 0.5) * 0.15;
+    trunk.castShadow = true;
+    scene.add(trunk);
+
+    // Fronds
+    for (let f = 0; f < 5; f++) {
+      const frond = new THREE.Mesh(
+        new THREE.ConeGeometry(0.8, 0.1, 4),
+        Math.random() > 0.5 ? leafMat : leafMatLight
+      );
+      const a = (f / 5) * Math.PI * 2 + Math.random() * 0.5;
+      frond.position.set(px + Math.cos(a) * 0.6, 2.5 + Math.random() * 0.3, pz + Math.sin(a) * 0.6);
+      frond.rotation.x = Math.cos(a) * 0.5;
+      frond.rotation.z = Math.sin(a) * 0.5;
+      scene.add(frond);
+    }
+  }
+}
+createOasis();
+
+// --- DISTANT SPIRE (landmark) ---
+function createSpire() {
+  const spireMat = new THREE.MeshStandardMaterial({
+    color: 0x4a3a2a, roughness: 0.7, metalness: 0.2, flatShading: true,
+  });
+  const spireMat2 = new THREE.MeshStandardMaterial({
+    color: 0x3a2a1a, roughness: 0.8, metalness: 0.1, flatShading: true,
+  });
+
+  // Need to get terrain height at the spire position
+  const sx = 35, sz = -25;
+  const stx = Math.floor((sx / terrainSize + 0.5) * segments);
+  const stz = Math.floor((sz / terrainSize + 0.5) * segments);
+  let sy = 0;
+  const sidx = stz * (segments + 1) + stx;
+  if (sidx < pos.count && sidx >= 0) sy = pos.getY(sidx);
+
+  // Base
+  const base = new THREE.Mesh(new THREE.CylinderGeometry(2.5, 3.5, 1, 6), spireMat2);
+  base.position.set(sx, sy + 0.5, sz);
+  base.castShadow = true;
+  base.receiveShadow = true;
+  scene.add(base);
+
+  // Main spire body - tapered
+  const body = new THREE.Mesh(new THREE.CylinderGeometry(0.8, 2, 6, 8), spireMat);
+  body.position.set(sx, sy + 3.5, sz);
+  body.castShadow = true;
+  body.receiveShadow = true;
+  scene.add(body);
+
+  // Top
+  const top = new THREE.Mesh(new THREE.ConeGeometry(0.6, 1.5, 6), spireMat2);
+  top.position.set(sx, sy + 7.5, sz);
+  top.castShadow = true;
+  top.receiveShadow = true;
+  scene.add(top);
+
+  // Glowing orb at top
+  const glowMat = new THREE.MeshStandardMaterial({
+    color: 0xff8844, emissive: 0xff6633, emissiveIntensity: 0.5,
+  });
+  const orb = new THREE.Mesh(new THREE.SphereGeometry(0.4, 8, 8), glowMat);
+  orb.position.set(sx, sy + 8.5, sz);
+  scene.add(orb);
+
+  // Point light from spire
+  const spireLight = new THREE.PointLight(0xff8844, 0.3, 15);
+  spireLight.position.set(sx, sy + 8, sz);
+  scene.add(spireLight);
+}
+createSpire();
+
+// --- SKYBOX (simple gradient - cloud wisps) ---
+function createClouds() {
+  const cloudMat = new THREE.MeshStandardMaterial({
+    color: 0xffffff, transparent: true, opacity: 0.3,
+    roughness: 1, metalness: 0, depthWrite: false,
+  });
+  for (let i = 0; i < 20; i++) {
+    const c = new THREE.Mesh(
+      new THREE.SphereGeometry(3 + Math.random() * 6, 6, 6),
+      cloudMat
+    );
+    c.position.set(
+      (Math.random() - 0.5) * 140,
+      25 + Math.random() * 15,
+      (Math.random() - 0.5) * 140
+    );
+    c.scale.y = 0.3;
+    scene.add(c);
+  }
+}
+createClouds();
+
+// --- PLAYER ---
+const player = new THREE.Group();
+
+// Body
+const bodyMat = new THREE.MeshStandardMaterial({ color: 0x2a4a6a, roughness: 0.6, flatShading: true });
+const body = new THREE.Mesh(new THREE.CylinderGeometry(0.6, 0.7, 1.2, 6), bodyMat);
+body.position.y = 1.0;
+body.castShadow = true;
+player.add(body);
+
+// Head
+const headMat = new THREE.MeshStandardMaterial({ color: 0xe8c89a, roughness: 0.7, flatShading: true });
+const head = new THREE.Mesh(new THREE.SphereGeometry(0.4, 6, 6), headMat);
+head.position.y = 1.8;
+head.castShadow = true;
+player.add(head);
+
+// Sword (right arm area)
+const swordMat = new THREE.MeshStandardMaterial({ color: 0x888899, roughness: 0.4, metalness: 0.6, flatShading: true });
+const handleMat = new THREE.MeshStandardMaterial({ color: 0x3a2a1a, roughness: 0.8, flatShading: true });
+const swordGroup = new THREE.Group();
+
+const handle = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.08, 0.4, 4), handleMat);
+handle.rotation.x = Math.PI / 4;
+handle.position.set(0, 0, 0);
+swordGroup.add(handle);
+
+const blade = new THREE.Mesh(new THREE.BoxGeometry(0.05, 0.8, 0.15), swordMat);
+blade.position.set(0, 0.6, 0);
+blade.rotation.x = Math.PI / 4;
+swordGroup.add(blade);
+
+// Guard
+const guard = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.05, 0.1), handleMat);
+guard.position.set(0, 0.15, 0);
+swordGroup.add(guard);
+
+swordGroup.position.set(0.6, 0.8, 0.3);
+player.add(swordGroup);
+player.sword = swordGroup;
+
+// Legs
+const legMat = new THREE.MeshStandardMaterial({ color: 0x1a2a3a, roughness: 0.7, flatShading: true });
+for (const side of [-0.2, 0.2]) {
+  const leg = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.15, 0.5, 4), legMat);
+  leg.position.set(side, 0.25, 0);
+  leg.castShadow = true;
+  player.add(leg);
+}
+
+// Name tag (billboard)
+const canvas = document.createElement('canvas');
+canvas.width = 128;
+canvas.height = 64;
+const ctx = canvas.getContext('2d');
+ctx.fillStyle = 'rgba(0,0,0,0)';
+ctx.fillRect(0, 0, 128, 64);
+ctx.font = 'bold 28px monospace';
+ctx.fillStyle = '#ffd7a0';
+ctx.textAlign = 'center';
+ctx.fillText('Jaden', 64, 40);
+
+const nameTex = new THREE.CanvasTexture(canvas);
+const nameMat = new THREE.SpriteMaterial({ map: nameTex, transparent: true, depthTest: false });
+const nameTag = new THREE.Sprite(nameMat);
+nameTag.position.y = 2.4;
+nameTag.scale.set(1.2, 0.6, 1);
+player.add(nameTag);
+
+// Player physics state
+player.velocity = new THREE.Vector3();
+player.onGround = true;
+player.hp = 100;
+player.maxHp = 100;
+player.isAttacking = false;
+player.attackTimer = 0;
+player.attackCooldown = 0;
+player.isDodging = false;
+player.dodgeTimer = 0;
+player.dodgeCooldown = 0;
+player.canDoubleJump = true;
+player.hasDoubleJumped = false;
+
+// Start position - center-ish
+const spawnX = 0, spawnZ = 0;
+const stx2 = Math.floor((spawnX / terrainSize + 0.5) * segments);
+const stz2 = Math.floor((spawnZ / terrainSize + 0.5) * segments);
+const sidx2 = stz2 * (segments + 1) + stx2;
+let spawnY = 0;
+if (sidx2 < pos.count && sidx2 >= 0) spawnY = pos.getY(sidx2);
+
+player.position.set(spawnX, spawnY + 0.5, spawnZ);
+scene.add(player);
+
+// --- CAMERA CONTROLS (orbital) ---
+let camTheta = 0;
+let camPhi = Math.PI / 3.5;
+const camDist = 8;
+const camSmooth = new THREE.Vector3();
+let lookTarget = new THREE.Vector3();
+
+// Mouse lock
+let isLocked = false;
+document.addEventListener('click', () => {
+  if (!isLocked) {
+    renderer.domElement.requestPointerLock();
+  }
+});
+
+document.addEventListener('pointerlockchange', () => {
+  isLocked = document.pointerLockElement === renderer.domElement;
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!isLocked) return;
+  if (player.isDodging) return;
+  const sens = 0.003;
+  camTheta -= e.movementX * sens;
+  camPhi = Math.max(0.3, Math.min(Math.PI - 0.3, camPhi - e.movementY * sens));
+});
+
+// --- INPUT ---
+const keys = {};
+document.addEventListener('keydown', (e) => {
+  keys[e.key.toLowerCase()] = true;
+  if (e.key.toLowerCase() === 'e' && !player.isDodging && player.dodgeCooldown <= 0) {
+    startDodge();
+  }
+});
+document.addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+
+renderer.domElement.addEventListener('mousedown', (e) => {
+  if (e.button === 0 && isLocked && !player.isAttacking && player.attackCooldown <= 0) {
+    startAttack();
+  }
+});
+
+// --- DODGE ---
+function startDodge() {
+  player.isDodging = true;
+  player.dodgeTimer = 0.4;
+
+  // Direction based on movement input, or forward
+  const forward = new THREE.Vector3(-Math.sin(camTheta), 0, -Math.cos(camTheta));
+  const right = new THREE.Vector3(Math.cos(camTheta), 0, -Math.sin(camTheta));
+  let dir = new THREE.Vector3();
+  if (keys['w'] || keys['arrowup']) dir.add(forward);
+  if (keys['s'] || keys['arrowdown']) dir.sub(forward);
+  if (keys['a'] || keys['arrowleft']) dir.sub(right);
+  if (keys['d'] || keys['arrowright']) dir.add(right);
+  if (dir.length() < 0.1) dir.copy(forward);
+  dir.normalize();
+  player.velocity.copy(dir.multiplyScalar(12));
+  player.velocity.y = 2;
+}
+
+// --- ATTACK ---
+function startAttack() {
+  player.isAttacking = true;
+  player.attackTimer = 0.3;
+  player.attackCooldown = 0.4;
+
+  // Flash effect
+  const slashMat = new THREE.MeshBasicMaterial({
+    color: 0xffffff, transparent: true, opacity: 0.8,
+    side: THREE.DoubleSide, depthWrite: false,
+  });
+  const slash = new THREE.Mesh(new THREE.PlaneGeometry(1.5, 0.3), slashMat);
+
+  // Position in front of player
+  const forward = new THREE.Vector3(-Math.sin(camTheta), 0.5, -Math.cos(camTheta));
+  slash.position.copy(player.position);
+  slash.position.add(forward.multiplyScalar(2));
+  slash.position.y += 1.2;
+  slash.lookAt(camera.position);
+  slash.rotation.z = Math.random() * 0.5;
+  scene.add(slash);
+
+  // Animate and remove
+  let t = 0;
+  const animateSlash = () => {
+    t += 0.02;
+    slash.scale.x = 1 + t * 5;
+    slash.material.opacity = Math.max(0, 0.8 - t * 2);
+    if (t > 0.5) {
+      scene.remove(slash);
+      return;
+    }
+    requestAnimationFrame(animateSlash);
+  };
+  animateSlash();
+}
+
+// --- UPDATE ---
+function updatePlayer(dt) {
+  if (dt > 0.1) dt = 0.1;
+
+  // Dodge state
+  if (player.isDodging) {
+    player.dodgeTimer -= dt;
+    if (player.dodgeTimer <= 0) {
+      player.isDodging = false;
+      player.dodgeCooldown = 0.6;
+    }
+  }
+  if (player.dodgeCooldown > 0) player.dodgeCooldown -= dt;
+
+  // Attack state
+  if (player.isAttacking) {
+    player.attackTimer -= dt;
+    if (player.attackTimer <= 0) {
+      player.isAttacking = false;
+    }
+    // Sword animation
+    const swing = Math.sin(player.attackTimer * 8) * 0.8;
+    player.sword.rotation.x = -swing;
+  }
+  if (player.attackCooldown > 0) player.attackCooldown -= dt;
+
+  if (player.isDodging) {
+    // During dodge, just apply velocity, no input
+  } else {
+    // Movement
+    const speed = 5;
+    const accel = 12;
+    const forward = new THREE.Vector3(-Math.sin(camTheta), 0, -Math.cos(camTheta));
+    const right = new THREE.Vector3(Math.cos(camTheta), 0, -Math.sin(camTheta));
+
+    const moveDir = new THREE.Vector3();
+    if (keys['w'] || keys['arrowup']) moveDir.add(forward);
+    if (keys['s'] || keys['arrowdown']) moveDir.sub(forward);
+    if (keys['a'] || keys['arrowleft']) moveDir.sub(right);
+    if (keys['d'] || keys['arrowright']) moveDir.add(right);
+
+    if (moveDir.length() > 0) {
+      moveDir.normalize();
+      player.velocity.x += (moveDir.x * speed - player.velocity.x) * Math.min(1, accel * dt);
+      player.velocity.z += (moveDir.z * speed - player.velocity.z) * Math.min(1, accel * dt);
+    } else {
+      player.velocity.x *= Math.max(0, 1 - 8 * dt);
+      player.velocity.z *= Math.max(0, 1 - 8 * dt);
+    }
+
+    // Jump
+    if ((keys[' '] || keys['space'])) {
+      if (player.onGround) {
+        player.velocity.y = 6;
+        player.onGround = false;
+        player.hasDoubleJumped = false;
+        keys[' '] = false;
+        keys['space'] = false;
+      } else if (!player.hasDoubleJumped) {
+        player.velocity.y = 5;
+        player.hasDoubleJumped = true;
+        keys[' '] = false;
+        keys['space'] = false;
+      }
+    }
+  }
+
+  // Gravity
+  player.velocity.y -= 20 * dt;
+
+  // Move
+  player.position.x += player.velocity.x * dt;
+  player.position.z += player.velocity.z * dt;
+  player.position.y += player.velocity.y * dt;
+
+  // Clamp to terrain
+  const tx = Math.floor(((player.position.x) / terrainSize + 0.5) * segments);
+  const tz = Math.floor(((player.position.z) / terrainSize + 0.5) * segments);
+  const idx2d = tz * (segments + 1) + tx;
+
+  let terrainY = -10;
+  if (idx2d >= 0 && idx2d < pos.count) {
+    terrainY = pos.getY(idx2d);
+  }
+
+  if (player.position.y < terrainY + 0.5) {
+    player.position.y = terrainY + 0.5;
+    player.velocity.y = 0;
+    player.onGround = true;
+    player.hasDoubleJumped = false;
+  } else {
+    player.onGround = false;
+  }
+
+  // Keep in bounds
+  const maxDist = terrainSize / 2 - 2;
+  if (Math.abs(player.position.x) > maxDist) {
+    player.position.x = Math.sign(player.position.x) * maxDist;
+    player.velocity.x *= -0.5;
+  }
+  if (Math.abs(player.position.z) > maxDist) {
+    player.position.z = Math.sign(player.position.z) * maxDist;
+    player.velocity.z *= -0.5;
+  }
+
+  // Rotate player to face movement direction
+  if (player.velocity.lengthSq() > 0.5 && !player.isDodging) {
+    const targetRot = Math.atan2(player.velocity.x, player.velocity.z);
+    let diff = targetRot - player.rotation.y;
+    while (diff > Math.PI) diff -= Math.PI * 2;
+    while (diff < -Math.PI) diff += Math.PI * 2;
+    player.rotation.y += diff * Math.min(1, 8 * dt);
+  }
+}
+
+// --- CAMERA UPDATE ---
+function updateCamera() {
+  const offset = new THREE.Vector3(
+    camDist * Math.sin(camTheta) * Math.sin(camPhi),
+    camDist * Math.cos(camPhi),
+    camDist * Math.cos(camTheta) * Math.sin(camPhi)
+  );
+  camera.position.lerp(
+    new THREE.Vector3(player.position.x + offset.x, player.position.y + offset.y, player.position.z + offset.z),
+    0.15
+  );
+  lookTarget.lerp(
+    new THREE.Vector3(player.position.x, player.position.y + 1.2, player.position.z),
+    0.15
+  );
+  camera.lookAt(lookTarget);
+}
+
+// --- HP SYSTEM ---
+function updateHP() {
+  const fill = document.getElementById('health-fill');
+  fill.style.width = Math.max(0, (player.hp / player.maxHp) * 100) + '%';
+  if (player.hp <= 30) fill.style.background = 'linear-gradient(90deg, #ff2222, #ff5500)';
+  else if (player.hp <= 60) fill.style.background = 'linear-gradient(90deg, #ff8800, #ffbb00)';
+  else fill.style.background = 'linear-gradient(90deg, #44bb44, #66ee66)';
+}
+
+// --- GAME LOOP ---
+let prevTime = performance.now();
+
+function animate() {
+  requestAnimationFrame(animate);
+  const now = performance.now();
+  const dt = (now - prevTime) / 1000;
+  prevTime = now;
+
+  updatePlayer(dt);
+  updateCamera();
+  updateHP();
+
+  renderer.render(scene, camera);
+}
+animate();
+
+// --- RESIZE ---
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+
+// Minor fall damage for testing
+// (can add enemies later that damage the player)
+console.log('Spire 3D loaded! WASD to move, click to attack, E to dodge.');
+</script>
+</body>
+</html>
