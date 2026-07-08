@@ -229,9 +229,9 @@ headMesh.position.y=1.2;headMesh.castShadow=true;player.add(headMesh);
 
 const eyeMat=new THREE.MeshStandardMaterial({color:0x1a1a1a,depthWrite:true});
 const eyeL=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,6),eyeMat);
-eyeL.position.set(-0.1,1.28,0.32);player.add(eyeL);
+eyeL.position.set(-0.1,1.28,-0.32);player.add(eyeL);
 const eyeR=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,6),eyeMat);
-eyeR.position.set(0.1,1.28,0.32);player.add(eyeR);
+eyeR.position.set(0.1,1.28,-0.32);player.add(eyeR);
 
 // Katana on RIGHT side (positive X in local space)
 const swordGrp=new THREE.Group();
