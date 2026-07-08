@@ -253,7 +253,7 @@ const player=new THREE.Group();
 // Body
 const bm=new THREE.MeshStandardMaterial({color:0x2a4a6a,roughness:0.6,metalness:0.1,flatShading:true});
 const body=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.6,1.1,6),bm);
-body.position.y=0.9;body.castShadow=true;player.add(body);
+body.position.y=1.1;body.castShadow=true;player.add(body);
 
 const cm=new THREE.MeshStandardMaterial({color:0x6a5a4a,roughness:0.8,flatShading:true});
 const cloak=new THREE.Mesh(new THREE.CylinderGeometry(0.7,0.85,0.4,6),cm);
@@ -286,8 +286,8 @@ player.swordBP=new THREE.Vector3(0.55,0.65,0.3);
 // Legs — longer
 const lm=new THREE.MeshStandardMaterial({color:0x1a2a3a,roughness:0.7,flatShading:true});
 for(const s of[-0.18,0.18]){
-  const l=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.13,0.6,4),lm);
-  l.position.set(s,0.3,0);l.castShadow=true;player.add(l);
+  const l=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.13,1.0,4),lm);
+  l.position.set(s,0.5,0);l.castShadow=true;player.add(l);
 }
 
 // State
