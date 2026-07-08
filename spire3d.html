@@ -34,7 +34,7 @@ canvas{display:block}
 <div id="hp-label">HP</div>
 <div id="hp-bar"><div id="hp-fill"></div></div>
 <div id="stamina-bar"><div id="stamina-fill"></div></div>
-<div id="ui">WASD · Space jump · Click attack · E dodge</div>
+<div id="ui">WASD move · Space jump · Click attack · E dodge · <b>Shift</b> lock mouse</div>
 
 <script type="importmap">
 {"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.160.0/examples/jsm/"}}
@@ -343,8 +343,25 @@ scene.add(player);
 let cTheta=0,cPhi=Math.PI/3.2,cDist=7;
 const lookT=new THREE.Vector3();
 let locked=false;
-renderer.domElement.addEventListener('click',()=>{if(!locked)renderer.domElement.requestPointerLock()});
-document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===renderer.domElement});
+// Shift to toggle pointer lock (free cam by default)
+document.addEventListener('keydown',e=>{
+  if(e.key==='Shift'){
+    if(locked){
+      document.exitPointerLock();
+      locked=false;
+    }else{
+      renderer.domElement.requestPointerLock();
+    }
+  }
+});
+document.addEventListener('keyup',e=>{
+  if(e.key==='Shift'){
+    // release only exits on keydown, not keyup
+  }
+});
+document.addEventListener('pointerlockchange',()=>{
+  locked=document.pointerLockElement===renderer.domElement;
+});
 document.addEventListener('mousemove',e=>{
   if(!locked||player.dodging)return;
   cTheta-=e.movementX*0.003;
