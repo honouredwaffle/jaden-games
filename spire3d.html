@@ -229,9 +229,9 @@ headMesh.position.y=1.2;headMesh.castShadow=true;player.add(headMesh);
 
 const eyeMat=new THREE.MeshStandardMaterial({color:0x000000});
 const eyeL=new THREE.Mesh(new THREE.SphereGeometry(0.07,6,6),eyeMat);
-eyeL.position.set(-0.12,1.28,0.35);player.add(eyeL);
+eyeL.position.set(-0.12,1.28,-0.35);player.add(eyeL);
 const eyeR=new THREE.Mesh(new THREE.SphereGeometry(0.07,6,6),eyeMat);
-eyeR.position.set(0.12,1.28,0.35);player.add(eyeR);
+eyeR.position.set(0.12,1.28,-0.35);player.add(eyeR);
 
 // Katana on RIGHT side (positive X in local space)
 const swordGrp=new THREE.Group();
@@ -258,11 +258,11 @@ const habaki2=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.05,0.04),habakiMat2);
 habaki2.position.set(0,0.03,0);swordGrp.add(habaki2);
 
 // Sword on character's right side (back), blade forward
-swordGrp.position.set(-0.45,0.6,0.25);
-swordGrp.rotation.set(1.5,0.15,0.4);
+swordGrp.position.set(0.45,0.6,-0.25);
+swordGrp.rotation.set(1.5,-0.15,-0.4);
 player.add(swordGrp);
 player.sword=swordGrp;
-player.swordBP=new THREE.Vector3(-0.45,0.6,0.25);
+player.swordBP=new THREE.Vector3(0.45,0.6,-0.25);
 
 // Player state
 player.vel=new THREE.Vector3();
@@ -271,7 +271,7 @@ player.hp=100;player.maxHp=100;
 player.stamina=100;player.maxStamina=100;
 player.attacking=false;player.attackT=0;player.attackCD=0;
 player.dodging=false;player.dodgeT=0;player.dodgeCD=0;
-player.jumping=false;player.jumpT=0;
+player.jumpT=0;
 
 player.position.set(0,getTerrainHeight(0,0),0);
 scene.add(player);
@@ -407,24 +407,20 @@ function update(dt){
     if(K['w'])md.add(f);if(K['s'])md.sub(f);if(K['a'])md.sub(r);if(K['d'])md.add(r);
     if(md.length()>0){md.normalize();player.vel.x+=(md.x*spd-player.vel.x)*Math.min(1,acc*dt);player.vel.z+=(md.z*spd-player.vel.z)*Math.min(1,acc*dt);}
     else{player.vel.x*=Math.max(0,1-10*dt);player.vel.z*=Math.max(0,1-10*dt);}
-    if(K[' ']&&player.onGround&&player.stamina>=10){
-      if(!player.jumping){player.vel.y=5;player.jumping=true;player.jumpT=0;player.onGround=false;player.stamina-=10;}
-      K[' ']=false;
+    if(K[' ']&&player.onGround&&player.stamina>=10&&!player.dodging){
+      player.vel.y=5;player.jumpT=0;player.onGround=false;player.stamina-=10;
     }
-    if(player.jumping&&K[' ']&&player.jumpT<0.3){player.vel.y+=18*dt;player.jumpT+=dt;}
-    if(!K[' ']&&player.jumping&&!player.dodging)player.jumping=false;
+    if(!player.onGround&&K[' ']&&player.jumpT<0.3){player.vel.y+=18*dt;player.jumpT+=dt;}
+    if(!K[' ']&&!player.onGround&&player.jumpT>0)player.jumpT=0.3;
   }
   player.vel.y-=22*dt;
   player.position.x+=player.vel.x*dt;
   player.position.z+=player.vel.z*dt;
+  player.position.y+=player.vel.y*dt;
   const ty=getTerrainHeight(player.position.x,player.position.z);
-  const targetY=ty;
-  if(!player.dodging && player.vel.y<0.5){
-    player.position.y=targetY;player.vel.y=0;player.onGround=true;player.jumping=false;
-  }else if(player.position.y<targetY+0.01){
-    player.position.y=targetY;player.vel.y=0;player.onGround=true;player.jumping=false;
+  if(player.position.y<ty){
+    player.position.y=ty;player.vel.y=0;player.onGround=true;
   }else player.onGround=false;
-  if(player.onGround){player.position.y=getTerrainHeight(player.position.x,player.position.z);}
   const mx=gs/2-3;
   if(Math.abs(player.position.x)>mx){player.position.x=Math.sign(player.position.x)*mx;player.vel.x*=-0.5}
   if(Math.abs(player.position.z)>mx){player.position.z=Math.sign(player.position.z)*mx;player.vel.z*=-0.5}
