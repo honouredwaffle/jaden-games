@@ -58,7 +58,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.3;
 document.body.appendChild(renderer.domElement);
 
-// === LIGHTS - Bright desert sun ===
+// === LIGHTS ===
 const sun = new THREE.DirectionalLight(0xffeedd, 2.2);
 sun.position.set(60, 100, 40);
 sun.castShadow = true;
@@ -81,7 +81,7 @@ scene.add(fill);
 const hemi = new THREE.HemisphereLight(0x87CEEB, 0xc8a060, 0.4);
 scene.add(hemi);
 
-// === GROUND - Realistic desert sand ===
+// === GROUND ===
 const gs = 120, seg = 80;
 const gGeo = new THREE.PlaneGeometry(gs,gs,seg,seg);
 gGeo.rotateX(-Math.PI/2);
@@ -99,21 +99,19 @@ for(let i=0;i<gp.count;i++){
 }
 gGeo.computeVertexNormals();
 
-// Sand texture variation
-const gMat = new THREE.MeshStandardMaterial({
-  color:0xd4a76a,
-  roughness:0.9,
-  metalness:0.0,
-  flatShading:true,
-});
+const gMat = new THREE.MeshStandardMaterial({color:0xd4a76a,roughness:0.9,metalness:0.0,flatShading:true});
 const ground = new THREE.Mesh(gGeo,gMat);
 ground.receiveShadow = true;
 scene.add(ground);
 
-// darker sand patches
-const gMat2 = new THREE.MeshStandardMaterial({
-  color:0xc99b5c,roughness:0.9,metalness:0.0,flatShading:true
-});
+// Helper: get terrain height at world position
+function getTerrainHeight(x, z) {
+  const ix = Math.floor((x / gs + 0.5) * seg);
+  const iz = Math.floor((z / gs + 0.5) * seg);
+  const idx = iz * (seg + 1) + ix;
+  if (idx >= 0 && idx < gp.count) return gp.getY(idx);
+  return 0;
+}
 
 // === RUINS ===
 function ruins(){
@@ -124,8 +122,9 @@ function ruins(){
     new THREE.MeshStandardMaterial({color:0x9a8a6a,roughness:0.7,metalness:0.1,flatShading:true}),
   ];
   for(const [px,pz] of p){
+    const ty = getTerrainHeight(px, pz);
     const g = new THREE.Group();
-    g.position.set(px,0,pz);
+    g.position.set(px, ty, pz);
     g.rotation.y=Math.random()*6;
     const m=mats[Math.floor(Math.random()*mats.length)];
     const h=1.5+Math.random()*2.5;
@@ -155,15 +154,13 @@ function spire(){
   const sm=[new THREE.MeshStandardMaterial({color:0x8a7a6a,roughness:0.6,metalness:0.2,flatShading:true}),
     new THREE.MeshStandardMaterial({color:0x9a8a7a,roughness:0.5,metalness:0.3,flatShading:true})];
   const sx=35,sz=-28;
-  const i1=Math.floor((sx/gs+.5)*seg),i2=Math.floor((sz/gs+.5)*seg),idx=i2*(seg+1)+i1;
-  let sy=0;if(idx<gp.count&&idx>=0)sy=gp.getY(idx);
+  const sy=getTerrainHeight(sx,sz);
   const b=new THREE.Mesh(new THREE.CylinderGeometry(2.5,3.5,0.8,7),sm[1]);
   b.position.set(sx,sy+0.4,sz);b.castShadow=true;b.receiveShadow=true;scene.add(b);
   const b2=new THREE.Mesh(new THREE.CylinderGeometry(0.7,2,6,8),sm[0]);
   b2.position.set(sx,sy+3.8,sz);b2.castShadow=true;b2.receiveShadow=true;scene.add(b2);
   const t=new THREE.Mesh(new THREE.ConeGeometry(0.5,1.5,6),sm[1]);
   t.position.set(sx,sy+8.2,sz);t.castShadow=true;scene.add(t);
-  // Golden orb
   const orb=new THREE.Mesh(new THREE.SphereGeometry(0.35,8,8),
     new THREE.MeshStandardMaterial({color:0xffaa44,emissive:0xff8833,emissiveIntensity:0.6}));
   orb.position.set(sx,sy+9.2,sz);scene.add(orb);
@@ -179,14 +176,12 @@ function rocks(){
   for(let i=0;i<35;i++){
     const a=Math.random()*6,d=10+Math.random()*45;
     const x=Math.cos(a)*d,z=Math.sin(a)*d;
-    const ix=Math.floor((x/gs+.5)*seg),iz=Math.floor((z/gs+.5)*seg),sidx=iz*(seg+1)+ix;
-    let y=0;if(sidx<gp.count)y=gp.getY(sidx);
+    const ty=getTerrainHeight(x,z);
     const s=0.5+Math.random()*1.5;
     const r=new THREE.Mesh(new THREE.DodecahedronGeometry(s,0),mats[Math.floor(Math.random()*mats.length)]);
-    r.position.set(x,0,z);
+    r.position.set(x,ty+s*0.2,z);
     r.rotation.set(Math.random()*6,Math.random()*6,Math.random()*6);
     r.scale.set(1,0.5+Math.random()*0.8,0.7+Math.random()*0.6);
-    if(sidx<gp.count)r.position.y=y+s*0.2;
     r.castShadow=true;r.receiveShadow=true;
     scene.add(r);
   }
@@ -198,7 +193,7 @@ function oasis(){
   const wMat=new THREE.MeshStandardMaterial({color:0x3a8a9a,roughness:0.3,metalness:0.2,transparent:true,opacity:0.75});
   const w=new THREE.Mesh(new THREE.CircleGeometry(4.5,24),wMat);
   w.rotation.x=-Math.PI/2;
-  w.position.set(-28,0.1,22);
+  w.position.set(-28,getTerrainHeight(-28,22)+0.05,22);
   w.receiveShadow=true;
   scene.add(w);
   const tMat=new THREE.MeshStandardMaterial({color:0x5a3a1a,roughness:0.9,flatShading:true});
@@ -206,15 +201,16 @@ function oasis(){
   const lMat2=new THREE.MeshStandardMaterial({color:0x4a9a4a,roughness:0.8,flatShading:true});
   const pp=[[-25,24],[-31,20],[-25,18],[-33,26],[-30,23]];
   for(const [px,pz] of pp){
+    const ty=getTerrainHeight(px,pz);
     const trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.25,2+Math.random()),tMat);
-    trunk.position.set(px,1,pz);
+    trunk.position.set(px,ty+1,pz);
     trunk.rotation.z=(Math.random()-0.5)*0.12;
     trunk.rotation.x=(Math.random()-0.5)*0.12;
     trunk.castShadow=true;scene.add(trunk);
     for(let f=0;f<5;f++){
       const fr=new THREE.Mesh(new THREE.ConeGeometry(0.7,0.08,4),f%2?lMat:lMat2);
       const a=f/5*Math.PI*2+Math.random()*0.4;
-      fr.position.set(px+Math.cos(a)*0.5,2.3+Math.random()*0.3,pz+Math.sin(a)*0.5);
+      fr.position.set(px+Math.cos(a)*0.5,ty+2.3+Math.random()*0.3,pz+Math.sin(a)*0.5);
       fr.rotation.x=Math.cos(a)*0.5;
       fr.rotation.z=Math.sin(a)*0.5;
       scene.add(fr);
@@ -242,16 +238,15 @@ function cacti(){
   for(let i=0;i<15;i++){
     const a=Math.random()*6,d=12+Math.random()*35;
     const x=Math.cos(a)*d,z=Math.sin(a)*d;
-    const ix=Math.floor((x/gs+.5)*seg),iz=Math.floor((z/gs+.5)*seg),sidx=iz*(seg+1)+ix;
-    let y=0;if(sidx<gp.count)y=gp.getY(sidx);
+    const ty=getTerrainHeight(x,z);
     const h=0.8+Math.random()*1.5;
     const trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.08+0.1*Math.random(),0.15,0.2+h,5),Math.random()>.5?m:m2);
-    trunk.position.set(x,y+h/2,z);trunk.castShadow=true;scene.add(trunk);
+    trunk.position.set(x,ty+h/2,z);trunk.castShadow=true;scene.add(trunk);
     if(Math.random()>.5){
       for(let j=0;j<2;j++){
         const arm=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.08,0.3+0.4*Math.random(),4),m);
         const ang=j*Math.PI+(Math.random()-0.5)*0.5;
-        arm.position.set(x+Math.cos(ang)*0.2,y+h*0.6,z+Math.sin(ang)*0.2);
+        arm.position.set(x+Math.cos(ang)*0.2,ty+h*0.6,z+Math.sin(ang)*0.2);
         arm.rotation.z=Math.cos(ang)*0.8;arm.rotation.x=Math.sin(ang)*0.8;
         arm.castShadow=true;scene.add(arm);
       }
@@ -260,7 +255,7 @@ function cacti(){
 }
 cacti();
 
-// === HEAT HAZE (subtle shimmer via particles) ===
+// === HEAT HAZE ===
 const hhGeo=new THREE.BufferGeometry();
 const hhPos=new Float32Array(100*3);
 for(let i=0;i<100;i++){
@@ -281,7 +276,6 @@ const bodyMat=new THREE.MeshStandardMaterial({color:0x2a4a6a,roughness:0.6,metal
 const body=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.6,1.1,6),bodyMat);
 body.position.y=0.9;body.castShadow=true;player.add(body);
 
-// Light cloak
 const cloakMat=new THREE.MeshStandardMaterial({color:0x6a5a4a,roughness:0.8,flatShading:true});
 const cloak=new THREE.Mesh(new THREE.CylinderGeometry(0.7,0.85,0.4,6),cloakMat);
 cloak.position.y=0.3;player.add(cloak);
@@ -332,31 +326,19 @@ player.dodging=false;
 player.dodgeT=0;
 player.dodgeCD=0;
 
-// Spawn
-const sx2=0,sz2=0;
-const ix2=Math.floor((sx2/gs+.5)*seg),iz2=Math.floor((sz2/gs+.5)*seg),idx2=iz2*(seg+1)+ix2;
-let sy2=0;if(idx2<gp.count)sy2=gp.getY(idx2);
-player.position.set(sx2,sy2+0.5,sz2);
+// Spawn at center terrain height
+const spawnY=getTerrainHeight(0,0);
+player.position.set(0,spawnY+0.5,0);
 scene.add(player);
 
 // === CAMERA ===
 let cTheta=0,cPhi=Math.PI/3.2,cDist=7;
 const lookT=new THREE.Vector3();
 let locked=false;
-// Shift to toggle pointer lock (free cam by default)
 document.addEventListener('keydown',e=>{
   if(e.key==='Shift'){
-    if(locked){
-      document.exitPointerLock();
-      locked=false;
-    }else{
-      renderer.domElement.requestPointerLock();
-    }
-  }
-});
-document.addEventListener('keyup',e=>{
-  if(e.key==='Shift'){
-    // release only exits on keydown, not keyup
+    if(locked) document.exitPointerLock();
+    else renderer.domElement.requestPointerLock();
   }
 });
 document.addEventListener('pointerlockchange',()=>{
@@ -474,11 +456,8 @@ function update(dt){
   player.position.z+=player.vel.z*dt;
   player.position.y+=player.vel.y*dt;
 
-  const ix3=Math.floor((player.position.x/gs+0.5)*seg);
-  const iz3=Math.floor((player.position.z/gs+0.5)*seg);
-  const idx3=iz3*(seg+1)+ix3;
-  let ty=-10;
-  if(idx3>=0&&idx3<gp.count)ty=gp.getY(idx3);
+  // Ground clamp
+  const ty=getTerrainHeight(player.position.x,player.position.z);
   if(player.position.y<ty+0.5){
     player.position.y=ty+0.5;
     player.vel.y=0;
@@ -524,7 +503,6 @@ function loop(){
   update(dt);
   updateCam();
   updateUI();
-  // Animate heat haze
   const hhp=hh.geometry.attributes.position.array;
   for(let i=0;i<100;i++){hhp[i*3+1]+=Math.sin(n*0.001+i)*0.003;}
   hh.geometry.attributes.position.needsUpdate=true;
@@ -532,7 +510,6 @@ function loop(){
 }
 loop();
 
-// === RESIZE ===
 addEventListener('resize',()=>{
   cam.aspect=innerWidth/innerHeight;
   cam.updateProjectionMatrix();
