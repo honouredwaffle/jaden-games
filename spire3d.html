@@ -306,23 +306,28 @@ function dodge(){
 function attack(){
   player.attacking=true;player.attackT=0.25;player.attackCD=0.35;
   
-  const fwd=new THREE.Vector3(-Math.sin(cTheta),0,-Math.cos(cTheta));
-  const right=new THREE.Vector3(Math.cos(cTheta),0,-Math.sin(cTheta));
-  const origin=new THREE.Vector3().copy(player.position).add(fwd.clone().multiplyScalar(1.5));
-  origin.y+=1.0;
+  // Origin from sword position in world space
+  const swordWorld=new THREE.Vector3();
+  player.sword.getWorldPosition(swordWorld);
+  
+  // Direction character is facing (from velocity or rotation)
+  const fwd=new THREE.Vector3(0,0,-1).applyQuaternion(player.quaternion);
+  const right=new THREE.Vector3(1,0,0).applyQuaternion(player.quaternion);
+  
+  const origin=swordWorld.clone().add(fwd.clone().multiplyScalar(0.8));
+  origin.y+=0.2;
   
   // Create 3 slash arcs in a fan pattern
   const colors=[0x88ddff,0x66bbff,0x44aaff];
   for(let i=0;i<3;i++){
     const smat=new THREE.MeshBasicMaterial({color:colors[i],transparent:true,opacity:0.5-i*0.1,side:THREE.DoubleSide,depthWrite:false});
     const s=new THREE.Mesh(new THREE.RingGeometry(0.05,0.3+i*0.25,8,1),smat);
-    // Position in arc
-    const angle=(i-1)*0.6;
+    const angle=(i-1)*0.5;
     const p=origin.clone().add(right.clone().multiplyScalar(angle*0.4));
-    p.y+=angle*0.2;
+    p.y+=angle*0.15;
     s.position.copy(p);
     s.lookAt(cam.position);
-    s.rotation.z=-Math.PI/4+angle*0.5;
+    s.rotation.z=-Math.PI/4+angle*0.4;
     s.scale.set(0.5,0.5,0.5);
     scene.add(s);
     
