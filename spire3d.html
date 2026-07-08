@@ -43,7 +43,6 @@ canvas{display:block}
 <script type="module">
 import * as THREE from 'three';
 
-// === SCENE ===
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x87CEEB);
 scene.fog = new THREE.Fog(0xc8a880, 80, 180);
@@ -63,38 +62,29 @@ const sun = new THREE.DirectionalLight(0xffeedd, 2.2);
 sun.position.set(60, 100, 40);
 sun.castShadow = true;
 sun.shadow.mapSize.set(2048,2048);
-sun.shadow.camera.near = 1;
-sun.shadow.camera.far = 150;
-sun.shadow.camera.left = -60;
-sun.shadow.camera.right = 60;
-sun.shadow.camera.top = 60;
-sun.shadow.camera.bottom = -60;
+sun.shadow.camera.near = 1; sun.shadow.camera.far = 150;
+sun.shadow.camera.left = -60; sun.shadow.camera.right = 60;
+sun.shadow.camera.top = 60; sun.shadow.camera.bottom = -60;
 scene.add(sun);
-
-const ambient = new THREE.AmbientLight(0x88aacc, 0.35);
-scene.add(ambient);
-
+scene.add(new THREE.AmbientLight(0x88aacc, 0.35));
 const fill = new THREE.DirectionalLight(0x88bbff, 0.3);
-fill.position.set(-30, 20, -40);
-scene.add(fill);
+fill.position.set(-30, 20, -40); scene.add(fill);
+scene.add(new THREE.HemisphereLight(0x87CEEB, 0xc8a060, 0.4));
 
-const hemi = new THREE.HemisphereLight(0x87CEEB, 0xc8a060, 0.4);
-scene.add(hemi);
-
-// === GROUND ===
+// === SMOOTH TERRAIN ===
 const gs = 120, seg = 80;
 const gGeo = new THREE.PlaneGeometry(gs,gs,seg,seg);
 gGeo.rotateX(-Math.PI/2);
 const gp = gGeo.attributes.position;
 for(let i=0;i<gp.count;i++){
   const x=gp.getX(i), z=gp.getZ(i);
+  // Much gentler dunes — smooth rolling hills, not sharp bumps
   let y=0;
-  y+=Math.sin(x*.07)*Math.cos(z*.09)*2.5;
-  y+=Math.sin(x*.13+z*.11)*1.3;
-  y+=Math.sin(x*.04+1.7)*Math.cos(z*.06+2.3)*1.8;
-  y+=Math.sin(x*.03+0.5)*Math.sin(z*.04+0.8)*0.8;
+  y+=Math.sin(x*0.05)*Math.cos(z*0.06)*1.8;
+  y+=Math.sin(x*0.09+z*0.07)*0.8;
+  y+=Math.sin(x*0.03+z*0.04+1.3)*1.2;
   const d=Math.sqrt(x*x+z*z);
-  if(d<6)y*=Math.max(0,(d-1)/5);
+  if(d<5)y*=Math.max(0,(d-1)/4);
   gp.setY(i,y);
 }
 gGeo.computeVertexNormals();
@@ -104,13 +94,22 @@ const ground = new THREE.Mesh(gGeo,gMat);
 ground.receiveShadow = true;
 scene.add(ground);
 
-// Helper: get terrain height at world position
-function getTerrainHeight(x, z) {
-  const ix = Math.floor((x / gs + 0.5) * seg);
-  const iz = Math.floor((z / gs + 0.5) * seg);
-  const idx = iz * (seg + 1) + ix;
-  if (idx >= 0 && idx < gp.count) return gp.getY(idx);
-  return 0;
+// === TERRAIN HEIGHT: bilinear interpolation for smooth sampling ===
+function th(x,z){
+  // Clamp to terrain bounds
+  x=Math.max(-gs/2+0.01,Math.min(gs/2-0.01,x));
+  z=Math.max(-gs/2+0.01,Math.min(gs/2-0.01,z));
+  const fx=(x/gs+0.5)*seg, fz=(z/gs+0.5)*seg;
+  const ix=Math.floor(fx), iz=Math.floor(fz);
+  const dx=fx-ix, dz=fz-iz;
+  const ix1=Math.min(ix+1,seg), iz1=Math.min(iz+1,seg);
+  const get=(ix,iz)=>{
+    const idx=iz*(seg+1)+ix;
+    return idx>=0&&idx<gp.count?gp.getY(idx):0;
+  };
+  const h00=get(ix,iz), h10=get(ix1,iz);
+  const h01=get(ix,iz1), h11=get(ix1,iz1);
+  return h00*(1-dx)*(1-dz)+h10*dx*(1-dz)+h01*(1-dx)*dz+h11*dx*dz;
 }
 
 // === RUINS ===
@@ -122,27 +121,26 @@ function ruins(){
     new THREE.MeshStandardMaterial({color:0x9a8a6a,roughness:0.7,metalness:0.1,flatShading:true}),
   ];
   for(const [px,pz] of p){
-    const ty = getTerrainHeight(px, pz);
-    const g = new THREE.Group();
-    g.position.set(px, ty, pz);
+    const ty=th(px,pz);
+    const g=new THREE.Group();g.position.set(px,ty,pz);
     g.rotation.y=Math.random()*6;
     const m=mats[Math.floor(Math.random()*mats.length)];
     const h=1.5+Math.random()*2.5;
     const pillar = new THREE.Mesh(new THREE.BoxGeometry(1.0,h,1.0),m);
-    pillar.position.y=h/2;
-    pillar.castShadow=true;pillar.receiveShadow=true;
-    g.add(pillar);
-    const top = new THREE.Mesh(new THREE.BoxGeometry(1.5,0.25,1.5),mats[1]);
-    top.position.y=h+0.12;
-    g.add(top);
-    for(let i=0;i<1+Math.floor(Math.random()*3);i++){
-      const fb=new THREE.Mesh(new THREE.BoxGeometry(0.4+0.5*Math.random(),0.15+0.3*Math.random(),0.4+0.5*Math.random()),mats[2]);
-      const a=Math.random()*6,d=1+Math.random()*2.5;
-      fb.position.set(Math.cos(a)*d,0.1,Math.sin(a)*d);
-      fb.rotation.x=(Math.random()-0.5)*0.5;
-      fb.rotation.z=(Math.random()-0.5)*0.5;
-      fb.castShadow=true;fb.receiveShadow=true;
-      g.add(fb);
+    pillar.position.y=h/2;pillar.castShadow=true;pillar.receiveShadow=true;g.add(pillar);
+    const top=new THREE.Mesh(new THREE.BoxGeometry(1.5,0.25,1.5),mats[1]);
+    top.position.y=h+0.12;g.add(top);
+    // Fallen blocks — reduce how many float
+    for(let i=0;i<1+Math.floor(Math.random()*2);i++){
+      const fb=new THREE.Mesh(new THREE.BoxGeometry(0.4+0.5*Math.random(),0.15+0.2*Math.random(),0.4+0.5*Math.random()),mats[2]);
+      const a=Math.random()*6,d=1.2+Math.random()*2;
+      // Sample height at rubble position
+      const rx=px+Math.cos(a)*d, rz=pz+Math.sin(a)*d;
+      const rty=th(rx,rz)-ty;
+      fb.position.set(Math.cos(a)*d,Math.max(0.05,rty+0.05),Math.sin(a)*d);
+      fb.rotation.x=(Math.random()-0.5)*0.4;
+      fb.rotation.z=(Math.random()-0.5)*0.4;
+      fb.castShadow=true;fb.receiveShadow=true;g.add(fb);
     }
     scene.add(g);
   }
@@ -153,8 +151,7 @@ ruins();
 function spire(){
   const sm=[new THREE.MeshStandardMaterial({color:0x8a7a6a,roughness:0.6,metalness:0.2,flatShading:true}),
     new THREE.MeshStandardMaterial({color:0x9a8a7a,roughness:0.5,metalness:0.3,flatShading:true})];
-  const sx=35,sz=-28;
-  const sy=getTerrainHeight(sx,sz);
+  const sx=35,sz=-28,sy=th(sx,sz);
   const b=new THREE.Mesh(new THREE.CylinderGeometry(2.5,3.5,0.8,7),sm[1]);
   b.position.set(sx,sy+0.4,sz);b.castShadow=true;b.receiveShadow=true;scene.add(b);
   const b2=new THREE.Mesh(new THREE.CylinderGeometry(0.7,2,6,8),sm[0]);
@@ -175,70 +172,57 @@ function rocks(){
     new THREE.MeshStandardMaterial({color:0x8a7a5a,roughness:0.8,flatShading:true})];
   for(let i=0;i<35;i++){
     const a=Math.random()*6,d=10+Math.random()*45;
-    const x=Math.cos(a)*d,z=Math.sin(a)*d;
-    const ty=getTerrainHeight(x,z);
+    const x=Math.cos(a)*d,z=Math.sin(a)*d,ty=th(x,z);
     const s=0.5+Math.random()*1.5;
-    const r=new THREE.Mesh(new THREE.DodecahedronGeometry(s,0),mats[Math.floor(Math.random()*mats.length)]);
-    r.position.set(x,ty+s*0.2,z);
+    const r=new THREE.Mesh(new THREE.DodecahedronGeometry(s,0),mats[Math.floor(Math.random()*2)]);
+    r.position.set(x,ty+s*0.15,z);
     r.rotation.set(Math.random()*6,Math.random()*6,Math.random()*6);
     r.scale.set(1,0.5+Math.random()*0.8,0.7+Math.random()*0.6);
-    r.castShadow=true;r.receiveShadow=true;
-    scene.add(r);
+    r.castShadow=true;r.receiveShadow=true;scene.add(r);
   }
 }
 rocks();
 
 // === OASIS ===
-function oasis(){
+(function(){
   const wMat=new THREE.MeshStandardMaterial({color:0x3a8a9a,roughness:0.3,metalness:0.2,transparent:true,opacity:0.75});
   const w=new THREE.Mesh(new THREE.CircleGeometry(4.5,24),wMat);
   w.rotation.x=-Math.PI/2;
-  w.position.set(-28,getTerrainHeight(-28,22)+0.05,22);
-  w.receiveShadow=true;
-  scene.add(w);
+  w.position.set(-28,th(-28,22)+0.05,22);w.receiveShadow=true;scene.add(w);
   const tMat=new THREE.MeshStandardMaterial({color:0x5a3a1a,roughness:0.9,flatShading:true});
   const lMat=new THREE.MeshStandardMaterial({color:0x3a8a3a,roughness:0.8,flatShading:true});
   const lMat2=new THREE.MeshStandardMaterial({color:0x4a9a4a,roughness:0.8,flatShading:true});
   const pp=[[-25,24],[-31,20],[-25,18],[-33,26],[-30,23]];
   for(const [px,pz] of pp){
-    const ty=getTerrainHeight(px,pz);
+    const ty=th(px,pz);
     const trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.12,0.25,2+Math.random()),tMat);
-    trunk.position.set(px,ty+1,pz);
-    trunk.rotation.z=(Math.random()-0.5)*0.12;
-    trunk.rotation.x=(Math.random()-0.5)*0.12;
-    trunk.castShadow=true;scene.add(trunk);
+    trunk.position.set(px,ty+1,pz);trunk.castShadow=true;scene.add(trunk);
     for(let f=0;f<5;f++){
       const fr=new THREE.Mesh(new THREE.ConeGeometry(0.7,0.08,4),f%2?lMat:lMat2);
       const a=f/5*Math.PI*2+Math.random()*0.4;
       fr.position.set(px+Math.cos(a)*0.5,ty+2.3+Math.random()*0.3,pz+Math.sin(a)*0.5);
-      fr.rotation.x=Math.cos(a)*0.5;
-      fr.rotation.z=Math.sin(a)*0.5;
-      scene.add(fr);
+      fr.rotation.x=Math.cos(a)*0.5;fr.rotation.z=Math.sin(a)*0.5;scene.add(fr);
     }
   }
-}
-oasis();
+})();
 
 // === CLOUDS ===
-function clouds(){
-  const cMat=new THREE.MeshStandardMaterial({color:0xffffff,transparent:true,opacity:0.35,roughness:1,metalness:0,depthWrite:false});
+(function(){
+  const m=new THREE.MeshStandardMaterial({color:0xffffff,transparent:true,opacity:0.35,roughness:1,metalness:0,depthWrite:false});
   for(let i=0;i<25;i++){
-    const c=new THREE.Mesh(new THREE.SphereGeometry(4+Math.random()*8,6,6),cMat);
+    const c=new THREE.Mesh(new THREE.SphereGeometry(4+Math.random()*8,6,6),m);
     c.position.set((Math.random()-0.5)*140,30+Math.random()*20,(Math.random()-0.5)*140);
-    c.scale.y=0.25;
-    scene.add(c);
+    c.scale.y=0.25;scene.add(c);
   }
-}
-clouds();
+})();
 
 // === CACTI ===
-function cacti(){
+(function(){
   const m=new THREE.MeshStandardMaterial({color:0x3a6a3a,roughness:0.8,flatShading:true});
   const m2=new THREE.MeshStandardMaterial({color:0x4a7a4a,roughness:0.8,flatShading:true});
   for(let i=0;i<15;i++){
     const a=Math.random()*6,d=12+Math.random()*35;
-    const x=Math.cos(a)*d,z=Math.sin(a)*d;
-    const ty=getTerrainHeight(x,z);
+    const x=Math.cos(a)*d,z=Math.sin(a)*d,ty=th(x,z);
     const h=0.8+Math.random()*1.5;
     const trunk=new THREE.Mesh(new THREE.CylinderGeometry(0.08+0.1*Math.random(),0.15,0.2+h,5),Math.random()>.5?m:m2);
     trunk.position.set(x,ty+h/2,z);trunk.castShadow=true;scene.add(trunk);
@@ -247,108 +231,83 @@ function cacti(){
         const arm=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.08,0.3+0.4*Math.random(),4),m);
         const ang=j*Math.PI+(Math.random()-0.5)*0.5;
         arm.position.set(x+Math.cos(ang)*0.2,ty+h*0.6,z+Math.sin(ang)*0.2);
-        arm.rotation.z=Math.cos(ang)*0.8;arm.rotation.x=Math.sin(ang)*0.8;
-        arm.castShadow=true;scene.add(arm);
+        arm.rotation.z=Math.cos(ang)*0.8;arm.rotation.x=Math.sin(ang)*0.8;arm.castShadow=true;scene.add(arm);
       }
     }
   }
-}
-cacti();
+})();
 
 // === HEAT HAZE ===
 const hhGeo=new THREE.BufferGeometry();
 const hhPos=new Float32Array(100*3);
 for(let i=0;i<100;i++){
   const a=Math.random()*6,d=3+Math.random()*50;
-  hhPos[i*3]=Math.cos(a)*d;
-  hhPos[i*3+1]=0.5+Math.random()*4;
-  hhPos[i*3+2]=Math.sin(a)*d;
+  hhPos[i*3]=Math.cos(a)*d;hhPos[i*3+1]=0.5+Math.random()*4;hhPos[i*3+2]=Math.sin(a)*d;
 }
 hhGeo.setAttribute('position',new THREE.BufferAttribute(hhPos,3));
-const hhMat=new THREE.PointsMaterial({color:0xffeedd,size:0.05,transparent:true,opacity:0.15,sizeAttenuation:true});
-const hh=new THREE.Points(hhGeo,hhMat);
+const hh=new THREE.Points(hhGeo,new THREE.PointsMaterial({color:0xffeedd,size:0.05,transparent:true,opacity:0.15,sizeAttenuation:true}));
 scene.add(hh);
 
 // === PLAYER ===
-const player = new THREE.Group();
+const player=new THREE.Group();
 
-const bodyMat=new THREE.MeshStandardMaterial({color:0x2a4a6a,roughness:0.6,metalness:0.1,flatShading:true});
-const body=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.6,1.1,6),bodyMat);
+// Body
+const bm=new THREE.MeshStandardMaterial({color:0x2a4a6a,roughness:0.6,metalness:0.1,flatShading:true});
+const body=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.6,1.1,6),bm);
 body.position.y=0.9;body.castShadow=true;player.add(body);
 
-const cloakMat=new THREE.MeshStandardMaterial({color:0x6a5a4a,roughness:0.8,flatShading:true});
-const cloak=new THREE.Mesh(new THREE.CylinderGeometry(0.7,0.85,0.4,6),cloakMat);
+const cm=new THREE.MeshStandardMaterial({color:0x6a5a4a,roughness:0.8,flatShading:true});
+const cloak=new THREE.Mesh(new THREE.CylinderGeometry(0.7,0.85,0.4,6),cm);
 cloak.position.y=0.3;player.add(cloak);
 
-const headMat=new THREE.MeshStandardMaterial({color:0xc8a88a,roughness:0.7,flatShading:true});
-const head=new THREE.Mesh(new THREE.SphereGeometry(0.35,6,6),headMat);
+const hm=new THREE.MeshStandardMaterial({color:0xc8a88a,roughness:0.7,flatShading:true});
+const head=new THREE.Mesh(new THREE.SphereGeometry(0.35,6,6),hm);
 head.position.y=1.6;head.castShadow=true;player.add(head);
 
-const eyeMat=new THREE.MeshStandardMaterial({color:0x2a1a0a,depthWrite:true});
-const e1=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,6),eyeMat);
+const em=new THREE.MeshStandardMaterial({color:0x2a1a0a,depthWrite:true});
+const e1=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,6),em);
 e1.position.set(-0.1,1.7,0.32);player.add(e1);
-const e2=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,6),eyeMat);
+const e2=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,6),em);
 e2.position.set(0.1,1.7,0.32);player.add(e2);
 
 // Sword
 const sMat=new THREE.MeshStandardMaterial({color:0x889999,roughness:0.3,metalness:0.6,flatShading:true});
 const shMat=new THREE.MeshStandardMaterial({color:0x4a3a2a,roughness:0.8,flatShading:true});
 const sg=new THREE.Group();
-const blade=new THREE.Mesh(new THREE.BoxGeometry(0.04,0.7,0.14),sMat);
-blade.position.y=0.5;blade.position.x=0.05;sg.add(blade);
-const h=new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.08,0.35,4),shMat);
-h.position.y=0;h.rotation.x=0.3;sg.add(h);
-const guard=new THREE.Mesh(new THREE.BoxGeometry(0.25,0.04,0.08),shMat);
-guard.position.y=0.12;sg.add(guard);
+sg.add(new THREE.Mesh(new THREE.BoxGeometry(0.04,0.7,0.14),sMat)).position.set(0.05,0.5,0);
+sg.add(new THREE.Mesh(new THREE.CylinderGeometry(0.06,0.08,0.35,4),shMat)).position.set(0,0,0);
+sg.add(new THREE.Mesh(new THREE.BoxGeometry(0.25,0.04,0.08),shMat)).position.set(0,0.12,0);
 sg.position.set(0.55,0.65,0.3);
 player.add(sg);
 player.sword=sg;
-player.swordBasePos=new THREE.Vector3(0.55,0.65,0.3);
+player.swordBP=new THREE.Vector3(0.55,0.65,0.3);
 
 // Legs
-const legMat=new THREE.MeshStandardMaterial({color:0x1a2a3a,roughness:0.7,flatShading:true});
-for(const side of[-0.18,0.18]){
-  const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.13,0.45,4),legMat);
-  leg.position.set(side,0.22,0);leg.castShadow=true;player.add(leg);
+const lm=new THREE.MeshStandardMaterial({color:0x1a2a3a,roughness:0.7,flatShading:true});
+for(const s of[-0.18,0.18]){
+  const l=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.13,0.45,4),lm);
+  l.position.set(s,0.22,0);l.castShadow=true;player.add(l);
 }
 
 // State
 player.vel=new THREE.Vector3();
 player.onGround=true;
-player.hp=100;
-player.maxHp=100;
-player.stamina=100;
-player.maxStamina=100;
-player.attacking=false;
-player.attackT=0;
-player.attackCD=0;
-player.dodging=false;
-player.dodgeT=0;
-player.dodgeCD=0;
+player.hp=100;player.maxHp=100;
+player.stamina=100;player.maxStamina=100;
+player.attacking=false;player.attackT=0;player.attackCD=0;
+player.dodging=false;player.dodgeT=0;player.dodgeCD=0;
 
-// Spawn at center terrain height
-const spawnY=getTerrainHeight(0,0);
-player.position.set(0,spawnY+0.5,0);
+player.position.set(0,th(0,0)+0.5,0);
 scene.add(player);
 
 // === CAMERA ===
 let cTheta=0,cPhi=Math.PI/3.2,cDist=7;
 const lookT=new THREE.Vector3();
 let locked=false;
-document.addEventListener('keydown',e=>{
-  if(e.key==='Shift'){
-    if(locked) document.exitPointerLock();
-    else renderer.domElement.requestPointerLock();
-  }
-});
-document.addEventListener('pointerlockchange',()=>{
-  locked=document.pointerLockElement===renderer.domElement;
-});
-document.addEventListener('mousemove',e=>{
-  if(!locked||player.dodging)return;
-  cTheta-=e.movementX*0.003;
-  cPhi=Math.max(0.3,Math.min(Math.PI-0.3,cPhi-e.movementY*0.003));
-});
+
+document.addEventListener('keydown',e=>{if(e.key==='Shift'){if(locked)document.exitPointerLock();else renderer.domElement.requestPointerLock();}});
+document.addEventListener('pointerlockchange',()=>{locked=document.pointerLockElement===renderer.domElement});
+document.addEventListener('mousemove',e=>{if(!locked||player.dodging)return;cTheta-=e.movementX*0.003;cPhi=Math.max(0.3,Math.min(Math.PI-0.3,cPhi-e.movementY*0.003));});
 
 // === INPUT ===
 const K={};
@@ -357,77 +316,51 @@ document.addEventListener('keydown',e=>{
   if(e.key.toLowerCase()==='e'&&!player.dodging&&player.dodgeCD<=0&&player.stamina>=25)dodge();
 });
 document.addEventListener('keyup',e=>{K[e.key.toLowerCase()]=false});
-renderer.domElement.addEventListener('mousedown',e=>{
-  if(e.button===0&&locked&&!player.attacking&&player.attackCD<=0)attack();
-});
+renderer.domElement.addEventListener('mousedown',e=>{if(e.button===0&&locked&&!player.attacking&&player.attackCD<=0)attack();});
 
 function dodge(){
-  player.dodging=true;
-  player.dodgeT=0.35;
-  player.stamina=Math.max(0,player.stamina-25);
+  player.dodging=true;player.dodgeT=0.35;player.stamina=Math.max(0,player.stamina-25);
   const f=new THREE.Vector3(-Math.sin(cTheta),0,-Math.cos(cTheta));
   const r=new THREE.Vector3(Math.cos(cTheta),0,-Math.sin(cTheta));
   let d=new THREE.Vector3();
-  if(K['w']||K['arrowup'])d.add(f);
-  if(K['s']||K['arrowdown'])d.sub(f);
-  if(K['a']||K['arrowleft'])d.sub(r);
-  if(K['d']||K['arrowright'])d.add(r);
-  if(d.length()<0.1)d.copy(f);
-  d.normalize();
-  player.vel.copy(d.multiplyScalar(14));
-  player.vel.y=3;
+  if(K['w'])d.add(f);if(K['s'])d.sub(f);if(K['a'])d.sub(r);if(K['d'])d.add(r);
+  if(d.length()<0.1)d.copy(f);d.normalize();
+  player.vel.copy(d.multiplyScalar(14));player.vel.y=3;
 }
 
 function attack(){
-  player.attacking=true;
-  player.attackT=0.25;
-  player.attackCD=0.35;
+  player.attacking=true;player.attackT=0.25;player.attackCD=0.35;
   const smat=new THREE.MeshBasicMaterial({color:0x88ddff,transparent:true,opacity:0.6,side:THREE.DoubleSide,depthWrite:false});
   const s=new THREE.Mesh(new THREE.RingGeometry(0.1,1.2,12,1),smat);
   const fwd=new THREE.Vector3(-Math.sin(cTheta),0.4,-Math.cos(cTheta));
-  s.position.copy(player.position);
-  s.position.add(fwd.multiplyScalar(1.8));
-  s.position.y+=1.2;
-  s.lookAt(cam.position);
-  s.rotation.z=Math.random()*0.3-0.15;
-  s.scale.set(0.3,0.3,0.3);
+  s.position.copy(player.position);s.position.add(fwd.multiplyScalar(1.8));s.position.y+=1.2;
+  s.lookAt(cam.position);s.rotation.z=Math.random()*0.3-0.15;s.scale.set(0.3,0.3,0.3);
   scene.add(s);
   let t=0;
-  const anim=()=>{
-    t+=0.03;
-    const sc=0.3+t*4;
-    s.scale.set(sc,sc,sc);
-    s.material.opacity=Math.max(0,0.6-t*1.5);
-    if(t>0.5){scene.remove(s);return}
-    requestAnimationFrame(anim);
-  };
+  const anim=()=>{t+=0.03;s.scale.setScalar(0.3+t*4);s.material.opacity=Math.max(0,0.6-t*1.5);if(t>0.5){scene.remove(s);return}requestAnimationFrame(anim);};
   anim();
 }
 
-// === UPDATE ===
+// === UPDATE (smooth movement) ===
 let prevT=performance.now();
 function update(dt){
   if(dt>0.1)dt=0.1;
 
   if(player.dodging){player.dodgeT-=dt;if(player.dodgeT<=0){player.dodging=false;player.dodgeCD=0.5}}
   if(player.dodgeCD>0)player.dodgeCD-=dt;
-
   if(player.attacking){player.attackT-=dt;if(player.attackT<=0)player.attacking=false}
   if(player.attackCD>0)player.attackCD-=dt;
 
+  // Sword bob/attack
   if(!player.attacking){
-    const bob=Math.sin(performance.now()*0.004)*0.04;
-    player.sword.position.set(player.swordBasePos.x,player.swordBasePos.y+bob,player.swordBasePos.z);
+    player.sword.position.set(player.swordBP.x,player.swordBP.y+Math.sin(performance.now()*0.004)*0.04,player.swordBP.z);
     player.sword.rotation.x=0;
-  }else{
-    const sw=Math.sin(player.attackT*10)*1.2;
-    player.sword.rotation.x=-sw;
-  }
+  }else player.sword.rotation.x=-Math.sin(player.attackT*10)*1.2;
 
   if(!player.dodging&&player.stamina<player.maxStamina)player.stamina=Math.min(player.maxStamina,player.stamina+8*dt);
 
   if(!player.dodging){
-    const spd=5.5,acc=14;
+    const spd=5.5,acc=12;
     const f=new THREE.Vector3(-Math.sin(cTheta),0,-Math.cos(cTheta));
     const r=new THREE.Vector3(Math.cos(cTheta),0,-Math.sin(cTheta));
     const md=new THREE.Vector3();
@@ -435,34 +368,36 @@ function update(dt){
     if(K['s']||K['arrowdown'])md.sub(f);
     if(K['a']||K['arrowleft'])md.sub(r);
     if(K['d']||K['arrowright'])md.add(r);
-    if(md.length()>0){
-      md.normalize();
-      player.vel.x+=(md.x*spd-player.vel.x)*Math.min(1,acc*dt);
-      player.vel.z+=(md.z*spd-player.vel.z)*Math.min(1,acc*dt);
-    }else{
-      player.vel.x*=Math.max(0,1-10*dt);
-      player.vel.z*=Math.max(0,1-10*dt);
-    }
-    if((K[' ']||K['space'])&&player.onGround&&player.stamina>=10){
-      player.vel.y=7;
-      player.onGround=false;
-      player.stamina-=10;
-      K[' ']=false;K['space']=false;
-    }
+    if(md.length()>0){md.normalize();player.vel.x+=(md.x*spd-player.vel.x)*Math.min(1,acc*dt);player.vel.z+=(md.z*spd-player.vel.z)*Math.min(1,acc*dt);}
+    else{player.vel.x*=Math.max(0,1-10*dt);player.vel.z*=Math.max(0,1-10*dt);}
+    if(K[' ']&&player.onGround&&player.stamina>=10){player.vel.y=7;player.onGround=false;player.stamina-=10;K[' ']=false;}
   }
 
   player.vel.y-=22*dt;
   player.position.x+=player.vel.x*dt;
   player.position.z+=player.vel.z*dt;
-  player.position.y+=player.vel.y*dt;
 
-  // Ground clamp
-  const ty=getTerrainHeight(player.position.x,player.position.z);
-  if(player.position.y<ty+0.5){
-    player.position.y=ty+0.5;
-    player.vel.y=0;
-    player.onGround=true;
-  }else player.onGround=false;
+  // Smooth ground clamp — follow terrain without bouncing
+  const ty=th(player.position.x,player.position.z);
+  const targetY=ty+0.5;
+  // Lerp player Y toward terrain for smooth following, but respect velocity when airborne
+  if(player.vel.y<=0 && player.position.y>targetY){
+    // On descent: snap to terrain smoothly
+    player.position.y+=(targetY-player.position.y)*Math.min(1,15*dt);
+    if(Math.abs(player.position.y-targetY)<0.05){player.position.y=targetY;player.vel.y=0;player.onGround=true;}
+    else player.onGround=false;
+  }else if(player.position.y<targetY){
+    player.position.y=targetY;player.vel.y=0;player.onGround=true;
+  }else{
+    player.onGround=false;
+  }
+
+  // Add slight velocity y when going up/down terrain for smooth slopes
+  if(player.onGround){
+    const tyNext=th(player.position.x+player.vel.x*0.1,player.position.z+player.vel.z*0.1);
+    const slope=(tyNext-ty)*10;
+    if(slope>0)player.position.y+=slope*dt;
+  }
 
   const mx=gs/2-3;
   if(Math.abs(player.position.x)>mx){player.position.x=Math.sign(player.position.x)*mx;player.vel.x*=-0.5}
@@ -471,50 +406,35 @@ function update(dt){
   if(player.vel.lengthSq()>0.3&&!player.dodging){
     const tr=Math.atan2(player.vel.x,player.vel.z);
     let d=tr-player.rotation.y;
-    while(d>Math.PI)d-=Math.PI*2;
-    while(d<-Math.PI)d+=Math.PI*2;
+    while(d>Math.PI)d-=Math.PI*2;while(d<-Math.PI)d+=Math.PI*2;
     player.rotation.y+=d*Math.min(1,8*dt);
   }
 }
 
-// === CAMERA ===
 function updateCam(){
-  const off=new THREE.Vector3(
-    cDist*Math.sin(cTheta)*Math.sin(cPhi),
-    cDist*Math.cos(cPhi),
-    cDist*Math.cos(cTheta)*Math.sin(cPhi)
-  );
+  const off=new THREE.Vector3(cDist*Math.sin(cTheta)*Math.sin(cPhi),cDist*Math.cos(cPhi),cDist*Math.cos(cTheta)*Math.sin(cPhi));
   cam.position.lerp(new THREE.Vector3(player.position.x+off.x,player.position.y+off.y,player.position.z+off.z),0.12);
   lookT.lerp(new THREE.Vector3(player.position.x,player.position.y+1.2,player.position.z),0.12);
   cam.lookAt(lookT);
 }
 
-// === UI ===
 function updateUI(){
   document.getElementById('hp-fill').style.width=Math.max(0,(player.hp/player.maxHp)*100)+'%';
   document.getElementById('stamina-fill').style.width=Math.max(0,(player.stamina/player.maxStamina)*100)+'%';
 }
 
-// === LOOP ===
 function loop(){
   requestAnimationFrame(loop);
-  const n=performance.now(),dt=(n-prevT)/1000;
-  prevT=n;
-  update(dt);
-  updateCam();
-  updateUI();
+  const n=performance.now(),dt=(n-prevT)/1000;prevT=n;
+  update(dt);updateCam();updateUI();
   const hhp=hh.geometry.attributes.position.array;
-  for(let i=0;i<100;i++){hhp[i*3+1]+=Math.sin(n*0.001+i)*0.003;}
+  for(let i=0;i<100;i++)hhp[i*3+1]+=Math.sin(n*0.001+i)*0.003;
   hh.geometry.attributes.position.needsUpdate=true;
   renderer.render(scene,cam);
 }
 loop();
 
-addEventListener('resize',()=>{
-  cam.aspect=innerWidth/innerHeight;
-  cam.updateProjectionMatrix();
-  renderer.setSize(innerWidth,innerHeight);
-});
+addEventListener('resize',()=>{cam.aspect=innerWidth/innerHeight;cam.updateProjectionMatrix();renderer.setSize(innerWidth,innerHeight);});
 </script>
 </body>
 </html>
