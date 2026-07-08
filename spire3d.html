@@ -211,27 +211,27 @@ const player=new THREE.Group();
 // Build character from feet up, origin at foot level
 const legMat=new THREE.MeshStandardMaterial({color:0x1a2a3a,roughness:0.7,flatShading:true});
 for(const s of[-0.18,0.18]){
-  const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.12,1.0,4),legMat);
-  leg.position.set(s,0.5,0);leg.castShadow=true;player.add(leg);
+  const leg=new THREE.Mesh(new THREE.CylinderGeometry(0.1,0.12,0.5,4),legMat);
+  leg.position.set(s,0.25,0);leg.castShadow=true;player.add(leg);
 }
 
 const torsoMat=new THREE.MeshStandardMaterial({color:0x2a4a6a,roughness:0.6,flatShading:true});
 const torso=new THREE.Mesh(new THREE.CylinderGeometry(0.5,0.55,0.8,6),torsoMat);
-torso.position.y=1.1;torso.castShadow=true;player.add(torso);
+torso.position.y=0.75;torso.castShadow=true;player.add(torso);
 
 const cloakMat=new THREE.MeshStandardMaterial({color:0x6a5a4a,roughness:0.8,flatShading:true});
 const cloak=new THREE.Mesh(new THREE.CylinderGeometry(0.7,0.8,0.4,6),cloakMat);
-cloak.position.y=0.7;player.add(cloak);
+cloak.position.y=0.45;player.add(cloak);
 
 const headMat=new THREE.MeshStandardMaterial({color:0xc8a88a,roughness:0.7,flatShading:true});
 const headMesh=new THREE.Mesh(new THREE.SphereGeometry(0.35,6,6),headMat);
-headMesh.position.y=1.7;headMesh.castShadow=true;player.add(headMesh);
+headMesh.position.y=1.2;headMesh.castShadow=true;player.add(headMesh);
 
 const eyeMat=new THREE.MeshStandardMaterial({color:0x1a1a1a,depthWrite:true});
 const eyeL=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,6),eyeMat);
-eyeL.position.set(-0.1,1.78,0.32);player.add(eyeL);
+eyeL.position.set(-0.1,1.28,0.32);player.add(eyeL);
 const eyeR=new THREE.Mesh(new THREE.SphereGeometry(0.05,6,6),eyeMat);
-eyeR.position.set(0.1,1.78,0.32);player.add(eyeR);
+eyeR.position.set(0.1,1.28,0.32);player.add(eyeR);
 
 // Katana on RIGHT side (positive X in local space)
 const swordGrp=new THREE.Group();
@@ -257,11 +257,11 @@ mk2.position.set(0,-0.2,0.05);swordGrp.add(mk2);
 const habaki2=new THREE.Mesh(new THREE.BoxGeometry(0.08,0.05,0.04),habakiMat2);
 habaki2.position.set(0,0.03,0);swordGrp.add(habaki2);
 
-swordGrp.position.set(0.55,1.0,0.3);
+swordGrp.position.set(0.55,0.7,0.3);
 swordGrp.rotation.set(0,0,-0.2);
 player.add(swordGrp);
 player.sword=swordGrp;
-player.swordBP=new THREE.Vector3(0.55,1.0,0.3);
+player.swordBP=new THREE.Vector3(0.55,0.7,0.3);
 
 // Player state
 player.vel=new THREE.Vector3();
@@ -367,7 +367,7 @@ function update(dt){
 function updateCam(){
   const off=new THREE.Vector3(cDist*Math.sin(cTheta)*Math.sin(cPhi),cDist*Math.cos(cPhi),cDist*Math.cos(cTheta)*Math.sin(cPhi));
   cam.position.lerp(new THREE.Vector3(player.position.x+off.x,player.position.y+off.y+0.3,player.position.z+off.z),0.12);
-  lookT.lerp(new THREE.Vector3(player.position.x,player.position.y+1.2,player.position.z),0.12);
+  lookT.lerp(new THREE.Vector3(player.position.x,player.position.y+0.8,player.position.z),0.12);
   cam.lookAt(lookT);
 }
 
