@@ -235,52 +235,329 @@ function scatterObjects() {
 }
 scene.add(scatterObjects());
 
-// --- Player ---
+// --- Player (Cybernetic Wolf Warrior) ---
 const player = new THREE.Group();
 
-// Body
-const bodyGeo = new THREE.CylinderGeometry(0.3, 0.35, 0.9, 8);
-const bodyMat = new THREE.MeshStandardMaterial({ color: 0x334466, roughness: 0.6, metalness: 0.2 });
-const bodyMesh = new THREE.Mesh(bodyGeo, bodyMat);
-bodyMesh.position.y = 0.6;
-bodyMesh.castShadow = true;
-player.add(bodyMesh);
+// Materials
+const armorMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a, roughness: 0.4, metalness: 0.6 });
+const armorAccentMat = new THREE.MeshStandardMaterial({ color: 0x222222, roughness: 0.3, metalness: 0.7 });
+const redMat = new THREE.MeshStandardMaterial({ color: 0xcc2222, roughness: 0.5, metalness: 0.3, emissive: 0x661111, emissiveIntensity: 0.3 });
+const skinMat = new THREE.MeshStandardMaterial({ color: 0xddaa88, roughness: 0.6 });
+const hairMat = new THREE.MeshStandardMaterial({ color: 0xeeeeee, roughness: 0.5, emissive: 0x888888, emissiveIntensity: 0.1 });
+const capeMat = new THREE.MeshStandardMaterial({ color: 0x333333, roughness: 0.8, metalness: 0.1, side: THREE.DoubleSide });
+const scarfMat = new THREE.MeshStandardMaterial({ color: 0xcc2222, roughness: 0.7, metalness: 0.1, side: THREE.DoubleSide });
+const metalMat = new THREE.MeshStandardMaterial({ color: 0x666666, roughness: 0.3, metalness: 0.8 });
+const glowMat = new THREE.MeshStandardMaterial({ color: 0xff4444, emissive: 0xff2222, emissiveIntensity: 0.5 });
 
-// Head
-const headGeo = new THREE.SphereGeometry(0.22, 8, 8);
-const headMat = new THREE.MeshStandardMaterial({ color: 0xddaa88, roughness: 0.5 });
-const headMesh = new THREE.Mesh(headGeo, headMat);
-headMesh.position.y = 1.2;
-headMesh.castShadow = true;
-player.add(headMesh);
+// --- TORSO (armored breastplate) ---
+const torso = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.3, 0.5, 8), armorMat);
+torso.position.y = 0.65;
+torso.castShadow = true;
+player.add(torso);
 
-// Left leg
-const legGeo = new THREE.CylinderGeometry(0.08, 0.09, 0.4, 6);
-const legMat = new THREE.MeshStandardMaterial({ color: 0x2a2a3a, roughness: 0.8 });
-const lLeg = new THREE.Mesh(legGeo, legMat);
-lLeg.position.set(-0.12, 0.2, 0);
-lLeg.castShadow = true;
+// Chest red accent (central core/emblem)
+const chestCore = new THREE.Mesh(new THREE.CircleGeometry(0.06, 8), redMat);
+chestCore.position.set(0, 0.7, -0.29);
+player.add(chestCore);
+
+// Shoulder pauldrons
+const lPaul = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 6), armorMat);
+lPaul.position.set(-0.32, 0.88, 0);
+lPaul.scale.set(1, 0.6, 0.8);
+lPaul.castShadow = true;
+player.add(lPaul);
+
+const rPaul = new THREE.Mesh(new THREE.SphereGeometry(0.1, 6, 6), armorMat);
+rPaul.position.set(0.32, 0.88, 0);
+rPaul.scale.set(1, 0.6, 0.8);
+rPaul.castShadow = true;
+player.add(rPaul);
+
+// Pauldron red trim
+for (let side=-1; side<=1; side+=2) {
+  const ring = new THREE.Mesh(new THREE.TorusGeometry(0.1, 0.008, 4, 8), redMat);
+  ring.position.set(side*0.32, 0.82, 0);
+  ring.rotation.x = Math.PI/2;
+  player.add(ring);
+}
+
+// --- WAIST / HIPS ---
+const hips = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.28, 0.15, 8), armorAccentMat);
+hips.position.y = 0.4;
+player.add(hips);
+
+// Belt red accent
+const belt = new THREE.Mesh(new THREE.TorusGeometry(0.25, 0.015, 4, 10), redMat);
+belt.position.set(0, 0.45, 0);
+belt.rotation.x = Math.PI/2;
+player.add(belt);
+
+// --- LEGS (digitigrade style with claws) ---
+function makeLeg(side) {
+  const leg = new THREE.Group();
+  
+  // Upper thigh armor
+  const thigh = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.07, 0.25, 6), armorMat);
+  thigh.position.y = 0.125;
+  thigh.castShadow = true;
+  leg.add(thigh);
+  
+  // Shin armor (slightly angled for digitigrade look)
+  const shin = new THREE.Mesh(new THREE.CylinderGeometry(0.065, 0.05, 0.2, 6), armorAccentMat);
+  shin.position.set(0.02, -0.08, 0.05);
+  shin.rotation.x = 0.2;
+  shin.castShadow = true;
+  leg.add(shin);
+  
+  // Ankle joint
+  const ankle = new THREE.Mesh(new THREE.SphereGeometry(0.05, 5, 5), metalMat);
+  ankle.position.set(0.03, -0.19, 0.07);
+  leg.add(ankle);
+  
+  // Claw foot (talon) - 3 toes
+  for (let t=-1; t<=1; t++) {
+    const claw = new THREE.Mesh(
+      new THREE.ConeGeometry(0.015, 0.08, 4),
+      new THREE.MeshStandardMaterial({ color: 0x222222, metalness: 0.8, roughness: 0.3 })
+    );
+    claw.position.set(0.02 + t*0.025, -0.24, 0.06 + t*0.02);
+    claw.rotation.x = 0.3;
+    leg.add(claw);
+  }
+  
+  // Red leg accent line
+  const linePts = [
+    new THREE.Vector3(0.08, 0.05, 0),
+    new THREE.Vector3(0.07, -0.05, 0.02),
+    new THREE.Vector3(0.06, -0.15, 0.04)
+  ];
+  const lineGeo = new THREE.BufferGeometry().setFromPoints(linePts);
+  const line = new THREE.Line(lineGeo, new THREE.LineBasicMaterial({ color: 0xff2222 }));
+  leg.add(line);
+  
+  leg.position.set(side*0.1, 0.15, 0);
+  return leg;
+}
+
+const lLeg = makeLeg(-1);
 player.add(lLeg);
-
-// Right leg
-const rLeg = new THREE.Mesh(legGeo, legMat);
-rLeg.position.set(0.12, 0.2, 0);
-rLeg.castShadow = true;
+const rLeg = makeLeg(1);
 player.add(rLeg);
 
-// Left arm
-const armGeo = new THREE.CylinderGeometry(0.05, 0.06, 0.4, 6);
-const armMat = new THREE.MeshStandardMaterial({ color: 0x445566, roughness: 0.6 });
-const lArm = new THREE.Mesh(armGeo, armMat);
-lArm.position.set(-0.35, 0.7, 0);
-lArm.castShadow = true;
-player.add(lArm);
+// --- ARMS (armored with claw gauntlets) ---
+function makeArm(side, hasSword) {
+  const arm = new THREE.Group();
+  
+  // Upper arm
+  const upper = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.05, 0.2, 6), armorMat);
+  upper.position.y = 0.1;
+  upper.castShadow = true;
+  arm.add(upper);
+  
+  // Forearm plated
+  const forearm = new THREE.Mesh(new THREE.CylinderGeometry(0.04, 0.035, 0.18, 6), armorAccentMat);
+  forearm.position.set(0, -0.1, 0);
+  forearm.castShadow = true;
+  arm.add(forearm);
+  
+  // Gauntlet
+  const gauntlet = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.03, 0.06, 6), metalMat);
+  gauntlet.position.set(0, -0.2, 0);
+  arm.add(gauntlet);
+  
+  // Claw fingers (3 per hand)
+  for (let t=-1; t<=1; t++) {
+    const claw = new THREE.Mesh(
+      new THREE.ConeGeometry(0.008, 0.055, 4),
+      new THREE.MeshStandardMaterial({ color: 0x111111, metalness: 0.9, roughness: 0.2 })
+    );
+    claw.position.set(t*0.025, -0.25, 0.01);
+    claw.rotation.x = 0.5;
+    arm.add(claw);
+  }
+  
+  // Red accent on forearm
+  const armRing = new THREE.Mesh(new THREE.TorusGeometry(0.04, 0.006, 4, 8), redMat);
+  armRing.position.set(0, -0.05, 0);
+  armRing.rotation.x = Math.PI/2;
+  arm.add(armRing);
+  
+  arm.position.set(side*0.3, 0.6, 0);
+  return arm;
+}
 
-// Right arm (holding sword)
-const rArm = new THREE.Mesh(armGeo, armMat);
-rArm.position.set(0.35, 0.7, 0);
-rArm.castShadow = true;
+const lArm = makeArm(-1, false);
+player.add(lArm);
+const rArm = makeArm(1, false);
 player.add(rArm);
+
+// --- HEAD & MASK ---
+const headGroup = new THREE.Group();
+
+// Head base
+const head = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 8), armorMat);
+head.scale.set(1, 0.9, 0.85);
+head.castShadow = true;
+headGroup.add(head);
+
+// Wolf mask
+const maskBase = new THREE.Mesh(new THREE.SphereGeometry(0.165, 8, 8), armorMat);
+maskBase.scale.set(1, 0.8, 0.9);
+maskBase.position.z = -0.02;
+headGroup.add(maskBase);
+
+// Mask snout
+const snout = new THREE.Mesh(new THREE.ConeGeometry(0.04, 0.07, 5), armorMat);
+snout.position.set(0, -0.02, -0.17);
+snout.rotation.x = 0.3;
+headGroup.add(snout);
+
+// Mask red markings (two angular lines below eyes)
+for (let s=-1; s<=1; s+=2) {
+  const mark = new THREE.Mesh(
+    new THREE.BoxGeometry(0.015, 0.003, 0.025),
+    redMat
+  );
+  mark.position.set(s*0.06, -0.01, -0.15);
+  mark.rotation.z = s*0.4;
+  headGroup.add(mark);
+  
+  const mark2 = new THREE.Mesh(
+    new THREE.BoxGeometry(0.008, 0.003, 0.02),
+    redMat
+  );
+  mark2.position.set(s*0.04, -0.03, -0.16);
+  mark2.rotation.z = s*0.3;
+  headGroup.add(mark2);
+}
+
+// Fox/wolf ears
+for (let s=-1; s<=1; s+=2) {
+  const ear = new THREE.Mesh(
+    new THREE.ConeGeometry(0.025, 0.07, 4),
+    armorMat
+  );
+  ear.position.set(s*0.08, 0.16, 0);
+  ear.rotation.x = -0.2;
+  ear.rotation.z = s*0.3;
+  ear.castShadow = true;
+  headGroup.add(ear);
+  
+  // Inner ear red
+  const inner = new THREE.Mesh(
+    new THREE.ConeGeometry(0.012, 0.04, 4),
+    redMat
+  );
+  inner.position.set(s*0.08, 0.15, 0.005);
+  inner.rotation.x = -0.2;
+  inner.rotation.z = s*0.3;
+  headGroup.add(inner);
+}
+
+// Eyes (red glow)
+for (let s=-1; s<=1; s+=2) {
+  const eye = new THREE.Mesh(
+    new THREE.SphereGeometry(0.015, 6, 6),
+    glowMat
+  );
+  eye.position.set(s*0.05, 0.03, -0.16);
+  headGroup.add(eye);
+}
+
+// White spiky hair
+for (let i=0; i<7; i++) {
+  const spike = new THREE.Mesh(
+    new THREE.ConeGeometry(0.015 + Math.random()*0.01, 0.06 + Math.random()*0.06, 4),
+    hairMat
+  );
+  const angle = (i/7) * Math.PI * 2;
+  const r = 0.05 + Math.random()*0.04;
+  spike.position.set(
+    Math.cos(angle)*r,
+    0.14 + Math.random()*0.04,
+    Math.sin(angle)*r
+  );
+  spike.rotation.x = (Math.random()-0.5)*0.5;
+  spike.rotation.z = (Math.random()-0.5)*0.5;
+  headGroup.add(spike);
+}
+
+// Top spike
+const topSpike = new THREE.Mesh(
+  new THREE.ConeGeometry(0.02, 0.08, 4),
+  hairMat
+);
+topSpike.position.set(0, 0.18, 0.02);
+topSpike.castShadow = true;
+headGroup.add(topSpike);
+
+headGroup.position.y = 1.18;
+player.add(headGroup);
+
+// --- CAPE ---
+const capeGroup = new THREE.Group();
+
+// Back cape (tattered)
+for (let i=0; i<4; i++) {
+  const h = 0.3 + i*0.1;
+  const w = 0.25 - i*0.02;
+  const panel = new THREE.Mesh(
+    new THREE.PlaneGeometry(w, h),
+    capeMat
+  );
+  panel.position.set((i-1.5)*0.04, 0.6 - h/2 - 0.05, -0.25);
+  panel.rotation.x = 0.15 + i*0.05;
+  panel.rotation.y = (i-1.5)*0.08;
+  capeGroup.add(panel);
+}
+
+// Red scarf around neck
+const scarfParts = [
+  { pos: [0, 0.9, 0], rot: [0, 0, 0], w: 0.35, h: 0.04 },
+  { pos: [0.05, 0.88, -0.05], rot: [0.1, 0.2, 0.2], w: 0.25, h: 0.03 },
+  { pos: [-0.05, 0.88, -0.05], rot: [0.1, -0.2, -0.2], w: 0.25, h: 0.03 },
+  { pos: [0.1, 0.86, 0.05], rot: [0.3, 0.5, 0], w: 0.15, h: 0.04 },
+];
+
+for (const sp of scarfParts) {
+  const s = new THREE.Mesh(
+    new THREE.PlaneGeometry(sp.w, sp.h),
+    scarfMat
+  );
+  s.position.set(sp.pos[0], sp.pos[1], sp.pos[2]);
+  s.rotation.set(sp.rot[0], sp.rot[1], sp.rot[2]);
+  capeGroup.add(s);
+}
+
+// Scarf tail flowing to the side
+const tailPts = [
+  new THREE.Vector3(0.08, 0.85, 0.02),
+  new THREE.Vector3(0.18, 0.78, 0.08),
+  new THREE.Vector3(0.28, 0.7, 0.12),
+  new THREE.Vector3(0.35, 0.62, 0.1)
+];
+const tailGeo = new THREE.BufferGeometry().setFromPoints(tailPts.map(p => new THREE.Vector3(0,0,0)));
+const tailLine = new THREE.Line(
+  tailGeo,
+  new THREE.LineBasicMaterial({ color: 0xcc2222 })
+);
+for (let i=0; i<tailPts.length-1; i++) {
+  const seg = new THREE.Mesh(
+    new THREE.CylinderGeometry(0.008, 0.005, 0.12 + i*0.02, 3),
+    scarfMat
+  );
+  seg.position.set(
+    (tailPts[i].x + tailPts[i+1].x)/2,
+    (tailPts[i].y + tailPts[i+1].y)/2,
+    (tailPts[i].z + tailPts[i+1].z)/2
+  );
+  const dx = tailPts[i+1].x - tailPts[i].x;
+  const dy = tailPts[i+1].y - tailPts[i].y;
+  seg.rotation.z = -Math.atan2(dx, dy);
+  capeGroup.add(seg);
+}
+
+player.add(capeGroup);
 
 // --- Katana ---
 const swordGroup = new THREE.Group();
@@ -446,7 +723,6 @@ const camThirdDistance = 5;
 const camSmooth = 0.1;
 let camTargetTheta = 0;
 let camTargetPhi = 0.4;
-let isFirstPerson = false;
 
 // --- Input ---
 const keys = {};
@@ -455,9 +731,6 @@ let mouseDown = false;
 
 document.addEventListener('keydown', (e) => {
   keys[e.key.toLowerCase()] = true;
-  if (e.key === 'p' || e.key === 'P') {
-    isFirstPerson = !isFirstPerson;
-  }
   if (e.key === 'r' || e.key === 'R') {
     if (isSwordDrawn && !isSwinging) {
       isSwordDrawn = false;
@@ -633,11 +906,9 @@ function animate() {
   camTheta += (camTargetTheta - camTheta) * camSmooth;
   camPhi += (camTargetPhi - camPhi) * camSmooth;
   
-  let camDist = isFirstPerson ? 0.3 : camThirdDistance;
-  let camHeightOffset = isFirstPerson ? 1.0 : 1.2;
-  const camX = player.position.x + camDist * Math.sin(camTheta) * Math.cos(camPhi);
-  const camY = player.position.y + camHeightOffset + camDist * Math.sin(camPhi);
-  const camZ = player.position.z + camDist * Math.cos(camTheta) * Math.cos(camPhi);
+  const camX = player.position.x + camThirdDistance * Math.sin(camTheta) * Math.cos(camPhi);
+  const camY = player.position.y + 1.2 + camThirdDistance * Math.sin(camPhi);
+  const camZ = player.position.z + camThirdDistance * Math.cos(camTheta) * Math.cos(camPhi);
   
   camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.15);
   camera.lookAt(player.position.x, player.position.y + 0.8, player.position.z);
