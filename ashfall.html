@@ -629,9 +629,11 @@ function animate() {
   camTheta += (camTargetTheta - camTheta) * camSmooth;
   camPhi += (camTargetPhi - camPhi) * camSmooth;
   
-  const camX = player.position.x + camDistance * Math.sin(camTheta) * Math.cos(camPhi);
-  const camY = player.position.y + 1.2 + camDistance * Math.sin(camPhi);
-  const camZ = player.position.z + camDistance * Math.cos(camTheta) * Math.cos(camPhi);
+  let camDist = isFirstPerson ? 0.3 : camThirdDistance;
+  let camHeightOffset = isFirstPerson ? 1.0 : 1.2;
+  const camX = player.position.x + camDist * Math.sin(camTheta) * Math.cos(camPhi);
+  const camY = player.position.y + camHeightOffset + camDist * Math.sin(camPhi);
+  const camZ = player.position.z + camDist * Math.cos(camTheta) * Math.cos(camPhi);
   
   camera.position.lerp(new THREE.Vector3(camX, camY, camZ), 0.15);
   camera.lookAt(player.position.x, player.position.y + 0.8, player.position.z);
