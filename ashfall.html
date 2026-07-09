@@ -83,6 +83,9 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 renderer.toneMappingExposure = 1.2;
 document.body.prepend(renderer.domElement);
 
+// Set initial camera position
+camera.position.set(5, 3, 5);
+camera.lookAt(0, 1, 0);
 // --- Lighting ---
 const ambientLight = new THREE.AmbientLight(0x333355, 0.4);
 scene.add(ambientLight);
@@ -695,8 +698,12 @@ swordGroup.rotation.z = -0.5;
 swordGroup.rotation.x = 0.3;
 player.add(swordGroup);
 
-// Also add a copy to the sheath position for when drawn
-// Actually, just move the sword. We'll handle draw/sheath by repositioning.
+// Ground marker (red ring under player to help locate)
+const markerMat = new THREE.MeshBasicMaterial({ color: 0xff4444, transparent: true, opacity: 0.4, side: THREE.DoubleSide });
+const marker = new THREE.Mesh(new THREE.RingGeometry(0.3, 0.4, 16), markerMat);
+marker.position.set(0, 0.02, 0);
+marker.rotation.x = -Math.PI / 2;
+player.add(marker);
 
 // Player physics
 const velocity = new THREE.Vector3();
