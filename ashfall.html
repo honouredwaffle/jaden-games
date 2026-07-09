@@ -24,7 +24,7 @@ canvas{display:block}
 <div id="health-label">Vitality</div>
 <div id="sheath-status"><span style="color:#888">🗡️ Sheathed</span></div>
 <div id="click-prompt">Click to play</div>
-<div id="hud"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move &nbsp;|&nbsp; <kbd>Shift</kbd> Sprint &nbsp;|&nbsp; <kbd>Space</kbd> Jump &nbsp;|&nbsp; <kbd>LMB</kbd> Draw/Swing &nbsp;|&nbsp; <kbd>R</kbd> Sheathe</div>
+<div id="hud"><kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> Move &nbsp;|&nbsp; <kbd>Shift</kbd> Sprint &nbsp;|&nbsp; <kbd>Space</kbd> Jump &nbsp;|&nbsp; <kbd>LMB</kbd> Swing &nbsp;|&nbsp; <kbd>R</kbd> Draw/Sheathe</div>
 
 <script type="importmap">
 {
@@ -469,7 +469,11 @@ let locked = false;
 
 onkeydown = e => {
   k[e.key.toLowerCase()] = true;
-  if(e.key==='r'||e.key==='R') { if(drawn&&!swinging) drawn = false; }
+  if(e.key==='r'||e.key==='R') {
+    if(drawn && swinging) return;
+    drawn = !drawn;
+    if(drawn) { swinging = true; swingT = 0; }
+  }
 };
 onkeyup = e => { k[e.key.toLowerCase()] = false; };
 
@@ -480,9 +484,8 @@ document.addEventListener('pointerlockchange',()=>{
 });
 document.onmousemove = e => { if(!locked) return; tgtTh -= e.movementX*0.005; tgtPh = Math.max(0.15,Math.min(1.2,tgtPh+e.movementY*0.003)); };
 document.onmousedown = e => {
-  if(e.button!==0) return;
-  if(!drawn) { drawn = true; swinging = true; swingT = 0; }
-  else if(!swinging) { swinging = true; swingT = 0; }
+  if(e.button!==0 || !drawn) return;
+  if(!swinging) { swinging = true; swingT = 0; }
 };
 addEventListener('resize',()=>{ camera.aspect = innerWidth/innerHeight; camera.updateProjectionMatrix(); renderer.setSize(innerWidth,innerHeight); });
 
