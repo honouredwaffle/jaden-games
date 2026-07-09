@@ -442,10 +442,11 @@ const drawnRot = new THREE.Euler(-0.2, 0.2, -0.3);
 // --- Camera ---
 let camTheta = 0;
 let camPhi = 0.4;
-const camDistance = 6;
+const camThirdDistance = 5;
 const camSmooth = 0.1;
 let camTargetTheta = 0;
 let camTargetPhi = 0.4;
+let isFirstPerson = false;
 
 // --- Input ---
 const keys = {};
@@ -454,6 +455,9 @@ let mouseDown = false;
 
 document.addEventListener('keydown', (e) => {
   keys[e.key.toLowerCase()] = true;
+  if (e.key === 'p' || e.key === 'P') {
+    isFirstPerson = !isFirstPerson;
+  }
   if (e.key === 'r' || e.key === 'R') {
     if (isSwordDrawn && !isSwinging) {
       isSwordDrawn = false;
