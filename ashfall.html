@@ -208,8 +208,10 @@ function makeLeg(side) {
   g.position.set(side*0.1,0.2,0);
   return g;
 }
-player.add(makeLeg(-1));
-player.add(makeLeg(1));
+const lLeg = makeLeg(-1);
+const rLeg = makeLeg(1);
+player.add(lLeg);
+player.add(rLeg);
 
 // Arms
 function makeArm(side) {
@@ -523,14 +525,7 @@ function anim() {
     if(player.position.y<gh){
       player.position.y=gh; vel.y=0; onGround=true;
     }
-    // bob
-    const bobAmp = md.length()>0&&onGround ? (k['shift']?0.08:0.04) : 0;
-    const ph2 = bobAmp>0 ? clk.elapsedTime*(k['shift']?12:8) : 0;
-    for(const leg of player.children){
-      if(leg===lLeg||leg===rLeg){
-        // Find toe claws
-      }
-    }
+
   }
 
   // Sword
@@ -573,9 +568,7 @@ function anim() {
   renderer.render(scene,camera);
 }
 
-// Temporary: store refs for bob
-const lLeg = player.children.find(c=>c.position.x<0&&c.children.some(ch=>ch.geometry&&ch.geometry.type==='CylinderGeometry'&&ch.position.y<0.15));
-const rLeg = player.children.find(c=>c.position.x>0&&c.children.some(ch=>ch.geometry&&ch.geometry.type==='CylinderGeometry'&&ch.position.y<0.15));
+
 
 anim();
 console.log('Ashfall loaded 🔥');
