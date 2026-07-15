@@ -1,698 +1,209 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Verdant</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            background: #0a0a0a;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            font-family: 'Segoe UI', Tahoma, sans-serif;
-            overflow: hidden;
-        }
-        canvas {
-            display: block;
-            image-rendering: pixelated;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Verdant</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{background:#0a0a0a;display:flex;justify-content:center;align-items:center;min-height:100vh;font-family:'Segoe UI',Tahoma,sans-serif;overflow:hidden}
+canvas{display:block;image-rendering:pixelated}
+</style>
 </head>
 <body>
 <canvas id="c"></canvas>
 <script>
-const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
+const c=document.getElementById('c'),ctx=c.getContext('2d');
+const T=32,W=800,H=600;c.width=W;c.height=H;
+const WW=160*T,WH=120*T,TX=80*T,TY=60*T;
+let disc=new Set(),pl={x:20*T,y:20*T,vx:0,vy:0,w:24,h:32,sp:3.5,hp:100,mh:100},cam={x:0,y:0},k={},m={x:0,y:0,dn:false};
+let inv={wood:0,hide:0,bone:0,gold:0},eq='sword',trs=[],crs=[],sb=false,sp=null,msg='',mt=0,sm=false,si=false,selSlot=-1;
+let gs={helmet:null,chest:null,weapon:'sword',boots:null};
 
-// PIXEL SCALE
-const TILE = 32;
-const W = 800, H = 600;
-canvas.width = W;
-canvas.height = H;
-
-// --- WORLD ---
-const WORLD_W = 160 * TILE;
-const WORLD_H = 120 * TILE;
-const TOWN_X = 80 * TILE, TOWN_Y = 60 * TILE;
-
-let discovered = new Set();
-let player = { x: 20*TILE, y: 20*TILE, vx:0, vy:0, w:24, h:32, speed: 3.5, hp: 100, maxHp: 100 };
-let camera = { x: 0, y: 0 };
-let keys = {};
-let mouse = { x:0, y:0, down:false };
-let inventory = { wood:0, hide:0, bone:0, gold:0 };
-let equipped = 'sword';
-let trees = [];
-let creatures = [];
-let shopBuilt = false;
-let shopPlatform = null;
-let message = '';
-let messageTimer = 0;
-let showMap = false;
-
-// Generate forest trees
-for (let i = 0; i < 120; i++) {
-    let x = Math.random() * WORLD_W;
-    let y = Math.random() * WORLD_H;
-    // Keep town area clear
-    if (Math.abs(x - TOWN_X) < 400 && Math.abs(y - TOWN_Y) < 300) continue;
-    trees.push({ x, y, size: 28 + Math.random() * 20, health: 3, regrowing: false });
-}
-
-// Generate creatures
-for (let i = 0; i < 25; i++) {
-    let x, y, ok;
-    do {
-        x = Math.random() * WORLD_W;
-        y = Math.random() * WORLD_H;
-        ok = Math.abs(x - TOWN_X) > 500 || Math.abs(y - TOWN_Y) > 500;
-    } while (!ok);
-    creatures.push({
-        x, y, w: 28, h: 28,
-        hp: 20, maxHp: 20,
-        type: Math.random() < 0.6 ? 'deer' : 'wolf',
-        state: 'idle',
-        timer: Math.random() * 200,
-        vx:0, vy:0,
-        drops: Math.random() < 0.6 ? { type: 'hide', qty: 1 } : { type: 'bone', qty: 1 }
-    });
-}
-
-// Dragon (one big boss)
-let dragon = {
-    x: TOWN_X + 800, y: TOWN_Y - 600,
-    hp: 150, maxHp: 150,
-    active: false,
-    aggro: false,
-    timer: 0,
-    vx:0, vy:0,
-    attackTimer: 0
+// gear defs
+const GEAR={
+  sword:{name:'Sword',type:'weapon',desc:'Basic blade',atk:15},
+  axe:{name:'Axe',type:'weapon',desc:'Chops trees',atk:10},
+  wood_helm:{name:'Wood Helm',type:'helmet',desc:'+10 HP',hpb:10},
+  hide_vest:{name:'Hide Vest',type:'chest',desc:'+15 HP',hpb:15},
+  bone_boots:{name:'Bone Boots',type:'boots',desc:'+5 HP',hpb:5}
 };
 
-function dist(a,b) { return Math.hypot(a.x-b.x, a.y-b.y); }
+// crafting recipes
+const CRAFT=[
+  {need:{wood:5},give:{type:'wood_helm',qty:1},label:'Wood Helm'},
+  {need:{hide:3,bone:2},give:{type:'hide_vest',qty:1},label:'Hide Vest'},
+  {need:{hide:2,bone:3},give:{type:'bone_boots',qty:1},label:'Bone Boots'}
+];
 
-function worldToScreen(wx, wy) {
-    return { x: wx - camera.x + W/2, y: wy - camera.y + H/2 };
+// trees
+for(let i=0;i<120;i++){let x,y;do{x=Math.random()*WW;y=Math.random()*WH}while(Math.abs(x-TX)<400&&Math.abs(y-TY)<300);trs.push({x,y,sz:28+Math.random()*20,hp:3,rg:false})}
+// creatures
+for(let i=0;i<25;i++){let x,y;do{x=Math.random()*WW;y=Math.random()*WH}while(Math.abs(x-TX)<=500&&Math.abs(y-TY)<=500);crs.push({x,y,w:28,h:28,hp:20,mh:20,ty:Math.random()<.6?'deer':'wolf',st:'idle',tm:Math.random()*200,vx:0,vy:0,dr:Math.random()<.6?{ty:'hide',qt:1}:{ty:'bone',qt:1}})}
+// dragon
+let dr={x:TX+800,y:TY-600,hp:150,mh:150,ac:false,ag:false,tm:0,vx:0,vy:0};
+
+function d(a,b){return Math.hypot(a.x-b.x,a.y-b.y)}
+function w2s(wx,wy){return{x:wx-cam.x+W/2,y:wy-cam.y+H/2}}
+
+function chop(px,py){let b=null,bd=Infinity;for(let t of trs){let dd=d({x:px,y:py},{x:t.x,y:t.y});if(dd<60&&dd<bd){bd=dd;b=t}}if(!b||b.rg)return;b.hp--;if(b.hp<=0){inv.wood+=4+Math.floor(Math.random()*3);b.rg=true;setTimeout(()=>{b.hp=3;b.rg=false},30000);sm('+ Wood')}}
+function atk(px,py,dir){
+  let ax=px+Math.cos(dir)*40,ay=py+Math.sin(dir)*40,rg=50;
+  for(let cr of crs){if(cr.hp<=0)continue;if(d({x:ax,y:ay},{x:cr.x,y:cr.y})<rg){let g=gs.weapon?GEAR[gs.weapon]:GEAR.sword;let dmg=(g?g.atk:15)+Math.floor(Math.random()*10);cr.hp-=dmg;cr.st='hit';cr.vx=Math.cos(dir)*6;cr.vy=Math.sin(dir)*6;if(cr.hp<=0){inv[cr.dr.ty]=(inv[cr.dr.ty]||0)+cr.dr.qt;inv.bone=(inv.bone||0)+(cr.ty==='wolf'?1:0);sm('+'+cr.dr.qt+' '+cr.dr.ty);setTimeout(()=>{cr.x=Math.random()*WW;cr.y=Math.random()*WH;cr.hp=cr.mh},15000)}}}
+  if(dr.ac&&d({x:ax,y:ay},{x:dr.x,y:dr.y})<60){let dmg=8+Math.floor(Math.random()*5);dr.hp-=dmg;dr.vx=Math.cos(dir)*8;dr.vy=Math.sin(dir)*8;dr.ag=true;if(dr.hp<=0){sm('Dragon slain! +Scale');inv.hide=(inv.hide||0)+5;dr.ac=false;setTimeout(()=>{dr.hp=dr.mh;dr.x=TX+800+(Math.random()-.5)*400;dr.y=TY-600+(Math.random()-.5)*400;dr.ac=true;dr.ag=false},60000)}}
 }
+function buildS(){if(sb)return;if(inv.wood<20){sm('Need 20 wood');return}inv.wood-=20;sb=true;sp={x:pl.x,y:pl.y};sm('Shop built!')}
+function sm(m){msg=m;mt=120}
+function calHp(){let b=100;if(gs.helmet&&GEAR[gs.helmet])b+=GEAR[gs.helmet].hpb||0;if(gs.chest&&GEAR[gs.chest])b+=GEAR[gs.chest].hpb||0;if(gs.boots&&GEAR[gs.boots])b+=GEAR[gs.boots].hpb||0;pl.mh=b;pl.hp=Math.min(pl.hp,pl.mh)}
+calHp();
 
-// --- TREE CHOPPING ---
-function chopTree(tx, ty) {
-    let closest = null, bestDist = Infinity;
-    for (let t of trees) {
-        let d = dist({x:tx,y:ty}, {x:t.x,y:t.y});
-        if (d < 60 && d < bestDist) { bestDist = d; closest = t; }
-    }
-    if (!closest || closest.regrowing) return;
-    closest.health--;
-    if (closest.health <= 0) {
-        inventory.wood += 4 + Math.floor(Math.random() * 3);
-        closest.regrowing = true;
-        setTimeout(() => {
-            closest.health = 3;
-            closest.regrowing = false;
-        }, 30000);
-        showMessage('+ Wood');
-    }
+function update(){
+  let mx=0,my=0;if(k['w']||k['ArrowUp'])my=-1;if(k['s']||k['ArrowDown'])my=1;if(k['a']||k['ArrowLeft'])mx=-1;if(k['d']||k['ArrowRight'])mx=1;if(mx&&my){mx*=.707;my*=.707}
+  if(!si){pl.vx+=mx*pl.sp*.3;pl.vy+=my*pl.sp*.3;pl.vx*=.8;pl.vy*=.8;pl.x+=pl.vx;pl.y+=pl.vy;pl.x=Math.max(16,Math.min(WW-16,pl.x));pl.y=Math.max(16,Math.min(WH-16,pl.y));cam.x+=(pl.x-cam.x)*.1;cam.y+=(pl.y-cam.y)*.1}
+  let cxx=Math.floor(pl.x/T),cyy=Math.floor(pl.y/T),cl=cxx+','+cyy;if(!disc.has(cl)){disc.add(cl);if(disc.size%20===0)sm('New area discovered!')}if(d(pl,{x:TX,y:TY})<300)disc.add('town');
+  if(m.dn&&!sm&&!si){m.dn=false;let dir=Math.atan2(m.y-H/2,m.x-W/2);if(eq==='sword')atk(pl.x,pl.y,dir);else chop(pl.x,pl.y)}
+  if(k['b']&&!si){k['b']=false;if(d(pl,{x:TX,y:TY})<300)buildS();else sm('Find the town first!')}
+  if(k['m']&&!si){k['m']=false;sm=!sm}
+  if(k['i']){k['i']=false;si=!si}
+  if(k['q']&&!si){k['q']=false;eq=eq==='sword'?'axe':'sword';gs.weapon=eq;sm('Equipped '+eq)}
+  if(mt>0)mt--;
+  // creatures
+  for(let cr of crs){if(cr.hp<=0)continue;cr.tm--;let dd=d(pl,cr);if(dd<200){if(cr.ty==='deer'){let a=Math.atan2(cr.y-pl.y,cr.x-pl.x);cr.vx+=Math.cos(a)*.3;cr.vy+=Math.sin(a)*.3}else{let a=Math.atan2(pl.y-cr.y,pl.x-cr.x);cr.vx+=Math.cos(a)*.2;cr.vy+=Math.sin(a)*.2;if(dd<30&&cr.tm<=0){pl.hp-=5;cr.tm=60;sm('-5 HP!')}}}else if(cr.tm<=0){cr.st='wander';cr.vx+=(Math.random()-.5)*.5;cr.vy+=(Math.random()-.5)*.5;cr.tm=60+Math.random()*120}cr.vx*=.9;cr.vy*=.9;cr.x+=cr.vx;cr.y+=cr.vy;cr.x=Math.max(16,Math.min(WW-16,cr.x));cr.y=Math.max(16,Math.min(WH-16,cr.y));if(cr.st==='hit'&&Math.abs(cr.vx)<.3&&Math.abs(cr.vy)<.3)cr.st='idle'}
+  // dragon
+  if(dr.ac){let dd=d(pl,dr);if(dd<500)dr.ag=true;if(dr.ag){let da=Math.atan2(pl.y-dr.y,pl.x-dr.x);dr.vx+=Math.cos(da)*.15;dr.vy+=Math.sin(da)*.15;if(dd<60&&dr.tm<=0){pl.hp-=15;dr.tm=80;sm('Dragon claw! -15 HP!')}}else{dr.vx+=(Math.random()-.5)*.2;dr.vy+=(Math.random()-.5)*.2}dr.vx*=.97;dr.vy*=.97;dr.x+=dr.vx;dr.y+=dr.vy;if(dr.tm>0)dr.tm--}else{if(d(pl,{x:TX+800,y:TY-600})<600||Math.random()<.001&&pl.x>WW/2)dr.ac=true}
+  // death
+  if(pl.hp<=0){pl.hp=pl.mh;pl.x=20*T;pl.y=20*T;sm('You died! Respawned');if(dr.hp<=0){dr.hp=dr.mh;dr.ac=true}}
 }
-
-// --- CREATURE HUNTING ---
-function attackCreature(px, py, dir) {
-    let ax = px + Math.cos(dir) * 40;
-    let ay = py + Math.sin(dir) * 40;
-    let range = 50;
-    for (let c of creatures) {
-        if (c.hp <= 0) continue;
-        let d = dist({x:ax,y:ay}, {x:c.x,y:c.y});
-        if (d < range) {
-            c.hp -= 15 + Math.floor(Math.random() * 10);
-            c.state = 'hit';
-            c.vx = Math.cos(dir) * 6;
-            c.vy = Math.sin(dir) * 6;
-            if (c.hp <= 0) {
-                let drop = c.drops;
-                inventory[drop.type] = (inventory[drop.type] || 0) + drop.qty;
-                inventory.bone = (inventory.bone || 0) + (c.type === 'wolf' ? 1 : 0);
-                showMessage('+' + drop.qty + ' ' + drop.type);
-                // Respawn after a while
-                setTimeout(() => {
-                    c.x = Math.random() * WORLD_W;
-                    c.y = Math.random() * WORLD_H;
-                    c.hp = c.maxHp;
-                }, 15000);
-            }
-        }
-    }
-    // Dragon
-    if (dragon.active && dist({x:ax,y:ay}, {x:dragon.x,y:dragon.y}) < 60) {
-        dragon.hp -= 8 + Math.floor(Math.random() * 5);
-        dragon.vx = Math.cos(dir) * 8;
-        dragon.vy = Math.sin(dir) * 8;
-        dragon.aggro = true;
-        if (dragon.hp <= 0) {
-            showMessage('Dragon slain! + Dragon Scale');
-            inventory.hide = (inventory.hide || 0) + 5;
-            dragon.active = false;
-            setTimeout(() => {
-                dragon.hp = dragon.maxHp;
-                dragon.x = TOWN_X + 800 + (Math.random()-0.5)*400;
-                dragon.y = TOWN_Y - 600 + (Math.random()-0.5)*400;
-                dragon.active = true;
-                dragon.aggro = false;
-            }, 60000);
-        }
-    }
+// ---- DRAWING ----
+function drawChar(sx,sy,w,h,col,armor){
+  // body
+  ctx.fillStyle=armor||col||'#2a6ab0';ctx.fillRect(sx-w/2,sy-h/2,w,h*.6);
+  // head
+  ctx.fillStyle='#e8c090';ctx.fillRect(sx-w*.3,sy-h/2-w*.2,w*.6,w*.3);
+  // eyes
+  ctx.fillStyle='#222';ctx.fillRect(sx-w*.15,sy-h/2-w*.08,3,3);ctx.fillRect(sx+w*.05,sy-h/2-w*.08,3,3);
+  // legs
+  ctx.fillStyle='#1a3d6b';ctx.fillRect(sx-w*.3,sy+h*.1,w*.25,h*.3);ctx.fillRect(sx+w*.05,sy+h*.1,w*.25,h*.3);
+  // arms
+  ctx.fillStyle='#e8c090';ctx.fillRect(sx-w*.5,sy-h*.15,w*.2,h*.3);ctx.fillRect(sx+w*.3,sy-h*.15,w*.2,h*.3);
+  if(eq==='sword'){ctx.fillStyle='#ccc';ctx.fillRect(sx+w*.45,sy-h*.2,4,20);ctx.fillStyle='#8B4513';ctx.fillRect(sx+w*.4,sy-h*.25,8,6)}
+  else{ctx.fillStyle='#8B4513';ctx.fillRect(sx+w*.45,sy-h*.15,4,14);ctx.fillStyle='#666';ctx.fillRect(sx+w*.42,sy-h*.2,10,4)}
 }
-
-// --- SHOP PLATFORM ---
-function buildShop() {
-    if (shopBuilt) return;
-    if (inventory.wood < 20) { showMessage('Need 20 wood'); return; }
-    inventory.wood -= 20;
-    shopBuilt = true;
-    shopPlatform = { x: player.x, y: player.y };
-    showMessage('Shop built!');
+function drawDeer(sx,sy){
+  ctx.fillStyle='#8B6914';ctx.beginPath();ctx.ellipse(sx,sy-2,12,8,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#6B4F12';ctx.beginPath();ctx.ellipse(sx-6,sy-12,6,5,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#5a3e0e';ctx.fillRect(sx-10,sy+6,3,8);ctx.fillRect(sx-3,sy+6,3,8);ctx.fillRect(sx+4,sy+6,3,8);ctx.fillRect(sx+11,sy+6,3,8);
+  ctx.fillStyle='#fff';ctx.fillRect(sx-9,sy-16,2,2);ctx.fillRect(sx-5,sy-16,2,2);
+  ctx.fillStyle='#3a2a08';ctx.fillRect(sx-2,sy-20,2,6);ctx.fillRect(sx+2,sy-20,2,6);
 }
-
-function showMessage(msg) {
-    message = msg;
-    messageTimer = 120;
+function drawWolf(sx,sy){
+  ctx.fillStyle='#555';ctx.beginPath();ctx.ellipse(sx,sy-2,12,8,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#444';ctx.beginPath();ctx.ellipse(sx-6,sy-12,6,5,0,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#666';ctx.fillRect(sx-10,sy+6,3,8);ctx.fillRect(sx-3,sy+6,3,8);ctx.fillRect(sx+4,sy+6,3,8);ctx.fillRect(sx+11,sy+6,3,8);
+  ctx.fillStyle='#ff4';ctx.fillRect(sx-9,sy-16,2,2);ctx.fillRect(sx-5,sy-16,2,2);
+  ctx.fillStyle='#888';ctx.fillRect(sx-1,sy-4,2,4);ctx.fillRect(sx+3,sy-4,2,4);
 }
-
-// --- UPDATE ---
-function update() {
-    // Movement
-    let mx = 0, my = 0;
-    if (keys['w']||keys['ArrowUp']) my = -1;
-    if (keys['s']||keys['ArrowDown']) my = 1;
-    if (keys['a']||keys['ArrowLeft']) mx = -1;
-    if (keys['d']||keys['ArrowRight']) mx = 1;
-    if (mx && my) { mx *= 0.707; my *= 0.707; }
-    player.vx += mx * player.speed * 0.3;
-    player.vy += my * player.speed * 0.3;
-    player.vx *= 0.8;
-    player.vy *= 0.8;
-    player.x += player.vx;
-    player.y += player.vy;
-    player.x = Math.max(16, Math.min(WORLD_W-16, player.x));
-    player.y = Math.max(16, Math.min(WORLD_H-16, player.y));
-
-    // Camera
-    camera.x += (player.x - camera.x) * 0.1;
-    camera.y += (player.y - camera.y) * 0.1;
-
-    // Check discovered
-    let cx = Math.floor(player.x / TILE);
-    let cy = Math.floor(player.y / TILE);
-    let cell = cx + ',' + cy;
-    if (!discovered.has(cell)) {
-        discovered.add(cell);
-        if (discovered.size % 20 === 0) showMessage('New area discovered!');
-    }
-
-    // Town discovery
-    let distToTown = dist(player, {x:TOWN_X, y:TOWN_Y});
-    if (distToTown < 300) {
-        discovered.add('town');
-    }
-
-    // Attack
-    if (mouse.down && !showMap) {
-        mouse.down = false;
-        let dir = Math.atan2(mouse.y - H/2, mouse.x - W/2);
-        if (equipped === 'sword') {
-            attackCreature(player.x, player.y, dir);
-        } else if (equipped === 'axe') {
-            chopTree(player.x, player.y);
-        }
-    }
-
-    // Build shop
-    if (keys['b']) {
-        keys['b'] = false;
-        if (distToTown < 300) {
-            buildShop();
-        } else {
-            showMessage('Find the town first!');
-        }
-    }
-
-    // Map toggle
-    if (keys['m']) {
-        keys['m'] = false;
-        showMap = !showMap;
-    }
-
-    // Equip swap
-    if (keys['q']) {
-        keys['q'] = false;
-        equipped = equipped === 'sword' ? 'axe' : 'sword';
-        showMessage('Equipped ' + equipped);
-    }
-
-    // Message timer
-    if (messageTimer > 0) messageTimer--;
-
-    // --- Creatures ---
-    for (let c of creatures) {
-        if (c.hp <= 0) continue;
-        c.timer--;
-        let d = dist(player, c);
-        if (d < 200) {
-            // Flee from player (deer) or approach (wolf)
-            if (c.type === 'deer') {
-                let away = Math.atan2(c.y - player.y, c.x - player.x);
-                c.vx += Math.cos(away) * 0.3;
-                c.vy += Math.sin(away) * 0.3;
-            } else {
-                let toward = Math.atan2(player.y - c.y, player.x - c.x);
-                c.vx += Math.cos(toward) * 0.2;
-                c.vy += Math.sin(toward) * 0.2;
-                if (d < 30 && c.timer <= 0) {
-                    player.hp -= 5;
-                    c.timer = 60;
-                    showMessage('-5 HP!');
-                }
-            }
-        } else if (c.timer <= 0) {
-            c.state = 'wander';
-            c.vx += (Math.random()-0.5) * 0.5;
-            c.vy += (Math.random()-0.5) * 0.5;
-            c.timer = 60 + Math.random() * 120;
-        }
-        c.vx *= 0.9;
-        c.vy *= 0.9;
-        c.x += c.vx;
-        c.y += c.vy;
-        c.x = Math.max(16, Math.min(WORLD_W-16, c.x));
-        c.y = Math.max(16, Math.min(WORLD_H-16, c.y));
-        if (c.state === 'hit' && Math.abs(c.vx) < 0.3 && Math.abs(c.vy) < 0.3) c.state = 'idle';
-    }
-
-    // --- Dragon ---
-    if (dragon.active) {
-        let dd = dist(player, dragon);
-        if (dd < 500) dragon.aggro = true;
-        if (dragon.aggro) {
-            let da = Math.atan2(player.y - dragon.y, player.x - dragon.x);
-            dragon.vx += Math.cos(da) * 0.15;
-            dragon.vy += Math.sin(da) * 0.15;
-            if (dd < 60 && dragon.timer <= 0) {
-                player.hp -= 15;
-                dragon.timer = 80;
-                showMessage('Dragon claw! -15 HP!');
-            }
-        } else {
-            dragon.vx += (Math.random()-0.5) * 0.2;
-            dragon.vy += (Math.random()-0.5) * 0.2;
-        }
-        dragon.vx *= 0.97;
-        dragon.vy *= 0.97;
-        dragon.x += dragon.vx;
-        dragon.y += dragon.vy;
-        if (dragon.timer > 0) dragon.timer--;
-    } else {
-        if (dist(player, {x:TOWN_X+800, y:TOWN_Y-600}) < 600 ||
-            (Math.random() < 0.001 && player.x > WORLD_W/2)) {
-            dragon.active = true;
-        }
-    }
-
-    // Death
-    if (player.hp <= 0) {
-        player.hp = player.maxHp;
-        player.x = 20*TILE;
-        player.y = 20*TILE;
-        showMessage('You died! Respawned at start');
-        // Respawn dragon if killed
-        if (dragon.hp <= 0) {
-            dragon.hp = dragon.maxHp;
-            dragon.active = true;
-        }
-    }
+function drawDragon(sx,sy){
+  // body
+  ctx.fillStyle='#8B0000';ctx.beginPath();ctx.ellipse(sx,sy,20,12,0,0,Math.PI*2);ctx.fill();
+  // neck+head
+  ctx.fillStyle='#a00000';ctx.fillRect(sx-4,sy-28,8,20);ctx.beginPath();ctx.ellipse(sx,sy-32,10,8,0,0,Math.PI*2);ctx.fill();
+  // horns
+  ctx.fillStyle='#333';ctx.fillRect(sx-8,sy-42,2,8);ctx.fillRect(sx+6,sy-42,2,8);
+  // wings
+  ctx.fillStyle='#600';ctx.beginPath();ctx.moveTo(sx-16,sy-6);ctx.lineTo(sx-36,sy-34);ctx.lineTo(sx-14,sy-4);ctx.fill();
+  ctx.beginPath();ctx.moveTo(sx+16,sy-6);ctx.lineTo(sx+36,sy-34);ctx.lineTo(sx+14,sy-4);ctx.fill();
+  // tail
+  ctx.fillStyle='#8B0000';ctx.beginPath();ctx.moveTo(sx+16,sy+2);ctx.lineTo(sx+36,sy+6);ctx.lineTo(sx+32,sy+2);ctx.lineTo(sx+38,sy-2);ctx.fill();
+  // eyes
+  ctx.fillStyle='#ff0';ctx.fillRect(sx-6,sy-34,4,4);ctx.fillRect(sx+2,sy-34,4,4);
+  ctx.fillStyle='#333';ctx.fillRect(sx-5,sy-33,2,2);ctx.fillRect(sx+3,sy-33,2,2);
+  ctx.fillStyle='#333';ctx.fillRect(sx-30,sy-42,60,5);ctx.fillStyle='#f00';ctx.fillRect(sx-30,sy-42,60*(dr.hp/dr.mh),5);
 }
-
-// --- DRAW ---
-function draw() {
-    // Sky / background
-    ctx.fillStyle = '#1a1a2e';
-    ctx.fillRect(0, 0, W, H);
-
-    // Ground
-    let startCX = Math.floor((camera.x - W/2) / TILE) - 1;
-    let startCY = Math.floor((camera.y - H/2) / TILE) - 1;
-    let endCX = Math.ceil((camera.x + W/2) / TILE) + 1;
-    let endCY = Math.ceil((camera.y + H/2) / TILE) + 1;
-    for (let cy = startCY; cy <= endCY; cy++) {
-        for (let cx = startCX; cx <= endCX; cx++) {
-            let wx = cx * TILE, wy = cy * TILE;
-            let s = worldToScreen(wx, wy);
-            // Forest ground - varies
-            let shade = ((cx * 7 + cy * 13) % 5) * 5;
-            ctx.fillStyle = `rgb(${30+shade}, ${80+shade}, ${30+shade})`;
-            ctx.fillRect(s.x, s.y, TILE+1, TILE+1);
-        }
-    }
-
-    // World border
-    let tl = worldToScreen(0, 0);
-    let br = worldToScreen(WORLD_W, WORLD_H);
-    ctx.strokeStyle = '#4a3a2a';
-    ctx.lineWidth = 4;
-    ctx.strokeRect(tl.x, tl.y, br.x - tl.x, br.y - tl.y);
-
-    // Trees
-    for (let t of trees) {
-        if (t.regrowing) continue;
-        let s = worldToScreen(t.x, t.y);
-        if (s.x < -50 || s.x > W+50 || s.y < -50 || s.y > H+50) continue;
-        // Trunk
-        ctx.fillStyle = '#4a3728';
-        ctx.fillRect(s.x - 4, s.y - 4, 8, 12);
-        // Foliage
-        let r = t.size / 2;
-        ctx.fillStyle = t.health === 3 ? '#2d5a27' : t.health === 2 ? '#3a6b30' : '#4a7a38';
-        ctx.beginPath();
-        ctx.arc(s.x, s.y - r/2, r, 0, Math.PI * 2);
-        ctx.fill();
-        // Darker inner
-        ctx.fillStyle = t.health === 3 ? '#1e3d1a' : '#2a4f22';
-        ctx.beginPath();
-        ctx.arc(s.x, s.y - r/3, r * 0.6, 0, Math.PI * 2);
-        ctx.fill();
-    }
-
-    // Creatures
-    for (let c of creatures) {
-        if (c.hp <= 0) continue;
-        let s = worldToScreen(c.x, c.y);
-        if (s.x < -30 || s.x > W+30 || s.y < -30 || s.y > H+30) continue;
-        if (c.type === 'deer') {
-            ctx.fillStyle = '#8B6914';
-            ctx.fillRect(s.x - 10, s.y - 8, 20, 16); // body
-            ctx.fillStyle = '#6B4F12';
-            ctx.fillRect(s.x - 4, s.y - 16, 8, 10); // head
-            // Legs
-            ctx.fillStyle = '#5a3e0e';
-            ctx.fillRect(s.x - 8, s.y + 8, 4, 10);
-            ctx.fillRect(s.x + 4, s.y + 8, 4, 10);
-        } else {
-            ctx.fillStyle = '#555';
-            ctx.fillRect(s.x - 10, s.y - 8, 20, 16); // body
-            ctx.fillStyle = '#444';
-            ctx.fillRect(s.x - 4, s.y - 16, 8, 10); // head
-            ctx.fillStyle = '#666';
-            ctx.fillRect(s.x - 8, s.y + 8, 4, 10);
-            ctx.fillRect(s.x + 4, s.y + 8, 4, 10);
-            // Eyes
-            ctx.fillStyle = '#ff4';
-            ctx.fillRect(s.x - 3, s.y - 14, 3, 3);
-            ctx.fillRect(s.x + 2, s.y - 14, 3, 3);
-        }
-    }
-
-    // Dragon
-    if (dragon.active && dragon.hp > 0) {
-        let s = worldToScreen(dragon.x, dragon.y);
-        if (s.x > -100 && s.x < W+100 && s.y > -100 && s.y < H+100) {
-            // Body
-            ctx.fillStyle = '#8B0000';
-            ctx.fillRect(s.x - 20, s.y - 12, 40, 24);
-            // Neck + head
-            ctx.fillStyle = '#a00000';
-            ctx.fillRect(s.x - 4, s.y - 28, 8, 18);
-            ctx.fillRect(s.x - 8, s.y - 28, 16, 10);
-            // Wings
-            ctx.fillStyle = '#600';
-            ctx.beginPath();
-            ctx.moveTo(s.x - 20, s.y - 8);
-            ctx.lineTo(s.x - 40, s.y - 30);
-            ctx.lineTo(s.x - 18, s.y - 5);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.moveTo(s.x + 20, s.y - 8);
-            ctx.lineTo(s.x + 40, s.y - 30);
-            ctx.lineTo(s.x + 18, s.y - 5);
-            ctx.fill();
-            // Eyes
-            ctx.fillStyle = '#ff0';
-            ctx.fillRect(s.x - 6, s.y - 26, 4, 4);
-            ctx.fillRect(s.x + 2, s.y - 26, 4, 4);
-            // HP bar
-            ctx.fillStyle = '#333';
-            ctx.fillRect(s.x - 30, s.y - 40, 60, 6);
-            ctx.fillStyle = '#f00';
-            ctx.fillRect(s.x - 30, s.y - 40, 60 * (dragon.hp/dragon.maxHp), 6);
-        }
-    }
-
-    // Town
-    {
-        let s = worldToScreen(TOWN_X, TOWN_Y);
-        if (s.x > -200 && s.x < W+200 && s.y > -200 && s.y < H+200) {
-            // Town ground
-            ctx.fillStyle = '#5a4a3a';
-            ctx.fillRect(s.x - 150, s.y - 100, 300, 200);
-            // Buildings
-            ctx.fillStyle = '#7a5a3a';
-            ctx.fillRect(s.x - 60, s.y - 80, 50, 60);
-            ctx.fillStyle = '#8a6a4a';
-            ctx.fillRect(s.x + 30, s.y - 60, 60, 40);
-            // Roofs
-            ctx.fillStyle = '#6a3a1a';
-            ctx.beginPath();
-            ctx.moveTo(s.x - 70, s.y - 80);
-            ctx.lineTo(s.x - 35, s.y - 100);
-            ctx.lineTo(s.x, s.y - 80);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.moveTo(s.x + 20, s.y - 60);
-            ctx.lineTo(s.x + 60, s.y - 80);
-            ctx.lineTo(s.x + 100, s.y - 60);
-            ctx.fill();
-            // Signpost
-            ctx.fillStyle = '#5a3a1a';
-            ctx.fillRect(s.x + 70, s.y - 20, 4, 40);
-            ctx.fillStyle = '#3a2a1a';
-            ctx.font = '10px sans-serif';
-            ctx.fillText('T O W N', s.x + 55, s.y - 25);
-            // Label when discovered
-            if (discovered.has('town')) {
-                ctx.fillStyle = '#ffd700';
-                ctx.font = 'bold 14px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText('✦ Verdant Town', s.x, s.y - 110);
-                ctx.textAlign = 'left';
-            }
-        }
-    }
-
-    // Shop platform
-    if (shopPlatform) {
-        let s = worldToScreen(shopPlatform.x, shopPlatform.y);
-        if (s.x > -50 && s.x < W+50 && s.y > -50 && s.y < H+50) {
-            ctx.fillStyle = '#6B4226';
-            ctx.fillRect(s.x - 25, s.y - 10, 50, 20);
-            ctx.fillStyle = '#8B5A2B';
-            ctx.fillRect(s.x - 22, s.y - 12, 44, 8);
-            ctx.fillStyle = '#ffd700';
-            ctx.font = '10px sans-serif';
-            ctx.textAlign = 'center';
-            ctx.fillText('✦ Shop', s.x, s.y - 18);
-            ctx.textAlign = 'left';
-        }
-    }
-
-    // Player
-    {
-        let s = worldToScreen(player.x, player.y);
-        // Body
-        ctx.fillStyle = '#2a6ab0';
-        ctx.fillRect(s.x - 12, s.y - 12, 24, 24);
-        // Head
-        ctx.fillStyle = '#e8c090';
-        ctx.fillRect(s.x - 8, s.y - 20, 16, 10);
-        // Eyes
-        ctx.fillStyle = '#222';
-        ctx.fillRect(s.x - 5, s.y - 18, 3, 3);
-        ctx.fillRect(s.x + 2, s.y - 18, 3, 3);
-        // Equipment indicator
-        ctx.fillStyle = '#ccc';
-        ctx.font = '10px sans-serif';
-        ctx.fillText('[' + equipped + ']', s.x - 20, s.y - 28);
-    }
-
-    // HUD
-    ctx.fillStyle = 'rgba(0,0,0,0.6)';
-    ctx.fillRect(4, 4, 200, 90);
-
-    ctx.fillStyle = '#fff';
-    ctx.font = '12px sans-serif';
-    ctx.fillText('HP: ' + player.hp + '/' + player.maxHp, 10, 20);
-    ctx.fillText('Wood: ' + inventory.wood, 10, 36);
-    ctx.fillText('Hide: ' + (inventory.hide||0), 10, 52);
-    ctx.fillText('Bone: ' + (inventory.bone||0), 10, 68);
-    ctx.fillText('Gold: ' + (inventory.gold||0), 10, 84);
-
-    // Controls hint
-    ctx.fillStyle = 'rgba(0,0,0,0.5)';
-    ctx.fillRect(W - 210, 4, 206, 80);
-    ctx.fillStyle = '#aaa';
-    ctx.font = '11px sans-serif';
-    ctx.fillText('WASD - Move', W - 204, 20);
-    ctx.fillText('Click - Attack/Chop', W - 204, 36);
-    ctx.fillText('Q - Swap weapon', W - 204, 52);
-    ctx.fillText('M - Map', W - 204, 68);
-    ctx.fillText('B - Build shop (in town)', W - 204, 84);
-
-    // Message
-    if (messageTimer > 0) {
-        ctx.fillStyle = `rgba(255,255,255,${Math.min(1, messageTimer/30)})`;
-        ctx.font = 'bold 18px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(message, W/2, 50);
-        ctx.textAlign = 'left';
-    }
-
-    // Map overlay
-    if (showMap) {
-        ctx.fillStyle = 'rgba(0,0,0,0.8)';
-        ctx.fillRect(0, 0, W, H);
-        let mapScale = Math.min(W/2 / WORLD_W, H/2 / WORLD_H) * 1.5;
-        let mapW = WORLD_W * mapScale;
-        let mapH = WORLD_H * mapScale;
-        let mapX = (W - mapW) / 2;
-        let mapY = 60;
-
-        // Border
-        ctx.strokeStyle = '#4a6a3a';
-        ctx.lineWidth = 2;
-        ctx.strokeRect(mapX, mapY, mapW, mapH);
-
-        // Forest shading
-        ctx.fillStyle = 'rgba(20,60,20,0.3)';
-        ctx.fillRect(mapX, mapY, mapW, mapH);
-
-        // Town marker
-        let twx = mapX + TOWN_X * mapScale;
-        let twy = mapY + TOWN_Y * mapScale;
-        if (discovered.has('town')) {
-            ctx.fillStyle = '#ffd700';
-            ctx.font = '20px sans-serif';
-            ctx.fillText('✦', twx - 8, twy + 6);
-            ctx.fillStyle = '#ffd700';
-            ctx.font = '10px sans-serif';
-            ctx.fillText('Town', twx + 12, twy + 5);
-        } else {
-            ctx.fillStyle = '#666';
-            ctx.fillRect(twx - 4, twy - 4, 8, 8);
-        }
-
-        // Player marker
-        let px = mapX + player.x * mapScale;
-        let py = mapY + player.y * mapScale;
-        ctx.fillStyle = '#4af';
-        ctx.beginPath();
-        ctx.arc(px, py, 5, 0, Math.PI * 2);
-        ctx.fill();
-
-        // Dragon marker (if alive)
-        if (dragon.active && dragon.hp > 0) {
-            let dx = mapX + dragon.x * mapScale;
-            let dy = mapY + dragon.y * mapScale;
-            ctx.fillStyle = '#f44';
-            ctx.font = '14px sans-serif';
-            ctx.fillText('🐉', dx - 7, dy + 5);
-        }
-
-        // Discovered cells
-        ctx.fillStyle = 'rgba(100,200,100,0.15)';
-        for (let cell of discovered) {
-            if (cell === 'town') continue;
-            let [cx, cy] = cell.split(',').map(Number);
-            let dx = mapX + (cx * TILE) * mapScale;
-            let dy = mapY + (cy * TILE) * mapScale;
-            ctx.fillRect(dx, dy, TILE * mapScale + 1, TILE * mapScale + 1);
-        }
-
-        // Teleport: Click on discovered locations
-        ctx.fillStyle = '#aaa';
-        ctx.font = '12px sans-serif';
-        ctx.fillText('Click discovered area to teleport', W/2 - 90, H - 30);
-
-        ctx.fillStyle = '#fff';
-        ctx.font = 'bold 14px sans-serif';
-        ctx.fillText('✦ MAP ✦', W/2 - 20, 40);
-
-        // Store map click info
-        window._mapData = { mapX, mapY, mapScale };
-    }
-
-    // Map teleport click handler
-    canvas.onclick = function(e) {
-        if (!showMap) {
-            mouse.down = true;
-            return;
-        }
-        let rect = canvas.getBoundingClientRect();
-        let cx = (e.clientX - rect.left) * (canvas.width / rect.width);
-        let cy = (e.clientY - rect.top) * (canvas.height / rect.height);
-        let md = window._mapData;
-        if (!md) return;
-        // Check if clicking a discovered cell
-        let closest = null, bestDist = Infinity;
-        for (let cell of discovered) {
-            if (cell === 'town') {
-                let dx = md.mapX + TOWN_X * md.mapScale;
-                let dy = md.mapY + TOWN_Y * md.mapScale;
-                let d = Math.hypot(cx - dx, cy - dy);
-                if (d < 20 && d < bestDist) { bestDist = d; closest = 'town'; }
-                continue;
-            }
-            let [cx2, cy2] = cell.split(',').map(Number);
-            let dx = md.mapX + (cx2 * TILE) * md.mapScale;
-            let dy = md.mapY + (cy2 * TILE) * md.mapScale;
-            let d = Math.hypot(cx - dx, cy - dy);
-            if (d < 20 && d < bestDist) { bestDist = d; closest = cell; }
-        }
-        if (closest === 'town') {
-            player.x = TOWN_X;
-            player.y = TOWN_Y;
-            showMap = false;
-            showMessage('Teleported to Town');
-        } else if (closest) {
-            let [cx2, cy2] = closest.split(',').map(Number);
-            player.x = cx2 * TILE;
-            player.y = cy2 * TILE;
-            showMap = false;
-            showMessage('Teleported!');
-        }
-    };
+function drawTown(sx,sy){
+  ctx.fillStyle='#5a4a3a';ctx.fillRect(sx-150,sy-100,300,200);
+  ctx.fillStyle='#7a5a3a';ctx.fillRect(sx-110,sy-80,50,60);ctx.fillStyle='#8a6a4a';ctx.fillRect(sx-40,sy-70,60,50);ctx.fillStyle='#7a5a3a';ctx.fillRect(sx+40,sy-80,50,60);
+  ctx.fillStyle='#6a3a1a';ctx.beginPath();ctx.moveTo(sx-120,sy-80);ctx.lineTo(sx-85,sy-105);ctx.lineTo(sx-50,sy-80);ctx.fill();
+  ctx.beginPath();ctx.moveTo(sx-50,sy-70);ctx.lineTo(sx-10,sy-90);ctx.lineTo(sx+30,sy-70);ctx.fill();
+  ctx.beginPath();ctx.moveTo(sx+30,sy-80);ctx.lineTo(sx+65,sy-105);ctx.lineTo(sx+100,sy-80);ctx.fill();
+  // windows
+  ctx.fillStyle='#ffd700';ctx.fillRect(sx-100,sy-70,10,10);ctx.fillRect(sx-80,sy-70,10,10);ctx.fillRect(sx-30,sy-60,10,10);ctx.fillRect(sx+50,sy-70,10,10);ctx.fillRect(sx+70,sy-70,10,10);
+  // sign
+  ctx.fillStyle='#5a3a1a';ctx.fillRect(sx+90,sy-15,4,40);ctx.fillStyle='#3a2a1a';ctx.font='10px sans-serif';ctx.fillText('V E R D A N T',sx+60,sy-20);
+  if(disc.has('town')){ctx.fillStyle='#ffd700';ctx.font='bold 14px sans-serif';ctx.textAlign='center';ctx.fillText('✦ Verdant Town',sx,sy-115);ctx.textAlign='left'}
 }
-
-function loop() {
-    update();
-    draw();
-    requestAnimationFrame(loop);
+function drawInventory(){
+  ctx.fillStyle='rgba(0,0,0,.85)';ctx.fillRect(0,0,W,H);
+  ctx.fillStyle='#ffd700';ctx.font='bold 20px sans-serif';ctx.textAlign='center';ctx.fillText('✦ INVENTORY ✦',W/2,35);ctx.textAlign='left';
+  // resources
+  let rx=30,ry=55;ctx.fillStyle='#ddd';ctx.font='14px sans-serif';ctx.fillText('Resources',rx,ry);ry+=22;
+  const RES=[{k:'wood',l:'🪵 Wood'},{k:'hide',l:'🦌 Hide'},{k:'bone',l:'🦴 Bone'},{k:'gold',l:'🪙 Gold'}];
+  for(let r of RES){ctx.fillStyle='#aaa';ctx.fillText(r.l+': '+(inv[r.k]||0),rx+10,ry);ry+=20}
+  // gear slots
+  ry+=10;ctx.fillStyle='#ddd';ctx.font='14px sans-serif';ctx.fillText('Equipment',rx,ry);ry+=25;
+  const SLOTS=['helmet','weapon','chest','boots'];const SL=['Helmet','Weapon','Chest','Boots'];
+  for(let i=0;i<SLOTS.length;i++){
+    let sl=SLOTS[i],sn=gs[sl];ctx.fillStyle='#333';ctx.fillRect(rx,ry,200,26);ctx.strokeStyle='#555';ctx.lineWidth=1;ctx.strokeRect(rx,ry,200,26);
+    ctx.fillStyle='#aaa';ctx.font='12px sans-serif';ctx.fillText(SL[i]+':',rx+5,ry+18);
+    ctx.fillStyle=sn?'#4af':'#666';ctx.fillText(sn&&GEAR[sn]?GEAR[sn].name:'(empty)',rx+75,ry+18);
+    if(!sn&&selSlot===i){ctx.fillStyle='#888';ctx.font='10px sans-serif';ctx.fillText('Click equip below',rx+150,ry+18)}ry+=30;
+  }
+  // craftable items
+  ry+=10;ctx.fillStyle='#ddd';ctx.font='14px sans-serif';ctx.fillText('Craft',rx,ry);ry+=25;
+  for(let cr of CRAFT){
+    let can=true;let need='';for(let nk in cr.need){need+=nk+': '+cr.need[nk]+' ';if((inv[nk]||0)<cr.need[nk])can=false}
+    ctx.fillStyle=can?'#3a3':'#633';ctx.fillRect(rx,ry,280,28);ctx.strokeStyle='#555';ctx.lineWidth=1;ctx.strokeRect(rx,ry,280,28);
+    ctx.fillStyle=can?'#fff':'#888';ctx.font='12px sans-serif';ctx.fillText('['+cr.label+'] '+need,rx+8,ry+18);
+    ry+=32;
+  }
+  // click handlers
+  c.onclick=function(e){
+    let rect=c.getBoundingClientRect(),cx=(e.clientX-rect.left)*(c.width/rect.width),cy=(e.clientY-rect.top)*(c.height/rect.height);
+    if(cy>=ry-32&&cy<ry-4){// craft click
+      let idx=Math.floor((cy-(ry-32))/32);if(idx>=0&&idx<CRAFT.length){let cr=CRAFT[idx];let ok=true;for(let nk in cr.need){if((inv[nk]||0)<cr.need[nk])ok=false}if(ok){for(let nk in cr.need)inv[nk]-=cr.need[nk];gs[GEAR[cr.give.type].type]=cr.give.type;if(GEAR[cr.give.type].type==='weapon')eq=cr.give.type;calHp();sm('Crafted '+cr.label+'!')}else sm('Not enough materials')}}return
+  };
 }
-
-// Input
-window.addEventListener('keydown', e => {
-    keys[e.key.toLowerCase()] = true;
-    if (e.key === 'm' || e.key === 'b' || e.key === 'q') e.preventDefault();
-});
-window.addEventListener('keyup', e => {
-    keys[e.key.toLowerCase()] = false;
-});
-
-canvas.addEventListener('mousemove', e => {
-    let rect = canvas.getBoundingClientRect();
-    mouse.x = (e.clientX - rect.left) * (canvas.width / rect.width);
-    mouse.y = (e.clientY - rect.top) * (canvas.height / rect.height);
-});
-
+// ---- DRAW MAIN ----
+function draw(){
+  ctx.fillStyle='#1a1a2e';ctx.fillRect(0,0,W,H);
+  if(si){drawInventory();return}
+  // ground
+  let scx=Math.floor((cam.x-W/2)/T)-1,scy=Math.floor((cam.y-H/2)/T)-1,ecx=Math.ceil((cam.x+W/2)/T)+1,ecy=Math.ceil((cam.y+H/2)/T)+1;
+  for(let cy=scy;cy<=ecy;cy++)for(let cx=scx;cx<=ecx;cx++){let wx=cx*T,wy=cy*T,s=w2s(wx,wy);let sh=((cx*7+cy*13)%5)*5;ctx.fillStyle=`rgb(${30+sh},${80+sh},${30+sh})`;ctx.fillRect(s.x,s.y,T+1,T+1);if((cx+cy)%2===0){ctx.fillStyle=`rgba(0,0,0,0.05)`;ctx.fillRect(s.x,s.y,T+1,T+1)}}
+  let tl=w2s(0,0),br=w2s(WW,WH);ctx.strokeStyle='#4a3a2a';ctx.lineWidth=4;ctx.strokeRect(tl.x,tl.y,br.x-tl.x,br.y-tl.y);
+  // trees
+  for(let t of trs){if(t.rg)continue;let s=w2s(t.x,t.y);if(s.x<-50||s.x>W+50||s.y<-50||s.y>H+50)continue;ctx.fillStyle='#4a3728';ctx.fillRect(s.x-4,s.y-4,8,16);let r=t.sz/2;ctx.fillStyle=t.hp===3?'#2d5a27':t.hp===2?'#3a6b30':'#4a7a38';ctx.beginPath();ctx.arc(s.x,s.y-r/2,r,0,Math.PI*2);ctx.fill();ctx.fillStyle=t.hp===3?'#1e3d1a':'#2a4f22';ctx.beginPath();ctx.arc(s.x-3,s.y-r/2-3,r*.5,0,Math.PI*2);ctx.fill();ctx.beginPath();ctx.arc(s.x+5,s.y-r/2+2,r*.4,0,Math.PI*2);ctx.fill()}
+  // creatures
+  for(let cr of crs){if(cr.hp<=0)continue;let s=w2s(cr.x,cr.y);if(s.x<-30||s.x>W+30||s.y<-30||s.y>H+30)continue;cr.ty==='deer'?drawDeer(s.x,s.y):drawWolf(s.x,s.y);ctx.fillStyle='#333';ctx.fillRect(s.x-10,s.y-22,20,3);ctx.fillStyle='#0a0';ctx.fillRect(s.x-10,s.y-22,20*(cr.hp/cr.mh),3)}
+  // dragon
+  if(dr.ac&&dr.hp>0){let s=w2s(dr.x,dr.y);if(s.x>-100&&s.x<W+100&&s.y>-100&&s.y<H+100)drawDragon(s.x,s.y)}
+  // town
+  let st=w2s(TX,TY);if(st.x>-200&&st.x<W+200&&st.y>-200&&st.y<H+200)drawTown(st.x,st.y);
+  // shop
+  if(sp){let s=w2s(sp.x,sp.y);if(s.x>-50&&s.x<W+50&&s.y>-50&&s.y<H+50){ctx.fillStyle='#6B4226';ctx.fillRect(s.x-25,s.y-10,50,20);ctx.fillStyle='#8B5A2B';ctx.fillRect(s.x-22,s.y-12,44,8);ctx.fillStyle='#ffd700';ctx.font='10px sans-serif';ctx.textAlign='center';ctx.fillText('✦ Shop',s.x,s.y-18);ctx.textAlign='left'}}
+  // player
+  let sp2=w2s(pl.x,pl.y);let armorCol=gs.chest&&GEAR[gs.chest]?'#8B5A2B':null;drawChar(sp2.x,sp2.y,pl.w,pl.h,'#2a6ab0',armorCol);
+  // HUD
+  ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(4,4,200,90);ctx.fillStyle='#fff';ctx.font='12px sans-serif';ctx.fillText('❤ HP: '+pl.hp+'/'+pl.mh,10,20);ctx.fillText('🪵 '+inv.wood,10,36);ctx.fillText('🦌 '+(inv.hide||0),10,52);ctx.fillText('🦴 '+(inv.bone||0),10,68);ctx.fillText('🪙 '+(inv.gold||0),10,84);
+  ctx.fillStyle='rgba(0,0,0,.5)';ctx.fillRect(W-225,4,221,95);ctx.fillStyle='#aaa';ctx.font='11px sans-serif';ctx.fillText('WASD - Move',W-219,20);ctx.fillText('Click - Attack/Chop',W-219,36);ctx.fillText('Q - Swap weapon',W-219,52);ctx.fillText('M - Map  |  I - Inventory',W-219,68);ctx.fillText('B - Build shop (in town)',W-219,84);
+  if(mt>0){ctx.fillStyle=`rgba(255,255,255,${Math.min(1,mt/30)})`;ctx.font='bold 18px sans-serif';ctx.textAlign='center';ctx.fillText(msg,W/2,50);ctx.textAlign='left'}
+  // map
+  if(sm){
+    ctx.fillStyle='rgba(0,0,0,.8)';ctx.fillRect(0,0,W,H);let ms=Math.min(W/2/WW,H/2/WH)*1.5,mw=WW*ms,mh=WH*ms,mx2=(W-mw)/2,my2=60;
+    ctx.strokeStyle='#4a6a3a';ctx.lineWidth=2;ctx.strokeRect(mx2,my2,mw,mh);ctx.fillStyle='rgba(20,60,20,.3)';ctx.fillRect(mx2,my2,mw,mh);
+    let twx=mx2+TX*ms,twy=my2+TY*ms;if(disc.has('town')){ctx.fillStyle='#ffd700';ctx.font='20px sans-serif';ctx.fillText('✦',twx-8,twy+6);ctx.fillStyle='#ffd700';ctx.font='10px sans-serif';ctx.fillText('Town',twx+12,twy+5)}else{ctx.fillStyle='#666';ctx.fillRect(twx-4,twy-4,8,8)}
+    let px=mx2+pl.x*ms,py=my2+pl.y*ms;ctx.fillStyle='#4af';ctx.beginPath();ctx.arc(px,py,5,0,Math.PI*2);ctx.fill();
+    if(dr.ac&&dr.hp>0){let dx=mx2+dr.x*ms,dy=my2+dr.y*ms;ctx.fillStyle='#f44';ctx.font='14px sans-serif';ctx.fillText('🐉',dx-7,dy+5)}
+    ctx.fillStyle='rgba(100,200,100,.15)';for(let cl of disc){if(cl==='town')continue;let[cxx,cyy]=cl.split(',').map(Number);let dx=mx2+(cxx*T)*ms,dy=my2+(cyy*T)*ms;ctx.fillRect(dx,dy,T*ms+1,T*ms+1)}
+    ctx.fillStyle='#aaa';ctx.font='12px sans-serif';ctx.fillText('Click discovered area to teleport',W/2-90,H-30);ctx.fillStyle='#fff';ctx.font='bold 14px sans-serif';ctx.fillText('✦ MAP ✦',W/2-20,40);window._md={mx:mx2,my:my2,ms:ms};
+    c.onclick=function(e){if(!sm){m.dn=true;return}let rect=c.getBoundingClientRect(),cx=(e.clientX-rect.left)*(c.width/rect.width),cy=(e.clientY-rect.top)*(c.height/rect.height);let md=window._md;if(!md)return;let cl2=null,bd=Infinity;for(let cl of disc){if(cl==='town'){let dx=md.mx+TX*md.ms,dy=md.my+TY*md.ms;let dd=Math.hypot(cx-dx,cy-dy);if(dd<20&&dd<bd){bd=dd;cl2='town'}continue}let[cxx,cyy]=cl.split(',').map(Number);let dx=md.mx+(cxx*T)*md.ms,dy=md.my+(cyy*T)*md.ms;let dd=Math.hypot(cx-dx,cy-dy);if(dd<20&&dd<bd){bd=dd;cl2=cl}}if(cl2==='town'){pl.x=TX;pl.y=TY;sm=false;sm('Teleported to Town')}else if(cl2){let[cxx,cyy]=cl2.split(',').map(Number);pl.x=cxx*T;pl.y=cyy*T;sm=false;sm('Teleported!')}};return
+  }
+  c.onclick=function(e){m.dn=true};
+}
+function loop(){update();draw();requestAnimationFrame(loop)}
+window.addEventListener('keydown',e=>{k[e.key.toLowerCase()]=true;if('mbiq'.includes(e.key))e.preventDefault()});
+window.addEventListener('keyup',e=>{k[e.key.toLowerCase()]=false});
+c.addEventListener('mousemove',e=>{let rect=c.getBoundingClientRect();m.x=(e.clientX-rect.left)*(c.width/rect.width);m.y=(e.clientY-rect.top)*(c.height/rect.height)});
 loop();
 </script>
 </body>
