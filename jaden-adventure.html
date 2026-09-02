@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>THE GAME — Choose Your Adventure</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #0d1117;
+    color: #e6edf3;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+  }
+  .card {
+    background: #161b22;
+    border: 1px solid #30363d;
+    border-radius: 16px;
+    padding: 30px;
+    max-width: 640px;
+    width: 100%;
+    box-shadow: 0 8px 30px rgba(0,0,0,0.5);
+  }
+  h1 {
+    font-size: 1.4rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #58a6ff;
+    margin-bottom: 20px;
+    text-align: center;
+  }
+  #scene-title {
+    font-size: 0.85rem;
+    color: #8b949e;
+    margin-bottom: 6px;
+    text-align: center;
+  }
+  #scene-text {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    margin-bottom: 24px;
+    text-align: center;
+    min-height: 90px;
+  }
+  .choices { display: flex; flex-direction: column; gap: 12px; }
+  .choice {
+    background: #21262d;
+    border: 1px solid #30363d;
+    color: #e6edf3;
+    border-radius: 10px;
+    padding: 14px 18px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all .15s;
+    text-align: left;
+  }
+  .choice:hover { background: #30363d; border-color: #58a6ff; }
+  .ending .choice { text-align: center; font-weight: 600; }
+  .ending-good { border-left: 4px solid #3fb950; }
+  .ending-bad  { border-left: 4px solid #f85149; }
+  .ending-best { border-left: 4px solid #d29922; }
+  #restart {
+    display: none;
+    background: #58a6ff;
+    color: #0d1117;
+    font-weight: 700;
+    border: none;
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 1rem;
+    cursor: pointer;
+    margin-top: 16px;
+    width: 100%;
+  }
+  #restart:hover { background: #79c0ff; }
+  .meta { text-align: center; color: #8b949e; font-size: 0.8rem; margin-top: 18px; }
+</style>
+</head>
+<body>
+<div class="card">
+  <h1>🎮 THE GAME</h1>
+  <div id="scene-title">Scene 1</div>
+  <div id="scene-text"></div>
+  <div id="choices" class="choices"></div>
+  <button id="restart">↻ Play Again</button>
+  <div class="meta">Your choices decide your fate — 23 scenes, 4 different endings.</div>
+</div>
+
+<script>
+const SCENES = {
+  // CHOICES
+  1:  { t: "For once you just want to sleep... but the game console is glowing. Play or go to sleep?",
+        choices: [ ["Play the game", 2], ["Go to sleep", 19] ] },
+  2:  { t: "You press play and suddenly get sucked into the game! You need to find the exit. A forest, a cave, and a river lie ahead.",
+        choices: [ ["Enter the forest", 3], ["Explore the cave", 4], ["Follow the river", 5] ] },
+  3:  { t: "Deep in the forest you find an abandoned hut. Go in or keep walking?",
+        choices: [ ["Go inside the hut", 6], ["Keep walking", 7] ] },
+  4:  { t: "Inside the cave you hear a low roar. A giant bear blocks the tunnel!",
+        choices: [ ["Fight the bear", 20], ["Run away", 8] ] },
+  5:  { t: "Following the river, you spot a village up ahead. Go there or keep following the river?",
+        choices: [ ["Go to the village", 9], ["Keep following the river", 10] ] },
+  6:  { t: "Inside the hut you find a shiny sword resting on a table. Pick it up or keep exploring?",
+        choices: [ ["Pick up the sword", 11], ["Keep exploring", 12] ] },
+  7:  { t: "You keep walking through the trees and find a small village. Go in or keep walking?",
+        choices: [ ["Go into the village", 9], ["Keep walking", 10] ] },
+  8:  { t: "You escape the bear and stumble onto a dark hole in the ground. Jump in or keep running?",
+        choices: [ ["Jump in the hole", 21], ["Keep running", 10] ] },
+  9:  { t: "The villagers have tons of gear — weapons, food, treasure. Ask them for help or try to steal?",
+        choices: [ ["Ask nicely", 14], ["Try to steal", 13] ] },
+  10: { t: "The river leads you to another dark hole. Go in or turn back to the village?",
+        choices: [ ["Go in the hole", 21], ["Go back to the village", 9] ] },
+  11: { t: "You grab the sword — and a lion bursts from the bushes, pouncing at you!",
+        choices: [ ["Dodge the lion", 15], ["Thrust the sword", 16] ] },
+  12: { t: "You find nothing inside the hut. But on your way out, the sword catches your eye again.",
+        choices: [ ["Pick up the sword", 11], ["Walk out unarmed", 17] ] },
+  13: { t: "You get caught stealing! The villagers throw you out into the forest.",
+        choices: [ ["Go into the forest", 3], ["Sneak back in", 18] ] },
+  14: { t: "You ask nicely, and the grateful villagers hand you a map — straight to the exit!",
+        choices: [ ["Follow the map", 22] ] },
+  15: { t: "You dodge the lion, but it blocks every path — the only way out is a deep hole. No choice but to dive in.",
+        choices: [ ["Dive in", 23] ] },
+  16: { t: "You kill the lion and search its den behind it. There has to be a way out in here...",
+        choices: [ ["Search the den", 23] ] },
+  17: { t: "You walk out unarmed and push on toward the river.",
+        choices: [ ["Follow the river", 10] ] },
+  18: { t: "You sneak back in, don't steal anything, and prove you're no thief. They point you toward the river.",
+        choices: [ ["Follow the river", 10] ] },
+
+  // ENDINGS
+  19: { t: "You put the controller down and go to sleep. Safe, comfy, no bear, no lion. Maybe adventure can wait.",
+        end: "good", label: "Ending — You went to sleep. 😴" },
+  20: { t: "The bear is too strong. It's over. You chose to fight... and you lost.",
+        end: "bad", label: "Ending — The bear got you. 🐻💀" },
+  21: { t: "You fall through the hole and slide out the other side of the mountain — into the real world! You escaped.",
+        end: "good", label: "Ending — You escaped through the tunnel! 🕳️" },
+  22: { t: "You follow the map and find the hidden exit. You escape, sore but alive. The hard way, but you made it.",
+        end: "good", label: "Ending — You escaped the hard way. 🗺️" },
+  23: { t: "You push through to the end... and find treasure beyond your dreams! The best possible ending. You win! 👑",
+        end: "best", label: "BEST ENDING — You escape with the treasure! 💎👑" }
+};
+
+let current = 1;
+const sceneTitle = document.getElementById('scene-title');
+const sceneText = document.getElementById('scene-text');
+const choicesEl = document.getElementById('choices');
+const restartBtn = document.getElementById('restart');
+
+function render(id) {
+  const s = SCENES[id];
+  current = id;
+  sceneTitle.textContent = s.end ? s.label : "Scene " + id;
+  sceneText.textContent = s.t;
+  choicesEl.innerHTML = '';
+  restartBtn.style.display = s.end ? 'block' : 'none';
+
+  if (s.end) {
+    choicesEl.classList.add('ending');
+    choicesEl.classList.add(s.end === 'best' ? 'ending-best' : (s.end === 'bad' ? 'ending-bad' : 'ending-good'));
+  } else {
+    choicesEl.classList.remove('ending', 'ending-best', 'ending-bad', 'ending-good');
+    s.choices.forEach(([text, next]) => {
+      const btn = document.createElement('button');
+      btn.className = 'choice';
+      btn.textContent = text;
+      btn.onclick = () => render(next);
+      choicesEl.appendChild(btn);
+    });
+  }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+restartBtn.onclick = () => render(1);
+render(1);
+</script>
+</body>
+</html>
