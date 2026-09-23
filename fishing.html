@@ -54,6 +54,16 @@
   .shoprow .buy { background:linear-gradient(180deg,#ffe07a,#ffb528); color:#3a2400; box-shadow:0 4px 0 #a86f00; border:none; border-radius:9px; padding:8px 12px; font-weight:bold; font-size:13px; cursor:pointer; white-space:nowrap; }
   .shoprow .buy:disabled { filter:grayscale(1); opacity:.5; box-shadow:0 4px 0 #555; cursor:default; }
   .owned { font-size:12px; color:#7dffa8; font-weight:bold; }
+  .picwrap { display:flex; justify-content:center; align-items:center; background:radial-gradient(circle at 50% 45%, rgba(60,150,220,.30), rgba(3,15,28,.15) 72%); border:1px solid rgba(120,210,255,.3); border-radius:14px; margin:2px 0 8px; padding:4px; }
+  .fishpic { display:block; }
+  .invrow { display:flex; align-items:center; gap:10px; background:rgba(255,255,255,.05); border:1px solid rgba(120,210,255,.25); border-radius:12px; padding:8px 10px; margin:7px 0; text-align:left; }
+  .invrow .info { flex:1; min-width:0; }
+  .invrow b { font-size:13px; color:#eaf6ff; display:block; }
+  .invrow .meta { display:block; font-size:11px; opacity:.78; }
+  .invrow .sell { background:linear-gradient(180deg,#ffe07a,#ffb528); color:#3a2400; box-shadow:0 4px 0 #a86f00; border:none; border-radius:9px; padding:9px 11px; font-weight:bold; font-size:12px; cursor:pointer; font-family:inherit; white-space:nowrap; }
+  .invrow .sell:active { transform:translateY(2px); box-shadow:0 2px 0 #a86f00; }
+  .sellall { width:100%; }
+  .invnote { font-size:12px; opacity:.72; margin:10px 2px 0; line-height:1.4; }
   #rarityPop { position:absolute; top:36%; left:0; right:0; text-align:center; font-size:34px; font-weight:bold; opacity:0; pointer-events:none; transition:opacity .25s; }
   #rarityPop.show { opacity:1; animation:pop .5s; }
   @keyframes pop { 0%{transform:scale(.4)} 60%{transform:scale(1.15)} 100%{transform:scale(1)} }
@@ -71,8 +81,8 @@
 
   <div class="hud" id="topbar">
     <div class="chip" id="coin">🪙 0<small>COINS</small></div>
-    <div class="chip" id="rodChip">🎣 Basic Rod<small>TAP: SHOP</small></div>
-    <div class="chip" id="recChip">0 / 12<small>TAP: RECORDS</small></div>
+    <div class="chip" id="shopChip">🛒 SHOP<small>🎣 Basic Rod</small></div>
+    <div class="chip" id="invChip">🎒 0/8<small>TAP: CRATE</small></div>
   </div>
   <div class="hud" id="msg"></div>
   <div class="hud" id="hint">Tap the water to aim, then THROW to cast</div>
@@ -115,6 +125,7 @@
   <div class="panel" id="catchPanel">
     <div class="card">
       <h2 id="cName">Fish</h2>
+      <div class="picwrap"><canvas class="fishpic" id="cPic" width="170" height="118"></canvas></div>
       <div class="rar" id="cRar">Common</div>
       <p id="cStats"></p>
       <p id="cQuote" style="font-style:italic;opacity:.8"></p>
@@ -132,10 +143,23 @@
       <div style="font-size:14px;color:#ffd85e;font-weight:bold">🪙 <span id="shopCoins">0</span> 🎒 <span id="shopInv">0/8</span></div>
       <div class="tabs">
         <button class="tab on" id="tabRods">🎣 RODS</button>
-        <button class="tab" id="tabUpg">⬆ STORAGE</button>
+        <button class="tab" id="tabUpg">⬆ CRATE</button>
         <button class="tab" id="tabSpec">📖 SPECIES</button>
       </div>
       <div class="scroll" id="shopList"></div>
+    </div>
+  </div>
+
+  <!-- INVENTORY / CRATE PANEL -->
+  <div class="panel" id="invPanel">
+    <button class="closebtn" id="invClose">✕</button>
+    <div class="card">
+      <h2>🎒 Your Crate</h2>
+      <div style="font-size:14px;color:#ffd85e;font-weight:bold">🪙 <span id="invCoins">0</span> · <span id="invCap">0 / 8</span> fish</div>
+      <div class="capbar"><div id="invBar" style="width:0%"></div></div>
+      <div class="scroll" id="invList"></div>
+      <button class="btn sell sellall" id="invSellAll">Sell All 🪙</button>
+      <p class="invnote">Tap <b>SELL</b> on any fish to turn it into coins. Crate full? Sell some or buy a bigger crate in the SHOP.</p>
     </div>
   </div>
 
@@ -158,7 +182,7 @@
       <div class="step"><div class="num">4</div><div class="txt"><b>Wait:</b> a fish swims over and starts <b>nibbling</b> — the float dips. Usually best to WAIT, it circles and taps up to 3 times. Reel too early and it'll <b>spook</b> (sometimes it just backs off and stays).</div></div>
       <div class="step"><div class="num">5</div><div class="txt"><b>Hook it:</b> when it finally commits the float slams under — <b>TAP</b> anywhere (or REEL) to set the hook.</div></div>
       <div class="step"><div class="num">6</div><div class="txt"><b>REEL:</b> HOLD the REEL button to pull the fish up — the catch bar rises toward the surface. The fight starts in <b>slow-mo</b> so you've got time to react. Let go when the tension bar reddens.</div></div>
-      <div class="step"><div class="num">7</div><div class="txt">Bar <b>full = caught</b> → it flies into your bucket. Bar <b>empty = it snaps off</b>. Then pick <b>Keep</b> (into your crate) or <b>Sell</b> (coins).</div></div>
+      <div class="step"><div class="num">7</div><div class="txt">Bar <b>full = caught</b> → it flies into your bucket. Bar <b>empty = it snaps off</b>. Then pick <b>Keep</b> (goes into your 🎒 crate, top-right — sell them any time) or <b>Sell</b> (straight to coins).</div></div>
       <button class="btn" id="howClose">Got it — let me fish 🔥</button>
     </div>
   </div>
@@ -166,7 +190,9 @@
 
 <script>
 (() => {
-  const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+  const cv = document.getElementById('c');
+  const ctx0 = cv.getContext('2d');
+  let ctx = ctx0;                          // swapped briefly when drawing into small canvases
   let W=0,H=0,DPR=1,waterY=0;
   const rod = { x:0, y:0 };
   function resize(){
@@ -204,6 +230,199 @@
     {n:'Giant Trevally', r:'epic',     a:10.0,b:45.0, q:'Brutal from the first second.'},
     {n:'Cursed King',    r:'cursed',   a:60.0,b:400.0,q:'Something ancient took the hook. It took the boat too.'}
   ];
+  // per-species look: silhouette type + two-tone body colours (+ optional pattern stripes)
+  const SPECIES = {
+    'Sardine':       { t:'sardine',  c1:'#cfe8ff', c2:'#7aa7c8', p:'stripe' },
+    'Bream':         { t:'bream',    c1:'#b9cfdc', c2:'#5f7f96', p:'spot'   },
+    'Flathead':      { t:'flathead', c1:'#d3ab6c', c2:'#8a6636', p:'spot'   },
+    'Whiting':       { t:'whiting',  c1:'#f5e6c6', c2:'#b8925c', p:'stripe' },
+    'Snapper':       { t:'snapper',  c1:'#ff9db4', c2:'#c25d78', p:'spot'   },
+    'Tailor':        { t:'tailor',   c1:'#bcdcff', c2:'#517fa8', p:'stripe' },
+    'Jewfish':       { t:'jewfish',  c1:'#cfd9dc', c2:'#5f6f78', p:'stripe' },
+    'Barramundi':    { t:'barra',    c1:'#cfe3a6', c2:'#6e8f45', p:'scale'  },
+    'Mangrove Jack': { t:'jack',     c1:'#ffc9a0', c2:'#c15a35', p:'scale'  },
+    'Marlin':        { t:'marlin',   c1:'#a9dcff', c2:'#2f6fbf', p:'stripe' },
+    'Giant Trevally':{ t:'trevally', c1:'#dfeeff', c2:'#5a86b8', p:'spot'   },
+    'Cursed King':   { t:'cursed',   c1:'#ff8fa3', c2:'#8f1230', p:'stripe' }
+  };
+  const DEFAULT_ART = { t:'bream', c1:'#cfe0ee', c2:'#5f7f96', p:'spot' };
+
+  // every species gets its own silhouette, colours and markings
+  function drawFishArt(ox, oy, def, s, opt){
+    opt = opt||{};
+    const phase = opt.phase||0, squirm = opt.squirm||0, dir = opt.dir||1, face = opt.face||1;
+    const wob = Math.sin(phase)*(0.30 + squirm);
+    const t = def.t, c1 = def.c1, c2 = def.c2;
+    ctx.save();
+    ctx.translate(ox, oy);
+    ctx.rotate(opt.tilt||0);
+    ctx.scale(s*dir, s);          // s already includes the face direction
+    const bodyG = () => { const g = ctx.createLinearGradient(0,-0.72,0,0.72);
+      g.addColorStop(0,'#ffffff'); g.addColorStop(.22,c1); g.addColorStop(.75,c2); g.addColorStop(1,'#04202f'); return g; };
+    const eye = (ex,ey,er) => { ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(ex,ey,er,0,7); ctx.fill();
+      ctx.fillStyle='#04121f'; ctx.beginPath(); ctx.arc(ex+er*0.22,ey,er*0.5,0,7); ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,.9)'; ctx.beginPath(); ctx.arc(ex-er*0.3,ey-er*0.35,er*0.22,0,7); ctx.fill(); };
+    const fin = (x,y,w,h,a) => { ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(x,y);
+      ctx.quadraticCurveTo(x+w*0.5, y+h-0.3, x+w, y); ctx.closePath(); ctx.fill(); };
+    const tailFin = (spread) => { const sf=spread||1;
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(-0.78,0);
+      ctx.lineTo(-1.42,-0.55*sf+wob*0.4); ctx.lineTo(-1.04,0); ctx.lineTo(-1.42,0.55*sf+wob*0.4); ctx.closePath(); ctx.fill(); };
+    // tail anchored further back for the longer / taller bodies
+    const tailFinAt = (x0, spread, sf) => {
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(x0,0);
+      ctx.lineTo(x0-0.62,-0.62*sf+wob*0.4); ctx.lineTo(x0-0.30,0); ctx.lineTo(x0-0.62,0.62*sf+wob*0.4); ctx.closePath(); ctx.fill(); };
+    const forks = (spread) => { const sf=spread||1;
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(-0.78,0);
+      ctx.lineTo(-1.45,-0.62*sf+wob*0.4); ctx.lineTo(-1.22,-0.08); ctx.lineTo(-1.22,0.08);
+      ctx.lineTo(-1.45,0.62*sf+wob*0.4); ctx.closePath(); ctx.fill(); };
+    const stripes = (n,w) => { ctx.save(); ctx.globalAlpha=.42; ctx.fillStyle=c2; ctx.fillRect(-0.4,-0.68,w,1.36);
+      for(let i=1;i<n;i++){ ctx.fillRect(-0.4+i*0.26,-0.68,w,1.36); } ctx.restore(); };
+    const spots = () => { ctx.save(); ctx.globalAlpha=.42; ctx.fillStyle=c2;
+      const pts=[[-0.25,-0.22],[0.05,-0.3],[0.3,-0.14],[-0.05,0.24],[0.28,0.26],[0.55,-0.02],[-0.5,-0.05]];
+      for(const p of pts){ ctx.beginPath(); ctx.arc(p[0],p[1],0.075,0,7); ctx.fill(); } ctx.restore(); };
+
+    if(t==='sardine'){
+      tailFin(1.05);
+      ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0,0,1.08,0.44,0,0,7); ctx.fill();
+      fin(-0.05,-0.36,0.46,0.34); stripes(3,0.055);
+      ctx.save(); ctx.globalAlpha=.5; ctx.fillStyle='#eaffff'; ctx.beginPath(); ctx.ellipse(0.1,0.22,0.75,0.10,0,0,7); ctx.fill(); ctx.restore();
+      ctx.fillStyle=c2; ctx.fillRect(-0.12,0.28,0.6,0.09);
+      eye(0.7,-0.13,0.17);
+    } else if(t==='bream'){
+      tailFin(0.85);
+      ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0,0,1.06,0.66,0,0,7); ctx.fill();
+      // tall spiny dorsal
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(-0.25,-0.58); ctx.lineTo(0.02,-1.28); ctx.lineTo(0.22,-1.02); ctx.lineTo(0.42,-0.5); ctx.closePath(); ctx.fill();
+      fin(-0.1,0.5,0.5,0.3);
+      // silvery sheen + a few speckles, clipped inside the body
+      ctx.save(); ctx.beginPath(); ctx.ellipse(0,0,1.06,0.66,0,0,7); ctx.clip();
+      ctx.globalAlpha=.4; ctx.fillStyle=c1; ctx.beginPath(); ctx.ellipse(-0.05,-0.18,0.85,0.24,0,0,7); ctx.fill();
+      ctx.globalAlpha=.4; ctx.fillStyle=c2;
+      for(const p of [[0.2,-0.36],[-0.2,0.28],[0.5,0.18],[-0.5,-0.12]]){ ctx.beginPath(); ctx.arc(p[0],p[1],0.07,0,7); ctx.fill(); }
+      ctx.restore();
+      eye(0.66,-0.14,0.18);
+    } else if(t==='flathead'){
+      // long tapered body with a real tail and a fan pectoral fin
+      ctx.fillStyle=bodyG(); ctx.beginPath();
+      ctx.moveTo(1.05,0.02);
+      ctx.quadraticCurveTo(0.55,-0.30, -0.35,-0.30);
+      ctx.quadraticCurveTo(-0.95,-0.26, -1.02,-0.13);
+      ctx.quadraticCurveTo(-0.95,0.10, -0.35,0.20);
+      ctx.quadraticCurveTo(0.55,0.30, 1.05,0.02);
+      ctx.closePath(); ctx.fill();
+      ctx.fillStyle=c2; ctx.beginPath();
+      ctx.moveTo(-1.0,-0.10); ctx.lineTo(-1.5,-0.52+wob*0.3); ctx.lineTo(-1.34,0); ctx.lineTo(-1.5,0.42+wob*0.3);
+      ctx.lineTo(-1.0,0.12); ctx.closePath(); ctx.fill();
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(0.42,0.10);
+      ctx.quadraticCurveTo(0.66,0.62, 0.14,0.52); ctx.quadraticCurveTo(0.24,0.22, 0.42,0.10); ctx.closePath(); ctx.fill();
+      // mottled patches clipped to the body so nothing floats
+      ctx.save(); ctx.beginPath();
+      ctx.moveTo(1.05,0.02); ctx.quadraticCurveTo(0.55,-0.30,-0.35,-0.30); ctx.quadraticCurveTo(-0.95,-0.26,-1.02,-0.13);
+      ctx.quadraticCurveTo(-0.95,0.10,-0.35,0.20); ctx.quadraticCurveTo(0.55,0.30,1.05,0.02); ctx.closePath(); ctx.clip();
+      ctx.globalAlpha=.5; ctx.fillStyle=c2;
+      for(const p of [[0.5,-0.10],[0.1,-0.14],[-0.3,-0.06],[-0.65,0.02],[0.3,0.14],[-0.1,0.12],[-0.5,0.14]]){ ctx.beginPath(); ctx.ellipse(p[0],p[1],0.12,0.07,0.3,0,7); ctx.fill(); }
+      ctx.restore();
+      ctx.strokeStyle=c2; ctx.lineWidth=0.05; ctx.beginPath(); ctx.moveTo(0.86,-0.2); ctx.quadraticCurveTo(0.72,0.02,0.86,0.14); ctx.stroke();
+      eye(0.74,-0.12,0.10);
+    } else if(t==='whiting'){
+      tailFin(1.1);
+      ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0,0,1.16,0.4,0,0,7); ctx.fill();
+      fin(-0.1,-0.34,0.5,0.36); stripes(4,0.05);
+      ctx.fillStyle='#fff3d6'; ctx.beginPath(); ctx.arc(0.62,-0.1,0.09,0,7); ctx.fill();
+      eye(0.72,-0.12,0.15);
+    } else if(t==='snapper'){
+      tailFin(0.95);
+      ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0,0,1.02,0.72,0,0,7); ctx.fill();
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(-0.15,-0.66); ctx.lineTo(0.2,-1.3); ctx.lineTo(0.6,-0.56); ctx.closePath(); ctx.fill();
+      fin(-0.05,0.56,0.55,0.34); spots();
+      ctx.fillStyle=c1; ctx.beginPath(); ctx.arc(0.6,-0.2,0.14,0,7); ctx.fill();
+      eye(0.64,-0.16,0.17);
+    } else if(t==='tailor'){
+      forks(1.0);
+      ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0,0,1.12,0.48,0,0,7); ctx.fill();
+      fin(-0.05,-0.4,0.5,0.36); stripes(5,0.045);
+      ctx.fillStyle='#eaf6ff'; ctx.beginPath(); ctx.moveTo(0.5,0.05); ctx.lineTo(0.95,0.02); ctx.lineTo(0.55,0.2); ctx.closePath(); ctx.fill();
+      eye(0.72,-0.14,0.16);
+    } else if(t==='jewfish'){
+      tailFin(0.8);
+      ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0,0,1.28,0.58,0,0,7); ctx.fill();
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(-0.3,-0.5); ctx.lineTo(0.05,-1.2); ctx.lineTo(0.5,-0.46); ctx.closePath(); ctx.fill();
+      // dark blotches + a bold lateral line, all clipped inside the body
+      ctx.save(); ctx.beginPath(); ctx.ellipse(0,0,1.28,0.58,0,0,7); ctx.clip();
+      ctx.globalAlpha=.35; ctx.fillStyle=c1;
+      for(const p of [[-0.75,-0.08],[-0.42,0.16],[-0.1,-0.22],[0.22,0.06],[0.5,-0.18]]){ ctx.beginPath(); ctx.arc(p[0],p[1],0.13,0,7); ctx.fill(); }
+      ctx.globalAlpha=.55; ctx.strokeStyle=c2; ctx.lineWidth=0.045;
+      ctx.beginPath(); ctx.moveTo(0.9,-0.05); ctx.lineTo(-0.55,-0.05); ctx.stroke();
+      ctx.restore();
+      eye(0.82,-0.16,0.17);
+    } else if(t==='barra'){
+      tailFinAt(-1.15, 1.25, 0.9);
+      ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0,0,1.22,0.54,0,0,7); ctx.fill();
+      fin(-0.05,-0.44,0.55,0.4);
+      // scale rows, clipped inside the body so nothing floats off
+      ctx.save(); ctx.beginPath(); ctx.ellipse(0,0,1.22,0.54,0,0,7); ctx.clip();
+      ctx.globalAlpha=.38; ctx.strokeStyle=c2; ctx.lineWidth=0.045;
+      for(let r=0;r<3;r++){ for(let i=-4;i<=4;i++){
+        const sx=i*0.28 + (r%2?0.14:0), sy=-0.34+r*0.3;
+        ctx.beginPath(); ctx.arc(sx,sy,0.16,-2.5,-0.64); ctx.stroke(); } }
+      ctx.restore();
+      ctx.save(); ctx.globalAlpha=.5; ctx.fillStyle=c2;
+      ctx.beginPath(); ctx.ellipse(-0.55,-0.4,0.2,0.09,0.5,0,7); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(-0.1,-0.5,0.18,0.08,0.35,0,7); ctx.fill(); ctx.restore();
+      eye(0.8,-0.14,0.17);
+    } else if(t==='jack'){
+      tailFin(0.95);
+      ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0,0,1.08,0.62,0,0,7); ctx.fill();
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(-0.1,-0.56); ctx.lineTo(0.18,-1.2); ctx.lineTo(0.55,-0.48); ctx.closePath(); ctx.fill();
+      fin(-0.05,0.5,0.5,0.3);
+      ctx.save(); ctx.beginPath(); ctx.ellipse(0,0,1.08,0.62,0,0,7); ctx.clip();
+      ctx.globalAlpha=.4; ctx.strokeStyle=c2; ctx.lineWidth=0.05;
+      for(let r=0;r<3;r++){ for(let i=-3;i<=3;i++){
+        const sx=i*0.32 + (r%2?0.16:0), sy=-0.36+r*0.34;
+        ctx.beginPath(); ctx.arc(sx,sy,0.19,-2.5,-0.64); ctx.stroke(); } }
+      ctx.restore();
+      eye(0.68,-0.16,0.18);
+    } else if(t==='marlin'){
+      forks(1.25);
+      ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(-0.08,0,1.2,0.46,0,0,7); ctx.fill();
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(-0.05,-0.4); ctx.lineTo(0.3,-1.55); ctx.lineTo(0.72,-0.34); ctx.closePath(); ctx.fill();
+      fin(-0.2,0.36,0.4,0.3);
+      ctx.fillStyle=c1; ctx.beginPath(); ctx.moveTo(1.05,0.03); ctx.lineTo(2.15,0.05); ctx.lineTo(1.08,0.16); ctx.closePath(); ctx.fill();
+      ctx.save(); ctx.globalAlpha=.5; ctx.fillStyle=c2;
+      for(let i=0;i<5;i++){ ctx.beginPath(); ctx.arc(-0.55+i*0.24,-0.24,0.055,0,7); ctx.fill(); } ctx.restore();
+      eye(0.78,-0.14,0.15);
+    } else if(t==='trevally'){
+      tailFinAt(-0.95, 1.5, 0.95);
+      ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0,0,1.02,0.76,0,0,7); ctx.fill();
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(0.15,-0.7); ctx.lineTo(0.5,-0.1); ctx.lineTo(0.15,0.5); ctx.lineTo(-0.18,-0.1); ctx.closePath(); ctx.fill();
+      fin(-0.1,0.64,0.5,0.3);
+      ctx.save(); ctx.beginPath(); ctx.ellipse(0,0,1.02,0.76,0,0,7); ctx.clip();
+      ctx.globalAlpha=.45; ctx.fillStyle=c2;
+      for(let i=0;i<9;i++){ ctx.beginPath();
+        ctx.arc(-0.72+(i%5)*0.32, -0.3+Math.floor(i/5)*0.42, 0.075, 0,7); ctx.fill(); }
+      ctx.restore();
+      eye(0.62,-0.2,0.17);
+    } else if(t==='cursed'){
+      forks(1.3);
+      ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0,0,1.22,0.62,0,0,7); ctx.fill();
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(-0.15,-0.56); ctx.lineTo(0.15,-1.5); ctx.lineTo(0.7,-0.46); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-0.6,-0.5); ctx.lineTo(-0.85,-1.25); ctx.lineTo(-0.3,-0.55); ctx.closePath(); ctx.fill();
+      fin(-0.1,0.5,0.6,0.42);
+      ctx.save(); ctx.globalAlpha=.5; ctx.fillStyle='#ffb3c1';
+      for(let i=0;i<6;i++){ ctx.beginPath(); ctx.moveTo(-0.7+i*0.26,-0.6);
+        ctx.lineTo(-0.62+i*0.26,-0.95); ctx.lineTo(-0.54+i*0.26,-0.6); ctx.closePath(); ctx.fill(); } ctx.restore();
+      ctx.strokeStyle=c2; ctx.lineWidth=0.08;
+      ctx.beginPath(); ctx.moveTo(0.1,0.02); for(let i=1;i<=4;i++){ ctx.lineTo(0.1+i*0.26,i%2?0.22:-0.2); } ctx.stroke();
+      eye(0.82,-0.2,0.19);
+      ctx.save(); ctx.globalAlpha=.45+Math.sin(phase)*.22; ctx.strokeStyle='#ffe3ea'; ctx.lineWidth=0.07;
+      ctx.beginPath(); ctx.arc(0.66,-0.26,0.42,0,7); ctx.stroke(); ctx.restore();
+    } else {
+      tailFin(0.9); ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0,0,1.06,0.6,0,0,7); ctx.fill();
+      fin(-0.1,-0.5,0.5,0.4); spots(); eye(0.68,-0.14,0.17);
+    }
+    ctx.restore();
+  }
+
   const RODS = [
     {name:'Basic Rod',     cost:0,    cast:1.00, reel:0.75, pwr:0.70, luck:0,  desc:'Slow, basic. Every fish is a fight.'},
     {name:'Estuary Rig',   cost:120,  cast:1.18, reel:1.05, pwr:0.95, luck:1,  desc:'Steadier reel, slightly better fish.'},
@@ -340,7 +559,7 @@
   const msgEl=document.getElementById('msg'), hintEl=document.getElementById('hint');
   function say(t){ msgEl.textContent=t; }
   function hint(t){ hintEl.textContent=t; }
-  function showPanel(id){ document.getElementById(id).classList.add('show'); }
+  function showPanel(id){ document.querySelectorAll('.panel.show').forEach(p=>{ if(p.id!==id) p.classList.remove('show'); }); document.getElementById(id).classList.add('show'); }
   function hidePanel(id){ document.getElementById(id).classList.remove('show'); }
 
   // ---------- input ----------
@@ -414,11 +633,13 @@
   document.getElementById('tabUpg').addEventListener('click', ()=>{ shopTab='upg'; renderShop(); });
   document.getElementById('tabSpec').addEventListener('click', ()=>{ shopTab='spec'; renderShop(); });
   document.getElementById('recClose').addEventListener('click', ()=>hidePanel('recPanel'));
+  document.getElementById('invClose').addEventListener('click', ()=>hidePanel('invPanel'));
+  document.getElementById('invSellAll').addEventListener('click', sellAllInv);
   document.getElementById('howClose').addEventListener('click', ()=>{ hidePanel('howPanel'); try{localStorage.setItem('deepcast_tut','1');}catch(e){} resetToIdle(); });
-  document.getElementById('recChip').style.pointerEvents='auto';
-  document.getElementById('recChip').addEventListener('click', ()=>{ shopTab='upg'; renderShop(); showPanel('shopPanel'); });
-  document.getElementById('rodChip').style.pointerEvents='auto';
-  document.getElementById('rodChip').addEventListener('click', openShop);
+  document.getElementById('shopChip').style.pointerEvents='auto';
+  document.getElementById('shopChip').addEventListener('click', openShop);
+  document.getElementById('invChip').style.pointerEvents='auto';
+  document.getElementById('invChip').addEventListener('click', openInventory);
 
   // ---------- mechanics ----------
   // rod throw swing: wind up = pull back, then whip forward
@@ -603,9 +824,41 @@
   // fish pokes out of the bucket (kept fish only)
   function addStk(f){ STK.push({n:f.n, r:f.r, size:f.size, kg:f.kg}); if(STK.length>9) STK.shift(); }
 
+  // measure a species' art bounds once (in local units) so portraits always fit their box
+  const ART_BBOX = {};
+  function measureArt(def){
+    if(ART_BBOX[def.t]) return ART_BBOX[def.t];
+    const c=document.createElement('canvas'); c.width=240; c.height=240;
+    const g=c.getContext('2d'); const REF=40;
+    const keep=ctx; ctx=g;
+    drawFishArt(120,120,def,REF,{phase:0});
+    ctx=keep;
+    const d=g.getImageData(0,0,240,240).data;
+    let minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9;
+    for(let i=0;i<240*240;i++){ if(d[i*4+3]>12){ const x=i%240,y=(i/240)|0;
+      if(x<minx)minx=x; if(x>maxx)maxx=x; if(y<miny)miny=y; if(y>maxy)maxy=y; } }
+    const b = (maxx<minx) ? {minx:-1,maxx:1,miny:-0.6,maxy:0.6}
+                          : {minx:(minx-120)/REF, maxx:(maxx-120)/REF, miny:(miny-120)/REF, maxy:(maxy-120)/REF};
+    ART_BBOX[def.t]=b; return b;
+  }
+
+  // paint a species portrait into a small canvas — auto-scaled so it always fits the frame
+  function paintFish(canvasEl, name, cssW, cssH, scale){
+    const g = canvasEl.getContext('2d');
+    g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,canvasEl.width,canvasEl.height);
+    g.scale(scale,scale);
+    const def=speciesArt(name), b=measureArt(def);
+    const bw=(b.maxx-b.minx)*1.16, bh=(b.maxy-b.miny)*1.16, s=Math.min(cssW*0.94/bw, cssH*0.94/bh);
+    const cx=(b.minx+b.maxx)/2, cy=(b.miny+b.maxy)/2;
+    const keep = ctx; ctx = g;
+    drawFishArt(cssW/2 - cx*s, cssH/2 - cy*s, def, s, { phase:0.8 });
+    ctx = keep;
+  }
+
   function showCatchPanel(f, isNew, isRecord){
     pendingCatch={f,isNew,isRecord};
     document.getElementById('cName').textContent=(isNew?'🆕 ':'')+f.n;
+    paintFish(document.getElementById('cPic'), f.n, 85, 59, 2);
     const rr=document.getElementById('cRar');
     rr.textContent=RARITY[f.r].name; rr.style.background=RARITY[f.r].color+'22';
     rr.style.color=RARITY[f.r].color; rr.style.border='1px solid '+RARITY[f.r].color;
@@ -621,7 +874,7 @@
     const p=pendingCatch; if(!p){ hidePanel('catchPanel'); resetToIdle(); return; }
     if(invUsed()>=crateSize()){ document.getElementById('cCoins').textContent='🎒 Crate full — SELL this one or upgrade storage!'; return; }
     const f=p.f;
-    S.inv.push({n:f.n, r:f.r, kg:+f.kg.toFixed(2), value:f.value});
+    S.inv.push({n:f.n, r:f.r, kg:+f.kg.toFixed(2), value:f.value, size:f.size});
     addStk(f); save(); updateHUD();
     hidePanel('catchPanel');
     const f2=f; pendingCatch=null; resetToIdle();
@@ -736,11 +989,59 @@
   }
   function openRecords(){ shopTab='spec'; renderShop(); showPanel('shopPanel'); }
 
+  // ---------- crate / inventory ----------
+  function openInventory(){ renderInventory(); showPanel('invPanel'); }
+  function renderInventory(){
+    const cap=crateSize(), used=invUsed();
+    document.getElementById('invCoins').textContent=S.coins;
+    document.getElementById('invCap').textContent=used+' / '+cap;
+    document.getElementById('invBar').style.width=Math.min(100,(used/cap)*100)+'%';
+    const el=document.getElementById('invList'); el.innerHTML='';
+    if(!S.inv.length){
+      el.innerHTML='<p style="font-size:13px;opacity:.72;margin:16px 4px;line-height:1.5">Your crate is empty.<br>Reel one in and tap <b>Keep it</b> 🎣</p>';
+    } else {
+      S.inv.forEach((f,i)=>{
+        const R=RARITY[f.r];
+        const row=document.createElement('div'); row.className='invrow';
+        const pic=document.createElement('canvas'); pic.width=156; pic.height=108;
+        pic.style.cssText='width:78px;height:54px;flex:0 0 78px;display:block';
+        paintFish(pic, f.n, 78, 54, 2);
+        const info=document.createElement('div'); info.className='info';
+        info.innerHTML='<b>'+f.n+'</b>'+
+          '<span class="meta" style="color:'+R.color+'">'+R.name+'</span>'+
+          '<span class="meta">'+f.kg.toFixed(2)+' kg</span>'+
+          '<span class="meta" style="color:#ffd85e">sells for 🪙 '+f.value+'</span>';
+        const b=document.createElement('button'); b.className='sell'; b.textContent='SELL 🪙'+f.value;
+        b.onclick=()=>sellFromInv(i);
+        row.appendChild(pic); row.appendChild(info); row.appendChild(b);
+        el.appendChild(row);
+      });
+    }
+    const all=document.getElementById('invSellAll');
+    all.disabled=!S.inv.length;
+    all.classList.toggle('dim', !S.inv.length);
+  }
+  function dropFromBucket(name){ const k=STK.findIndex(x=>x.n===name); if(k>=0) STK.splice(k,1); }
+  function sellFromInv(i){
+    const f=S.inv[i]; if(!f) return;
+    S.coins+=f.value; S.inv.splice(i,1); dropFromBucket(f.n);
+    save(); updateHUD(); renderInventory();
+    say('Sold '+f.n+' for '+f.value+' 🪙'); setTimeout(()=>{ if(S.state==='idle') say(''); },1500);
+  }
+  function sellAllInv(){
+    if(!S.inv.length) return;
+    let total=0;
+    for(const f of S.inv){ total+=f.value; dropFromBucket(f.n); }
+    const n=S.inv.length; S.inv.length=0; S.coins+=total;
+    save(); updateHUD(); renderInventory();
+    say('Sold '+n+' fish for '+total+' 🪙'); setTimeout(()=>{ if(S.state==='idle') say(''); },2000);
+  }
+
   // ---------- HUD ----------
   function updateHUD(){
     document.getElementById('coin').innerHTML='🪙 '+S.coins+'<small>COINS</small>';
-    document.getElementById('rodChip').innerHTML='🎣 '+RODS[S.rod].name+'<small>TAP: SHOP</small>';
-    document.getElementById('recChip').innerHTML='🎒 '+invUsed()+'/'+crateSize()+'<small>TAP: STORAGE</small>';
+    document.getElementById('shopChip').innerHTML='🛒 SHOP<small>🎣 '+RODS[S.rod].name+'</small>';
+    document.getElementById('invChip').innerHTML='🎒 '+invUsed()+'/'+crateSize()+'<small>TAP: CRATE</small>';
   }
 
   // ---------- update ----------
@@ -1023,29 +1324,16 @@
     if(S.state==='reeling'&&reel) drawReelUI();
   }
 
-  // shared fish body renderer (local coords, facing +x)
-  function fishBody(s, color, phase, squirm){
-    const wob = Math.sin(phase)*(0.35 + (squirm||0));
-    // tail
-    ctx.fillStyle=color;
-    ctx.beginPath(); ctx.moveTo(-s*0.8,0); ctx.lineTo(-s*1.5,-s*0.55+wob*s*0.45); ctx.lineTo(-s*1.5,s*0.55+wob*s*0.45); ctx.closePath(); ctx.fill();
-    // body
-    const bg=ctx.createLinearGradient(0,-s*0.6,0,s*0.6);
-    bg.addColorStop(0,'#ffffff'); bg.addColorStop(.35,color); bg.addColorStop(1,'#062033');
-    ctx.fillStyle=bg; ctx.beginPath(); ctx.ellipse(0,0,s*1.05,s*0.62,0,0,7); ctx.fill();
-    // fin
-    ctx.fillStyle=color;
-    ctx.beginPath(); ctx.moveTo(-s*0.1,-s*0.5); ctx.lineTo(s*0.25,-s*1.0); ctx.lineTo(s*0.5,-s*0.42); ctx.closePath(); ctx.fill();
-    // eye
-    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(s*0.62,-s*0.14,s*0.17,0,7); ctx.fill();
-    ctx.fillStyle='#04121f'; ctx.beginPath(); ctx.arc(s*0.66,-s*0.14,s*0.09,0,7); ctx.fill();
+  // each species draws itself — colours, silhouette and markings
+  function speciesArt(name){
+    const a = SPECIES[name] || DEFAULT_ART;
+    return { t:a.t, c1:a.c1, c2:a.c2, name };
   }
 
   function drawFish(f,t){
     const R=RARITY[f.r], s=f.size;
     ctx.save();
     ctx.translate(f.x, f.y + Math.sin(f.phase*0.5)*1.5);
-    ctx.scale(f.dir,1);
     if(f.r==='rare'||f.r==='epic'||f.r==='cursed'){
       ctx.save(); ctx.globalAlpha=.35;
       const gg=ctx.createRadialGradient(0,0,2,0,0,s*1.9);
@@ -1054,7 +1342,7 @@
     }
     if(f.target){ ctx.save(); ctx.globalAlpha=.7+Math.sin(t*6)*.3; ctx.strokeStyle='#ffd85e'; ctx.lineWidth=1.5;
       ctx.beginPath(); ctx.arc(0,-s-9,3,0,7); ctx.stroke(); ctx.restore(); }
-    fishBody(s, R.color, f.phase, 0);
+    drawFishArt(0,0, speciesArt(f.n), s, { phase:f.phase, dir:f.dir });
     ctx.restore();
   }
 
@@ -1077,9 +1365,8 @@
 
     ctx.save();
     ctx.translate(reel.fx, reel.fy);
-    ctx.scale(dir, 1);
     // frantic body squirm
-    fishBody(s, R.color, reel.elapsed*26 + f.phase, 0.5);
+    drawFishArt(0,0, speciesArt(f.n), s, { phase: reel.elapsed*26 + f.phase, squirm:0.5, dir });
     ctx.restore();
 
     // rare glow halo
@@ -1185,7 +1472,7 @@
       ctx.save();
       ctx.translate(BUCKET.x+off, BUCKET.y+4 - (i%3)*3);
       ctx.rotate(ang);
-      fishBody(s, RARITY[item.r].color, t*3+i, 0);
+      drawFishArt(0,0, speciesArt(item.n), s, { phase: t*3+i });
       ctx.restore();
     }
   }
@@ -1200,7 +1487,7 @@
     const rot=Math.sin(p*Math.PI*2)*0.6;
     ctx.save();
     ctx.translate(x,y); ctx.rotate(rot);
-    fishBody(s, RARITY[f.r].color, a.t*22, 0.4);
+    drawFishArt(0,0, speciesArt(f.n), s, { phase: a.t*22, squirm:0.4 });
     ctx.restore();
     // sparkle trail
     ctx.save(); ctx.globalAlpha=Math.max(0,1-p); ctx.fillStyle=RARITY[f.r].color;
@@ -1335,7 +1622,7 @@
   if(!seenTut){ setTimeout(()=>{ if(S.state==='idle') showPanel('howPanel'); },700); }
   frame();
 
-  window.DEEPCast={ S, openShop, openRecords, get fishes(){return fishes;} };
+  window.DEEPCast={ S, openShop, openRecords, openInventory, get fishes(){return fishes;} };
 })();
 </script>
 </body>
