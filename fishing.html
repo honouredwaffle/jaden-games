@@ -94,8 +94,9 @@
       <h2>🎣 How To Fish</h2>
       <div class="step"><div class="num">1</div><div class="txt"><b>Watch the water</b> — fish swim below the boat. Bigger + brighter = rarer.</div></div>
       <div class="step"><div class="num">2</div><div class="txt"><b>Cast:</b> hold to charge, release to drop your bait. More power = deeper + further.</div></div>
-      <div class="step"><div class="num">3</div><div class="txt"><b>Wait:</b> a nearby fish will swim to your bait. When it bites, the bobber slams down — <b>TAP!</b></div></div>
-      <div class="step"><div class="num">4</div><div class="txt"><b>Reel:</b> HOLD to pull it up — it'll thrash like mad and drag your line everywhere. The tension bar rises, so <b>release before it snaps</b> or you lose it.</div></div>
+      <div class="step"><div class="num">3</div><div class="txt"><b>Wait:</b> a fish swims over and starts <b>nibbling</b> — the bobber dips but DON'T pull yet, you'll spook it. It circles and taps up to 3 times.</div></div>
+      <div class="step"><div class="num">4</div><div class="txt"><b>Hook it:</b> when it finally commits the bobber slams right under — <b>TAP</b> to set the hook.</div></div>
+      <div class="step"><div class="num">5</div><div class="txt"><b>Reel:</b> HOLD to pull it up — it'll thrash like mad. Release before the tension bar snaps or you lose it.</div></div>
       <button class="btn" id="howClose">Got it — let me fish 🔥</button>
     </div>
   </div>
@@ -154,21 +155,30 @@
     cursed:  {tension:0.95, reel:0.22, thrash:1.85}
   };
 
-  const S = { coins:0, rod:0, caught:{}, total:0, state:'idle' };
+  const S = { coins:0, rod:0, owned:[0], caught:{}, total:0, state:'idle' };
   let fishes = [], nextId = 1;
   const RIPPLE = {}; let rippleId=0;
   const FLOATERS = {}; let floatId=0;
   let bubbles = [];
 
   // ---------- persistence ----------
-  function save(){ try{ localStorage.setItem('deepcast_v1', JSON.stringify({coins:S.coins,rod:S.rod,caught:S.caught,total:S.total})); }catch(e){} }
-  function load(){ try{ const d=JSON.parse(localStorage.getItem('deepcast_v1')||'null'); if(d){S.coins=d.coins||0;S.rod=d.rod||0;S.caught=d.caught||{};S.total=d.total||0;} }catch(e){} }
+  function save(){ try{ localStorage.setItem('deepcast_v1', JSON.stringify({coins:S.coins,rod:S.rod,owned:S.owned,caught:S.caught,total:S.total})); }catch(e){} }
+  function load(){ try{ const d=JSON.parse(localStorage.getItem('deepcast_v1')||'null');
+    if(d){
+      S.coins=d.coins||0; S.rod=d.rod||0; S.caught=d.caught||{}; S.total=d.total||0;
+      if(Array.isArray(d.owned)) S.owned=d.owned.slice();
+      else S.owned=[0,1,2,3,4].slice(0,(d.rod||0)+1);   // migrate old saves
+      if(!S.owned.includes(S.rod)) S.owned.push(S.rod);
+    } }catch(e){} }
 
   // ---------- world ----------
   const bob = { x:0,y:0,tx:0,ty:0,flying:false,t:0,land:0.45,sx:0,sy:0 };
-  let castPower=0, powerDir=1, biteTimer=0, biteWindow=0;
+  let castPower=0, powerDir=1, biteWindow=0;
   let hooked=null, reel=null;
   let shakeT=0, splashT=0, splashX=0, splashY=0, lure=null;
+  // bite / nibble cycle
+  let waitTimer=0, nextArriveT=0;
+  let nibbler=null, nibbleCount=0, nibblePhase='idle', nibbleTimer=0;
 
   function fishZoneTop(){ return waterY + 42; }
   function fishZoneBot(){ return H - 44; }
@@ -236,6 +246,7 @@
   // ---------- input ----------
   function pointerDown(){
     if(S.state==='idle'){ S.state='charging'; castPower=0; powerDir=1; powerBar.style.display='block'; hint('Release to cast!'); return; }
+    if(S.state==='waiting'){ if(nibblePhase==='dip') spookAll(); return; }  // pulling during a nibble = you lose it
     if(S.state==='bite'){ hookIt(); return; }
     if(S.state==='reeling'&&reel){ reel.holding=true; return; }
   }
@@ -278,24 +289,95 @@
     S.state='waiting';
     lure={x:bob.tx, y:bob.ty};
     rippleAt(bob.tx, waterY);
-    let best=null,bestD=1e9;
-    for(const f of fishes){ const d=Math.hypot(f.x-bob.tx,f.y-bob.ty); if(d<W*0.6 && d<bestD){bestD=d;best=f;} }
-    if(best) best.target=lure;
-    hint('Wait for a bite… watch the bobber!');
+    // nothing comes straight away — you have to wait a while
+    waitTimer=0;
+    nextArriveT = 3.0 + Math.random()*3.5;   // first fish shows up in ~3-6.5s
+    nibbler=null; nibbleCount=0; nibblePhase='idle'; nibbleTimer=0;
+    hint('Let the bait settle… watch the water.');
     say('');
-    biteTimer=0;
+  }
+
+  // pick the nearest free fish and send it over to the bait
+  function recruitFish(){
+    const near = fishes.filter(f=>f.role==='near').length;
+    if(near>=3) return;                        // max 3 fish around the hook
+    let best=null,bestD=1e9;
+    for(const f of fishes){
+      if(f.role) continue;
+      const d=Math.hypot(f.x-lure.x, f.y-lure.y);
+      if(d<W*0.9 && d<bestD){ bestD=d; best=f; }
+    }
+    if(best){ best.role='near'; best.target=lure; }
+  }
+
+  // the nibble cycle — feel it pull, up to 3 times, then it commits or leaves
+  function manageNibbles(dt){
+    // only one fish can nibble at a time
+    const ready = fishes.filter(f=>f.role==='near' && !f.target);
+    if(!nibbler){
+      if(ready.length){ nibbler=ready[0]; nibbleCount=0; nibblePhase='circle'; nibbleTimer=1.3+Math.random()*2.0; }
+      return;
+    }
+    if(nibbler.role!=='near' || nibbler.target){ nibbler=null; nibblePhase='idle'; return; }
+    nibbleTimer-=dt;
+    if(nibbleTimer>0) return;
+    if(nibblePhase==='circle'){
+      nibblePhase='dip'; nibbleTimer=0.6;
+      splashAt(lure.x, lure.y);
+      hint("It's nibbling… DON'T pull yet!");
+    } else if(nibblePhase==='dip'){
+      nibbleCount++;
+      nibblePhase='rest'; nibbleTimer=0.8+Math.random()*1.0;
+      if(nibbleCount>=3){
+        if(Math.random()<0.7) commitBite(); else giveUp();
+      } else if(nibbleCount>=2 && Math.random()<0.3){
+        commitBite();
+      } else if(Math.random()<0.12){
+        giveUp();
+      }
+    } else if(nibblePhase==='rest'){
+      nibblePhase='circle'; nibbleTimer=1.0+Math.random()*2.0;
+      hint('Wait for the big bite…');
+    }
+  }
+
+  function commitBite(){ if(nibbler) beginBite(nibbler); }
+
+  function giveUp(){
+    if(nibbler) fleeFish(nibbler);
+    nibbler=null; nibbleCount=0; nibblePhase='idle'; nibbleTimer=0;
+    say('It lost interest… 😶');
+    nextArriveT = waitTimer + 1.5 + Math.random()*2.5;
+  }
+
+  function fleeFish(f){
+    const lx=lure?lure.x:f.x, ly=lure?lure.y:f.y;
+    const dx=f.x-lx, dy=f.y-ly, d=Math.hypot(dx,dy)||1;
+    f.vx=(dx/d)*f.speed*2.4; f.vy=(dy/d)*f.speed*2.4;
+    f.role=null; f.target=null; f.wanderT=1.4;
+    f.home = fishZoneTop()+Math.random()*(fishZoneBot()-fishZoneTop());
+  }
+
+  // pulling while it's only nibbling spooks every fish on the bait
+  function spookAll(){
+    for(const f of fishes) if(f.role==='near') fleeFish(f);
+    nibbler=null; nibbleCount=0; nibblePhase='idle'; nibbleTimer=0;
+    say('Too early — you spooked it! 💨'); hint('Wait for the big bite…');
+    waitTimer=0; nextArriveT=2.5+Math.random()*3.0;
   }
 
   function beginBite(f){
-    hooked=f; f.target=null;
+    hooked=f; f.target=null; f.role=null;
     S.state='bite'; biteWindow=1.5;
     say('❗ BITE — TAP NOW!'); hint('TAP to set the hook!');
-    shakeT=0.25; splashAt(bob.tx, bob.ty);
+    shakeT=0.25; splashAt(lure?lure.x:bob.tx, lure?lure.y:bob.ty);
   }
-  function hookIt(){ if(S.state==='bite'&&hooked) startReel(hooked); }
+  function reelOthers(){ for(const f of fishes) if(f.role==='near') fleeFish(f); }
+  function hookIt(){ if(S.state==='bite'&&hooked){ reelOthers(); startReel(hooked); } }
 
   function startReel(f){
-    fishes = fishes.filter(x=>x.id!==f.id);   // take it off the free-swim list — it's on the hook now
+    fishes = fishes.filter(x=>x.id!==f.id);   // it's off the free-swim list — it's on the hook now
+    nibbler=null; nibblePhase='idle';
     const strength = FIGHT[f.r].thrash;
     reel = {
       prog:0.12, tension:0.10, holding:false,
@@ -336,6 +418,8 @@
 
   function resetToIdle(){
     bob.flying=false; bob.land=0; lure=null; reel=null; hooked=null;
+    nibbler=null; nibbleCount=0; nibblePhase='idle'; nibbleTimer=0;
+    for(const f of fishes){ f.role=null; f.target=null; }
     S.state='idle'; powerBar.style.display='none';
     hint('Hold to charge your cast, release to cast'); say('');
   }
@@ -357,8 +441,13 @@
     const el=document.getElementById('shopList'); el.innerHTML='';
     RODS.forEach((r,i)=>{
       const row=document.createElement('div'); row.className='shoprow';
-      row.innerHTML=`<div style="flex:1"><b>🎣 ${r.name}</b><span>${r.desc}</span><span style="color:#8fd6ff">reel ×${r.reel.toFixed(2)} · luck +${r.luck}</span></div>`;
-      const owned=i<=S.rod, locked=i>S.rod+1;
+      const owned=S.owned.includes(i);
+      // name + description + stats always visible, so you can compare before buying
+      const left=document.createElement('div'); left.style.flex='1';
+      left.innerHTML='<b>🎣 '+r.name+'</b><span>'+r.desc+'</span>'+
+        '<span style="color:#8fd6ff">reel ×'+r.reel.toFixed(2)+' · luck +'+r.luck+' · cast ×'+r.cast.toFixed(2)+'</span>'+
+        '<span style="color:#ffd85e">cost: '+(r.cost===0?'free':'🪙 '+r.cost)+'</span>';
+      row.appendChild(left);
       if(i===S.rod){
         const o=document.createElement('div'); o.className='owned'; o.textContent='EQUIPPED'; row.appendChild(o);
       } else if(owned){
@@ -366,17 +455,16 @@
         b.style.background='linear-gradient(180deg,#9ff5c0,#41c97a)'; b.style.boxShadow='0 4px 0 #1f7d49'; b.style.color='#03210f';
         b.onclick=()=>{ S.rod=i; save(); updateHUD(); renderShop(); say('Equipped '+r.name+'!'); };
         row.appendChild(b);
-      } else if(locked){
-        const o=document.createElement('div'); o.className='owned'; o.style.color='#ff9d9d'; o.textContent='🔒'; row.appendChild(o);
       } else {
+        // buy in any order — no need to own the previous rod
         const b=document.createElement('button'); b.className='buy'; b.textContent='🪙 '+r.cost; b.disabled=S.coins<r.cost;
-        b.onclick=()=>{ if(S.coins>=r.cost){ S.coins-=r.cost; S.rod=i; save(); updateHUD(); renderShop(); say('Equipped '+r.name+'!'); } };
+        b.onclick=()=>{ if(S.coins>=r.cost){ S.coins-=r.cost; S.owned.push(i); S.rod=i; save(); updateHUD(); renderShop(); say('Bought + equipped '+r.name+'!'); } };
         row.appendChild(b);
       }
       el.appendChild(row);
     });
     const note=document.createElement('p'); note.style.cssText='font-size:11px;opacity:.6;margin-top:8px';
-    note.textContent='Tap EQUIP on any rod you own to switch back to it. Each rod reels at a different speed and shifts the odds toward rarer fish.';
+    note.textContent='Every rod’s stats are shown up top — buy in any order. Tap EQUIP on any rod you own to switch to it.';
     el.appendChild(note);
   }
 
@@ -417,14 +505,21 @@
     // fish
     for(const f of fishes){
       f.phase += dt*6;
-      if(f.target){
+      if(f.role==='near' && f.target){
+        // swim in slowly toward the bait, then hold nearby
         const dx=f.target.x-f.x, dy=f.target.y-f.y, d=Math.hypot(dx,dy)||1;
-        // approach slowly — the closer it gets the more it eases in, so the bite never feels rushed
         const ease = Math.min(1, d/260);
         const appr = f.speed*(0.42 + 0.33*(1-ease));
-        f.x += (dx/d)*appr*dt; f.y += (dy/d)*appr*dt;
-        f.dir = dx>=0?1:-1;
-        if(d<14){ beginBite(f); break; }
+        if(d>34){ f.x += (dx/d)*appr*dt; f.y += (dy/d)*appr*dt; f.dir=dx>=0?1:-1; }
+        else {
+          // arrived — hang around the bait, nudging about
+          f.orbit = (f.orbit||0) + dt*(0.8+Math.random()*1.2);
+          const oa = f.orbit;
+          const tx = f.target.x + Math.cos(oa)*30, ty = f.target.y + Math.sin(oa)*20;
+          f.x += (tx-f.x)*1.4*dt; f.y += (ty-f.y)*1.4*dt;
+          f.dir = Math.cos(oa)>=0?1:-1;
+          f.target=null;   // arrived: now it just hangs near until it either nibbles or leaves
+        }
       } else {
         // 2D wander — swim left/right AND up/down
         f.wanderT = (f.wanderT||0) - dt;
@@ -434,9 +529,12 @@
           f.vx = Math.cos(ang)*f.speed;
           f.vy = Math.sin(ang)*f.speed*0.75;
         }
+        // if it's a "near" fish it should loiter close to the bait, not wander off
+        if(f.role==='near' && lure){
+          f.x += (lure.x-f.x)*0.5*dt; f.y += (lure.y-f.y)*0.5*dt;
+        }
         f.x += f.vx*dt;
         f.y += f.vy*dt;
-        // gentle drift back toward its depth band so it roams freely but stays in the water
         f.y += (f.home-f.y)*0.15*dt;
       }
       const top=fishZoneTop(), bot=fishZoneBot();
@@ -444,29 +542,22 @@
       if(f.x>W-22){ f.x=W-22; f.vx=-Math.abs(f.vx); }
       if(f.y<top){ f.y=top; f.vy=Math.abs(f.vy); }
       if(f.y>bot){ f.y=bot; f.vy=-Math.abs(f.vy); }
-      f.dir = f.vx>=0?1:-1;
+      if(f.target || (f.role==='near' && lure)) f.dir = (lure? lure.x:0)>=f.x?1:-1;
+      else f.dir = f.vx>=0?1:-1;
     }
 
+    // ---- waiting: recruit fish over time, run the nibble cycle ----
     if(S.state==='waiting'){
-      const anyTarget=fishes.some(f=>f.target);
-      if(!anyTarget && lure){
-        let best=null,bestD=1e9;
-        for(const f of fishes){ const d=Math.hypot(f.x-lure.x,f.y-lure.y); if(d<W*0.75&&d<bestD){bestD=d;best=f;} }
-        if(best) best.target=lure;
-      }
-      biteTimer+=dt;
-      if(biteTimer>9 && lure && !fishes.some(f=>f.target)){
-        let best=null,bestD=1e9;
-        for(const f of fishes){ const d=Math.hypot(f.x-lure.x,f.y-lure.y); if(d<bestD){bestD=d;best=f;} }
-        if(best) best.target=lure;
-      }
+      waitTimer += dt;
+      if(lure && waitTimer>=nextArriveT){ recruitFish(); nextArriveT = waitTimer + 2.5 + Math.random()*3.0; }
+      manageNibbles(dt);
     }
 
     if(S.state==='bite'){
       biteWindow-=dt;
       if(biteWindow<=0){
         say('Too slow — it spat the hook 😤'); hint('Hold to charge your cast');
-        if(hooked) hooked.target=null;
+        if(hooked && hooked.role==null) fleeFish(hooked);
         hooked=null; S.state='done';
         setTimeout(()=>{ if(S.state==='done') resetToIdle(); },900);
       }
@@ -630,7 +721,20 @@
         bx=bob.sx+(bob.tx-bob.sx)*ease;
         by=bob.sy+(bob.ty-bob.sy)*ease - Math.sin(e*Math.PI)*H*0.16;
       } else { bx=bob.tx; by=bob.ty+Math.sin(t*2.4)*2; }
+      // nibble cue — bobber dips under while a fish is mouthing the bait
+      if(S.state==='waiting' && nibblePhase==='dip' && nibbler){
+        by += 7 + Math.sin(t*22)*2;
+        if(Math.random()<0.35) rippleAt(bob.tx, waterY);
+      }
       drawBobber(bx,by,t);
+      // little fish nose poking at the bait on a dip
+      if(S.state==='waiting' && nibblePhase==='dip' && nibbler){
+        ctx.save(); ctx.globalAlpha=.9;
+        const fs=nibbler.size*0.7, nx=bx-14, ny=by+6;
+        ctx.fillStyle=RARITY[nibbler.r].color;
+        ctx.beginPath(); ctx.ellipse(nx,ny,fs*1.05,fs*0.62,0,0,7); ctx.fill();
+        ctx.restore();
+      }
     }
 
     // floating text
