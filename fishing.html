@@ -24,7 +24,7 @@
     font-size:13px; letter-spacing:.8px; cursor:pointer; user-select:none; touch-action:none; -webkit-tap-highlight-color:transparent;
     box-shadow:0 7px 0 rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.12); }
   .ctl:active { transform:translateY(3px); box-shadow:0 4px 0 rgba(0,0,0,.42); }
-  .ctl:disabled { filter:grayscale(.85); opacity:.32; box-shadow:0 7px 0 rgba(0,0,0,.42); }
+  .ctl:disabled, .ctl.dim { filter:grayscale(.85); opacity:.38; box-shadow:0 7px 0 rgba(0,0,0,.42); }
   .ctl.hot { border-color:#ffd85e; box-shadow:0 0 24px rgba(255,216,94,.7), 0 7px 0 rgba(0,0,0,.42); }
   .ctl .ic { font-size:42px; line-height:1; }
   #reelBtn svg { display:block; }
@@ -123,7 +123,7 @@
       <h2>🎣 How To Fish</h2>
       <div class="step"><div class="num">1</div><div class="txt"><b>Watch the water</b> — fish swim below the boat. Bigger + brighter = rarer.</div></div>
       <div class="step"><div class="num">2</div><div class="txt"><b>THROW:</b> hold the THROW button to charge the bar, release to cast. More power = deeper + further.</div></div>
-      <div class="step"><div class="num">3</div><div class="txt"><b>Wait:</b> a fish swims over and starts <b>nibbling</b> — the float dips but DON'T reel yet, you'll spook it. It circles and taps up to 3 times.</div></div>
+      <div class="step"><div class="num">3</div><div class="txt"><b>Wait:</b> a fish swims over and starts <b>nibbling</b> — the float dips. Usually best to WAIT, it circles and taps up to 3 times. Reel too early and it'll <b>spook</b> (sometimes it just backs off and stays).</div></div>
       <div class="step"><div class="num">4</div><div class="txt"><b>Hook it:</b> when it finally commits the bobber slams right under — <b>TAP</b> to set the hook.</div></div>
       <div class="step"><div class="num">5</div><div class="txt"><b>REEL:</b> HOLD the REEL button to pull the fish up — the catch bar rises toward the surface. It'll thrash and drag the bar back down. Release before the tension bar snaps.</div></div>
       <div class="step"><div class="num">6</div><div class="txt">Bar <b>full = caught</b>. Bar <b>empty = it snaps off</b>. A stronger rod beats stronger fish.</div></div>
@@ -280,10 +280,7 @@
   // ---------- input ----------
   function pointerDown(){
     if(S.state==='idle'){ startCharge(); return; }
-    if(S.state==='waiting'){
-      if(nibblePhase==='dip'){ spookAll(); return; }   // pulled while it was only nibbling = spooked
-      lineHeld=true; return;                          // otherwise crank the line back in
-    }
+    if(S.state==='waiting'){ if(nibblePhase==='dip'){ tryReelDuringDip(); return; } lineHeld=true; return; }
     if(S.state==='cast'){ lineHeld=true; return; }
     if(S.state==='bite'){ hookIt(); return; }
     if(S.state==='reeling'&&reel){ reel.holding=true; return; }
@@ -296,6 +293,15 @@
   function startCharge(){ if(S.state!=='idle') return; S.state='charging'; castPower=0; powerDir=1; powerBar.style.display='block'; hint('Release to cast!'); }
   function releaseCast(){ if(S.state!=='charging') return; powerBar.style.display='none'; doCast(castPower); }
 
+  // REEL button press — works in every state (idle does nothing, bite = strike)
+  function reelPress(){
+    if(S.state==='waiting'){ if(nibblePhase==='dip') tryReelDuringDip(); else lineHeld=true; }
+    else if(S.state==='cast') lineHeld=true;
+    else if(S.state==='bite') hookIt();
+    else if(S.state==='reeling'&&reel) reel.holding=true;
+  }
+  function reelRelease(){ lineHeld=false; if(reel) reel.holding=false; }
+
   cv.addEventListener('pointerdown', e=>{ e.preventDefault(); pointerDown(); });
   window.addEventListener('pointerup', ()=>pointerUp());
   window.addEventListener('pointercancel', ()=>{ if(reel) reel.holding=false; });
@@ -307,30 +313,31 @@
   const throwLabel=document.getElementById('throwLabel'), reelLabel=document.getElementById('reelLabel');
   const reelSpin=document.getElementById('reelSpin');
   let spinDeg=0, FRAME_DT=0.016;
-  throwBtn.addEventListener('pointerdown', e=>{ e.preventDefault(); startCharge(); });
+  // pointer capture keeps the hold alive even if the button shifts under the finger (mobile)
+  function bindDown(el, fn){
+    el.addEventListener('pointerdown', e=>{ e.preventDefault(); try{ el.setPointerCapture(e.pointerId); }catch(_){ } fn(); });
+  }
+  bindDown(throwBtn, startCharge);
   throwBtn.addEventListener('pointerup', e=>{ e.preventDefault(); releaseCast(); });
   throwBtn.addEventListener('pointercancel', ()=>{ if(S.state==='charging') releaseCast(); });
-  reelBtn.addEventListener('pointerdown', e=>{ e.preventDefault();
-    if(S.state==='reeling'&&reel) reel.holding=true;
-    else if(S.state==='waiting'){ if(nibblePhase==='dip') spookAll(); else lineHeld=true; }
-    else if(S.state==='cast') lineHeld=true;   // crank the line back in
-  });
-  reelBtn.addEventListener('pointerup', e=>{ e.preventDefault(); lineHeld=false; if(reel) reel.holding=false; });
-  reelBtn.addEventListener('pointercancel', ()=>{ lineHeld=false; if(reel) reel.holding=false; });
-  reelBtn.addEventListener('pointerleave', ()=>{ lineHeld=false; if(reel && S.state==='reeling') reel.holding=false; });
+  bindDown(reelBtn, reelPress);
+  reelBtn.addEventListener('pointerup', e=>{ e.preventDefault(); reelRelease(); });
+  reelBtn.addEventListener('pointercancel', ()=>reelRelease());
+  reelBtn.addEventListener('lostpointercapture', ()=>reelRelease());
 
   function updateControls(){
     const idle = S.state==='idle';
-    throwBtn.disabled = !idle;
+    throwBtn.classList.toggle('dim', !idle);
     throwBtn.classList.toggle('hot', S.state==='charging');
     throwLabel.textContent = S.state==='charging' ? 'RELEASE!' : 'THROW';
 
-    const busy = S.state==='cast'||S.state==='waiting'||S.state==='reeling';
-    reelBtn.disabled = !busy;
+    const canReel = S.state==='cast'||S.state==='waiting'||S.state==='bite'||S.state==='reeling';
+    reelBtn.classList.toggle('dim', !canReel);
     const active = (S.state==='reeling' && reel && reel.holding) || lineHeld;
     reelBtn.classList.toggle('hot', !!active);
-    if(S.state==='reeling') reelLabel.textContent = (reel && reel.holding) ? 'REELING' : 'REEL';
-    else if(lineHeld) reelLabel.textContent = 'PULLING';
+    if(S.state==='bite') reelLabel.textContent='STRIKE!';
+    else if(S.state==='reeling') reelLabel.textContent = (reel && reel.holding) ? 'REELING' : 'REEL';
+    else if(lineHeld) reelLabel.textContent='PULLING';
     else reelLabel.textContent = 'REEL LINE';
     if(active) spinDeg += 520*FRAME_DT;
     reelSpin.setAttribute('transform','rotate('+(spinDeg%360).toFixed(1)+' 36 36)');
@@ -458,6 +465,18 @@
   }
 
   // pulling while it's only nibbling spooks every fish on the bait
+  // reeling during a nibble — usually spooks it, sometimes it just backs off and keeps circling
+  function tryReelDuringDip(){
+    feelDip = 0.4;
+    if(Math.random()<0.6){
+      spookAll();
+    } else {
+      if(nibbler){ nibbler.target=null; }              // pulls its nose off the bait for a moment
+      nibblePhase='circle'; nibbleTimer=1.0+Math.random()*1.4;
+      say('Careful! It backed off — still circling 👀'); hint('Wait for the real bite…');
+    }
+  }
+
   function spookAll(){
     for(const f of fishes) if(f.role==='near') fleeFish(f);
     nibbler=null; nibbleCount=0; nibblePhase='idle'; nibbleTimer=0;
