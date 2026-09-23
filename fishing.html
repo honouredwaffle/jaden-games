@@ -123,7 +123,7 @@
       <h2>🎣 How To Fish</h2>
       <div class="step"><div class="num">1</div><div class="txt"><b>Watch the water</b> — fish swim below the boat. Bigger + brighter = rarer.</div></div>
       <div class="step"><div class="num">2</div><div class="txt"><b>THROW:</b> hold the THROW button to charge the bar, release to cast. More power = deeper + further.</div></div>
-      <div class="step"><div class="num">3</div><div class="txt"><b>Wait:</b> a fish swims over and starts <b>nibbling</b> — the bobber dips but DON'T pull yet, you'll spook it. It circles and taps up to 3 times.</div></div>
+      <div class="step"><div class="num">3</div><div class="txt"><b>Wait:</b> a fish swims over and starts <b>nibbling</b> — the float dips but DON'T reel yet, you'll spook it. It circles and taps up to 3 times.</div></div>
       <div class="step"><div class="num">4</div><div class="txt"><b>Hook it:</b> when it finally commits the bobber slams right under — <b>TAP</b> to set the hook.</div></div>
       <div class="step"><div class="num">5</div><div class="txt"><b>REEL:</b> HOLD the REEL button to pull the fish up — the catch bar rises toward the surface. It'll thrash and drag the bar back down. Release before the tension bar snaps.</div></div>
       <div class="step"><div class="num">6</div><div class="txt">Bar <b>full = caught</b>. Bar <b>empty = it snaps off</b>. A stronger rod beats stronger fish.</div></div>
@@ -280,7 +280,11 @@
   // ---------- input ----------
   function pointerDown(){
     if(S.state==='idle'){ startCharge(); return; }
-    if(S.state==='waiting'||S.state==='cast'){ lineHeld=true; return; }  // reel line back / liven the bait
+    if(S.state==='waiting'){
+      if(nibblePhase==='dip'){ spookAll(); return; }   // pulled while it was only nibbling = spooked
+      lineHeld=true; return;                          // otherwise crank the line back in
+    }
+    if(S.state==='cast'){ lineHeld=true; return; }
     if(S.state==='bite'){ hookIt(); return; }
     if(S.state==='reeling'&&reel){ reel.holding=true; return; }
   }
@@ -308,7 +312,8 @@
   throwBtn.addEventListener('pointercancel', ()=>{ if(S.state==='charging') releaseCast(); });
   reelBtn.addEventListener('pointerdown', e=>{ e.preventDefault();
     if(S.state==='reeling'&&reel) reel.holding=true;
-    else if(S.state==='waiting'||S.state==='cast') lineHeld=true;   // crank the line back in
+    else if(S.state==='waiting'){ if(nibblePhase==='dip') spookAll(); else lineHeld=true; }
+    else if(S.state==='cast') lineHeld=true;   // crank the line back in
   });
   reelBtn.addEventListener('pointerup', e=>{ e.preventDefault(); lineHeld=false; if(reel) reel.holding=false; });
   reelBtn.addEventListener('pointercancel', ()=>{ lineHeld=false; if(reel) reel.holding=false; });
