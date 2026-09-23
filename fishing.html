@@ -162,7 +162,7 @@
     W = window.innerWidth; H = window.innerHeight;
     cv.width = W*DPR; cv.height = H*DPR;
     ctx.setTransform(DPR,0,0,DPR,0,0);
-    waterY = H*0.24;                 // waterline right at the base of the boat
+    waterY = H*0.38;                 // lower horizon → lots more open sky
     rod.x = W*0.20; rod.y = waterY - 14;
     clampFish();
   }
