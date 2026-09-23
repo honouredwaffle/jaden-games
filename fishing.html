@@ -201,16 +201,27 @@
 
   function spawnFish(){
     const def = rollFishDef();
-    const y = fishZoneTop() + Math.random()*(fishZoneBot()-fishZoneTop());
-    const x = 40 + Math.random()*(W-80);
-    const spd = (36 - def.size*0.5) + Math.random()*20;
+    const top = fishZoneTop(), bot = fishZoneBot();
+    const spd = (34 - def.size*0.5) + Math.random()*20;
+    // pick the emptiest spot in the water column so fish spread out everywhere
+    let bx = 40 + Math.random()*(W-80), by = top + Math.random()*(bot-top), best = -1;
+    for(let k=0;k<12;k++){
+      const cx = 40 + Math.random()*(W-80), cy = top + Math.random()*(bot-top);
+      let nearest = 1e9;
+      for(const f of fishes){
+        const d = Math.hypot((f.x-cx)*0.55, (f.y-cy));
+        if(d < nearest) nearest = d;
+      }
+      if(nearest > best){ best = nearest; bx = cx; by = cy; }
+    }
     fishes.push({
-      id: nextId++, ...def, x, y, home:y,
-      vx:(Math.random()<.5?-1:1)*spd, speed:spd,
+      id: nextId++, ...def, x:bx, y:by, home:by,
+      vx:(Math.random()<.5?-1:1)*spd, vy:(Math.random()<.5?-1:1)*spd*0.7,
+      speed:spd, wanderT:1+Math.random()*3,
       phase:Math.random()*6.28, dir:1, target:null
     });
   }
-  function fillWater(){ while(fishes.length<14) spawnFish(); }
+  function fillWater(){ while(fishes.length<16) spawnFish(); }
 
   // ---------- ui ----------
   const msgEl=document.getElementById('msg'), hintEl=document.getElementById('hint');
@@ -395,16 +406,25 @@
         f.dir = dx>=0?1:-1;
         if(d<14){ beginBite(f); break; }
       } else {
+        // 2D wander — swim left/right AND up/down
+        f.wanderT = (f.wanderT||0) - dt;
+        if(f.wanderT<=0){
+          f.wanderT = 1.4 + Math.random()*3;
+          const ang = Math.random()*Math.PI*2;
+          f.vx = Math.cos(ang)*f.speed;
+          f.vy = Math.sin(ang)*f.speed*0.75;
+        }
         f.x += f.vx*dt;
-        f.y += Math.sin(f.phase*0.15)*7*dt;
-        f.y += (f.home-f.y)*0.4*dt;
-        if(f.x<22){f.x=22;f.vx=Math.abs(f.vx);}
-        if(f.x>W-22){f.x=W-22;f.vx=-Math.abs(f.vx);}
-        if(Math.random()<dt*0.25){ f.vx=(Math.random()<.5?-1:1)*(f.speed*0.6+Math.random()*f.speed*0.7); }
-        f.dir = f.vx>=0?1:-1;
+        f.y += f.vy*dt;
+        // gentle drift back toward its depth band so it roams freely but stays in the water
+        f.y += (f.home-f.y)*0.15*dt;
       }
       const top=fishZoneTop(), bot=fishZoneBot();
-      if(f.y<top) f.y=top; if(f.y>bot) f.y=bot;
+      if(f.x<22){ f.x=22; f.vx=Math.abs(f.vx); }
+      if(f.x>W-22){ f.x=W-22; f.vx=-Math.abs(f.vx); }
+      if(f.y<top){ f.y=top; f.vy=Math.abs(f.vy); }
+      if(f.y>bot){ f.y=bot; f.vy=-Math.abs(f.vy); }
+      f.dir = f.vx>=0?1:-1;
     }
 
     if(S.state==='waiting'){
@@ -707,7 +727,7 @@
   // ---------- start ----------
   resize(); load(); updateHUD(); fillWater();
   bubbles = [];
-  for(let i=0;i<10;i++) bubbles.push({x:Math.random()*1000, y:waterY+Math.random()*(H-waterY), r:1+Math.random()*2.5, spd:16+Math.random()*26, life:1});
+  for(let i=0;i<12;i++) bubbles.push({x:Math.random()*1000, y:waterY+Math.random()*(H-waterY), r:1+Math.random()*2.5, spd:16+Math.random()*26, life:1});
   resetToIdle();
   say('Welcome to Deep Cast 🎣');
   setTimeout(()=>say(''),2200);
