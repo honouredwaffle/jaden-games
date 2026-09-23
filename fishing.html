@@ -140,11 +140,11 @@
     {n:'Cursed King',    r:'cursed',   a:60.0,b:400.0,q:'Something ancient took the hook. It took the boat too.'}
   ];
   const RODS = [
-    {name:'Basic Rod',     cost:0,    cast:1.0, reel:1.0, luck:0, desc:'It is a stick with string.'},
-    {name:'Estuary Rig',   cost:120,  cast:1.18,reel:1.12,luck:1, desc:'+cast, +reel, better fish.'},
-    {name:'Carbon Spinner',cost:420,  cast:1.38,reel:1.28,luck:2, desc:'Fast, light, mean.'},
-    {name:'Deep Caster',   cost:1100, cast:1.6, reel:1.45,luck:4, desc:'Reaches the deep water.'},
-    {name:'Cursed Rod',    cost:3000, cast:1.8, reel:1.7, luck:8, desc:'It hums. You should not have held it.'}
+    {name:'Basic Rod',     cost:0,    cast:1.00, reel:0.75, luck:0,  desc:'Slow, basic. Every fish is a fight.'},
+    {name:'Estuary Rig',   cost:120,  cast:1.18, reel:1.05, luck:1,  desc:'Steadier reel, slightly better fish.'},
+    {name:'Carbon Spinner',cost:420,  cast:1.38, reel:1.45, luck:2,  desc:'Fast reel, much better odds.'},
+    {name:'Deep Caster',   cost:1100, cast:1.60, reel:1.95, luck:4,  desc:'Wins fights quick. Rare fish come easy.'},
+    {name:'Cursed Rod',    cost:3000, cast:1.85, reel:2.60, luck:9,  desc:'Reels in seconds. Almost only monsters.'}
   ];
   const FIGHT = {
     common:  {tension:0.30, reel:0.34, thrash:0.55},
@@ -185,8 +185,10 @@
     const luck = RODS[S.rod].luck;
     const w = {};
     for(const k in RARITY) w[k]=RARITY[k].weight;
-    w.rare += luck*2.2; w.epic += luck*1.1; w.cursed += luck*0.35;
-    w.common = Math.max(6, w.common - luck*2.5);
+    // luck pushes odds hard toward rare+: each point of luck adds a lot
+    w.rare += luck*4.0; w.epic += luck*2.0; w.cursed += luck*0.6;
+    w.common = Math.max(4, w.common - luck*4.5);
+    w.uncommon = Math.max(4, w.uncommon - luck*2.0);
     let tot=0; for(const k in w) tot+=w[k];
     let r=Math.random()*tot, pick='common';
     for(const k in w){ r-=w[k]; if(r<=0){pick=k;break;} }
@@ -355,7 +357,7 @@
     const el=document.getElementById('shopList'); el.innerHTML='';
     RODS.forEach((r,i)=>{
       const row=document.createElement('div'); row.className='shoprow';
-      row.innerHTML=`<div style="flex:1"><b>🎣 ${r.name}</b><span>${r.desc}</span></div>`;
+      row.innerHTML=`<div style="flex:1"><b>🎣 ${r.name}</b><span>${r.desc}</span><span style="color:#8fd6ff">reel ×${r.reel.toFixed(2)} · luck +${r.luck}</span></div>`;
       const owned=i<=S.rod, locked=i>S.rod+1;
       if(owned){ const o=document.createElement('div'); o.className='owned'; o.textContent=i===S.rod?'EQUIPPED':'OWNED'; row.appendChild(o); }
       else if(locked){ const o=document.createElement('div'); o.className='owned'; o.style.color='#ff9d9d'; o.textContent='🔒'; row.appendChild(o); }
@@ -367,7 +369,7 @@
       el.appendChild(row);
     });
     const note=document.createElement('p'); note.style.cssText='font-size:11px;opacity:.6;margin-top:8px';
-    note.textContent='Better rods = longer casts, faster reels, stronger line, and rarer fish.';
+    note.textContent='Each rod reels at a different speed and shifts the odds — better rods pull fish in faster AND find rarer fish.';
     el.appendChild(note);
   }
 
