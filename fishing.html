@@ -16,7 +16,14 @@
   #coin { color:#ffd85e; }
   #msg { top:64px; left:0; right:0; text-align:center; font-size:16px; font-weight:bold; min-height:22px; letter-spacing:.4px; }
   #hint { bottom:150px; left:0; right:0; text-align:center; font-size:13px; opacity:.95; padding:0 16px; }
-  #powerWrap { position:absolute; left:0; right:0; bottom:112px; display:flex; justify-content:center; pointer-events:none; }
+  #gauges { position:absolute; left:8px; top:96px; display:flex; gap:8px; pointer-events:none; z-index:4; }
+  .gaugeCol { display:flex; flex-direction:column; gap:3px; pointer-events:none; }
+  .gaugeTitle { font-size:8px; letter-spacing:1px; opacity:.7; color:#cfe9ff; text-align:center; }
+  .gseg { pointer-events:auto; cursor:pointer; font-size:10px; font-weight:bold; letter-spacing:.6px; text-align:center;
+    padding:5px 6px; min-width:62px; border-radius:8px; border:1.5px solid rgba(120,200,255,.35);
+    background:rgba(3,20,36,.66); color:#bfe0ff; user-select:none; -webkit-tap-highlight-color:transparent; }
+  .gseg.on { background:linear-gradient(180deg,#39d98a,#17a765); color:#04231a; border-color:#7dffb8; box-shadow:0 0 12px rgba(80,255,160,.45); }
+  #gauges.hide { display:none; }
   #controls { position:absolute; left:0; right:0; bottom:12px; display:flex; justify-content:space-between; align-items:flex-end; padding:0 14px; pointer-events:none; z-index:5; }
   .ctl { pointer-events:auto; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
     width:120px; height:104px; border-radius:24px; border:3px solid rgba(130,215,255,.6);
@@ -28,8 +35,6 @@
   .ctl.hot { border-color:#ffd85e; box-shadow:0 0 24px rgba(255,216,94,.7), 0 7px 0 rgba(0,0,0,.42); }
   .ctl .ic { font-size:42px; line-height:1; }
   #reelBtn svg { display:block; }
-  #powerBar { width:min(70%,340px); height:16px; border:2px solid rgba(180,235,255,.7); border-radius:10px; overflow:hidden; background:rgba(0,0,0,.4); display:none; }
-  #powerFill { height:100%; width:0%; background:linear-gradient(90deg,#39d98a,#ffd85e,#ff5f6d); }
   .panel { position:absolute; inset:0; background:rgba(3,12,22,.93); display:none; flex-direction:column; align-items:center; justify-content:center; padding:20px; z-index:10; }
   .panel.show { display:flex; }
   .card { background:linear-gradient(160deg,#0d2c47,#08202f); border:2px solid #3fa9f5; border-radius:18px; padding:20px 22px; max-width:400px; width:100%; text-align:center; box-shadow:0 18px 60px rgba(0,0,0,.6); }
@@ -66,8 +71,22 @@
   </div>
   <div class="hud" id="msg"></div>
   <div class="hud" id="hint">Hold to charge your cast, release to cast</div>
-  <div id="powerWrap"><div id="powerBar"><div id="powerFill"></div></div></div>
   <div id="rarityPop"></div>
+
+  <div id="gauges">
+    <div class="gaugeCol">
+      <div class="gaugeTitle">DISTANCE</div>
+      <div class="gseg" data-group="dist" data-v="0">SHORT</div>
+      <div class="gseg" data-group="dist" data-v="1">MID</div>
+      <div class="gseg" data-group="dist" data-v="2">FAR</div>
+    </div>
+    <div class="gaugeCol">
+      <div class="gaugeTitle">DEPTH</div>
+      <div class="gseg" data-group="dep" data-v="0">SHALLOW</div>
+      <div class="gseg" data-group="dep" data-v="1">MID</div>
+      <div class="gseg" data-group="dep" data-v="2">DEEP</div>
+    </div>
+  </div>
 
   <div id="controls">
     <button class="ctl" id="throwBtn"><span class="ic">🎣</span><span id="throwLabel">THROW</span></button>
@@ -122,11 +141,12 @@
     <div class="card">
       <h2>🎣 How To Fish</h2>
       <div class="step"><div class="num">1</div><div class="txt"><b>Watch the water</b> — fish swim below the boat. Bigger + brighter = rarer.</div></div>
-      <div class="step"><div class="num">2</div><div class="txt"><b>THROW:</b> hold the THROW button to charge the bar, release to cast. More power = deeper + further.</div></div>
-      <div class="step"><div class="num">3</div><div class="txt"><b>Wait:</b> a fish swims over and starts <b>nibbling</b> — the float dips. Usually best to WAIT, it circles and taps up to 3 times. Reel too early and it'll <b>spook</b> (sometimes it just backs off and stays).</div></div>
-      <div class="step"><div class="num">4</div><div class="txt"><b>Hook it:</b> when it finally commits the bobber slams right under — <b>TAP</b> to set the hook.</div></div>
-      <div class="step"><div class="num">5</div><div class="txt"><b>REEL:</b> HOLD the REEL button to pull the fish up — the catch bar rises toward the surface. It'll thrash and drag the bar back down. Release before the tension bar snaps.</div></div>
-      <div class="step"><div class="num">6</div><div class="txt">Bar <b>full = caught</b>. Bar <b>empty = it snaps off</b>. A stronger rod beats stronger fish.</div></div>
+      <div class="step"><div class="num">2</div><div class="txt"><b>Aim:</b> pick a <b>DISTANCE</b> (short/mid/far) and <b>DEPTH</b> (shallow/mid/deep) with the buttons top-left — the preview shows where the float lands and how deep the hook sits.</div></div>
+      <div class="step"><div class="num">3</div><div class="txt"><b>THROW:</b> tap the THROW button (or anywhere) to cast. Rarer, bigger fish are further out and deeper.</div></div>
+      <div class="step"><div class="num">4</div><div class="txt"><b>Wait:</b> a fish swims over and starts <b>nibbling</b> — the float dips. Usually best to WAIT, it circles and taps up to 3 times. Reel too early and it'll <b>spook</b> (sometimes it just backs off and stays).</div></div>
+      <div class="step"><div class="num">5</div><div class="txt"><b>Hook it:</b> when it finally commits the float slams under — <b>TAP</b> anywhere (or REEL) to set the hook.</div></div>
+      <div class="step"><div class="num">6</div><div class="txt"><b>REEL:</b> HOLD the REEL button to pull the fish up — the catch bar rises toward the surface. The fight starts in <b>slow-mo</b> so you've got time to react. Let go when the tension bar reddens.</div></div>
+      <div class="step"><div class="num">7</div><div class="txt">Bar <b>full = caught</b>. Bar <b>empty = it snaps off</b>. A stronger rod beats stronger fish.</div></div>
       <button class="btn" id="howClose">Got it — let me fish 🔥</button>
     </div>
   </div>
@@ -203,7 +223,7 @@
 
   // ---------- world ----------
   const bob = { tx:0, ty:0, flying:false, t:0, land:0.45, sx:0, sy:0, boing:0, boingV:0, hookY:0 };
-  let castPower=0, powerDir=1, biteWindow=0;
+  let biteWindow=0;
   let hooked=null, reel=null;
   let shakeT=0, splashT=0, splashX=0, splashY=0, lure=null;
   // bite / nibble cycle
@@ -211,9 +231,21 @@
   let nibbler=null, nibbleCount=0, nibblePhase='idle', nibbleTimer=0;
   // controls + character animation
   let lineHeld=false;                 // holding REEL when nothing is hooked (cranks line back)
-  let castAnim=-1, castWindup=-110;   // rod throw swing
+  let castAnim=-1;                    // rod throw swing
   let feelDip=0;                      // rod dips when it feels a tug
-
+  let hooksetT=-1;                    // 0→1 hookset punch animation when a fish commits
+  const DISTS = [
+    {name:'SHORT', cast:0.34},
+    {name:'MID',   cast:0.62},
+    {name:'FAR',   cast:1.00}
+  ];
+  const DEPTHS = [
+    {name:'SHALLOW', depth:0.20},
+    {name:'MID',     depth:0.55},
+    {name:'DEEP',    depth:1.00}
+  ];
+  let distMode=1, depthMode=1;        // default MID / MID
+  let recastT=0;                      // reserved (no-op)
   function fishZoneTop(){ return waterY + 42; }
   function fishZoneBot(){ return H - 44; }
 
@@ -271,7 +303,6 @@
 
   // ---------- ui ----------
   const msgEl=document.getElementById('msg'), hintEl=document.getElementById('hint');
-  const powerBar=document.getElementById('powerBar'), powerFill=document.getElementById('powerFill');
   function say(t){ msgEl.textContent=t; }
   function hint(t){ hintEl.textContent=t; }
   function showPanel(id){ document.getElementById(id).classList.add('show'); }
@@ -279,21 +310,22 @@
 
   // ---------- input ----------
   function pointerDown(){
-    if(S.state==='idle'){ startCharge(); return; }
-    if(S.state==='waiting'){ if(nibblePhase==='dip'){ tryReelDuringDip(); return; } lineHeld=true; return; }
+    if(S.state==='idle'){ doCast(); return; }              // tap anywhere to throw (aim = the gauges)
+    if(S.state==='waiting'){
+      if(nibblePhase==='dip'){ tryReelDuringDip(); return; }
+      lineHeld=true; return;                              // crank the line back in
+    }
+    if(S.state==='done') return;
     if(S.state==='cast'){ lineHeld=true; return; }
     if(S.state==='bite'){ hookIt(); return; }
     if(S.state==='reeling'&&reel){ reel.holding=true; return; }
   }
   function pointerUp(){
-    if(S.state==='charging'){ releaseCast(); return; }
     lineHeld=false;
     if(S.state==='reeling'&&reel){ reel.holding=false; }
   }
-  function startCharge(){ if(S.state!=='idle') return; S.state='charging'; castPower=0; powerDir=1; powerBar.style.display='block'; hint('Release to cast!'); }
-  function releaseCast(){ if(S.state!=='charging') return; powerBar.style.display='none'; doCast(castPower); }
-
-  // REEL button press — works in every state (idle does nothing, bite = strike)
+  function releaseCast(){ /* legacy no-op */ }
+  // REEL button press — works in every state
   function reelPress(){
     if(S.state==='waiting'){ if(nibblePhase==='dip') tryReelDuringDip(); else lineHeld=true; }
     else if(S.state==='cast') lineHeld=true;
@@ -308,18 +340,31 @@
   window.addEventListener('keydown', e=>{ if(e.code==='Space'&&!e.repeat){ e.preventDefault(); pointerDown(); } });
   window.addEventListener('keyup', e=>{ if(e.code==='Space'){ e.preventDefault(); pointerUp(); } });
 
+  // ---- cast gauges (distance + depth) ----
+  const gaugesEl=document.getElementById('gauges');
+  function renderGauges(){
+    for(const seg of gaugesEl.querySelectorAll('.gseg')){
+      const grp=seg.dataset.group, v=+seg.dataset.v;
+      const on = (grp==='dist' && v===distMode) || (grp==='dep' && v===depthMode);
+      seg.classList.toggle('on', on);
+    }
+  }
+  for(const seg of gaugesEl.querySelectorAll('.gseg')){
+    seg.addEventListener('pointerdown', e=>{ e.preventDefault(); e.stopPropagation();
+      const v=+seg.dataset.v; if(seg.dataset.group==='dist') distMode=v; else depthMode=v;
+      renderGauges();
+    });
+  }
+
   // ---- on-screen THROW + REEL buttons ----
   const throwBtn=document.getElementById('throwBtn'), reelBtn=document.getElementById('reelBtn');
   const throwLabel=document.getElementById('throwLabel'), reelLabel=document.getElementById('reelLabel');
   const reelSpin=document.getElementById('reelSpin');
   let spinDeg=0, FRAME_DT=0.016;
-  // pointer capture keeps the hold alive even if the button shifts under the finger (mobile)
   function bindDown(el, fn){
     el.addEventListener('pointerdown', e=>{ e.preventDefault(); try{ el.setPointerCapture(e.pointerId); }catch(_){ } fn(); });
   }
-  bindDown(throwBtn, startCharge);
-  throwBtn.addEventListener('pointerup', e=>{ e.preventDefault(); releaseCast(); });
-  throwBtn.addEventListener('pointercancel', ()=>{ if(S.state==='charging') releaseCast(); });
+  bindDown(throwBtn, ()=>{ if(S.state==='idle') doCast(); });
   bindDown(reelBtn, reelPress);
   reelBtn.addEventListener('pointerup', e=>{ e.preventDefault(); reelRelease(); });
   reelBtn.addEventListener('pointercancel', ()=>reelRelease());
@@ -328,8 +373,8 @@
   function updateControls(){
     const idle = S.state==='idle';
     throwBtn.classList.toggle('dim', !idle);
-    throwBtn.classList.toggle('hot', S.state==='charging');
-    throwLabel.textContent = S.state==='charging' ? 'RELEASE!' : 'THROW';
+    throwBtn.classList.toggle('hot', idle);
+    throwLabel.textContent = idle ? 'THROW' : '…';
 
     const canReel = S.state==='cast'||S.state==='waiting'||S.state==='bite'||S.state==='reeling';
     reelBtn.classList.toggle('dim', !canReel);
@@ -341,7 +386,9 @@
     else reelLabel.textContent = 'REEL LINE';
     if(active) spinDeg += 520*FRAME_DT;
     reelSpin.setAttribute('transform','rotate('+(spinDeg%360).toFixed(1)+' 36 36)');
+    gaugesEl.classList.toggle('hide', S.state!=='idle');
   }
+  renderGauges();
 
   document.getElementById('cKeep').addEventListener('click', ()=>{ hidePanel('catchPanel'); resetToIdle(); });
   document.getElementById('shopClose').addEventListener('click', ()=>hidePanel('shopPanel'));
@@ -373,20 +420,19 @@
   // depth in the water for a given catch progress (higher progress = closer to the surface)
   function fishDepth(prog){ const top=waterY+34; return top + (bob.ty-top)*(1-Math.max(0,Math.min(1,prog))); }
 
-  function doCast(p){
-    const power=p/100;
+  function doCast(){
     const tip=rodTip();
-    const maxDist=(W*0.66)*RODS[S.rod].cast;
-    const dist=W*0.08 + power*maxDist;
+    const dist=DISTS[distMode].cast, dep=DEPTHS[depthMode].depth;
+    const maxDist=(W*0.62)*RODS[S.rod].cast;
     bob.sx=tip.x; bob.sy=tip.y;
-    bob.tx=Math.min(W-26, rod.x + dist);           // where the float lands (stays put on the surface)
-    bob.ty=fishZoneTop() + 10 + power*(fishZoneBot()-fishZoneTop()-20);  // how deep the hook ends up
+    bob.tx=Math.min(W-40, rod.x + W*0.06 + dist*maxDist);       // where the float lands (stays on the surface)
+    bob.ty=fishZoneTop() + 8 + dep*(fishZoneBot()-fishZoneTop()-16);   // how deep the hook ends up
     bob.hookY=waterY + 12;                          // hook starts near the surface, then sinks
     bob.boing=0; bob.boingV=0;
-    bob.flying=true; bob.t=0; bob.land=0.5+power*0.3;
+    bob.flying=true; bob.t=0; bob.land=0.45+dist*0.3;
     castAnim=0;                                     // play the throw animation
     S.state='cast'; lure=null;
-    say('Casting…'); hint('');
+    say('Throwing '+DISTS[distMode].name.toLowerCase()+' + '+DEPTHS[depthMode].name.toLowerCase()+'…'); hint('');
   }
 
   function beginWait(){
@@ -487,9 +533,10 @@
 
   function beginBite(f){
     hooked=f; f.target=null; f.role=null;
-    S.state='bite'; biteWindow=1.5;
+    const distF = Math.abs(bob.tx-(rod.x)) / (W*0.62);   // how far out the fish took it
+    S.state='bite'; biteWindow = 1.5 + distF*0.5;          // longer to react on a long cast
     say('❗ BITE — TAP NOW!'); hint('TAP to set the hook!');
-    shakeT=0.25; feelDip=0.7; splashAt(bob.tx, waterY);
+    shakeT=0.25; feelDip=0.7; hooksetT=0; splashAt(bob.tx, waterY);   // character sets the hook
   }
   function reelOthers(){ for(const f of fishes) if(f.role==='near') fleeFish(f); }
   function hookIt(){ if(S.state==='bite'&&hooked){ reelOthers(); startReel(hooked); } }
@@ -497,11 +544,14 @@
   function startReel(f){
     fishes = fishes.filter(x=>x.id!==f.id);   // it's off the free-swim list — it's on the hook now
     nibbler=null; nibblePhase='idle';
+    const ratio = FIGHT[f.r].pull / rodPower();   // slower ramp for a tough fish
     reel = {
-      prog:0.15, tension:0.10, holding:false,
+      prog:0.12, tension:0.08, holding:false,
       fight:FIGHT[f.r], pwr:rodPower(), elapsed:0,
-      fx: bob.tx, fy: fishDepth(0.15), vx:0,
-      running:false, runT:0, runCd: 1.8+Math.random()*2.2
+      fx: bob.tx, fy: fishDepth(0.12), vx:0,
+      running:false, runT:0, runCd: 2.0+Math.random()*2.0,
+      grace: 1.6 + Math.min(1.4, ratio*1.1),    // slow-motion head start so you can react
+      slowFade:0
     };
     S.state='reeling';
     say('HOOKED! 🎣'); hint('HOLD the REEL button to bring it up — let go if the line strains!');
@@ -536,7 +586,7 @@
     bob.flying=false; bob.land=0; lure=null; reel=null; hooked=null;
     nibbler=null; nibbleCount=0; nibblePhase='idle'; nibbleTimer=0;
     for(const f of fishes){ f.role=null; f.target=null; }
-    S.state='idle'; powerBar.style.display='none';
+    S.state='idle';
     hint('Hold to charge your cast, release to cast'); say('');
   }
   function popRarity(r){
@@ -608,12 +658,6 @@
   // ---------- update ----------
   let last=performance.now();
   function update(dt){
-    if(S.state==='charging'){
-      castPower += powerDir*135*dt;
-      if(castPower>=100){castPower=100;powerDir=-1;}
-      if(castPower<=0){castPower=0;powerDir=1;}
-      powerFill.style.width=castPower+'%';
-    }
     if(bob.flying){ bob.t+=dt/bob.land; if(bob.t>=1){ bob.t=1; bob.flying=false; beginWait(); } }
     // float boing physics — a little spring wobble on the surface
     bob.boingV += (-bob.boing*95 - bob.boingV*6.5)*dt;
@@ -621,6 +665,7 @@
     if(bob.boing>14) bob.boing=14; if(bob.boing<-9) bob.boing=-9;
     // character + rod animation timers
     if(castAnim>=0){ castAnim += dt/0.5; if(castAnim>=1) castAnim=-1; }   // throw swing (~0.5s)
+    if(hooksetT>=0){ hooksetT += dt/0.45; if(hooksetT>=1) hooksetT=-1; }  // hookset punch (~0.45s)
     feelDip = Math.max(0, feelDip - dt*1.7);
     if(shakeT>0) shakeT=Math.max(0,shakeT-dt);
     if(splashT>0) splashT=Math.max(0,splashT-dt);
@@ -703,29 +748,35 @@
       reel.elapsed+=dt;
       const F=reel.fight;
       const ratio = F.pull / reel.pwr;          // how much stronger the fish is than your rod
-      // does the fish run (pull away)? stronger fish run more often
-      reel.runCd -= dt;
-      if(!reel.running && reel.runCd<=0){
+      // ---- grace window at the start: the whole fight runs in slow-mo so you can react ----
+      if(reel.grace>0) reel.grace=Math.max(0, reel.grace-dt);
+      const graceActive = reel.grace>0;
+      const slow = graceActive ? 0.30 : 1.0;    // everything at 30% speed for the head start
+      const edt = dt*slow;
+      if(graceActive){ reel.slowFade = 1; } else if(reel.slowFade>0){ reel.slowFade=Math.max(0,reel.slowFade-dt*1.5); }
+      // does the fish run (pull away)? stronger fish run more often — never during the grace window
+      reel.runCd -= edt;
+      if(!reel.running && reel.runCd<=0 && !graceActive){
         reel.running = true; reel.runT = 0.9 + Math.random()*1.4;
         reel.runCd = 2.0 + Math.random()*2.5; feelDip = 0.6;   // you feel the run
       }
-      if(reel.running){ reel.runT -= dt; if(reel.runT<=0) reel.running=false; }
+      if(reel.running){ reel.runT -= edt; if(reel.runT<=0) reel.running=false; }
 
       let dProg = 0;
       if(reel.holding){
         // reeling lifts the fish up; your rod determines how fast
-        dProg += 0.34 * reel.pwr / (1 + ratio*0.9) * dt;
+        dProg += 0.34 * reel.pwr / (1 + ratio*0.9) * edt;
         // harder when the fish runs
-        if(reel.running) dProg -= 0.30 * F.pull * dt;
+        if(reel.running) dProg -= 0.30 * F.pull * edt;
         // tension climbs faster the more the rod struggles
-        reel.tension += F.tension * (0.8 + ratio*0.6) * dt;
+        reel.tension += F.tension * (0.8 + ratio*0.6) * edt;
       } else {
-        reel.tension -= 0.85*dt;
+        reel.tension -= 0.85*edt;
         // the fish pulls back down when you stop reeling — progress slips away
-        dProg -= (0.11 + F.pull*0.16)*dt;
+        dProg -= (0.11 + F.pull*0.16)*edt;
       }
       // a too-weak rod (high ratio) drags your progress back down
-      if(ratio > 0.95){ dProg -= (ratio-0.95)*0.28*dt; }
+      if(ratio > 0.95){ dProg -= (ratio-0.95)*0.28*edt; }
 
       reel.prog += dProg;
       reel.tension=Math.max(0,reel.tension);
@@ -733,14 +784,14 @@
 
       // ---- move the fish: holistically toward the surface, thrashing side to side ----
       const targetY = fishDepth(reel.prog);
-      reel.fy += (targetY - reel.fy) * Math.min(1, 4.2*dt);
-      reel.vx = (reel.vx||0) + (Math.random()-.5)*260*F.thrash*dt;
-      reel.vx *= Math.pow(0.90, dt*60);
+      reel.fy += (targetY - reel.fy) * Math.min(1, 4.2*edt);
+      reel.vx = (reel.vx||0) + (Math.random()-.5)*260*F.thrash*edt;
+      reel.vx *= Math.pow(0.90, edt*60);
       // fish dodges sideways when it runs
-      if(reel.running) reel.vx += (Math.random()<.5?-1:1)*180*F.thrash*dt;
+      if(reel.running) reel.vx += (Math.random()<.5?-1:1)*180*F.thrash*edt;
       reel.fx += reel.vx*dt;
       // grab the bait-line x toward the float
-      reel.fx += (bob.tx - reel.fx)*0.7*dt;
+      reel.fx += (bob.tx - reel.fx)*0.7*edt;
       if(reel.fx<24){reel.fx=24;reel.vx=Math.abs(reel.vx);}
       if(reel.fx>W-24){reel.fx=W-24;reel.vx=-Math.abs(reel.vx);}
 
@@ -748,6 +799,9 @@
       else if(reel.prog>=1) finishCatch(true);      // brought to the surface = caught
       else if(reel.prog<=0) finishCatch(false);     // fought you down to the bottom = snap
     }
+
+    // hookset animation timer
+    if(hooksetT>=0){ hooksetT += dt/0.45; if(hooksetT>=1) hooksetT=-1; }
 
     // bubbles
     for(const b of bubbles){ b.y -= b.spd*dt; b.x += Math.sin((b.y)*0.05)*8*dt; }
@@ -857,6 +911,9 @@
 
     drawBoat(t);
 
+    // aiming preview while idle — shows where the float lands + how deep the hook goes
+    if(S.state==='idle') drawAim(t);
+
     if(S.state==='cast'||S.state==='waiting'||S.state==='bite'||S.state==='reeling'){
       drawRodLine(t);
       const p=bobberPos(t);
@@ -952,12 +1009,43 @@
     ctx.restore();
   }
 
+  // aiming preview: dashed trajectory to where the float will land, + hook depth marker
+  function drawAim(t){
+    const dist=DISTS[distMode].cast, dep=DEPTHS[depthMode].depth;
+    const maxDist=(W*0.62)*RODS[S.rod].cast;
+    const tx=Math.min(W-40, rod.x + W*0.06 + dist*maxDist);
+    const hy=fishZoneTop() + 8 + dep*(fishZoneBot()-fishZoneTop()-16);
+    const tip=rodTip();
+    ctx.save();
+    // arc from rod tip to the landing point
+    ctx.strokeStyle='rgba(255,216,94,.55)'; ctx.lineWidth=2; ctx.setLineDash([6,7]);
+    ctx.beginPath(); ctx.moveTo(tip.x,tip.y);
+    ctx.quadraticCurveTo((tip.x+tx)/2, Math.min(tip.y,waterY)-H*0.22, tx, waterY);
+    ctx.stroke();
+    // hook depth line
+    ctx.strokeStyle='rgba(120,220,255,.4)'; ctx.setLineDash([4,7]);
+    ctx.beginPath(); ctx.moveTo(tx,waterY); ctx.lineTo(tx,hy); ctx.stroke();
+    ctx.setLineDash([]);
+    // float landing marker
+    ctx.fillStyle='rgba(255,216,94,.9)'; ctx.beginPath(); ctx.arc(tx,waterY,5,0,7); ctx.fill();
+    // hook depth marker
+    ctx.strokeStyle='rgba(120,220,255,.9)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(tx,hy,6,0,7); ctx.stroke();
+    ctx.fillStyle='rgba(120,220,255,.35)'; ctx.beginPath(); ctx.arc(tx,hy,6,0,7); ctx.fill();
+    ctx.fillStyle='#eaf6ff'; ctx.font='bold 11px Trebuchet MS'; ctx.textAlign='center';
+    ctx.fillText('HOOK', tx, hy+20);
+    ctx.restore();
+  }
+
   function drawBoat(t){
     const x=rod.x, y=waterY;      // y = waterline, water meets the base of the hull
     const bobY = Math.sin(t*1.4)*2;
     const throwLean = castAnim>=0 ? Math.sin(Math.max(0,(castAnim-0.25)/0.75)*Math.PI)*7 : 0;  // lean into the cast
+    // hookset: a fast upward YANK when the fish commits
+    const hs = hooksetT>=0 ? Math.sin(Math.min(1,hooksetT)*Math.PI) : 0;
+    const hookLean = -hs*6;                                   // body rocks back
     ctx.save();
-    ctx.translate(throwLean,bobY);
+    ctx.translate(throwLean + hookLean, bobY - hs*4);
     // hull
     ctx.fillStyle='#7a4a24';
     ctx.beginPath();
@@ -965,7 +1053,7 @@
     ctx.lineTo(x+56,y+20); ctx.lineTo(x-56,y+20); ctx.closePath(); ctx.fill();
     ctx.fillStyle='#a8622f'; ctx.fillRect(x-74,y-12,148,6);   // rim
     ctx.fillStyle='#2d4354'; ctx.fillRect(x-56,y+12,112,8);   // waterline stripe (under surface)
-    // angler (leans forward on the throw, rocks back on the feel)
+    // angler (leans forward on the throw, rocks back on the feel / hookset)
     const lean = (castAnim>=0? Math.sin(Math.max(0,(castAnim-0.25)/0.75)*Math.PI)*3 : 0) - feelDip*4;
     ctx.fillStyle='#1b2b38';
     ctx.beginPath(); ctx.ellipse(x+lean,y-25,10,14,0,0,7); ctx.fill();      // torso
