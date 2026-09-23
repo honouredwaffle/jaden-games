@@ -17,17 +17,17 @@
   #msg { top:64px; left:0; right:0; text-align:center; font-size:16px; font-weight:bold; min-height:22px; letter-spacing:.4px; }
   #hint { bottom:150px; left:0; right:0; text-align:center; font-size:13px; opacity:.95; padding:0 16px; }
   #powerWrap { position:absolute; left:0; right:0; bottom:112px; display:flex; justify-content:center; pointer-events:none; }
-  #controls { position:absolute; left:0; right:0; bottom:10px; display:flex; justify-content:space-between; align-items:flex-end; padding:0 16px; pointer-events:none; z-index:5; }
-  .ctl { pointer-events:auto; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:1px;
-    width:96px; height:88px; border-radius:20px; border:2px solid rgba(130,215,255,.6);
+  #controls { position:absolute; left:0; right:0; bottom:12px; display:flex; justify-content:space-between; align-items:flex-end; padding:0 14px; pointer-events:none; z-index:5; }
+  .ctl { pointer-events:auto; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
+    width:120px; height:104px; border-radius:24px; border:3px solid rgba(130,215,255,.6);
     background:linear-gradient(180deg,#123c5c,#0a2540); color:#eaf6ff; font-family:inherit; font-weight:bold;
-    font-size:12px; letter-spacing:.6px; cursor:pointer; user-select:none; touch-action:none; -webkit-tap-highlight-color:transparent;
-    box-shadow:0 6px 0 rgba(0,0,0,.4), inset 0 1px 0 rgba(255,255,255,.12); }
-  .ctl:active { transform:translateY(3px); box-shadow:0 3px 0 rgba(0,0,0,.4); }
-  .ctl:disabled { filter:grayscale(.85); opacity:.35; box-shadow:0 6px 0 rgba(0,0,0,.4); }
-  .ctl.hot { border-color:#ffd85e; box-shadow:0 0 20px rgba(255,216,94,.65), 0 6px 0 rgba(0,0,0,.4); }
-  .ctl .ic { font-size:32px; line-height:1; }
-  #reelSpin { transform-origin:30px 30px; }
+    font-size:13px; letter-spacing:.8px; cursor:pointer; user-select:none; touch-action:none; -webkit-tap-highlight-color:transparent;
+    box-shadow:0 7px 0 rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.12); }
+  .ctl:active { transform:translateY(3px); box-shadow:0 4px 0 rgba(0,0,0,.42); }
+  .ctl:disabled { filter:grayscale(.85); opacity:.32; box-shadow:0 7px 0 rgba(0,0,0,.42); }
+  .ctl.hot { border-color:#ffd85e; box-shadow:0 0 24px rgba(255,216,94,.7), 0 7px 0 rgba(0,0,0,.42); }
+  .ctl .ic { font-size:42px; line-height:1; }
+  #reelBtn svg { display:block; }
   #powerBar { width:min(70%,340px); height:16px; border:2px solid rgba(180,235,255,.7); border-radius:10px; overflow:hidden; background:rgba(0,0,0,.4); display:none; }
   #powerFill { height:100%; width:0%; background:linear-gradient(90deg,#39d98a,#ffd85e,#ff5f6d); }
   .panel { position:absolute; inset:0; background:rgba(3,12,22,.93); display:none; flex-direction:column; align-items:center; justify-content:center; padding:20px; z-index:10; }
@@ -71,15 +71,20 @@
 
   <div id="controls">
     <button class="ctl" id="throwBtn"><span class="ic">🎣</span><span id="throwLabel">THROW</span></button>
-    <button class="ctl" id="reelBtn"><svg viewBox="0 0 60 60" width="38" height="38">
-      <g id="reelSpin">
-        <line x1="30" y1="30" x2="30" y2="11" stroke="#eaf6ff" stroke-width="5" stroke-linecap="round"/>
-        <line x1="30" y1="30" x2="30" y2="49" stroke="#eaf6ff" stroke-width="5" stroke-linecap="round"/>
-        <circle cx="30" cy="11" r="6.5" fill="#ffd85e" stroke="#a86f00" stroke-width="2"/>
-        <circle cx="30" cy="49" r="6.5" fill="#ffd85e" stroke="#a86f00" stroke-width="2"/>
-      </g>
-      <circle cx="30" cy="30" r="7" fill="#ffd85e" stroke="#a86f00" stroke-width="2"/>
-    </svg><span id="reelLabel">REEL</span></button>
+    <button class="ctl" id="reelBtn">
+      <svg viewBox="0 0 72 72" width="56" height="56">
+        <circle cx="36" cy="36" r="26" fill="#0b2e49" stroke="#4aa8e0" stroke-width="3"/>
+        <g id="reelSpin">
+          <rect x="33" y="16" width="6" height="18" rx="3" fill="#eaf6ff"/>
+          <rect x="33" y="38" width="6" height="18" rx="3" fill="#eaf6ff"/>
+          <rect x="16" y="33" width="18" height="6" rx="3" fill="#eaf6ff"/>
+          <rect x="38" y="33" width="18" height="6" rx="3" fill="#eaf6ff"/>
+          <circle cx="36" cy="14" r="6.5" fill="#ffd85e" stroke="#a86f00" stroke-width="2.5"/>
+        </g>
+        <circle cx="36" cy="36" r="8" fill="#ffd85e" stroke="#a86f00" stroke-width="2.5"/>
+      </svg>
+      <span id="reelLabel">REEL</span>
+    </button>
   </div>
 
   <!-- CATCH PANEL -->
@@ -204,6 +209,10 @@
   // bite / nibble cycle
   let waitTimer=0, nextArriveT=0;
   let nibbler=null, nibbleCount=0, nibblePhase='idle', nibbleTimer=0;
+  // controls + character animation
+  let lineHeld=false;                 // holding REEL when nothing is hooked (cranks line back)
+  let castAnim=-1, castWindup=-110;   // rod throw swing
+  let feelDip=0;                      // rod dips when it feels a tug
 
   function fishZoneTop(){ return waterY + 42; }
   function fishZoneBot(){ return H - 44; }
@@ -271,12 +280,13 @@
   // ---------- input ----------
   function pointerDown(){
     if(S.state==='idle'){ startCharge(); return; }
-    if(S.state==='waiting'){ if(nibblePhase==='dip') spookAll(); return; }  // pulling during a nibble = you lose it
+    if(S.state==='waiting'||S.state==='cast'){ lineHeld=true; return; }  // reel line back / liven the bait
     if(S.state==='bite'){ hookIt(); return; }
     if(S.state==='reeling'&&reel){ reel.holding=true; return; }
   }
   function pointerUp(){
     if(S.state==='charging'){ releaseCast(); return; }
+    lineHeld=false;
     if(S.state==='reeling'&&reel){ reel.holding=false; }
   }
   function startCharge(){ if(S.state!=='idle') return; S.state='charging'; castPower=0; powerDir=1; powerBar.style.display='block'; hint('Release to cast!'); }
@@ -296,22 +306,29 @@
   throwBtn.addEventListener('pointerdown', e=>{ e.preventDefault(); startCharge(); });
   throwBtn.addEventListener('pointerup', e=>{ e.preventDefault(); releaseCast(); });
   throwBtn.addEventListener('pointercancel', ()=>{ if(S.state==='charging') releaseCast(); });
-  reelBtn.addEventListener('pointerdown', e=>{ e.preventDefault(); if(S.state==='reeling'&&reel) reel.holding=true; });
-  reelBtn.addEventListener('pointerup', e=>{ e.preventDefault(); if(reel) reel.holding=false; });
-  reelBtn.addEventListener('pointercancel', ()=>{ if(reel) reel.holding=false; });
-  reelBtn.addEventListener('pointerleave', ()=>{ if(reel && S.state==='reeling') reel.holding=false; });
+  reelBtn.addEventListener('pointerdown', e=>{ e.preventDefault();
+    if(S.state==='reeling'&&reel) reel.holding=true;
+    else if(S.state==='waiting'||S.state==='cast') lineHeld=true;   // crank the line back in
+  });
+  reelBtn.addEventListener('pointerup', e=>{ e.preventDefault(); lineHeld=false; if(reel) reel.holding=false; });
+  reelBtn.addEventListener('pointercancel', ()=>{ lineHeld=false; if(reel) reel.holding=false; });
+  reelBtn.addEventListener('pointerleave', ()=>{ lineHeld=false; if(reel && S.state==='reeling') reel.holding=false; });
 
   function updateControls(){
     const idle = S.state==='idle';
     throwBtn.disabled = !idle;
     throwBtn.classList.toggle('hot', S.state==='charging');
     throwLabel.textContent = S.state==='charging' ? 'RELEASE!' : 'THROW';
-    const reeling = S.state==='reeling';
-    reelBtn.disabled = !reeling;
-    reelBtn.classList.toggle('hot', reeling && reel && reel.holding);
-    reelLabel.textContent = (reeling && reel && reel.holding) ? 'REELING' : 'REEL';
-    if(reeling && reel && reel.holding) spinDeg += 520*FRAME_DT;
-    reelSpin.setAttribute('transform','rotate('+(spinDeg%360).toFixed(1)+' 30 30)');
+
+    const busy = S.state==='cast'||S.state==='waiting'||S.state==='reeling';
+    reelBtn.disabled = !busy;
+    const active = (S.state==='reeling' && reel && reel.holding) || lineHeld;
+    reelBtn.classList.toggle('hot', !!active);
+    if(S.state==='reeling') reelLabel.textContent = (reel && reel.holding) ? 'REELING' : 'REEL';
+    else if(lineHeld) reelLabel.textContent = 'PULLING';
+    else reelLabel.textContent = 'REEL LINE';
+    if(active) spinDeg += 520*FRAME_DT;
+    reelSpin.setAttribute('transform','rotate('+(spinDeg%360).toFixed(1)+' 36 36)');
   }
 
   document.getElementById('cKeep').addEventListener('click', ()=>{ hidePanel('catchPanel'); resetToIdle(); });
@@ -324,7 +341,22 @@
   document.getElementById('rodChip').addEventListener('click', openShop);
 
   // ---------- mechanics ----------
-  function rodTip(){ return { x: rod.x+40, y: rod.y-96 }; }
+  // rod throw swing: wind up = pull back, then whip forward
+  function rodAnimAngle(){
+    if(castAnim<0) return 0;
+    const a=castAnim;
+    if(a<0.35) return -0.9*(a/0.35);                       // wind up (pull rod back)
+    const p=(a-0.35)/0.65, e=p*p*(3-2*p);
+    return -0.9 + 2.15*e;                                  // whip forward
+  }
+  // rod tip — moves with the throw swing and dips when a fish pulls
+  function rodTip(){
+    const hx=rod.x+20, hy=waterY-44;
+    const base=Math.atan2((rod.y-96)-hy, (rod.x+40)-hx);
+    const ang=base + rodAnimAngle() + feelDip*0.5;
+    const len=118;
+    return { x: hx+Math.cos(ang)*len, y: hy+Math.sin(ang)*len };
+  }
   function rodPower(){ return RODS[S.rod].pwr; }
   // depth in the water for a given catch progress (higher progress = closer to the surface)
   function fishDepth(prog){ const top=waterY+34; return top + (bob.ty-top)*(1-Math.max(0,Math.min(1,prog))); }
@@ -340,6 +372,7 @@
     bob.hookY=waterY + 12;                          // hook starts near the surface, then sinks
     bob.boing=0; bob.boingV=0;
     bob.flying=true; bob.t=0; bob.land=0.5+power*0.3;
+    castAnim=0;                                     // play the throw animation
     S.state='cast'; lure=null;
     say('Casting…'); hint('');
   }
@@ -388,6 +421,7 @@
     } else if(nibblePhase==='dip'){
       nibbleCount++;
       nibblePhase='rest'; nibbleTimer=0.8+Math.random()*1.0;
+      feelDip = 0.42;                              // character feels the tug
       if(nibbleCount>=3){
         if(Math.random()<0.7) commitBite(); else giveUp();
       } else if(nibbleCount>=2 && Math.random()<0.3){
@@ -422,6 +456,7 @@
   function spookAll(){
     for(const f of fishes) if(f.role==='near') fleeFish(f);
     nibbler=null; nibbleCount=0; nibblePhase='idle'; nibbleTimer=0;
+    lineHeld=false;                                 // stop the pull so it resets
     say('Too early — you spooked it! 💨'); hint('Wait for the big bite…');
     waitTimer=0; nextArriveT=2.5+Math.random()*3.0;
   }
@@ -430,7 +465,7 @@
     hooked=f; f.target=null; f.role=null;
     S.state='bite'; biteWindow=1.5;
     say('❗ BITE — TAP NOW!'); hint('TAP to set the hook!');
-    shakeT=0.25; splashAt(bob.tx, waterY);   // splash at the surface where the float is
+    shakeT=0.25; feelDip=0.7; splashAt(bob.tx, waterY);
   }
   function reelOthers(){ for(const f of fishes) if(f.role==='near') fleeFish(f); }
   function hookIt(){ if(S.state==='bite'&&hooked){ reelOthers(); startReel(hooked); } }
@@ -560,6 +595,9 @@
     bob.boingV += (-bob.boing*95 - bob.boingV*6.5)*dt;
     bob.boing += bob.boingV*dt;
     if(bob.boing>14) bob.boing=14; if(bob.boing<-9) bob.boing=-9;
+    // character + rod animation timers
+    if(castAnim>=0){ castAnim += dt/0.5; if(castAnim>=1) castAnim=-1; }   // throw swing (~0.5s)
+    feelDip = Math.max(0, feelDip - dt*1.7);
     if(shakeT>0) shakeT=Math.max(0,shakeT-dt);
     if(splashT>0) splashT=Math.max(0,splashT-dt);
 
@@ -607,13 +645,23 @@
       else f.dir = f.vx>=0?1:-1;
     }
 
-    // ---- waiting: hook sinks, recruit fish over time, run the nibble cycle ----
+    // ---- waiting: hook sinks, reel pull brings the line back in, recruit fish, nibble cycle ----
     if(S.state==='waiting'){
-      // the hook slowly sinks to its depth on its own line
-      bob.hookY += (bob.ty - bob.hookY)*2.0*dt;
-      if(lure){ lure.x=bob.tx; lure.y=bob.hookY; }
+      if(lineHeld){
+        // cranking the line back — hand over hand
+        bob.tx = Math.max(rod.x+40, bob.tx - 155*dt);
+        bob.hookY = Math.max(waterY+10, bob.hookY - 165*dt);
+        if(lure){ lure.x=bob.tx; lure.y=bob.hookY; }
+        if(bob.tx<=rod.x+42){ lineHeld=false; say('Line back in.'); resetToIdle(); }
+      } else {
+        // the hook slowly sinks to its depth on its own line
+        bob.hookY += (bob.ty - bob.hookY)*2.0*dt;
+        if(lure){ lure.x=bob.tx; lure.y=bob.hookY; }
+      }
       waitTimer += dt;
-      if(lure && waitTimer>=nextArriveT){ recruitFish(); nextArriveT = waitTimer + 2.5 + Math.random()*3.0; }
+      if(!lineHeld && lure && waitTimer>=nextArriveT){ recruitFish(); nextArriveT = waitTimer + 2.5 + Math.random()*3.0; }
+      // tugging the line makes the fish nearby nibble sooner
+      if(lineHeld && nibbler && nibblePhase==='circle') nibbleTimer -= dt*0.8;
       manageNibbles(dt);
     }
 
@@ -635,7 +683,7 @@
       reel.runCd -= dt;
       if(!reel.running && reel.runCd<=0){
         reel.running = true; reel.runT = 0.9 + Math.random()*1.4;
-        reel.runCd = 2.0 + Math.random()*2.5;
+        reel.runCd = 2.0 + Math.random()*2.5; feelDip = 0.6;   // you feel the run
       }
       if(reel.running){ reel.runT -= dt; if(reel.runT<=0) reel.running=false; }
 
@@ -883,8 +931,9 @@
   function drawBoat(t){
     const x=rod.x, y=waterY;      // y = waterline, water meets the base of the hull
     const bobY = Math.sin(t*1.4)*2;
+    const throwLean = castAnim>=0 ? Math.sin(Math.max(0,(castAnim-0.25)/0.75)*Math.PI)*7 : 0;  // lean into the cast
     ctx.save();
-    ctx.translate(0,bobY);
+    ctx.translate(throwLean,bobY);
     // hull
     ctx.fillStyle='#7a4a24';
     ctx.beginPath();
@@ -892,18 +941,21 @@
     ctx.lineTo(x+56,y+20); ctx.lineTo(x-56,y+20); ctx.closePath(); ctx.fill();
     ctx.fillStyle='#a8622f'; ctx.fillRect(x-74,y-12,148,6);   // rim
     ctx.fillStyle='#2d4354'; ctx.fillRect(x-56,y+12,112,8);   // waterline stripe (under surface)
-    // angler
-    ctx.fillStyle='#1b2b38'; ctx.fillRect(x-10,y-38,20,26);   // torso
-    ctx.fillStyle='#0f1c26'; ctx.fillRect(x-11,y-16,22,8);    // legs
-    ctx.fillStyle='#ffd9a8'; ctx.beginPath(); ctx.arc(x,y-48,10,0,7); ctx.fill(); // head
-    ctx.fillStyle='#3a2a1c'; ctx.beginPath(); ctx.arc(x,y-54,11,Math.PI,0); ctx.fill(); // cap
-    ctx.fillStyle='#123'; ctx.beginPath(); ctx.arc(x+4,y-49,1.7,0,7); ctx.fill();
-    // arm + rod
+    // angler (leans forward on the throw, rocks back on the feel)
+    const lean = (castAnim>=0? Math.sin(Math.max(0,(castAnim-0.25)/0.75)*Math.PI)*3 : 0) - feelDip*4;
+    ctx.fillStyle='#1b2b38';
+    ctx.beginPath(); ctx.ellipse(x+lean,y-25,10,14,0,0,7); ctx.fill();      // torso
+    ctx.fillStyle='#0f1c26'; ctx.fillRect(x-11+lean*0.4,y-16,22,8);         // legs
+    ctx.fillStyle='#ffd9a8'; ctx.beginPath(); ctx.arc(x+lean,y-48,10,0,7); ctx.fill(); // head
+    ctx.fillStyle='#3a2a1c'; ctx.beginPath(); ctx.arc(x+lean,y-54,11,Math.PI,0); ctx.fill(); // cap
+    ctx.fillStyle='#123'; ctx.beginPath(); ctx.arc(x+lean+4,y-49,1.7,0,7); ctx.fill();
+    // arm reaches to the rod handle
     const tip=rodTip();
+    const hx=rod.x+20, hy=waterY-44;
     ctx.strokeStyle='#ffd9a8'; ctx.lineWidth=5; ctx.lineCap='round';
-    ctx.beginPath(); ctx.moveTo(x+4,y-40); ctx.lineTo(x+22,y-46); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(x+4+lean,y-36); ctx.lineTo(hx,hy); ctx.stroke();
     ctx.strokeStyle='#caa06a'; ctx.lineWidth=3.5;
-    ctx.beginPath(); ctx.moveTo(x+20,y-44); ctx.lineTo(tip.x,tip.y); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(hx,hy); ctx.lineTo(tip.x,tip.y); ctx.stroke();
     ctx.restore();
   }
 
