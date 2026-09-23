@@ -15,34 +15,39 @@
   .chip small { display:block; font-size:9px; font-weight:normal; opacity:.65; letter-spacing:.5px; }
   #coin { color:#ffd85e; }
   #msg { top:64px; left:0; right:0; text-align:center; font-size:16px; font-weight:bold; min-height:22px; letter-spacing:.4px; }
-  #hint { bottom:150px; left:0; right:0; text-align:center; font-size:13px; opacity:.95; padding:0 16px; }
-  #gauges { position:absolute; left:8px; top:96px; display:flex; gap:8px; pointer-events:none; z-index:4; }
-  .gaugeCol { display:flex; flex-direction:column; gap:3px; pointer-events:none; }
-  .gaugeTitle { font-size:8px; letter-spacing:1px; opacity:.7; color:#cfe9ff; text-align:center; }
-  .gseg { pointer-events:auto; cursor:pointer; font-size:10px; font-weight:bold; letter-spacing:.6px; text-align:center;
-    padding:5px 6px; min-width:62px; border-radius:8px; border:1.5px solid rgba(120,200,255,.35);
-    background:rgba(3,20,36,.66); color:#bfe0ff; user-select:none; -webkit-tap-highlight-color:transparent; }
-  .gseg.on { background:linear-gradient(180deg,#39d98a,#17a765); color:#04231a; border-color:#7dffb8; box-shadow:0 0 12px rgba(80,255,160,.45); }
-  #gauges.hide { display:none; }
-  #controls { position:absolute; left:0; right:0; bottom:12px; display:flex; justify-content:space-between; align-items:flex-end; padding:0 14px; pointer-events:none; z-index:5; }
-  .ctl { pointer-events:auto; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:3px;
-    width:120px; height:104px; border-radius:24px; border:3px solid rgba(130,215,255,.6);
+  #hint { top:114px; left:0; right:0; text-align:center; font-size:13px; opacity:.95; padding:0 16px; }
+  #gauges { display:none; }                 /* retired — you aim by tapping / dragging the water */
+  #controls { position:absolute; left:0; right:0; top:128px; display:flex; justify-content:space-between; align-items:flex-start; padding:0 12px; pointer-events:none; z-index:6; }
+  .ctl { pointer-events:auto; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    width:96px; height:88px; border-radius:22px; border:3px solid rgba(130,215,255,.6);
     background:linear-gradient(180deg,#123c5c,#0a2540); color:#eaf6ff; font-family:inherit; font-weight:bold;
-    font-size:13px; letter-spacing:.8px; cursor:pointer; user-select:none; touch-action:none; -webkit-tap-highlight-color:transparent;
+    font-size:12px; letter-spacing:.7px; cursor:pointer; user-select:none; touch-action:none; -webkit-tap-highlight-color:transparent;
     box-shadow:0 7px 0 rgba(0,0,0,.42), inset 0 1px 0 rgba(255,255,255,.12); }
   .ctl:active { transform:translateY(3px); box-shadow:0 4px 0 rgba(0,0,0,.42); }
-  .ctl:disabled, .ctl.dim { filter:grayscale(.85); opacity:.38; box-shadow:0 7px 0 rgba(0,0,0,.42); }
+  .ctl:disabled, .ctl.dim { filter:grayscale(.85); opacity:.4; box-shadow:0 7px 0 rgba(0,0,0,.42); }
   .ctl.hot { border-color:#ffd85e; box-shadow:0 0 24px rgba(255,216,94,.7), 0 7px 0 rgba(0,0,0,.42); }
-  .ctl .ic { font-size:42px; line-height:1; }
+  .ctl .ic { font-size:34px; line-height:1; }
   #reelBtn svg { display:block; }
   .panel { position:absolute; inset:0; background:rgba(3,12,22,.93); display:none; flex-direction:column; align-items:center; justify-content:center; padding:20px; z-index:10; }
   .panel.show { display:flex; }
-  .card { background:linear-gradient(160deg,#0d2c47,#08202f); border:2px solid #3fa9f5; border-radius:18px; padding:20px 22px; max-width:400px; width:100%; text-align:center; box-shadow:0 18px 60px rgba(0,0,0,.6); }
+  .card { background:linear-gradient(160deg,#0d2c47,#08202f); border:2px solid #3fa9f5; border-radius:18px; padding:20px 22px; max-width:420px; width:100%; text-align:center; box-shadow:0 18px 60px rgba(0,0,0,.6); max-height:90vh; overflow-y:auto; }
   .card h2 { font-size:24px; color:#ffd85e; margin-bottom:6px; }
   .card p { font-size:15px; color:#cfe9ff; line-height:1.5; margin:6px 0; }
   .rar { display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:bold; margin:6px 0; }
   .btn { display:inline-block; margin-top:14px; padding:12px 22px; border:none; border-radius:12px; font-size:16px; font-weight:bold; cursor:pointer; color:#03202f; background:linear-gradient(180deg,#8fe3ff,#3fa9f5); box-shadow:0 6px 0 #1c5f8f; }
   .btn:active { transform:translateY(3px); box-shadow:0 3px 0 #1c5f8f; }
+  .btn.sell { background:linear-gradient(180deg,#ffe07a,#ffb528); box-shadow:0 6px 0 #a86f00; }
+  .closebtn { position:absolute; top:14px; right:16px; width:44px; height:44px; border-radius:50%; border:2px solid rgba(150,220,255,.6);
+    background:rgba(6,26,43,.92); color:#eaf6ff; font-size:20px; font-weight:bold; cursor:pointer; z-index:12; line-height:1; font-family:inherit; }
+  .closebtn:active { transform:scale(.94); }
+  .tabs { display:flex; gap:8px; margin:10px 0 6px; width:100%; }
+  .tab { flex:1; padding:10px 6px; border-radius:12px; border:2px solid rgba(120,200,255,.4); background:rgba(255,255,255,.05);
+    color:#bfe0ff; font-weight:bold; font-size:12px; cursor:pointer; font-family:inherit; }
+  .tab.on { background:linear-gradient(180deg,#39d98a,#17a765); color:#04231a; border-color:#7dffb8; }
+  .dim { opacity:.45; filter:grayscale(.5); }
+  .ibadge { display:inline-block; background:#ffd85e; color:#3a2400; border-radius:8px; padding:1px 7px; font-size:11px; font-weight:bold; }
+  .capbar { height:10px; border-radius:6px; background:rgba(0,0,0,.45); overflow:hidden; margin:6px 0 2px; }
+  .capbar > div { height:100%; background:linear-gradient(90deg,#39d98a,#ffd85e); }
   .shoprow { display:flex; align-items:center; justify-content:space-between; gap:10px; background:rgba(255,255,255,.05); border:1px solid rgba(120,210,255,.25); border-radius:12px; padding:10px 12px; margin:7px 0; text-align:left; }
   .shoprow b { font-size:14px; color:#eaf6ff; }
   .shoprow span { display:block; font-size:11px; opacity:.7; }
@@ -70,7 +75,7 @@
     <div class="chip" id="recChip">0 / 12<small>TAP: RECORDS</small></div>
   </div>
   <div class="hud" id="msg"></div>
-  <div class="hud" id="hint">Hold to charge your cast, release to cast</div>
+  <div class="hud" id="hint">Tap the water to aim, then THROW to cast</div>
   <div id="rarityPop"></div>
 
   <div id="gauges">
@@ -113,17 +118,24 @@
       <div class="rar" id="cRar">Common</div>
       <p id="cStats"></p>
       <p id="cQuote" style="font-style:italic;opacity:.8"></p>
-      <p id="cCoins" style="color:#ffd85e;font-size:18px;font-weight:bold"></p>
-      <button class="btn" id="cKeep">Keep it 🔥</button>
+      <button class="btn" id="cKeep">Keep it 🎣</button>
+      <button class="btn sell" id="cSell">Sell it 🪙</button>
+      <p id="cCoins" style="font-size:12px;opacity:.78;margin-top:8px"></p>
     </div>
   </div>
 
   <!-- SHOP PANEL -->
   <div class="panel" id="shopPanel">
+    <button class="closebtn" id="shopClose">✕</button>
     <div class="card">
       <h2>⚓ Bait & Tackle</h2>
+      <div style="font-size:14px;color:#ffd85e;font-weight:bold">🪙 <span id="shopCoins">0</span> 🎒 <span id="shopInv">0/8</span></div>
+      <div class="tabs">
+        <button class="tab on" id="tabRods">🎣 RODS</button>
+        <button class="tab" id="tabUpg">⬆ STORAGE</button>
+        <button class="tab" id="tabSpec">📖 SPECIES</button>
+      </div>
       <div class="scroll" id="shopList"></div>
-      <button class="btn" id="shopClose">Back to the water</button>
     </div>
   </div>
 
@@ -141,12 +153,12 @@
     <div class="card">
       <h2>🎣 How To Fish</h2>
       <div class="step"><div class="num">1</div><div class="txt"><b>Watch the water</b> — fish swim below the boat. Bigger + brighter = rarer.</div></div>
-      <div class="step"><div class="num">2</div><div class="txt"><b>Aim:</b> pick a <b>DISTANCE</b> (short/mid/far) and <b>DEPTH</b> (shallow/mid/deep) with the buttons top-left — the preview shows where the float lands and how deep the hook sits.</div></div>
-      <div class="step"><div class="num">3</div><div class="txt"><b>THROW:</b> tap the THROW button (or anywhere) to cast. Rarer, bigger fish are further out and deeper.</div></div>
+      <div class="step"><div class="num">2</div><div class="txt"><b>Aim:</b> at the boat, <b>TAP</b> the water where you want to cast — or <b>DRAG</b> your finger to slide the marker around. Further = rarer, deeper fish.</div></div>
+      <div class="step"><div class="num">3</div><div class="txt"><b>THROW:</b> tap the THROW button (top-left) to cast to your marker. Tap the water again to re-aim before you throw.</div></div>
       <div class="step"><div class="num">4</div><div class="txt"><b>Wait:</b> a fish swims over and starts <b>nibbling</b> — the float dips. Usually best to WAIT, it circles and taps up to 3 times. Reel too early and it'll <b>spook</b> (sometimes it just backs off and stays).</div></div>
       <div class="step"><div class="num">5</div><div class="txt"><b>Hook it:</b> when it finally commits the float slams under — <b>TAP</b> anywhere (or REEL) to set the hook.</div></div>
       <div class="step"><div class="num">6</div><div class="txt"><b>REEL:</b> HOLD the REEL button to pull the fish up — the catch bar rises toward the surface. The fight starts in <b>slow-mo</b> so you've got time to react. Let go when the tension bar reddens.</div></div>
-      <div class="step"><div class="num">7</div><div class="txt">Bar <b>full = caught</b>. Bar <b>empty = it snaps off</b>. A stronger rod beats stronger fish.</div></div>
+      <div class="step"><div class="num">7</div><div class="txt">Bar <b>full = caught</b> → it flies into your bucket. Bar <b>empty = it snaps off</b>. Then pick <b>Keep</b> (into your crate) or <b>Sell</b> (coins).</div></div>
       <button class="btn" id="howClose">Got it — let me fish 🔥</button>
     </div>
   </div>
@@ -164,6 +176,8 @@
     ctx.setTransform(DPR,0,0,DPR,0,0);
     waterY = H*0.38;                 // lower horizon → lots more open sky
     rod.x = W*0.20; rod.y = waterY - 14;
+    target.x = Math.min(W-46, rod.x + W*0.38); target.y = waterY + (fishZoneBot()-waterY)*0.55;
+    BUCKET.x = rod.x + 56; BUCKET.y = waterY - 12;
     clampFish();
   }
   window.addEventListener('resize', resize);
@@ -205,17 +219,31 @@
     cursed:  {pull:0.80, tension:0.95, thrash:1.85}
   };
 
-  const S = { coins:0, rod:0, owned:[0], caught:{}, total:0, state:'idle' };
+  const S = { coins:0, rod:0, owned:[0], caught:{}, total:0, state:'idle', cap:8, inv:[], upg:0 };
+  const INVENTORY = 8;
+  // each tier raises the crate capacity. cost scales steeply.
+  const UPGRADES = [
+    {name:'Bigger Crate', desc:'Sturdier wooden crate.', add:8,  base:120 },
+    {name:'Cargo Boat',   desc:'Serious storage.',       add:12, base:600 },
+    {name:'Ice Trailer',  desc:'Keep the haul fresh.',   add:20, base:2200 },
+    {name:'Fish Wharf',   desc:'Practically endless.',   add:40, base:7000 }
+  ];
+  function invUpgradesBought(){ return S.upg||0; }
+  function crateSize(){ let c=INVENTORY; for(let i=0;i<invUpgradesBought()&&i<UPGRADES.length;i++) c+=UPGRADES[i].add; return c; }
+  function invUsed(){ return S.inv ? S.inv.length : 0; }
+  function nextUpgrade(){ return UPGRADES[invUpgradesBought()] || null; }
+  function nextUpgradeCost(){ const u=nextUpgrade(); return u ? Math.round(u.base*Math.pow(2.6, invUpgradesBought())) : null; }
   let fishes = [], nextId = 1;
   const RIPPLE = {}; let rippleId=0;
   const FLOATERS = {}; let floatId=0;
   let bubbles = [];
 
   // ---------- persistence ----------
-  function save(){ try{ localStorage.setItem('deepcast_v1', JSON.stringify({coins:S.coins,rod:S.rod,owned:S.owned,caught:S.caught,total:S.total})); }catch(e){} }
+  function save(){ try{ localStorage.setItem('deepcast_v1', JSON.stringify({coins:S.coins,rod:S.rod,owned:S.owned,caught:S.caught,total:S.total,inv:S.inv,upg:S.upg,rodSold:S.rodSold})); }catch(e){} }
   function load(){ try{ const d=JSON.parse(localStorage.getItem('deepcast_v1')||'null');
     if(d){
       S.coins=d.coins||0; S.rod=d.rod||0; S.caught=d.caught||{}; S.total=d.total||0;
+      S.cap=d.cap||8; S.inv=Array.isArray(d.inv)?d.inv:[]; S.upg=d.upg||0; S.rodSold=d.rodSold||0;
       if(Array.isArray(d.owned)) S.owned=d.owned.slice();
       else S.owned=[0,1,2,3,4].slice(0,(d.rod||0)+1);   // migrate old saves
       if(!S.owned.includes(S.rod)) S.owned.push(S.rod);
@@ -244,10 +272,17 @@
     {name:'MID',     depth:0.55},
     {name:'DEEP',    depth:1.00}
   ];
-  let distMode=1, depthMode=1;        // default MID / MID
+  let distMode=1, depthMode=1;        // legacy — kept so nothing breaks; aim is now by tap/drag
+  let target={x:0,y:0};               // where the marker is (set in resize)
+  let dragging=false;
+  // catch animation — fish flies out of the water into the bucket
+  let catchAnim=null, catchShown=false, pendingCatch=null;
+  let shopTab='rods';
+  const STK=[];                       // fish shown stacked in the bucket
+  const BUCKET={x:0,y:0};
   let recastT=0;                      // reserved (no-op)
   function fishZoneTop(){ return waterY + 42; }
-  function fishZoneBot(){ return H - 44; }
+  function fishZoneBot(){ return H - 96; }   // leave clear water at the bottom for the panels/controls
 
   function clampFish(){
     fishes.forEach(f=>{
@@ -309,52 +344,37 @@
   function hidePanel(id){ document.getElementById(id).classList.remove('show'); }
 
   // ---------- input ----------
-  function pointerDown(){
-    if(S.state==='idle'){ doCast(); return; }              // tap anywhere to throw (aim = the gauges)
-    if(S.state==='waiting'){
-      if(nibblePhase==='dip'){ tryReelDuringDip(); return; }
-      lineHeld=true; return;                              // crank the line back in
-    }
-    if(S.state==='done') return;
-    if(S.state==='cast'){ lineHeld=true; return; }
-    if(S.state==='bite'){ hookIt(); return; }
-    if(S.state==='reeling'&&reel){ reel.holding=true; return; }
+  function canvasPos(e){
+    const r=cv.getBoundingClientRect();
+    return { x:(e.clientX-r.left), y:(e.clientY-r.top) };
   }
-  function pointerUp(){
-    lineHeld=false;
-    if(S.state==='reeling'&&reel){ reel.holding=false; }
+  function clampTarget(){
+    target.x = Math.max(rod.x+54, Math.min(W-46, target.x));
+    target.y = Math.max(fishZoneTop()+6, Math.min(fishZoneBot()-6, target.y));
+  }
+  function pointerDown(e){
+    if(e){ const p=canvasPos(e); target.x=p.x; target.y=p.y; }
+    if(S.state==='idle'){ dragging=true; clampTarget(); }      // aim by tapping the water
+    else if(S.state==='bite'){ hookIt(); }                     // tap anywhere to strike
+  }
+  function pointerMove(e){
+    if(!dragging || S.state!=='idle') return;
+    const p=canvasPos(e); target.x=p.x; target.y=p.y; clampTarget();
   }
   function releaseCast(){ /* legacy no-op */ }
-  // REEL button press — works in every state
+  // REEL button — hold to fight; also strikes on a bite
   function reelPress(){
-    if(S.state==='waiting'){ if(nibblePhase==='dip') tryReelDuringDip(); else lineHeld=true; }
-    else if(S.state==='cast') lineHeld=true;
-    else if(S.state==='bite') hookIt();
-    else if(S.state==='reeling'&&reel) reel.holding=true;
+    if(S.state==='bite'){ hookIt(); }
+    else if(S.state==='reeling'&&reel){ reel.holding=true; }
   }
-  function reelRelease(){ lineHeld=false; if(reel) reel.holding=false; }
+  function reelRelease(){ if(reel) reel.holding=false; }
 
-  cv.addEventListener('pointerdown', e=>{ e.preventDefault(); pointerDown(); });
-  window.addEventListener('pointerup', ()=>pointerUp());
-  window.addEventListener('pointercancel', ()=>{ if(reel) reel.holding=false; });
-  window.addEventListener('keydown', e=>{ if(e.code==='Space'&&!e.repeat){ e.preventDefault(); pointerDown(); } });
-  window.addEventListener('keyup', e=>{ if(e.code==='Space'){ e.preventDefault(); pointerUp(); } });
-
-  // ---- cast gauges (distance + depth) ----
-  const gaugesEl=document.getElementById('gauges');
-  function renderGauges(){
-    for(const seg of gaugesEl.querySelectorAll('.gseg')){
-      const grp=seg.dataset.group, v=+seg.dataset.v;
-      const on = (grp==='dist' && v===distMode) || (grp==='dep' && v===depthMode);
-      seg.classList.toggle('on', on);
-    }
-  }
-  for(const seg of gaugesEl.querySelectorAll('.gseg')){
-    seg.addEventListener('pointerdown', e=>{ e.preventDefault(); e.stopPropagation();
-      const v=+seg.dataset.v; if(seg.dataset.group==='dist') distMode=v; else depthMode=v;
-      renderGauges();
-    });
-  }
+  cv.addEventListener('pointerdown', e=>{ e.preventDefault(); try{cv.setPointerCapture(e.pointerId);}catch(_){} pointerDown(e); });
+  cv.addEventListener('pointermove', e=>{ if(dragging){ e.preventDefault(); pointerMove(e); } });
+  cv.addEventListener('pointerup', ()=>{ dragging=false; });
+  cv.addEventListener('pointercancel', ()=>{ dragging=false; });
+  window.addEventListener('pointerup', ()=>{ dragging=false; });
+  window.addEventListener('keydown', e=>{ if(e.code==='Space'&&!e.repeat){ e.preventDefault(); if(S.state==='idle') doCast(); else if(S.state==='bite') hookIt(); } });
 
   // ---- on-screen THROW + REEL buttons ----
   const throwBtn=document.getElementById('throwBtn'), reelBtn=document.getElementById('reelBtn');
@@ -376,26 +396,27 @@
     throwBtn.classList.toggle('hot', idle);
     throwLabel.textContent = idle ? 'THROW' : '…';
 
-    const canReel = S.state==='cast'||S.state==='waiting'||S.state==='bite'||S.state==='reeling';
+    const canReel = S.state==='bite'||S.state==='reeling';
     reelBtn.classList.toggle('dim', !canReel);
-    const active = (S.state==='reeling' && reel && reel.holding) || lineHeld;
-    reelBtn.classList.toggle('hot', !!active);
+    const active = (S.state==='reeling' && reel && reel.holding);
+    reelBtn.classList.toggle('hot', !!active || S.state==='bite');
     if(S.state==='bite') reelLabel.textContent='STRIKE!';
     else if(S.state==='reeling') reelLabel.textContent = (reel && reel.holding) ? 'REELING' : 'REEL';
-    else if(lineHeld) reelLabel.textContent='PULLING';
-    else reelLabel.textContent = 'REEL LINE';
+    else reelLabel.textContent = 'REEL';
     if(active) spinDeg += 520*FRAME_DT;
     reelSpin.setAttribute('transform','rotate('+(spinDeg%360).toFixed(1)+' 36 36)');
-    gaugesEl.classList.toggle('hide', S.state!=='idle');
   }
-  renderGauges();
 
-  document.getElementById('cKeep').addEventListener('click', ()=>{ hidePanel('catchPanel'); resetToIdle(); });
+  document.getElementById('cKeep').addEventListener('click', keepCatch);
+  document.getElementById('cSell').addEventListener('click', sellCatch);
   document.getElementById('shopClose').addEventListener('click', ()=>hidePanel('shopPanel'));
+  document.getElementById('tabRods').addEventListener('click', ()=>{ shopTab='rods'; renderShop(); });
+  document.getElementById('tabUpg').addEventListener('click', ()=>{ shopTab='upg'; renderShop(); });
+  document.getElementById('tabSpec').addEventListener('click', ()=>{ shopTab='spec'; renderShop(); });
   document.getElementById('recClose').addEventListener('click', ()=>hidePanel('recPanel'));
   document.getElementById('howClose').addEventListener('click', ()=>{ hidePanel('howPanel'); try{localStorage.setItem('deepcast_tut','1');}catch(e){} resetToIdle(); });
   document.getElementById('recChip').style.pointerEvents='auto';
-  document.getElementById('recChip').addEventListener('click', openRecords);
+  document.getElementById('recChip').addEventListener('click', ()=>{ shopTab='upg'; renderShop(); showPanel('shopPanel'); });
   document.getElementById('rodChip').style.pointerEvents='auto';
   document.getElementById('rodChip').addEventListener('click', openShop);
 
@@ -422,17 +443,17 @@
 
   function doCast(){
     const tip=rodTip();
-    const dist=DISTS[distMode].cast, dep=DEPTHS[depthMode].depth;
-    const maxDist=(W*0.62)*RODS[S.rod].cast;
+    const maxDist=(W*0.70)*RODS[S.rod].cast;
+    target.x=Math.max(rod.x+54,Math.min(W-46,target.x)); target.y=Math.max(fishZoneTop()+6,Math.min(fishZoneBot()-6,target.y));
     bob.sx=tip.x; bob.sy=tip.y;
-    bob.tx=Math.min(W-40, rod.x + W*0.06 + dist*maxDist);       // where the float lands (stays on the surface)
-    bob.ty=fishZoneTop() + 8 + dep*(fishZoneBot()-fishZoneTop()-16);   // how deep the hook ends up
+    bob.tx=target.x;                                 // the float lands exactly where you aimed
+    bob.ty=target.y;                                 // how deep the hook ends up
     bob.hookY=waterY + 12;                          // hook starts near the surface, then sinks
     bob.boing=0; bob.boingV=0;
-    bob.flying=true; bob.t=0; bob.land=0.45+dist*0.3;
+    bob.flying=true; bob.t=0; bob.land=0.5;
     castAnim=0;                                     // play the throw animation
-    S.state='cast'; lure=null;
-    say('Throwing '+DISTS[distMode].name.toLowerCase()+' + '+DEPTHS[depthMode].name.toLowerCase()+'…'); hint('');
+    S.state='cast'; lure=null; lineHeld=false;
+    say('Casting…'); hint('');
   }
 
   function beginWait(){
@@ -563,18 +584,15 @@
       const prev=S.caught[f.n];
       const isNew=!prev, isRecord=!prev||f.kg>prev.kg;
       if(isRecord) S.caught[f.n]={kg:f.kg,value:f.value};
-      S.total++; S.coins+=f.value; save();
-      document.getElementById('cName').textContent=(isNew?'🆕 ':'')+f.n;
-      const rr=document.getElementById('cRar');
-      rr.textContent=RARITY[f.r].name; rr.style.background=RARITY[f.r].color+'22';
-      rr.style.color=RARITY[f.r].color; rr.style.border='1px solid '+RARITY[f.r].color;
-      document.getElementById('cStats').textContent=f.kg.toFixed(2)+' kg'+(isRecord?' · ⭐ NEW RECORD':'');
-      document.getElementById('cQuote').textContent='"'+f.quote+'"';
-      document.getElementById('cCoins').textContent='+'+f.value+' 🪙';
+      S.total++; save();
       popRarity(f.r);
-      showPanel('catchPanel');
+      // launch the fish up and over into the bucket, then ask keep / sell
+      catchAnim={ t:0, dur:0.95, f, isNew, isRecord };
+      catchShown=false;
+      splashAt(bob.tx, waterY);
+      say('CAUGHT! 🎣'); hint('');
     } else {
-      say('It got away… 💨'); hint('Hold to charge your cast');
+      say('It got away… 💨'); hint('Tap the water to aim, then THROW to cast');
       setTimeout(()=>{ if(S.state==='done') resetToIdle(); }, 1000);
     }
     if(f) fishes=fishes.filter(x=>x.id!==f.id);
@@ -582,12 +600,50 @@
     fillWater(); updateHUD();
   }
 
+  // fish pokes out of the bucket (kept fish only)
+  function addStk(f){ STK.push({n:f.n, r:f.r, size:f.size, kg:f.kg}); if(STK.length>9) STK.shift(); }
+
+  function showCatchPanel(f, isNew, isRecord){
+    pendingCatch={f,isNew,isRecord};
+    document.getElementById('cName').textContent=(isNew?'🆕 ':'')+f.n;
+    const rr=document.getElementById('cRar');
+    rr.textContent=RARITY[f.r].name; rr.style.background=RARITY[f.r].color+'22';
+    rr.style.color=RARITY[f.r].color; rr.style.border='1px solid '+RARITY[f.r].color;
+    document.getElementById('cStats').textContent=f.kg.toFixed(2)+' kg'+(isRecord?' · ⭐ NEW RECORD':'');
+    document.getElementById('cQuote').textContent='"'+f.quote+'"';
+    const full=invUsed()>=crateSize();
+    document.getElementById('cCoins').textContent='Sells for '+f.value+' 🪙  ·  🎒 '+invUsed()+'/'+crateSize()+(full?' (FULL!)':'');
+    const kb=document.getElementById('cKeep');
+    kb.classList.toggle('dim', full);
+    showPanel('catchPanel');
+  }
+  function keepCatch(){
+    const p=pendingCatch; if(!p){ hidePanel('catchPanel'); resetToIdle(); return; }
+    if(invUsed()>=crateSize()){ document.getElementById('cCoins').textContent='🎒 Crate full — SELL this one or upgrade storage!'; return; }
+    const f=p.f;
+    S.inv.push({n:f.n, r:f.r, kg:+f.kg.toFixed(2), value:f.value});
+    addStk(f); save(); updateHUD();
+    hidePanel('catchPanel');
+    const f2=f; pendingCatch=null; resetToIdle();
+    floatText(BUCKET.x, BUCKET.y-24, 'Kept!', '#7dffa8');
+    say('Kept '+f2.n+' 🎣'); setTimeout(()=>say(''),1600);
+  }
+  function sellCatch(){
+    const p=pendingCatch; if(!p){ hidePanel('catchPanel'); resetToIdle(); return; }
+    const f=p.f;
+    S.coins+=f.value; save(); updateHUD();
+    hidePanel('catchPanel');
+    const f2=f; pendingCatch=null; resetToIdle();
+    floatText(BUCKET.x, BUCKET.y-24, '+'+f2.value+' 🪙', '#ffd85e');
+    say('Sold '+f2.n+' for '+f2.value+' 🪙'); setTimeout(()=>say(''),1600);
+  }
+
   function resetToIdle(){
     bob.flying=false; bob.land=0; lure=null; reel=null; hooked=null;
     nibbler=null; nibbleCount=0; nibblePhase='idle'; nibbleTimer=0;
     for(const f of fishes){ f.role=null; f.target=null; }
-    S.state='idle';
-    hint('Hold to charge your cast, release to cast'); say('');
+    S.state='idle'; catchAnim=null; dragging=false;
+    hint('Tap the water to aim, then THROW to cast'); say('');
   }
   function popRarity(r){
     const el=document.getElementById('rarityPop');
@@ -602,13 +658,22 @@
   function floatText(x,y,txt,col){ FLOATERS[floatId++]={x,y,txt,col,t:0}; }
 
   // ---------- shop ----------
-  function openShop(){ renderShop(); showPanel('shopPanel'); }
+  function openShop(){ shopTab='rods'; renderShop(); showPanel('shopPanel'); }
   function renderShop(){
+    document.getElementById('shopCoins').textContent=S.coins;
+    document.getElementById('shopInv').textContent=invUsed()+'/'+crateSize();
+    document.getElementById('tabRods').classList.toggle('on', shopTab==='rods');
+    document.getElementById('tabUpg').classList.toggle('on', shopTab==='upg');
+    document.getElementById('tabSpec').classList.toggle('on', shopTab==='spec');
     const el=document.getElementById('shopList'); el.innerHTML='';
+    if(shopTab==='rods') renderRodsList(el);
+    else if(shopTab==='upg') renderUpgradeList(el);
+    else speciesRows(el);
+  }
+  function renderRodsList(el){
     RODS.forEach((r,i)=>{
       const row=document.createElement('div'); row.className='shoprow';
       const owned=S.owned.includes(i);
-      // name + description + stats always visible, so you can compare before buying
       const left=document.createElement('div'); left.style.flex='1';
       left.innerHTML='<b>🎣 '+r.name+'</b><span>'+r.desc+'</span>'+
         '<span style="color:#8fd6ff">power ×'+r.pwr.toFixed(2)+' · reel ×'+r.reel.toFixed(2)+' · luck +'+r.luck+' · cast ×'+r.cast.toFixed(2)+'</span>'+
@@ -622,7 +687,6 @@
         b.onclick=()=>{ S.rod=i; save(); updateHUD(); renderShop(); say('Equipped '+r.name+'!'); };
         row.appendChild(b);
       } else {
-        // buy in any order — no need to own the previous rod
         const b=document.createElement('button'); b.className='buy'; b.textContent='🪙 '+r.cost; b.disabled=S.coins<r.cost;
         b.onclick=()=>{ if(S.coins>=r.cost){ S.coins-=r.cost; S.owned.push(i); S.rod=i; save(); updateHUD(); renderShop(); say('Bought + equipped '+r.name+'!'); } };
         row.appendChild(b);
@@ -630,13 +694,38 @@
       el.appendChild(row);
     });
     const note=document.createElement('p'); note.style.cssText='font-size:11px;opacity:.6;margin-top:8px';
-    note.textContent='Every rod’s stats are shown up top — buy in any order. Tap EQUIP on any rod you own to switch to it.';
+    note.textContent='Buy rods in any order. Tap EQUIP on any rod you own to switch to it.';
     el.appendChild(note);
   }
-
-  // ---------- records ----------
-  function openRecords(){
-    const el=document.getElementById('recList'); el.innerHTML='';
+  function renderUpgradeList(el){
+    const cap=crateSize(), used=invUsed();
+    const sum=document.createElement('div'); sum.style.cssText='font-size:12px;opacity:.85;margin:2px 0 4px';
+    sum.innerHTML='🎒 Crate <b>'+used+' / '+cap+'</b> used';
+    el.appendChild(sum);
+    const bar=document.createElement('div'); bar.className='capbar';
+    const fill=document.createElement('div'); fill.style.width=Math.min(100,(used/cap)*100)+'%'; bar.appendChild(fill);
+    el.appendChild(bar);
+    const u=nextUpgrade();
+    if(!u){
+      el.insertAdjacentHTML('beforeend','<div class="shoprow"><div style="flex:1"><b>✅ Max storage</b><span>Crate holds '+cap+' fish. Nice boat.</span></div></div>');
+      return;
+    }
+    const cost=nextUpgradeCost();
+    const row=document.createElement('div'); row.className='shoprow';
+    const left=document.createElement('div'); left.style.flex='1';
+    left.innerHTML='<b>⬆ '+u.name+'</b><span>'+u.desc+'</span>'+
+      '<span style="color:#8fd6ff">+'+u.add+' slots · crate '+cap+' → '+(cap+u.add)+'</span>'+
+      '<span style="color:#ffd85e">cost: 🪙 '+cost+'</span>';
+    row.appendChild(left);
+    const b=document.createElement('button'); b.className='buy'; b.textContent='🪙 '+cost; b.disabled=S.coins<cost;
+    b.onclick=()=>{ if(S.coins>=cost){ S.coins-=cost; S.upg=(S.upg||0)+1; save(); updateHUD(); renderShop(); say('Crate upgraded! 🎒 '+crateSize()+' slots'); } };
+    row.appendChild(b);
+    el.appendChild(row);
+    const note=document.createElement('p'); note.style.cssText='font-size:11px;opacity:.6;margin-top:8px';
+    note.textContent='Storage fills up as you KEEP fish. Sell fish for coins, then grab a bigger crate.';
+    el.appendChild(note);
+  }
+  function speciesRows(el){
     FISH.forEach(f=>{
       const c=S.caught[f.n]; const row=document.createElement('div'); row.className='shoprow';
       const rc=RARITY[f.r].color;
@@ -644,15 +733,14 @@
         <span style="color:${rc}">${RARITY[f.r].name}${c?' · best '+c.kg.toFixed(2)+'kg':''}</span></div>`;
       el.appendChild(row);
     });
-    showPanel('recPanel');
   }
+  function openRecords(){ shopTab='spec'; renderShop(); showPanel('shopPanel'); }
 
   // ---------- HUD ----------
   function updateHUD(){
     document.getElementById('coin').innerHTML='🪙 '+S.coins+'<small>COINS</small>';
     document.getElementById('rodChip').innerHTML='🎣 '+RODS[S.rod].name+'<small>TAP: SHOP</small>';
-    const uniq=Object.keys(S.caught).length;
-    document.getElementById('recChip').innerHTML=uniq+' / '+FISH.length+'<small>TAP: RECORDS</small>';
+    document.getElementById('recChip').innerHTML='🎒 '+invUsed()+'/'+crateSize()+'<small>TAP: STORAGE</small>';
   }
 
   // ---------- update ----------
@@ -714,23 +802,13 @@
       else f.dir = f.vx>=0?1:-1;
     }
 
-    // ---- waiting: hook sinks, reel pull brings the line back in, recruit fish, nibble cycle ----
+    // ---- waiting: hook sinks, recruit fish, nibble cycle ----
     if(S.state==='waiting'){
-      if(lineHeld){
-        // cranking the line back — hand over hand
-        bob.tx = Math.max(rod.x+40, bob.tx - 155*dt);
-        bob.hookY = Math.max(waterY+10, bob.hookY - 165*dt);
-        if(lure){ lure.x=bob.tx; lure.y=bob.hookY; }
-        if(bob.tx<=rod.x+42){ lineHeld=false; say('Line back in.'); resetToIdle(); }
-      } else {
-        // the hook slowly sinks to its depth on its own line
-        bob.hookY += (bob.ty - bob.hookY)*2.0*dt;
-        if(lure){ lure.x=bob.tx; lure.y=bob.hookY; }
-      }
+      // the hook sinks to its depth on its own line
+      bob.hookY += (bob.ty - bob.hookY)*2.0*dt;
+      if(lure){ lure.x=bob.tx; lure.y=bob.hookY; }
       waitTimer += dt;
-      if(!lineHeld && lure && waitTimer>=nextArriveT){ recruitFish(); nextArriveT = waitTimer + 2.5 + Math.random()*3.0; }
-      // tugging the line makes the fish nearby nibble sooner
-      if(lineHeld && nibbler && nibblePhase==='circle') nibbleTimer -= dt*0.8;
+      if(lure && waitTimer>=nextArriveT){ recruitFish(); nextArriveT = waitTimer + 2.5 + Math.random()*3.0; }
       manageNibbles(dt);
     }
 
@@ -802,6 +880,15 @@
 
     // hookset animation timer
     if(hooksetT>=0){ hooksetT += dt/0.45; if(hooksetT>=1) hooksetT=-1; }
+
+    // catch flight animation → then the keep / sell panel
+    if(catchAnim){
+      catchAnim.t += dt;
+      if(!catchShown && catchAnim.t>=catchAnim.dur){
+        catchShown=true;
+        showCatchPanel(catchAnim.f, catchAnim.isNew, catchAnim.isRecord);
+      }
+    }
 
     // bubbles
     for(const b of bubbles){ b.y -= b.spd*dt; b.x += Math.sin((b.y)*0.05)*8*dt; }
@@ -910,8 +997,9 @@
     }
 
     drawBoat(t);
+    drawBucket(t); drawStk(t);
 
-    // aiming preview while idle — shows where the float lands + how deep the hook goes
+    // aiming marker while idle — tap / drag the water to move it
     if(S.state==='idle') drawAim(t);
 
     if(S.state==='cast'||S.state==='waiting'||S.state==='bite'||S.state==='reeling'){
@@ -923,6 +1011,8 @@
     if(S.state==='reeling' && reel && hooked){
       drawHookedFish(t);
     }
+
+    if(catchAnim) drawCatchAnim(t);
 
     // floating text
     ctx.save(); ctx.textAlign='center'; ctx.font='bold 18px Trebuchet MS';
@@ -1009,31 +1099,31 @@
     ctx.restore();
   }
 
-  // aiming preview: dashed trajectory to where the float will land, + hook depth marker
+  // aiming marker: dashed trajectory + hook-depth marker, controlled by tap / drag
   function drawAim(t){
-    const dist=DISTS[distMode].cast, dep=DEPTHS[depthMode].depth;
-    const maxDist=(W*0.62)*RODS[S.rod].cast;
-    const tx=Math.min(W-40, rod.x + W*0.06 + dist*maxDist);
-    const hy=fishZoneTop() + 8 + dep*(fishZoneBot()-fishZoneTop()-16);
     const tip=rodTip();
+    const tx=target.x, hy=target.y;
     ctx.save();
     // arc from rod tip to the landing point
     ctx.strokeStyle='rgba(255,216,94,.55)'; ctx.lineWidth=2; ctx.setLineDash([6,7]);
     ctx.beginPath(); ctx.moveTo(tip.x,tip.y);
     ctx.quadraticCurveTo((tip.x+tx)/2, Math.min(tip.y,waterY)-H*0.22, tx, waterY);
     ctx.stroke();
-    // hook depth line
+    // depth line from the float down to the hook
     ctx.strokeStyle='rgba(120,220,255,.4)'; ctx.setLineDash([4,7]);
     ctx.beginPath(); ctx.moveTo(tx,waterY); ctx.lineTo(tx,hy); ctx.stroke();
     ctx.setLineDash([]);
     // float landing marker
     ctx.fillStyle='rgba(255,216,94,.9)'; ctx.beginPath(); ctx.arc(tx,waterY,5,0,7); ctx.fill();
-    // hook depth marker
-    ctx.strokeStyle='rgba(120,220,255,.9)'; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.arc(tx,hy,6,0,7); ctx.stroke();
-    ctx.fillStyle='rgba(120,220,255,.35)'; ctx.beginPath(); ctx.arc(tx,hy,6,0,7); ctx.fill();
+    // hook-depth marker with a pulsing ring
+    const pulse=1+Math.sin(t*5)*0.18;
+    ctx.strokeStyle='rgba(120,220,255,.95)'; ctx.lineWidth=2;
+    ctx.beginPath(); ctx.arc(tx,hy,7*pulse,0,7); ctx.stroke();
+    ctx.fillStyle='rgba(120,220,255,.35)'; ctx.beginPath(); ctx.arc(tx,hy,7,0,7); ctx.fill();
     ctx.fillStyle='#eaf6ff'; ctx.font='bold 11px Trebuchet MS'; ctx.textAlign='center';
-    ctx.fillText('HOOK', tx, hy+20);
+    ctx.fillText('HOOK', tx, hy+22);
+    ctx.fillStyle='rgba(255,216,94,.95)';
+    ctx.fillText('TAP / DRAG TO AIM', tx, waterY-10);
     ctx.restore();
   }
 
@@ -1068,6 +1158,57 @@
     ctx.beginPath(); ctx.moveTo(x+4+lean,y-36); ctx.lineTo(hx,hy); ctx.stroke();
     ctx.strokeStyle='#caa06a'; ctx.lineWidth=3.5;
     ctx.beginPath(); ctx.moveTo(hx,hy); ctx.lineTo(tip.x,tip.y); ctx.stroke();
+    ctx.restore();
+  }
+
+  // the bucket on the boat — fills up with your kept fish
+  function drawBucket(t){
+    const x=BUCKET.x, y=BUCKET.y;
+    ctx.save();
+    ctx.strokeStyle='#8fd0ff'; ctx.lineWidth=3; ctx.beginPath();
+    ctx.arc(x, y-6, 13, Math.PI*1.05, Math.PI*1.95); ctx.stroke();      // handle
+    const g=ctx.createLinearGradient(x-16,y,x+16,y+26);
+    g.addColorStop(0,'#cfe9ff'); g.addColorStop(1,'#5c86a8');
+    ctx.fillStyle=g;
+    ctx.beginPath();
+    ctx.moveTo(x-15,y); ctx.lineTo(x+15,y); ctx.lineTo(x+11,y+26); ctx.lineTo(x-11,y+26); ctx.closePath(); ctx.fill();
+    ctx.fillStyle='#2d4354'; ctx.fillRect(x-15,y-3,30,5);              // rim
+    ctx.globalAlpha=.5; ctx.fillStyle='#eafcff'; ctx.fillRect(x-10,y+3,20,2); ctx.globalAlpha=1;
+    ctx.restore();
+  }
+  // the kept fish poking out of the bucket (more show up as you keep more)
+  function drawStk(t){
+    for(let i=0;i<STK.length;i++){
+      const item=STK[i], s=Math.min(item.size, RARITY[item.r].rs+4)*0.62;
+      const ang = -1.15 + (i%3)*0.5 + Math.sin(t*1.6+i)*0.05;
+      const off = (i%3)*11 - 11;
+      ctx.save();
+      ctx.translate(BUCKET.x+off, BUCKET.y+4 - (i%3)*3);
+      ctx.rotate(ang);
+      fishBody(s, RARITY[item.r].color, t*3+i, 0);
+      ctx.restore();
+    }
+  }
+  // the caught fish flings up out of the water and arcs into the bucket
+  function drawCatchAnim(t){
+    const a=catchAnim, f=a.f, s=f.size;
+    const p=Math.min(1, a.t/a.dur);
+    const sx=bob.tx, sy=waterY;
+    const ex=BUCKET.x, ey=BUCKET.y-6;
+    const x=sx+(ex-sx)*p;
+    const y=sy+(ey-sy)*p - Math.sin(p*Math.PI)*H*0.42;
+    const rot=Math.sin(p*Math.PI*2)*0.6;
+    ctx.save();
+    ctx.translate(x,y); ctx.rotate(rot);
+    fishBody(s, RARITY[f.r].color, a.t*22, 0.4);
+    ctx.restore();
+    // sparkle trail
+    ctx.save(); ctx.globalAlpha=Math.max(0,1-p); ctx.fillStyle=RARITY[f.r].color;
+    for(let i=1;i<=4;i++){
+      const pp=Math.max(0,p-i*0.06);
+      const tx2=sx+(ex-sx)*pp, ty2=sy+(ey-sy)*pp - Math.sin(pp*Math.PI)*H*0.42;
+      ctx.beginPath(); ctx.arc(tx2,ty2, 3-i*0.4, 0,7); ctx.fill();
+    }
     ctx.restore();
   }
 
