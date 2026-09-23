@@ -41,8 +41,8 @@
     background:rgba(6,26,43,.92); color:#eaf6ff; font-size:20px; font-weight:bold; cursor:pointer; z-index:12; line-height:1; font-family:inherit; }
   .closebtn:active { transform:scale(.94); }
   .tabs { display:flex; gap:8px; margin:10px 0 6px; width:100%; }
-  .tab { flex:1; padding:10px 6px; border-radius:12px; border:2px solid rgba(120,200,255,.4); background:rgba(255,255,255,.05);
-    color:#bfe0ff; font-weight:bold; font-size:12px; cursor:pointer; font-family:inherit; }
+  .tab { flex:1; padding:9px 3px; border-radius:12px; border:2px solid rgba(120,200,255,.4); background:rgba(255,255,255,.05);
+    color:#bfe0ff; font-weight:bold; font-size:10.5px; cursor:pointer; font-family:inherit; white-space:nowrap; }
   .tab.on { background:linear-gradient(180deg,#39d98a,#17a765); color:#04231a; border-color:#7dffb8; }
   .dim { opacity:.45; filter:grayscale(.5); }
   .ibadge { display:inline-block; background:#ffd85e; color:#3a2400; border-radius:8px; padding:1px 7px; font-size:11px; font-weight:bold; }
@@ -50,6 +50,7 @@
   .capbar > div { height:100%; background:linear-gradient(90deg,#39d98a,#ffd85e); }
   .shoprow { display:flex; align-items:center; justify-content:space-between; gap:10px; background:rgba(255,255,255,.05); border:1px solid rgba(120,210,255,.25); border-radius:12px; padding:10px 12px; margin:7px 0; text-align:left; }
   .shoprow .pic { flex:0 0 56px; width:56px; height:38px; border-radius:9px; background:radial-gradient(circle at 50% 45%, rgba(60,150,220,.30), rgba(3,15,28,.15) 72%); border:1px solid rgba(120,210,255,.22); }
+  .baitsw { flex:0 0 26px; width:26px; height:26px; border-radius:8px; border:2px solid rgba(255,255,255,.35); box-shadow:inset 0 2px 4px rgba(255,255,255,.4); }
   .shoprow .info { flex:1; min-width:0; }
   .shoprow span { display:block; font-size:11px; opacity:.7; }
   .shoprow .buy { background:linear-gradient(180deg,#ffe07a,#ffb528); color:#3a2400; box-shadow:0 4px 0 #a86f00; border:none; border-radius:9px; padding:8px 12px; font-weight:bold; font-size:13px; cursor:pointer; white-space:nowrap; }
@@ -83,6 +84,7 @@
   <div class="hud" id="topbar">
     <div class="chip" id="coin">🪙 0<small>COINS</small></div>
     <div class="chip" id="shopChip">🛒 SHOP<small>🎣 Basic Rod</small></div>
+    <div class="chip" id="baitChip">🪱 NO BAIT<small>TAP: BAIT</small></div>
     <div class="chip" id="invChip">🎒 0/8<small>TAP: CRATE</small></div>
   </div>
   <div class="hud" id="msg"></div>
@@ -143,7 +145,8 @@
       <h2>⚓ Bait & Tackle</h2>
       <div style="font-size:14px;color:#ffd85e;font-weight:bold">🪙 <span id="shopCoins">0</span> 🎒 <span id="shopInv">0/8</span></div>
       <div class="tabs">
-        <button class="tab on" id="tabRods">🎣 RODS</button>
+        <button class="tab" id="tabRods">🎣 RODS</button>
+        <button class="tab" id="tabBait">🪱 BAIT</button>
         <button class="tab" id="tabUpg">⬆ CRATE</button>
         <button class="tab" id="tabSpec">📖 SPECIES</button>
       </div>
@@ -425,11 +428,20 @@
   }
 
   const RODS = [
-    {name:'Basic Rod',     cost:0,    cast:1.00, reel:0.75, pwr:0.70, luck:0,  desc:'Slow, basic. Every fish is a fight.'},
-    {name:'Estuary Rig',   cost:120,  cast:1.18, reel:1.05, pwr:0.95, luck:1,  desc:'Steadier reel, slightly better fish.'},
-    {name:'Carbon Spinner',cost:420,  cast:1.38, reel:1.45, pwr:1.25, luck:2,  desc:'Fast reel, much better odds.'},
-    {name:'Deep Caster',   cost:1100, cast:1.60, reel:1.95, pwr:1.60, luck:4,  desc:'Wins fights quick. Rare fish come easy.'},
-    {name:'Cursed Rod',    cost:3000, cast:1.85, reel:2.60, pwr:2.10, luck:9,  desc:'Reels in seconds. Almost only monsters.'}
+    {name:'Basic Rod',      cost:0,    cast:1.00, reel:0.75, pwr:0.70, lure:1.00, luck:0, desc:'Slow, basic. Every fish is a fight.'},
+    {name:'Estuary Rig',    cost:120,  cast:1.18, reel:1.05, pwr:0.95, lure:1.15, luck:1, desc:'A steady all-rounder. Slightly faster bites.'},
+    {name:'Carbon Spinner', cost:420,  cast:1.38, reel:1.45, pwr:1.25, lure:1.80, luck:0, desc:'SPEED rig — bites come thick and fast, but it pulls in anything that swims.'},
+    {name:'Deep Caster',    cost:1100, cast:1.60, reel:1.95, pwr:1.60, lure:0.80, luck:6, desc:'LUCK rig — slow to attract, but what turns up is worth the wait.'},
+    {name:'Cursed Rod',     cost:3000, cast:1.85, reel:2.60, pwr:2.10, lure:1.55, luck:9, desc:'Top of the line: fast bites AND the monsters. You paid for both.'}
+  ];
+
+  // baits attach to the hook. each cast burns 1 charge. effects stack on the rod.
+  const BAITS = [
+    {name:'Worms',       cost:20,   pack:15, lure:0.15, luck:0, col:'#e08b6f', desc:'Cheap and cheerful. Fish find it a touch quicker.'},
+    {name:'Prawns',      cost:70,   pack:15, lure:0.30, luck:1, col:'#ff9d76', desc:'A local favourite — quick interest and better fish.'},
+    {name:'Pilchards',   cost:180,  pack:15, lure:-0.10,luck:3, col:'#bcd6ea', desc:'Oily and smelly. Big fish notice. Slower bites.'},
+    {name:'Squid',       cost:450,  pack:15, lure:-0.20,luck:5, col:'#e8c7e0', desc:'Serious bait. Slow interest, serious fish.'},
+    {name:'Cursed Bait', cost:1200, pack:15, lure:0.45, luck:8, col:'#ff5f7a', desc:'It wriggles on its own. Fast bites AND monsters.'}
   ];
   const FIGHT = {
     common:  {pull:0.22, tension:0.30, thrash:0.55},
@@ -439,7 +451,7 @@
     cursed:  {pull:0.80, tension:0.95, thrash:1.85}
   };
 
-  const S = { coins:0, rod:0, owned:[0], caught:{}, total:0, state:'idle', cap:8, inv:[], upg:0 };
+  const S = { coins:0, rod:0, owned:[0], caught:{}, total:0, state:'idle', cap:8, inv:[], upg:0, bait:-1, baits:{} };
   const INVENTORY = 8;
   // each tier raises the crate capacity. cost scales steeply.
   const UPGRADES = [
@@ -458,12 +470,30 @@
   const FLOATERS = {}; let floatId=0;
   let bubbles = [];
 
+  // ---------- gear stats ----------
+  function baitCharges(i){ return (S.baits && S.baits[i]) || 0; }
+  // equipped bait, but only if it still has charges left
+  function equippedBait(){ if(S.bait===-1||S.bait==null) return -1; return baitCharges(S.bait)>0 ? S.bait : -1; }
+  function baitDef(){ const i=equippedBait(); return i>=0 ? BAITS[i] : null; }
+  // rod + bait stack together
+  function totalLure(){ const b=baitDef(); return Math.max(0.35, RODS[S.rod].lure + (b?b.lure:0)); }
+  function totalLuck(){ const b=baitDef(); return RODS[S.rod].luck + (b?b.luck:0); }
+  // how long a bite takes at the current lure speed (higher lure = shorter)
+  function arrive(base){ return base / totalLure(); }
+  function consumeBait(){
+    const i=equippedBait(); if(i<0) return;
+    S.baits[i]=Math.max(0, baitCharges(i)-1);
+    if(S.baits[i]<=0){ S.bait=-1; floatText(bob.tx, waterY+40, 'BAIT GONE', '#ff9d76'); }
+    save(); updateHUD();
+  }
+
   // ---------- persistence ----------
-  function save(){ try{ localStorage.setItem('deepcast_v1', JSON.stringify({coins:S.coins,rod:S.rod,owned:S.owned,caught:S.caught,total:S.total,inv:S.inv,upg:S.upg,rodSold:S.rodSold})); }catch(e){} }
+  function save(){ try{ localStorage.setItem('deepcast_v1', JSON.stringify({coins:S.coins,rod:S.rod,owned:S.owned,caught:S.caught,total:S.total,inv:S.inv,upg:S.upg,rodSold:S.rodSold,bait:S.bait,baits:S.baits})); }catch(e){} }
   function load(){ try{ const d=JSON.parse(localStorage.getItem('deepcast_v1')||'null');
     if(d){
       S.coins=d.coins||0; S.rod=d.rod||0; S.caught=d.caught||{}; S.total=d.total||0;
       S.cap=d.cap||8; S.inv=Array.isArray(d.inv)?d.inv:[]; S.upg=d.upg||0; S.rodSold=d.rodSold||0;
+      S.bait=(typeof d.bait==='number')?d.bait:-1; S.baits=(d.baits&&typeof d.baits==='object')?d.baits:{};
       if(Array.isArray(d.owned)) S.owned=d.owned.slice();
       else S.owned=[0,1,2,3,4].slice(0,(d.rod||0)+1);   // migrate old saves
       if(!S.owned.includes(S.rod)) S.owned.push(S.rod);
@@ -513,7 +543,7 @@
   }
 
   function rollFishDef(){
-    const luck = RODS[S.rod].luck;
+    const luck = totalLuck();
     const w = {};
     for(const k in RARITY) w[k]=RARITY[k].weight;
     // luck pushes odds hard toward rare+: each point of luck adds a lot
@@ -631,6 +661,7 @@
   document.getElementById('cSell').addEventListener('click', sellCatch);
   document.getElementById('shopClose').addEventListener('click', ()=>hidePanel('shopPanel'));
   document.getElementById('tabRods').addEventListener('click', ()=>{ shopTab='rods'; renderShop(); });
+  document.getElementById('tabBait').addEventListener('click', ()=>{ shopTab='bait'; renderShop(); });
   document.getElementById('tabUpg').addEventListener('click', ()=>{ shopTab='upg'; renderShop(); });
   document.getElementById('tabSpec').addEventListener('click', ()=>{ shopTab='spec'; renderShop(); });
   document.getElementById('recClose').addEventListener('click', ()=>hidePanel('recPanel'));
@@ -641,6 +672,8 @@
   document.getElementById('shopChip').addEventListener('click', openShop);
   document.getElementById('invChip').style.pointerEvents='auto';
   document.getElementById('invChip').addEventListener('click', openInventory);
+  document.getElementById('baitChip').style.pointerEvents='auto';
+  document.getElementById('baitChip').addEventListener('click', ()=>{ shopTab='bait'; renderShop(); showPanel('shopPanel'); });
 
   // ---------- mechanics ----------
   // rod throw swing: wind up = pull back, then whip forward
@@ -675,6 +708,7 @@
     bob.flying=true; bob.t=0; bob.land=0.5;
     castAnim=0;                                     // play the throw animation
     S.state='cast'; lure=null; lineHeld=false;
+    consumeBait();                                  // this cast uses up one bait
     say('Casting…'); hint('');
   }
 
@@ -683,9 +717,9 @@
     lure={x:bob.tx, y:bob.hookY};
     bob.hookY = waterY + 12;                        // reset sink
     bob.boing = 11; bob.boingV = 0;                 // splash boing on the float
-    // nothing comes straight away — you have to wait a while
+    // nothing comes straight away — depends on lure speed + bait
     waitTimer=0;
-    nextArriveT = 3.0 + Math.random()*3.5;   // first fish shows up in ~3-6.5s
+    nextArriveT = arrive(3.0 + Math.random()*3.5);   // first fish shows up sooner with more lure
     nibbler=null; nibbleCount=0; nibblePhase='idle'; nibbleTimer=0;
     hint('The bait sinks… watch the water.');
     say('');
@@ -742,7 +776,7 @@
     if(nibbler) fleeFish(nibbler);
     nibbler=null; nibbleCount=0; nibblePhase='idle'; nibbleTimer=0;
     say('It lost interest… 😶');
-    nextArriveT = waitTimer + 1.5 + Math.random()*2.5;
+    nextArriveT = waitTimer + arrive(1.5 + Math.random()*2.5);
   }
 
   function fleeFish(f){
@@ -771,7 +805,7 @@
     nibbler=null; nibbleCount=0; nibblePhase='idle'; nibbleTimer=0;
     lineHeld=false;                                 // stop the pull so it resets
     say('Too early — you spooked it! 💨'); hint('Wait for the big bite…');
-    waitTimer=0; nextArriveT=2.5+Math.random()*3.0;
+    waitTimer=0; nextArriveT=arrive(2.5+Math.random()*3.0);
   }
 
   function beginBite(f){
@@ -917,10 +951,12 @@
     document.getElementById('shopCoins').textContent=S.coins;
     document.getElementById('shopInv').textContent=invUsed()+'/'+crateSize();
     document.getElementById('tabRods').classList.toggle('on', shopTab==='rods');
+    document.getElementById('tabBait').classList.toggle('on', shopTab==='bait');
     document.getElementById('tabUpg').classList.toggle('on', shopTab==='upg');
     document.getElementById('tabSpec').classList.toggle('on', shopTab==='spec');
     const el=document.getElementById('shopList'); el.innerHTML='';
     if(shopTab==='rods') renderRodsList(el);
+    else if(shopTab==='bait') renderBaitList(el);
     else if(shopTab==='upg') renderUpgradeList(el);
     else speciesRows(el);
   }
@@ -930,7 +966,9 @@
       const owned=S.owned.includes(i);
       const left=document.createElement('div'); left.style.flex='1';
       left.innerHTML='<b>🎣 '+r.name+'</b><span>'+r.desc+'</span>'+
-        '<span style="color:#8fd6ff">power ×'+r.pwr.toFixed(2)+' · reel ×'+r.reel.toFixed(2)+' · luck +'+r.luck+' · cast ×'+r.cast.toFixed(2)+'</span>'+
+        '<span style="color:#8fd6ff">cast ×'+r.cast.toFixed(2)+' · reel ×'+r.reel.toFixed(2)+' · pwr ×'+r.pwr.toFixed(2)+'</span>'+
+        '<span style="color:'+(r.lure>=1.4?'#7dffa8':r.lure<1?'#ff9d76':'#bfe0ff')+'">lure speed ×'+r.lure.toFixed(2)+'</span>'+
+        '<span style="color:'+(r.luck>=5?'#c07dff':'#bfe0ff')+'">luck +'+r.luck+'</span>'+
         '<span style="color:#ffd85e">cost: '+(r.cost===0?'free':'🪙 '+r.cost)+'</span>';
       row.appendChild(left);
       if(i===S.rod){
@@ -949,6 +987,50 @@
     });
     const note=document.createElement('p'); note.style.cssText='font-size:11px;opacity:.6;margin-top:8px';
     note.textContent='Buy rods in any order. Tap EQUIP on any rod you own to switch to it.';
+    el.appendChild(note);
+  }
+  function renderBaitList(el){
+    const cur=equippedBait();
+    const eq=document.createElement('div'); eq.style.cssText='font-size:12px;opacity:.85;margin:2px 0 6px';
+    const bare = cur<0;
+    eq.innerHTML='On the hook: <b style="color:'+(bare?'#ff9d76':'#7dffa8')+'">'+
+      (bare ? 'no bait — plain hook' : BAITS[cur].name+' ('+baitCharges(cur)+' casts left)')+'</b>';
+    el.appendChild(eq);
+    BAITS.forEach((b,i)=>{
+      const ch=baitCharges(i);
+      const row=document.createElement('div'); row.className='shoprow';
+      const sw=document.createElement('div'); sw.className='baitsw'; sw.style.background=b.col; row.appendChild(sw);
+      const left=document.createElement('div'); left.style.flex='1';
+      left.innerHTML='<b>'+b.name+'</b><span>'+b.desc+'</span>'+
+        '<span style="color:'+(b.lure>0?'#7dffa8':b.lure<0?'#ff9d76':'#bfe0ff')+'">lure speed '+(b.lure>0?'+':'')+b.lure.toFixed(2)+'</span>'+
+        '<span style="color:'+(b.luck>0?'#c07dff':'#bfe0ff')+'">luck +'+b.luck+'</span>'+
+        '<span style="color:#ffd85e">🪙 '+b.cost+' for '+b.pack+' casts'+(ch>0?' · have '+ch:'')+'</span>';
+      row.appendChild(left);
+      const btns=document.createElement('div'); btns.style.cssText='display:flex;flex-direction:column;gap:6px';
+      const buy=document.createElement('button'); buy.className='buy'; buy.textContent='BUY 🪙'+b.cost;
+      buy.disabled=S.coins<b.cost;
+      buy.onclick=()=>{ if(S.coins>=b.cost){ S.coins-=b.cost; S.baits[i]=baitCharges(i)+b.pack; S.bait=i; save(); updateHUD(); renderShop(); say('Bought '+b.name+' — on the hook! 🪱'); } };
+      btns.appendChild(buy);
+      if(ch>0){
+        if(i===cur){
+          const o=document.createElement('div'); o.className='owned'; o.textContent='ON HOOK'; btns.appendChild(o);
+        } else {
+          const eqb=document.createElement('button'); eqb.className='buy'; eqb.textContent='EQUIP';
+          eqb.style.background='linear-gradient(180deg,#9ff5c0,#41c97a)'; eqb.style.boxShadow='0 4px 0 #1f7d49'; eqb.style.color='#03210f';
+          eqb.onclick=()=>{ S.bait=i; save(); updateHUD(); renderShop(); say('Bait switched to '+b.name+'!'); };
+          btns.appendChild(eqb);
+        }
+      }
+      row.appendChild(btns);
+      el.appendChild(row);
+    });
+    if(cur>=0){
+      const off=document.createElement('button'); off.className='btn sell sellall'; off.textContent='Take bait off the hook';
+      off.onclick=()=>{ S.bait=-1; save(); updateHUD(); renderShop(); say('Bait off — plain hook.'); };
+      el.appendChild(off);
+    }
+    const note=document.createElement('p'); note.style.cssText='font-size:11px;opacity:.6;margin-top:8px';
+    note.textContent='Each cast burns 1 cast of whatever\'s on the hook. A pack gives '+BAITS[0].pack+' casts. Baits stack on top of your rod\'s lure speed and luck.';
     el.appendChild(note);
   }
   function renderUpgradeList(el){
@@ -1055,6 +1137,14 @@
     document.getElementById('coin').innerHTML='🪙 '+S.coins+'<small>COINS</small>';
     document.getElementById('shopChip').innerHTML='🛒 SHOP<small>🎣 '+RODS[S.rod].name+'</small>';
     document.getElementById('invChip').innerHTML='🎒 '+invUsed()+'/'+crateSize()+'<small>TAP: CRATE</small>';
+    const bi=equippedBait();
+    const bc=document.getElementById('baitChip');
+    if(bc){
+      bc.innerHTML = bi>=0
+        ? '🪱 '+BAITS[bi].name+'<small>BAIT ×'+baitCharges(bi)+'</small>'
+        : '🪱 NO BAIT<small>TAP: BAIT</small>';
+      bc.style.borderColor = bi>=0 ? 'rgba(125,255,168,.55)' : 'rgba(255,157,118,.55)';
+    }
   }
 
   // ---------- update ----------
@@ -1122,7 +1212,7 @@
       bob.hookY += (bob.ty - bob.hookY)*2.0*dt;
       if(lure){ lure.x=bob.tx; lure.y=bob.hookY; }
       waitTimer += dt;
-      if(lure && waitTimer>=nextArriveT){ recruitFish(); nextArriveT = waitTimer + 2.5 + Math.random()*3.0; }
+      if(lure && waitTimer>=nextArriveT){ recruitFish(); nextArriveT = waitTimer + arrive(2.5 + Math.random()*3.0); }
       manageNibbles(dt);
     }
 
@@ -1563,11 +1653,29 @@
     const hx=bob.tx; let hy=bob.hookY;
     if(S.state==='waiting' && nibblePhase==='dip') hy += Math.sin(t*22)*3;
     if(S.state==='bite') hy += Math.sin(t*40)*4;
+    const bd=baitDef();
+    if(!bd){
+      // bare hook — just the hook itself
+      ctx.save();
+      ctx.strokeStyle='#eef6ff'; ctx.lineWidth=2; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(hx,hy-9); ctx.lineTo(hx,hy+1);
+      ctx.arc(hx+3,hy+1,3,Math.PI,0,true); ctx.stroke();
+      ctx.restore();
+      return;
+    }
     ctx.save();
-    ctx.fillStyle='#ffcf6b'; ctx.beginPath(); ctx.arc(hx,hy,4.5,0,7); ctx.fill();   // bait
+    // bait blob in the bait's colour, with a highlight + tiny wiggle
+    const cr=6.0 + (bd.luck>=5?1.6:0);
+    const wig=Math.sin(t*7)*0.9;
+    ctx.fillStyle=bd.col; ctx.beginPath(); ctx.ellipse(hx,hy+wig,cr,cr*0.8,0.3,0,7); ctx.fill();
+    ctx.fillStyle='rgba(255,255,255,.55)'; ctx.beginPath(); ctx.arc(hx-cr*0.3,hy-2+wig,cr*0.28,0,7); ctx.fill();
+    if(bd.luck>=3){ // oily shimmer for the smelly baits
+      ctx.globalAlpha=.5; ctx.strokeStyle=bd.col; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.arc(hx,hy+wig,cr+3,0,7); ctx.stroke(); ctx.globalAlpha=1;
+    }
     ctx.strokeStyle='#eef6ff'; ctx.lineWidth=2; ctx.lineCap='round';
-    ctx.beginPath(); ctx.moveTo(hx,hy-9); ctx.lineTo(hx,hy+1);
-    ctx.arc(hx+3,hy+1,3,Math.PI,0,true); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(hx,hy-10); ctx.lineTo(hx,hy-1);
+    ctx.arc(hx+3,hy-1,3,Math.PI,0,true); ctx.stroke();
     ctx.restore();
   }
 
