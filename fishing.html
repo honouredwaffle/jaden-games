@@ -49,7 +49,8 @@
   .capbar { height:10px; border-radius:6px; background:rgba(0,0,0,.45); overflow:hidden; margin:6px 0 2px; }
   .capbar > div { height:100%; background:linear-gradient(90deg,#39d98a,#ffd85e); }
   .shoprow { display:flex; align-items:center; justify-content:space-between; gap:10px; background:rgba(255,255,255,.05); border:1px solid rgba(120,210,255,.25); border-radius:12px; padding:10px 12px; margin:7px 0; text-align:left; }
-  .shoprow b { font-size:14px; color:#eaf6ff; }
+  .shoprow .pic { flex:0 0 56px; width:56px; height:38px; border-radius:9px; background:radial-gradient(circle at 50% 45%, rgba(60,150,220,.30), rgba(3,15,28,.15) 72%); border:1px solid rgba(120,210,255,.22); }
+  .shoprow .info { flex:1; min-width:0; }
   .shoprow span { display:block; font-size:11px; opacity:.7; }
   .shoprow .buy { background:linear-gradient(180deg,#ffe07a,#ffb528); color:#3a2400; box-shadow:0 4px 0 #a86f00; border:none; border-radius:9px; padding:8px 12px; font-weight:bold; font-size:13px; cursor:pointer; white-space:nowrap; }
   .shoprow .buy:disabled { filter:grayscale(1); opacity:.5; box-shadow:0 4px 0 #555; cursor:default; }
@@ -982,8 +983,20 @@
     FISH.forEach(f=>{
       const c=S.caught[f.n]; const row=document.createElement('div'); row.className='shoprow';
       const rc=RARITY[f.r].color;
-      row.innerHTML=`<div style="flex:1"><b style="color:${c?rc:'#5f7f96'}">${c?'':'??? · '}${f.n}</b>
-        <span style="color:${rc}">${RARITY[f.r].name}${c?' · best '+c.kg.toFixed(2)+'kg':''}</span></div>`;
+      // small portrait — dimmed silhouette until you've landed one
+      const pic=document.createElement('canvas'); pic.className='pic'; pic.width=112; pic.height=76;
+      paintFish(pic, f.n, 56, 38, 2);
+      if(!c){
+        const g=pic.getContext('2d');
+        g.globalCompositeOperation='source-atop';
+        g.fillStyle='rgba(2,16,28,.82)'; g.fillRect(0,0,pic.width,pic.height);
+        g.globalCompositeOperation='source-over';
+      }
+      row.appendChild(pic);
+      const info=document.createElement('div'); info.className='info';
+      info.innerHTML=`<b style="color:${c?rc:'#7f9db5'}">${f.n}</b>
+        <span style="color:${rc}">${RARITY[f.r].name}${c?' · best '+c.kg.toFixed(2)+'kg':' · not caught yet'}</span>`;
+      row.appendChild(info);
       el.appendChild(row);
     });
   }
