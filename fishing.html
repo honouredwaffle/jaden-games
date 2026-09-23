@@ -172,7 +172,7 @@
     } }catch(e){} }
 
   // ---------- world ----------
-  const bob = { x:0,y:0,tx:0,ty:0,flying:false,t:0,land:0.45,sx:0,sy:0 };
+  const bob = { tx:0, ty:0, flying:false, t:0, land:0.45, sx:0, sy:0, boing:0, boingV:0, hookY:0 };
   let castPower=0, powerDir=1, biteWindow=0;
   let hooked=null, reel=null;
   let shakeT=0, splashT=0, splashX=0, splashY=0, lure=null;
@@ -278,8 +278,10 @@
     const maxDist=(W*0.66)*RODS[S.rod].cast;
     const dist=W*0.08 + power*maxDist;
     bob.sx=tip.x; bob.sy=tip.y;
-    bob.tx=Math.min(W-26, rod.x + dist);
-    bob.ty=fishZoneTop() + 10 + power*(fishZoneBot()-fishZoneTop()-20);
+    bob.tx=Math.min(W-26, rod.x + dist);           // where the float lands (stays put on the surface)
+    bob.ty=fishZoneTop() + 10 + power*(fishZoneBot()-fishZoneTop()-20);  // how deep the hook ends up
+    bob.hookY=waterY + 12;                          // hook starts near the surface, then sinks
+    bob.boing=0; bob.boingV=0;
     bob.flying=true; bob.t=0; bob.land=0.5+power*0.3;
     S.state='cast'; lure=null;
     say('Casting…'); hint('');
@@ -287,13 +289,14 @@
 
   function beginWait(){
     S.state='waiting';
-    lure={x:bob.tx, y:bob.ty};
-    rippleAt(bob.tx, waterY);
+    lure={x:bob.tx, y:bob.hookY};
+    bob.hookY = waterY + 12;                        // reset sink
+    bob.boing = 11; bob.boingV = 0;                 // splash boing on the float
     // nothing comes straight away — you have to wait a while
     waitTimer=0;
     nextArriveT = 3.0 + Math.random()*3.5;   // first fish shows up in ~3-6.5s
     nibbler=null; nibbleCount=0; nibblePhase='idle'; nibbleTimer=0;
-    hint('Let the bait settle… watch the water.');
+    hint('The bait sinks… watch the water.');
     say('');
   }
 
@@ -382,7 +385,7 @@
     reel = {
       prog:0.12, tension:0.10, holding:false,
       fight:FIGHT[f.r], rodReel:RODS[S.rod].reel, elapsed:0,
-      fx: bob.tx, fy: bob.ty, startY: bob.ty,
+      fx: bob.tx, fy: bob.hookY, startY: bob.hookY,
       fvx: (Math.random()<.5?-1:1)*(130+Math.random()*90)*strength,
       fvy: (Math.random()<.5?-1:1)*(130+Math.random()*90)*strength,
       thrashT: 0
@@ -499,6 +502,10 @@
       powerFill.style.width=castPower+'%';
     }
     if(bob.flying){ bob.t+=dt/bob.land; if(bob.t>=1){ bob.t=1; bob.flying=false; beginWait(); } }
+    // float boing physics — a little spring wobble on the surface
+    bob.boingV += (-bob.boing*95 - bob.boingV*6.5)*dt;
+    bob.boing += bob.boingV*dt;
+    if(bob.boing>14) bob.boing=14; if(bob.boing<-9) bob.boing=-9;
     if(shakeT>0) shakeT=Math.max(0,shakeT-dt);
     if(splashT>0) splashT=Math.max(0,splashT-dt);
 
@@ -546,8 +553,11 @@
       else f.dir = f.vx>=0?1:-1;
     }
 
-    // ---- waiting: recruit fish over time, run the nibble cycle ----
+    // ---- waiting: hook sinks, recruit fish over time, run the nibble cycle ----
     if(S.state==='waiting'){
+      // the hook slowly sinks to its depth on its own line
+      bob.hookY += (bob.ty - bob.hookY)*2.0*dt;
+      if(lure){ lure.x=bob.tx; lure.y=bob.hookY; }
       waitTimer += dt;
       if(lure && waitTimer>=nextArriveT){ recruitFish(); nextArriveT = waitTimer + 2.5 + Math.random()*3.0; }
       manageNibbles(dt);
@@ -857,7 +867,7 @@
     if(bob.flying){ const e=bob.t, ease=e*e*(3-2*e);
       return { x: bob.sx+(bob.tx-bob.sx)*ease,
                y: bob.sy+(waterY-bob.sy)*ease - Math.sin(e*Math.PI)*H*0.16 }; }
-    let y = waterY + Math.sin(t*1.6)*2.5;
+    let y = waterY + bob.boing + Math.sin(t*1.6)*2.0;
     if(S.state==='waiting' && nibblePhase==='dip' && nibbler){
       y += 4 + Math.sin(t*22)*2;
       if(Math.random()<0.35) rippleAt(bob.tx, waterY);
@@ -879,7 +889,7 @@
   // float → hook (or → fish while reeling), with a little sag
   function drawLeader(t){
     const p=bobberPos(t);
-    let ex=bob.tx, ey=bob.ty;
+    let ex=bob.tx, ey=bob.hookY;
     if(S.state==='reeling'&&reel){ ex=reel.fx; ey=reel.fy; }
     ctx.save(); ctx.strokeStyle='rgba(220,240,255,.45)'; ctx.lineWidth=1;
     ctx.beginPath(); ctx.moveTo(p.x,p.y);
@@ -889,7 +899,7 @@
 
   // hook + bait, hanging underwater below the float
   function drawBait(t){
-    const hx=bob.tx; let hy=bob.ty;
+    const hx=bob.tx; let hy=bob.hookY;
     if(S.state==='waiting' && nibblePhase==='dip') hy += Math.sin(t*22)*3;
     if(S.state==='bite') hy += Math.sin(t*40)*4;
     ctx.save();
