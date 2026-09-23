@@ -359,9 +359,16 @@
       const row=document.createElement('div'); row.className='shoprow';
       row.innerHTML=`<div style="flex:1"><b>🎣 ${r.name}</b><span>${r.desc}</span><span style="color:#8fd6ff">reel ×${r.reel.toFixed(2)} · luck +${r.luck}</span></div>`;
       const owned=i<=S.rod, locked=i>S.rod+1;
-      if(owned){ const o=document.createElement('div'); o.className='owned'; o.textContent=i===S.rod?'EQUIPPED':'OWNED'; row.appendChild(o); }
-      else if(locked){ const o=document.createElement('div'); o.className='owned'; o.style.color='#ff9d9d'; o.textContent='🔒'; row.appendChild(o); }
-      else {
+      if(i===S.rod){
+        const o=document.createElement('div'); o.className='owned'; o.textContent='EQUIPPED'; row.appendChild(o);
+      } else if(owned){
+        const b=document.createElement('button'); b.className='buy'; b.textContent='EQUIP';
+        b.style.background='linear-gradient(180deg,#9ff5c0,#41c97a)'; b.style.boxShadow='0 4px 0 #1f7d49'; b.style.color='#03210f';
+        b.onclick=()=>{ S.rod=i; save(); updateHUD(); renderShop(); say('Equipped '+r.name+'!'); };
+        row.appendChild(b);
+      } else if(locked){
+        const o=document.createElement('div'); o.className='owned'; o.style.color='#ff9d9d'; o.textContent='🔒'; row.appendChild(o);
+      } else {
         const b=document.createElement('button'); b.className='buy'; b.textContent='🪙 '+r.cost; b.disabled=S.coins<r.cost;
         b.onclick=()=>{ if(S.coins>=r.cost){ S.coins-=r.cost; S.rod=i; save(); updateHUD(); renderShop(); say('Equipped '+r.name+'!'); } };
         row.appendChild(b);
@@ -369,7 +376,7 @@
       el.appendChild(row);
     });
     const note=document.createElement('p'); note.style.cssText='font-size:11px;opacity:.6;margin-top:8px';
-    note.textContent='Each rod reels at a different speed and shifts the odds — better rods pull fish in faster AND find rarer fish.';
+    note.textContent='Tap EQUIP on any rod you own to switch back to it. Each rod reels at a different speed and shifts the odds toward rarer fish.';
     el.appendChild(note);
   }
 
