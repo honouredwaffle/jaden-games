@@ -14,14 +14,14 @@
   .chip { background:rgba(3,20,36,.72); border:1px solid rgba(120,210,255,.35); border-radius:12px; padding:7px 12px; font-size:15px; font-weight:bold; backdrop-filter:blur(4px); }
   .chip small { display:block; font-size:10px; font-weight:normal; opacity:.65; letter-spacing:.5px; }
   #coin { color:#ffd85e; }
-  #msg { top:78px; left:0; right:0; text-align:center; font-size:16px; font-weight:bold; min-height:22px; letter-spacing:.4px; }
-  #hint { bottom:14px; left:0; right:0; text-align:center; font-size:14px; opacity:.85; }
+  #msg { top:74px; left:0; right:0; text-align:center; font-size:16px; font-weight:bold; min-height:22px; letter-spacing:.4px; }
+  #hint { bottom:14px; left:0; right:0; text-align:center; font-size:14px; opacity:.85; padding:0 16px; }
   #powerWrap { position:absolute; left:0; right:0; bottom:52px; display:flex; justify-content:center; pointer-events:none; }
   #powerBar { width:min(70%,340px); height:16px; border:2px solid rgba(180,235,255,.7); border-radius:10px; overflow:hidden; background:rgba(0,0,0,.4); display:none; }
-  #powerFill { height:100%; width:0%; background:linear-gradient(90deg,#39d98a,#ffd85e,#ff5f6d); transition:width .03s linear; }
+  #powerFill { height:100%; width:0%; background:linear-gradient(90deg,#39d98a,#ffd85e,#ff5f6d); }
   .panel { position:absolute; inset:0; background:rgba(3,12,22,.93); display:none; flex-direction:column; align-items:center; justify-content:center; padding:20px; }
   .panel.show { display:flex; }
-  .card { background:linear-gradient(160deg,#0d2c47,#08202f); border:2px solid #3fa9f5; border-radius:18px; padding:20px 22px; max-width:380px; width:100%; text-align:center; box-shadow:0 18px 60px rgba(0,0,0,.6); }
+  .card { background:linear-gradient(160deg,#0d2c47,#08202f); border:2px solid #3fa9f5; border-radius:18px; padding:20px 22px; max-width:400px; width:100%; text-align:center; box-shadow:0 18px 60px rgba(0,0,0,.6); }
   .card h2 { font-size:24px; color:#ffd85e; margin-bottom:6px; }
   .card p { font-size:15px; color:#cfe9ff; line-height:1.5; margin:6px 0; }
   .rar { display:inline-block; padding:3px 10px; border-radius:20px; font-size:12px; font-weight:bold; margin:6px 0; }
@@ -34,11 +34,15 @@
   .shoprow .buy { background:linear-gradient(180deg,#ffe07a,#ffb528); color:#3a2400; box-shadow:0 4px 0 #a86f00; border:none; border-radius:9px; padding:8px 12px; font-weight:bold; font-size:13px; cursor:pointer; white-space:nowrap; }
   .shoprow .buy:disabled { filter:grayscale(1); opacity:.5; box-shadow:0 4px 0 #555; cursor:default; }
   .owned { font-size:12px; color:#7dffa8; font-weight:bold; }
-  #rarityPop { position:absolute; top:40%; left:0; right:0; text-align:center; font-size:34px; font-weight:bold; opacity:0; pointer-events:none; transition:opacity .25s; }
+  #rarityPop { position:absolute; top:38%; left:0; right:0; text-align:center; font-size:34px; font-weight:bold; opacity:0; pointer-events:none; transition:opacity .25s; }
   #rarityPop.show { opacity:1; animation:pop .5s; }
   @keyframes pop { 0%{transform:scale(.4)} 60%{transform:scale(1.15)} 100%{transform:scale(1)} }
   .scroll { max-height:52vh; overflow-y:auto; width:100%; padding-right:4px; }
   .scroll::-webkit-scrollbar { width:6px; } .scroll::-webkit-scrollbar-thumb { background:#3fa9f5; border-radius:3px; }
+  .step { display:flex; gap:10px; align-items:flex-start; text-align:left; margin:9px 0; }
+  .step .num { flex:0 0 26px; height:26px; border-radius:50%; background:#3fa9f5; color:#03202f; font-weight:bold; display:flex; align-items:center; justify-content:center; font-size:14px; }
+  .step .txt { font-size:14px; color:#dcefff; line-height:1.4; }
+  .step .txt b { color:#ffd85e; }
 </style>
 </head>
 <body>
@@ -47,11 +51,11 @@
 
   <div class="hud" id="topbar">
     <div class="chip" id="coin">🪙 0<small>COINS</small></div>
-    <div class="chip" id="rodChip">🎣 Basic Rod<small>ROD</small></div>
-    <div class="chip" id="recChip">0 / 12<small>SPECIES</small></div>
+    <div class="chip" id="rodChip">🎣 Basic Rod<small>TAP: SHOP</small></div>
+    <div class="chip" id="recChip">0 / 12<small>TAP: RECORDS</small></div>
   </div>
   <div class="hud" id="msg"></div>
-  <div class="hud" id="hint">Tap & hold to charge your cast</div>
+  <div class="hud" id="hint">Hold to charge your cast, release to cast</div>
   <div id="powerWrap"><div id="powerBar"><div id="powerFill"></div></div></div>
   <div id="rarityPop"></div>
 
@@ -84,31 +88,44 @@
       <button class="btn" id="recClose">Close</button>
     </div>
   </div>
+
+  <!-- TUTORIAL PANEL -->
+  <div class="panel" id="howPanel">
+    <div class="card">
+      <h2>🎣 How To Fish</h2>
+      <div class="step"><div class="num">1</div><div class="txt"><b>Cast:</b> hold the screen to charge, release to cast. Land it near a fish you can see in the water.</div></div>
+      <div class="step"><div class="num">2</div><div class="txt"><b>Wait:</b> a nearby fish will swim over. When the bobber yanks under — that's a <b>BITE!</b></div></div>
+      <div class="step"><div class="num">3</div><div class="txt"><b>Hook:</b> tap fast to set the hook. Don't miss the window.</div></div>
+      <div class="step"><div class="num">4</div><div class="txt"><b>Reel:</b> hold to reel in. The <b>tension bar</b> rises — let go before it goes red or the line snaps. Keep the fish marker green!</div></div>
+      <button class="btn" id="howClose">Got it — let me fish 🔥</button>
+    </div>
+  </div>
 </div>
 
 <script>
 (() => {
   const cv = document.getElementById('c'), ctx = cv.getContext('2d');
-  let W=0,H=0,DPR=1;
+  let W=0,H=0,DPR=1,horizon=0;
   function resize(){
     DPR = Math.min(window.devicePixelRatio||1, 2);
     W = window.innerWidth; H = window.innerHeight;
     cv.width = W*DPR; cv.height = H*DPR;
     ctx.setTransform(DPR,0,0,DPR,0,0);
     horizon = H*0.34;
+    rod.x = W*0.18; rod.y = horizon + 6;
+    clampFish();
   }
   window.addEventListener('resize', resize);
 
-  // ---------- STATE ----------
+  // ---------- DATA ----------
   const RARITY = {
-    common:   {name:'Common',    color:'#9fd6ff', mult:1.0, weight:52},
-    uncommon: {name:'Uncommon',  color:'#6dff9b', mult:1.8, weight:26},
-    rare:     {name:'Rare',      color:'#4fa8ff', mult:3.2, weight:14},
-    epic:     {name:'Epic',      color:'#c07dff', mult:6.0, weight:6},
-    cursed:   {name:'CURSED',    color:'#ff4d6d', mult:14.0, weight:2}
+    common:   {name:'Common',    color:'#9fd6ff', mult:1.0, weight:52, rs:14},
+    uncommon: {name:'Uncommon',  color:'#6dff9b', mult:1.8, weight:26, rs:15},
+    rare:     {name:'Rare',      color:'#4fa8ff', mult:3.2, weight:14, rs:17},
+    epic:     {name:'Epic',      color:'#c07dff', mult:6.0, weight:6,  rs:21},
+    cursed:   {name:'CURSED',    color:'#ff4d6d', mult:14.0,weight:2,  rs:24}
   };
   const FISH = [
-    // name, rarity, minKg, maxKg, base, quote
     {n:'Sardine',        r:'common',   a:0.05,b:0.25, q:'Small, silver, everywhere.'},
     {n:'Bream',          r:'common',   a:0.3, b:1.1,  q:'A reliable little fighter.'},
     {n:'Flathead',       r:'common',   a:0.5, b:2.0,  q:'Lies in the sand, waits for you.'},
@@ -123,20 +140,24 @@
     {n:'Cursed King',    r:'cursed',   a:60.0,b:400.0,q:'Something ancient took the hook. It took the boat too.'}
   ];
   const RODS = [
-    {name:'Basic Rod',    cost:0,    cast:1.0, reel:1.0, luck:0,    desc:'It is a stick with string.'},
-    {name:'Estuary Rig',  cost:120,  cast:1.18,reel:1.12,luck:1,   desc:'+cast, +reel, better fish.'},
-    {name:'Carbon Spinner',cost:420, cast:1.38,reel:1.28,luck:2,   desc:'Fast, light, mean.'},
-    {name:'Deep Caster',  cost:1100, cast:1.6, reel:1.45,luck:4,   desc:'Reaches the deep water.'},
-    {name:'Cursed Rod',   cost:3000, cast:1.8, reel:1.7, luck:8,   desc:'It hums. You should not have held it.'}
+    {name:'Basic Rod',     cost:0,    cast:1.0, reel:1.0, luck:0, desc:'It is a stick with string.'},
+    {name:'Estuary Rig',   cost:120,  cast:1.18,reel:1.12,luck:1, desc:'+cast, +reel, better fish.'},
+    {name:'Carbon Spinner',cost:420,  cast:1.38,reel:1.28,luck:2, desc:'Fast, light, mean.'},
+    {name:'Deep Caster',   cost:1100, cast:1.6, reel:1.45,luck:4, desc:'Reaches the deep water.'},
+    {name:'Cursed Rod',    cost:3000, cast:1.8, reel:1.7, luck:8, desc:'It hums. You should not have held it.'}
   ];
-  const BUSTED = {  // cast beyond the boat's safe reach => lose the fish
+  const FIGHT = {  // tension climb per second while holding, and reel speed
+    common:  {tension:0.30, reel:0.34},
+    uncommon:{tension:0.40, reel:0.32},
+    rare:    {tension:0.55, reel:0.29},
+    epic:    {tension:0.72, reel:0.26},
+    cursed:  {tension:0.95, reel:0.22}
   };
 
-  const S = {
-    coins: 0, rod: 0, caught: {}, total: 0,
-    state: 'idle'     // idle | charging | cast | waiting | bite | reeling | done
-  };
-  const RIPPLE = { };
+  const S = { coins:0, rod:0, caught:{}, total:0, state:'idle' };
+  let fishes = [], nextId = 1;
+  const RIPPLE = {}; let rippleId=0;
+  const FLOATERS = {}; let floatId=0;   // little score popups
 
   // ---------- persistence ----------
   function save(){
@@ -149,61 +170,99 @@
     }catch(e){}
   }
 
-  // ---------- fishing line / bobber ----------
-  let horizon = H*0.34;
-  const rod = { x:0, y:0 };              // rod tip anchor (set in layout)
-  const bob = { x:0, y:0, tx:0, ty:0, flying:false, t:0, sx:0, sy:0, land:0 };
+  // ---------- world ----------
+  const rod = { x:0, y:0 };
+  const bob = { x:0, y:0, tx:0, ty:0, flying:false, t:0, land:0.45, sx:0, sy:0 };
   let castPower = 0, powerDir = 1;
   let biteTimer = 0, biteWindow = 0;
-  let reel = null;   // {fish, prog, pos, vel, zone, zoneVel, zoneMin, zoneMax, difficulty}
-  let shakeT = 0;
+  let hooked = null;                 // fish currently on the line
+  let reel = null;                   // {prog, tension, holding}
+  let shakeT = 0, splashT = 0, splashX=0, splashY=0;
+  let lure = null;                   // {x,y} where the line is waiting
 
+  function clampFish(){
+    fishes.forEach(f=>{
+      f.x = Math.max(20, Math.min(W-20, f.x));
+      f.y = Math.max(horizon+42, Math.min(H-30, f.y));
+    });
+  }
+
+  function rollFishDef(){
+    const luck = RODS[S.rod].luck;
+    const w = {};
+    for(const k in RARITY) w[k]=RARITY[k].weight;
+    w.rare += luck*2.2; w.epic += luck*1.1; w.cursed += luck*0.35;
+    w.common = Math.max(6, w.common - luck*2.5);
+    let tot=0; for(const k in w) tot+=w[k];
+    let r=Math.random()*tot, pick='common';
+    for(const k in w){ r-=w[k]; if(r<=0){pick=k;break;} }
+    const pool = FISH.filter(f=>f.r===pick);
+    const def = pool[Math.floor(Math.random()*pool.length)];
+    const t = Math.random();
+    const kg = def.a + t*(def.b-def.a);
+    const value = Math.round(kg * 9 * RARITY[def.r].mult * (12+Math.random()*10) / 9);
+    const size = RARITY[def.r].rs + t*8;
+    return {n:def.n, r:def.r, kg, value, quote:def.q, size};
+  }
+
+  function spawnFish(at){
+    const def = rollFishDef();
+    const depth = Math.random();
+    const y = horizon + 48 + depth*(H-horizon-90);
+    const x = at!=null ? at : (40 + Math.random()*(W-80));
+    const spd = (34 - def.size*0.5) + Math.random()*18;
+    fishes.push({
+      id: nextId++, ...def,
+      x, y, home:y,
+      vx: (Math.random()<.5?-1:1)*spd,
+      vy: 0, dir: 1,
+      speed: spd,
+      phase: Math.random()*6.28,
+      target: null,        // lure it's swimming to
+      tail: 0
+    });
+  }
+
+  function fillWater(){
+    while(fishes.length < 13) spawnFish();
+  }
+
+  // ---------- ui ----------
   const msgEl = document.getElementById('msg');
   const hintEl = document.getElementById('hint');
   const powerBar = document.getElementById('powerBar');
   const powerFill = document.getElementById('powerFill');
-
   function say(t){ msgEl.textContent = t; }
   function hint(t){ hintEl.textContent = t; }
 
-  function layout(){
-    rod.x = W*0.18; rod.y = horizon + 6;
-    horizon = H*0.34;
-    rod.y = horizon + 6;
-  }
-
   // ---------- input ----------
-  const wrap = document.getElementById('wrap');
-  function pointerDown(e){
-    if(S.state!=='idle' && S.state!=='waiting') return;
-    if(S.state==='waiting'){ // early hook = fail
-      if(biteWindow>0){ hookSuccess(); } else { say('Too early! The line went slack…'); resetToIdle(); }
-      return;
-    }
-    S.state='charging'; castPower=0; powerDir=1; powerBar.style.display='block';
-    hint('Release to cast!');
+  function pointerDown(){
+    if(S.state==='idle'){ S.state='charging'; castPower=0; powerDir=1; powerBar.style.display='block'; hint('Release to cast!'); return; }
+    if(S.state==='bite'){ hookIt(); return; }
+    if(S.state==='reeling' && reel){ reel.holding = true; return; }
+    // waiting / casting -> harmless
   }
-  function pointerUp(e){
-    if(S.state==='charging'){
-      powerBar.style.display='none';
-      doCast(castPower);
-    }
-    if(S.state==='reeling'){ reel.holding = false; }
+  function pointerUp(){
+    if(S.state==='charging'){ powerBar.style.display='none'; doCast(castPower); return; }
+    if(S.state==='reeling' && reel){ reel.holding = false; }
   }
-  cv.addEventListener('pointerdown', e=>{ e.preventDefault(); pointerDown(e); });
-  window.addEventListener('pointerup', e=>{ pointerUp(e); });
-  window.addEventListener('pointercancel', ()=>{ if(S.state==='reeling'&&reel) reel.holding=false; });
+  cv.addEventListener('pointerdown', e=>{ e.preventDefault(); pointerDown(); });
+  window.addEventListener('pointerup', ()=>{ pointerUp(); });
+  window.addEventListener('pointercancel', ()=>{ if(reel) reel.holding=false; });
   window.addEventListener('keydown', e=>{ if(e.code==='Space'&&!e.repeat){ e.preventDefault(); pointerDown(); } });
   window.addEventListener('keyup', e=>{ if(e.code==='Space'){ e.preventDefault(); pointerUp(); } });
-  // hold tracking for reeling
-  window.addEventListener('pointerdown', ()=>{ if(S.state==='reeling'&&reel) reel.holding=true; });
 
-  document.getElementById('catchPanel').addEventListener('click', e=>{ if(e.target.id==='cKeep') hidePanel('catchPanel'); });
-  document.getElementById('shopClose').addEventListener('click', ()=>hidePanel('shopPanel'));
-  document.getElementById('recClose').addEventListener('click', ()=>hidePanel('recPanel'));
-
+  // panels
   function showPanel(id){ document.getElementById(id).classList.add('show'); }
   function hidePanel(id){ document.getElementById(id).classList.remove('show'); }
+  document.getElementById('cKeep').addEventListener('click', ()=>{ hidePanel('catchPanel'); resetToIdle(); });
+  document.getElementById('shopClose').addEventListener('click', ()=>hidePanel('shopPanel'));
+  document.getElementById('recClose').addEventListener('click', ()=>hidePanel('recPanel'));
+  document.getElementById('howClose').addEventListener('click', ()=>{ hidePanel('howPanel'); try{localStorage.setItem('deepcast_tut','1');}catch(e){} resetToIdle(); });
+  document.getElementById('recChip').style.pointerEvents='auto';
+  document.getElementById('recChip').addEventListener('click', openRecords);
+  document.getElementById('rodChip').style.pointerEvents='auto';
+  document.getElementById('rodChip').addEventListener('click', openShop);
 
   // ---------- mechanics ----------
   function doCast(p){
@@ -212,88 +271,66 @@
     const dist = (W*0.16) + power*maxDist;
     bob.sx = rod.x; bob.sy = rod.y - 8;
     bob.tx = Math.min(W-24, rod.x + dist);
-    bob.ty = horizon + 20 + Math.random()*30 + power*(H*0.22);
-    bob.flying = true; bob.t=0; bob.land=0.45 + power*0.35;
+    bob.ty = horizon + 30 + power*(H*0.30);
+    bob.flying = true; bob.t=0; bob.land = 0.45 + power*0.3;
     S.state='cast';
+    lure = null;
     say('Casting…'); hint('');
   }
 
   function beginWait(){
     S.state='waiting';
-    // luck + rod increases rare odds handled at catch time; wait time here
-    const base = 1.3 + Math.random()*3.2;
-    const baitBonus = (S.rod>=2?0.75:1.0);
-    biteTimer = base*baitBonus;
-    hint('Wait for the bite… (tap when you see it!)');
+    lure = { x:bob.tx, y:bob.ty };
+    rippleAt(bob.tx, bob.ty);
+    // fish near the lure get interested
+    let best=null, bestD=1e9;
+    for(const f of fishes){
+      const d = Math.hypot(f.x-bob.tx, f.y-bob.ty);
+      if(d < W*0.55 && d < bestD){ bestD=d; best=f; }
+    }
+    if(best) best.target = lure;
+    hint('Wait for a bite… watch the bobber!');
     say('');
+    biteTimer = 0; // timer starts once a fish reaches the lure
   }
 
-  function beginBite(){
+  function beginBite(f){
+    hooked = f;
+    f.target = null;
     S.state='bite';
-    biteWindow = 0.9;
-    say('❗ BITE');
-    shakeT = 0.3;
+    biteWindow = 1.5;
+    say('❗ BITE — TAP NOW!');
+    hint('TAP to set the hook!');
+    shakeT = 0.25;
+    splashAt(bob.tx, bob.ty);
   }
 
-  function hookSuccess(){
-    const fish = rollFish();
-    startReel(fish);
+  function hookIt(){
+    if(S.state!=='bite'||!hooked) return;
+    startReel(hooked);
   }
 
-  function rollFish(){
-    // weighted by rarity with rod luck shifting odds toward rare
-    const luck = RODS[S.rod].luck;
-    const weights = {};
-    for(const k in RARITY){ weights[k] = RARITY[k].weight; }
-    weights.rare   += luck*2.2;
-    weights.epic   += luck*1.1;
-    weights.cursed += luck*0.35;
-    weights.common = Math.max(6, weights.common - luck*2.5);
-    let tot=0; for(const k in weights) tot+=weights[k];
-    let r = Math.random()*tot, pick='common';
-    for(const k in weights){ r-=weights[k]; if(r<=0){ pick=k; break; } }
-    const pool = FISH.filter(f=>f.r===pick);
-    const f = pool[Math.floor(Math.random()*pool.length)];
-    const kg = f.a + Math.random()*(f.b-f.a);
-    const value = Math.round(kg * 9 * RARITY[f.r].mult * (12+Math.random()*10) / 9);
-    return { n:f.n, r:f.r, kg, value, quote:f.q };
-  }
-
-  function startReel(fish){
-    const diff = {common:0.55,uncommon:0.7,rare:0.9,epic:1.15,cursed:1.45}[fish.r];
-    const reelSpeed = RODS[S.rod].reel;
-    const baseFight = 8 / reelSpeed;            // seconds of struggle
+  function startReel(f){
+    const rodReel = RODS[S.rod].reel;
     reel = {
-      fish,
-      prog: 0.28,
-      pos: 0.5, vel: 0,
-      zone: 0.5, zoneVel: (Math.random()<.5?-1:1)*(0.45/diff),
-      zoneH: Math.max(0.16, 0.34/diff),
-      fight: baseFight,
-      elapsed: 0,
-      holding: false,
-      grace: 0
+      prog: 0.15, tension: 0.12, holding:false,
+      fight: FIGHT[f.r], rodReel, elapsed:0
     };
     S.state='reeling';
-    say('Hooked! KEEP IT IN THE ZONE');
-    hint('Hold to lift the bar · release to drop');
-    powerBar.style.display='none';
+    say('HOOKED! 🎣');
+    hint('HOLD to reel in — release before the line snaps!');
   }
 
   function finishCatch(win){
-    // record
-    const f = reel.fish;
-    const key = f.n;
-    const prev = S.caught[key];
-    const isNew = !prev;
-    const isRecord = !prev || f.kg > prev.kg;
-    if(isRecord) S.caught[key] = {kg:f.kg, value:f.value};
-    S.total++;
-    if(win){ S.coins += f.value; }
-    save();
-    reel = null; S.state='done';
-
-    if(win){
+    const f = hooked;
+    if(win && f){
+      const prev = S.caught[f.n];
+      const isNew = !prev;
+      const isRecord = !prev || f.kg > prev.kg;
+      if(isRecord) S.caught[f.n] = {kg:f.kg, value:f.value};
+      S.total++;
+      S.coins += f.value;
+      save();
       document.getElementById('cName').textContent = (isNew?'🆕 ':'') + f.n;
       const rr = document.getElementById('cRar');
       rr.textContent = RARITY[f.r].name; rr.style.background = RARITY[f.r].color+'22';
@@ -305,18 +342,18 @@
       showPanel('catchPanel');
     } else {
       say('It got away… 💨');
-      hint('Tap & hold to charge your cast');
-      setTimeout(()=>{ if(S.state==='done') resetToIdle(); }, 900);
-      S.state='done';
+      hint('Hold to charge your cast');
+      setTimeout(()=>{ if(S.state==='done') resetToIdle(); }, 1000);
     }
-    updateHUD();
-    if(win){ /* wait for panel close */ } else { /* handled above */ }
+    if(f) fishes = fishes.filter(x=>x.id!==f.id);
+    hooked = null; reel = null; S.state = win ? 'done' : 'done';
+    fillWater(); updateHUD();
   }
 
   function resetToIdle(){
-    bob.flying=false; bob.land=0;
+    bob.flying=false; bob.land=0; lure=null; reel=null; hooked=null;
     S.state='idle'; powerBar.style.display='none';
-    hint('Tap & hold to charge your cast'); say('');
+    hint('Hold to charge your cast, release to cast'); say('');
   }
 
   function popRarity(r){
@@ -328,10 +365,9 @@
     setTimeout(()=>el.classList.remove('show'), 900);
   }
 
-  // close catch panel -> idle
-  document.getElementById('catchPanel').addEventListener('transitionend', ()=>{});
-  const _hide = hidePanel;
-  hidePanel = function(id){ _hide(id); if(id==='catchPanel'){ resetToIdle(); } };
+  function rippleAt(x,y){ RIPPLE[rippleId++] = {x,y,t:0}; }
+  function splashAt(x,y){ splashT=0.45; splashX=x; splashY=y; }
+  function floatText(x,y,txt,col){ FLOATERS[floatId++] = {x,y,txt,col,t:0}; }
 
   // ---------- shop ----------
   function openShop(){ renderShop(); showPanel('shopPanel'); }
@@ -339,25 +375,23 @@
     const el = document.getElementById('shopList'); el.innerHTML='';
     RODS.forEach((r,i)=>{
       const row = document.createElement('div'); row.className='shoprow';
-      const owned = i<=S.rod;
-      const locked = i>S.rod+1;
       row.innerHTML = `<div style="flex:1"><b>🎣 ${r.name}</b><span>${r.desc}</span></div>`;
+      const owned = i<=S.rod, locked = i>S.rod+1;
       if(owned){
-        const o=document.createElement('div'); o.className='owned'; o.textContent = i===S.rod?'EQUIPPED':'OWNED'; row.appendChild(o);
+        const o=document.createElement('div'); o.className='owned';
+        o.textContent = i===S.rod?'EQUIPPED':'OWNED'; row.appendChild(o);
       } else if(locked){
         const o=document.createElement('div'); o.className='owned'; o.style.color='#ff9d9d'; o.textContent='🔒'; row.appendChild(o);
       } else {
         const b=document.createElement('button'); b.className='buy';
-        b.textContent = '🪙 '+r.cost;
-        b.disabled = S.coins < r.cost;
+        b.textContent = '🪙 '+r.cost; b.disabled = S.coins < r.cost;
         b.onclick = ()=>{ if(S.coins>=r.cost){ S.coins-=r.cost; S.rod=i; save(); updateHUD(); renderShop(); say('Equipped '+r.name+'!'); } };
         row.appendChild(b);
       }
       el.appendChild(row);
     });
-    // a little bait nudge
     const note=document.createElement('p'); note.style.cssText='font-size:11px;opacity:.6;margin-top:8px';
-    note.textContent='Better rods = longer casts, faster reels, and rarer fish.';
+    note.textContent='Better rods = longer casts, faster reels, stronger line, and rarer fish.';
     el.appendChild(note);
   }
 
@@ -375,12 +409,6 @@
     showPanel('recPanel');
   }
 
-  // records chip click
-  document.getElementById('recChip').style.pointerEvents='auto';
-  document.getElementById('recChip').addEventListener('click', openRecords);
-  document.getElementById('rodChip').style.pointerEvents='auto';
-  document.getElementById('rodChip').addEventListener('click', openShop);
-
   // ---------- HUD ----------
   function updateHUD(){
     document.getElementById('coin').innerHTML = '🪙 '+S.coins+'<small>COINS</small>';
@@ -389,64 +417,98 @@
     document.getElementById('recChip').innerHTML = uniq+' / '+FISH.length+'<small>TAP: RECORDS</small>';
   }
 
-  // ---------- update loop ----------
+  // ---------- update ----------
   let last = performance.now();
   function update(dt){
-    const now = performance.now();
-    // power charging
     if(S.state==='charging'){
       castPower += powerDir*135*dt;
       if(castPower>=100){ castPower=100; powerDir=-1; }
       if(castPower<=0){ castPower=0; powerDir=1; }
       powerFill.style.width = castPower+'%';
     }
-    // bobber flight
     if(bob.flying){
       bob.t += dt/bob.land;
-      if(bob.t>=1){ bob.t=1; bob.flying=false; rippleAt(bob.tx,bob.ty); beginWait(); }
+      if(bob.t>=1){ bob.t=1; bob.flying=false; beginWait(); }
     }
     if(shakeT>0) shakeT=Math.max(0,shakeT-dt);
+    if(splashT>0) splashT=Math.max(0,splashT-dt);
 
-    // waiting -> bite
-    if(S.state==='waiting'){
-      biteTimer -= dt;
-      if(biteTimer<=0) beginBite();
+    // ---- fish swimming ----
+    for(const f of fishes){
+      f.phase += dt*6;
+      if(f.target){
+        const dx = f.target.x-f.x, dy = f.target.y-f.y;
+        const d = Math.hypot(dx,dy)||1;
+        f.x += (dx/d)*f.speed*1.5*dt;
+        f.y += (dy/d)*f.speed*1.5*dt;
+        f.dir = dx>=0?1:-1;
+        if(d < 14){ beginBite(f); break; }
+      } else {
+        f.vx = f.vx || 0;
+        f.x += f.vx*dt;
+        f.y += Math.sin(f.phase*0.15)*6*dt;
+        // steer back toward its depth band
+        f.y += (f.home - f.y)*0.35*dt;
+        if(f.x < 24){ f.x=24; f.vx=Math.abs(f.vx); }
+        if(f.x > W-24){ f.x=W-24; f.vx=-Math.abs(f.vx); }
+        if(Math.random() < dt*0.25){ f.vx = (Math.random()<.5?-1:1)*(f.speed*0.6+Math.random()*f.speed*0.7); }
+        f.dir = f.vx>=0?1:-1;
+      }
+      if(f.y < horizon+40) f.y = horizon+40;
+      if(f.y > H-26) f.y = H-26;
     }
+
+    // ---- waiting ----
+    if(S.state==='waiting'){
+      // if the interested fish vanished, re-target
+      const anyTarget = fishes.some(f=>f.target);
+      if(!anyTarget && lure){
+        let best=null,bestD=1e9;
+        for(const f of fishes){ const d=Math.hypot(f.x-lure.x,f.y-lure.y); if(d<W*0.7 && d<bestD){bestD=d;best=f;} }
+        if(best) best.target = lure;
+      }
+      biteTimer += dt;
+      // safety: if nothing has bitten after 9s, bring the nearest fish over
+      if(biteTimer > 9 && lure && !fishes.some(f=>f.target)){
+        let best=null,bestD=1e9;
+        for(const f of fishes){ const d=Math.hypot(f.x-lure.x,f.y-lure.y); if(d<bestD){bestD=d;best=f;} }
+        if(best) best.target = lure;
+      }
+    }
+
+    // ---- bite window ----
     if(S.state==='bite'){
       biteWindow -= dt;
-      if(biteWindow<=0){ say('It spat the hook… 😤'); hint('Tap & hold to charge your cast'); S.state='done'; setTimeout(()=>{ if(S.state==='done') resetToIdle(); }, 800); shakeT=0; }
+      if(biteWindow<=0){
+        say('Too slow — it spat the hook 😤');
+        hint('Hold to charge your cast');
+        if(hooked){ hooked.target=null; }
+        hooked=null; S.state='done';
+        setTimeout(()=>{ if(S.state==='done') resetToIdle(); }, 900);
+      }
     }
 
-    // reeling
-    if(S.state==='reeling' && reel){
+    // ---- reeling ----
+    if(S.state==='reeling' && reel && hooked){
       reel.elapsed += dt;
-      // bar physics
-      const accel = reel.holding ? -1.9 : 1.35;   // hold lifts up
-      reel.vel += accel*dt;
-      reel.vel *= 0.90;
-      reel.pos += reel.vel*dt;
-      if(reel.pos<0){ reel.pos=0; reel.vel*=-0.3; }
-      if(reel.pos>1){ reel.pos=1; reel.vel*=-0.3; }
-      // zone movement
-      reel.zone += reel.zoneVel*dt;
-      if(reel.zone < reel.zoneH/2){ reel.zone=reel.zoneH/2; reel.zoneVel=Math.abs(reel.zoneVel); }
-      if(reel.zone > 1-reel.zoneH/2){ reel.zone=1-reel.zoneH/2; reel.zoneVel=-Math.abs(reel.zoneVel); }
-      // occasionally juke
-      if(Math.random()<dt*0.55){ reel.zoneVel = (Math.random()<.5?-1:1)*(0.45+Math.random()*0.5)/ {common:.55,uncommon:.7,rare:.9,epic:1.15,cursed:1.45}[reel.fish.r]; }
-      // progress
-      const inZone = Math.abs(reel.pos - reel.zone) < reel.zoneH/2;
-      if(inZone){ reel.prog += dt*(0.34/ reel.fight*8); }
-      else { reel.prog -= dt*(0.30/ reel.fight*8); reel.grace+=dt; }
+      const F = reel.fight;
+      if(reel.holding){
+        reel.tension += F.tension*dt;
+        // harder fish pull your progress back a little when you're at max tension
+        reel.prog += F.reel*reel.rodReel*dt * (reel.tension>0.9?0.35:1);
+      } else {
+        reel.tension -= 0.75*dt;
+        reel.prog -= 0.10*dt;   // slow slip
+      }
+      reel.tension = Math.max(0, reel.tension);
       reel.prog = Math.max(0, Math.min(1, reel.prog));
-      if(reel.prog>=1){ finishCatch(true); }
-      else if(reel.prog<=0){ finishCatch(false); }
+      if(reel.tension >= 1){ finishCatch(false); }
+      else if(reel.prog >= 1){ finishCatch(true); }
     }
-    // ripples
-    for(const k in RIPPLE){ RIPPLE[k].t+=dt; if(RIPPLE[k].t>1.4) delete RIPPLE[k]; }
-  }
 
-  let rippleId=0;
-  function rippleAt(x,y){ RIPPLE[rippleId++] = {x,y,t:0}; }
+    for(const k in RIPPLE){ RIPPLE[k].t+=dt; if(RIPPLE[k].t>1.4) delete RIPPLE[k]; }
+    for(const k in FLOATERS){ FLOATERS[k].t+=dt; if(FLOATERS[k].t>1.2) delete FLOATERS[k]; }
+  }
 
   // ---------- render ----------
   function draw(){
@@ -455,26 +517,28 @@
     let g = ctx.createLinearGradient(0,0,0,horizon);
     g.addColorStop(0,'#0a2540'); g.addColorStop(.6,'#15507e'); g.addColorStop(1,'#2b83b8');
     ctx.fillStyle=g; ctx.fillRect(0,0,W,horizon);
-    // sun/moon glow
+    // sun glow
     ctx.save(); ctx.globalAlpha=.5;
     const sunx = W*0.72, suny = horizon*0.42;
     const sg = ctx.createRadialGradient(sunx,suny,4,sunx,suny,H*0.28);
     sg.addColorStop(0,'rgba(255,220,140,.9)'); sg.addColorStop(1,'rgba(255,220,140,0)');
     ctx.fillStyle=sg; ctx.beginPath(); ctx.arc(sunx,suny,H*0.28,0,7); ctx.fill(); ctx.restore();
     ctx.fillStyle='#ffe9b0'; ctx.beginPath(); ctx.arc(sunx,suny,18,0,7); ctx.fill();
-
-    // far hills
+    // hills
     ctx.fillStyle='#0b2c46';
     ctx.beginPath(); ctx.moveTo(0,horizon);
     for(let x=0;x<=W;x+=40){ ctx.lineTo(x, horizon - 16 - Math.sin(x*0.01+1)*10 - Math.sin(x*0.003)*14); }
     ctx.lineTo(W,horizon); ctx.closePath(); ctx.fill();
-
     // water
     g = ctx.createLinearGradient(0,horizon,0,H);
     g.addColorStop(0,'#0e5a86'); g.addColorStop(.45,'#0a3f63'); g.addColorStop(1,'#04223a');
     ctx.fillStyle=g; ctx.fillRect(0,horizon,W,H-horizon);
+
+    // ---- FISH (under water, in front of gradient) ----
+    for(const f of fishes) drawFish(f, t);
+
     // waves
-    ctx.save(); ctx.globalAlpha=.16; ctx.strokeStyle='#bfeaff'; ctx.lineWidth=2;
+    ctx.save(); ctx.globalAlpha=.14; ctx.strokeStyle='#bfeaff'; ctx.lineWidth=2;
     for(let i=0;i<7;i++){
       const yy=horizon+18+i*((H-horizon)/7);
       ctx.beginPath();
@@ -482,20 +546,6 @@
       ctx.stroke();
     }
     ctx.restore();
-
-    // boat + character + rod
-    drawAngler(t);
-
-    // bobber
-    if(S.state==='cast' || S.state==='waiting' || S.state==='bite'){
-      let bx,by;
-      if(bob.flying){
-        const e = bob.t, ease = e*e*(3-2*e);
-        bx = bob.sx + (bob.tx-bob.sx)*ease;
-        by = bob.sy + (bob.ty-bob.sy)*ease - Math.sin(e*Math.PI)*H*0.13;
-      } else { bx=bob.tx; by=bob.ty + Math.sin(t*2.4)*2; }
-      drawBobber(bx,by, t);
-    }
 
     // ripples
     ctx.save();
@@ -506,54 +556,125 @@
     }
     ctx.restore();
 
-    // reeling UI
+    // splash
+    if(splashT>0){
+      const p = 1-splashT/0.45;
+      ctx.save(); ctx.globalAlpha=(1-p)*0.9; ctx.fillStyle='#dff4ff';
+      for(let i=0;i<7;i++){
+        const a=(i/7)*6.28, r=6+p*26;
+        ctx.beginPath(); ctx.arc(splashX+Math.cos(a)*r, splashY+Math.sin(a)*r*0.4, 2.6*(1-p), 0, 7); ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    drawAngler(t);
+
+    // bobber
+    if(S.state==='cast' || S.state==='waiting' || S.state==='bite' || S.state==='reeling'){
+      let bx,by;
+      if(bob.flying){
+        const e=bob.t, ease=e*e*(3-2*e);
+        bx = bob.sx+(bob.tx-bob.sx)*ease;
+        by = bob.sy+(bob.ty-bob.sy)*ease - Math.sin(e*Math.PI)*H*0.13;
+      } else { bx=bob.tx; by=bob.ty + Math.sin(t*2.4)*2; }
+      if(S.state==='reeling'){ by = bob.ty + Math.sin(t*16)*4 + 4; }
+      drawBobber(bx,by,t);
+    }
+
+    // floating score text
+    ctx.save(); ctx.textAlign='center'; ctx.font='bold 18px Trebuchet MS';
+    for(const k in FLOATERS){
+      const ft = FLOATERS[k]; const p = ft.t/1.2;
+      ctx.globalAlpha = 1-p; ctx.fillStyle = ft.col;
+      ctx.fillText(ft.txt, ft.x, ft.y - p*40);
+    }
+    ctx.restore();
+
     if(S.state==='reeling' && reel) drawReelUI();
+  }
+
+  function drawFish(f, t){
+    const R = RARITY[f.r];
+    const s = f.size;
+    const wob = Math.sin(f.phase)*0.35;
+    ctx.save();
+    ctx.translate(f.x, f.y + Math.sin(f.phase*0.5)*1.5);
+    ctx.scale(f.dir, 1);
+
+    // glow for rare+
+    if(f.r==='rare'||f.r==='epic'||f.r==='cursed'){
+      ctx.save(); ctx.globalAlpha=.35;
+      const gg=ctx.createRadialGradient(0,0,2,0,0,s*1.9);
+      gg.addColorStop(0, R.color); gg.addColorStop(1, 'rgba(0,0,0,0)');
+      ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(0,0,s*1.9,0,7); ctx.fill(); ctx.restore();
+    }
+    if(f.target){ // interested marker
+      ctx.save(); ctx.globalAlpha=.7+Math.sin(t*6)*.3;
+      ctx.strokeStyle='#ffd85e'; ctx.lineWidth=1.5;
+      ctx.beginPath(); ctx.arc(0,-s-9,3,0,7); ctx.stroke(); ctx.restore();
+    }
+
+    // tail
+    ctx.fillStyle = R.color;
+    ctx.beginPath();
+    ctx.moveTo(-s*0.8, 0);
+    ctx.lineTo(-s*1.5, -s*0.55 + wob*s*0.4);
+    ctx.lineTo(-s*1.5,  s*0.55 + wob*s*0.4);
+    ctx.closePath(); ctx.fill();
+
+    // body
+    const bg = ctx.createLinearGradient(0,-s*0.6,0,s*0.6);
+    bg.addColorStop(0,'#ffffff'); bg.addColorStop(.35,R.color); bg.addColorStop(1,'#0a2c44');
+    ctx.fillStyle=bg;
+    ctx.beginPath(); ctx.ellipse(0,0,s*1.05,s*0.62,0,0,7); ctx.fill();
+
+    // top fin
+    ctx.fillStyle = R.color;
+    ctx.beginPath(); ctx.moveTo(-s*0.1,-s*0.5); ctx.lineTo(s*0.25,-s*1.0); ctx.lineTo(s*0.5,-s*0.42); ctx.closePath(); ctx.fill();
+
+    // eye
+    ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(s*0.62,-s*0.14,s*0.17,0,7); ctx.fill();
+    ctx.fillStyle='#04121f'; ctx.beginPath(); ctx.arc(s*0.66,-s*0.14,s*0.09,0,7); ctx.fill();
+    ctx.restore();
   }
 
   function drawAngler(t){
     const x = rod.x, y = rod.y;
-    // boat
     ctx.save();
+    // boat
     ctx.fillStyle='#20323f';
-    ctx.beginPath();
-    ctx.moveTo(x-70,y+10); ctx.lineTo(x+70,y+10); ctx.lineTo(x+52,y+38); ctx.lineTo(x-52,y+38); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(x-70,y+10); ctx.lineTo(x+70,y+10); ctx.lineTo(x+52,y+38); ctx.lineTo(x-52,y+38); ctx.closePath(); ctx.fill();
     ctx.fillStyle='#2d4354'; ctx.fillRect(x-46,y+2,92,10);
-    // body
-    ctx.fillStyle='#e8eef3'; ctx.beginPath(); ctx.arc(x,y-28,11,0,7); ctx.fill();  // head-ish
-    ctx.fillStyle='#1b2b38'; ctx.fillRect(x-9,y-20,18,20); // torso
-    ctx.fillStyle='#ffd9a8'; ctx.beginPath(); ctx.arc(x,y-30,9,0,7); ctx.fill(); // face
+    // angler
+    ctx.fillStyle='#1b2b38'; ctx.fillRect(x-9,y-20,18,20);
+    ctx.fillStyle='#ffd9a8'; ctx.beginPath(); ctx.arc(x,y-30,9,0,7); ctx.fill();
     ctx.fillStyle='#123'; ctx.beginPath(); ctx.arc(x+3,y-31,1.6,0,7); ctx.fill();
-    // rod line
+    // rod
     const tipx = x+34, tipy = y-72;
     ctx.strokeStyle='#caa06a'; ctx.lineWidth=3;
     ctx.beginPath(); ctx.moveTo(x+6,y-16); ctx.lineTo(tipx,tipy); ctx.stroke();
     ctx.restore();
 
-    // fishing line
-    let endx, endy;
+    // line
+    let endx=tipx, endy=tipy;
     if(bob.flying){
       const e=bob.t, ease=e*e*(3-2*e);
       endx = bob.sx+(bob.tx-bob.sx)*ease;
       endy = bob.sy+(bob.ty-bob.sy)*ease - Math.sin(e*Math.PI)*H*0.13;
-    } else if(S.state==='waiting'||S.state==='bite'||S.state==='idle'||S.state==='done'){
-      endx = bob.tx||tipx; endy = bob.ty||tipy;
-      if(S.state==='idle'){ endx=tipx; endy=tipy; }
-    } else { endx=tipx; endy=tipy; }
+    } else if(S.state==='waiting'||S.state==='bite'){
+      endx=bob.tx; endy=bob.ty;
+    } else if(S.state==='reeling'){
+      endx=bob.tx; endy=bob.ty + Math.sin(t*16)*4 + 4;
+    }
     ctx.save(); ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.lineWidth=1;
-    ctx.beginPath(); ctx.moveTo(tipx,tipy);
-    if(S.state==='reeling'&&reel){ ctx.lineTo(bob.tx, bob.ty + Math.sin(t*14)*3); }
-    else ctx.lineTo(endx,endy);
-    ctx.stroke(); ctx.restore();
-    if(S.state==='reeling') drawBobber(bob.tx, bob.ty + Math.sin(t*14)*3, t);
-    else if(S.state!=='idle'&&!bob.flying&&(S.state==='waiting'||S.state==='bite')) drawBobber(endx,endy,t);
+    ctx.beginPath(); ctx.moveTo(tipx,tipy); ctx.lineTo(endx,endy); ctx.stroke(); ctx.restore();
   }
 
   function drawBobber(x,y,t){
-    // glow when bite
     if(S.state==='bite'){
       ctx.save(); ctx.globalAlpha=.6+Math.sin(t*30)*.4;
-      const gg=ctx.createRadialGradient(x,y,2,x,y,26); gg.addColorStop(0,'rgba(255,90,90,.9)'); gg.addColorStop(1,'rgba(255,90,90,0)');
-      ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(x,y,26,0,7); ctx.fill(); ctx.restore();
+      const gg=ctx.createRadialGradient(x,y,2,x,y,28); gg.addColorStop(0,'rgba(255,90,90,.9)'); gg.addColorStop(1,'rgba(255,90,90,0)');
+      ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(x,y,28,0,7); ctx.fill(); ctx.restore();
       y += Math.sin(t*40)*3;
     }
     ctx.save();
@@ -564,43 +685,60 @@
   }
 
   function drawReelUI(){
-    const bx = W*0.5, by = H*0.72, bw = Math.min(W*0.62, 320), bh = 300;
-    // panel
+    const bx = W*0.5, by = H*0.70, bw = Math.min(W*0.66, 340), bh = 300;
+    const sh = shakeT>0? (Math.random()-0.5)*6 : 0;
     ctx.save();
-    ctx.globalAlpha=.92;
+    ctx.translate(sh,0);
+    ctx.globalAlpha=.93;
     ctx.fillStyle='#061a2b'; roundRect(bx-bw/2-16, by-bh/2-16, bw+32, bh+32, 16); ctx.fill();
     ctx.globalAlpha=1;
     ctx.strokeStyle='rgba(120,210,255,.4)'; ctx.lineWidth=2; roundRect(bx-bw/2-16, by-bh/2-16, bw+32, bh+32, 16); ctx.stroke();
 
-    // progress bar (left)
-    const px = bx-bw/2, pw=22;
+    // ---- progress bar (left) ----
+    const px = bx-bw/2, pw=26;
     ctx.fillStyle='#0a2c44'; roundRect(px, by-bh/2, pw, bh, 8); ctx.fill();
     const ph = bh*reel.prog;
-    const col = reel.prog>0.66?'#5dff9d':(reel.prog>0.33?'#ffd85e':'#ff7a7a');
-    ctx.fillStyle=col; roundRect(px, by+bh/2-ph, pw, ph, 8); ctx.fill();
+    ctx.fillStyle='#5dff9d'; roundRect(px, by+bh/2-ph, pw, ph, 8); ctx.fill();
     ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.lineWidth=1.5; roundRect(px, by-bh/2, pw, bh, 8); ctx.stroke();
+    ctx.fillStyle='#9fd6ff'; ctx.font='bold 10px Trebuchet MS'; ctx.textAlign='center';
+    ctx.fillText('LAND', px+pw/2, by-bh/2-6);
+    ctx.fillText('0', px+pw/2, by+bh/2+14);
 
-    // zone track (right)
-    const tx = bx+bw/2-46, tw=46, th=bh;
+    // ---- tension bar (right) ----
+    const tx = bx+bw/2-26, tw=26, th=bh;
     ctx.fillStyle='#0a2c44'; roundRect(tx, by-th/2, tw, th, 8); ctx.fill();
-    // green zone
-    const zh = th*reel.zoneH;
-    const zy = by-th/2 + (th*reel.zone) - zh/2;
-    const zg=ctx.createLinearGradient(tx,0,tx+tw,0); zg.addColorStop(0,'#2ea86a'); zg.addColorStop(1,'#5dff9d');
-    ctx.fillStyle=zg; roundRect(tx, zy, tw, zh, 6); ctx.fill();
-    // fish marker (the hook/bar)
-    const py = by-th/2 + th*reel.pos;
-    ctx.fillStyle='#ffd85e';
-    ctx.beginPath(); ctx.moveTo(tx-4,py); ctx.lineTo(tx+tw+4,py); ctx.lineTo(tx+tw+4,py+6); ctx.lineTo(tx-4,py+6); ctx.closePath(); ctx.fill();
-    // little fish icon on the bar
-    ctx.fillStyle='#062033'; ctx.beginPath(); ctx.arc(tx+tw/2, py+3, 3, 0, 7); ctx.fill();
+    const tn = Math.max(0, Math.min(1, reel.tension));
+    const tnh = th*tn;
+    // color: green low, yellow, red high
+    const tg = ctx.createLinearGradient(0, by+th/2, 0, by-th/2);
+    tg.addColorStop(0,'#5dff9d'); tg.addColorStop(.55,'#ffd85e'); tg.addColorStop(.8,'#ff9d3d'); tg.addColorStop(1,'#ff4d4d');
+    ctx.save();
+    roundRect(tx, by-th/2, tw, th, 8); ctx.clip();
+    ctx.fillStyle=tg; ctx.fillRect(tx, by+th/2-tnh, tw, tnh);
+    ctx.restore();
+    // danger line at 80%
+    const dy = by+th/2 - th*0.8;
+    ctx.strokeStyle='rgba(255,255,255,.8)'; ctx.lineWidth=1.5; ctx.setLineDash([4,3]);
+    ctx.beginPath(); ctx.moveTo(tx-4,dy); ctx.lineTo(tx+tw+4,dy); ctx.stroke(); ctx.setLineDash([]);
     ctx.strokeStyle='rgba(255,255,255,.5)'; ctx.lineWidth=1.5; roundRect(tx, by-th/2, tw, th, 8); ctx.stroke();
+    ctx.fillStyle='#ffb1b1'; ctx.font='bold 10px Trebuchet MS'; ctx.textAlign='center';
+    ctx.fillText('SNAP', tx+tw/2, by-th/2-6);
+    ctx.fillText('SAFE', tx+tw/2, by+th/2+14);
 
-    // stress wiggle
-    const inZone = Math.abs(reel.pos-reel.zone)<reel.zoneH/2;
-    ctx.fillStyle= inZone?'#5dff9d':'#ff9d9d';
-    ctx.font='bold 13px Trebuchet MS'; ctx.textAlign='center';
-    ctx.fillText(inZone?'TIGHT LINE!':'SLACK — HOLD!', bx, by+bh/2+26);
+    // ---- status text in the middle ----
+    const danger = reel.tension > 0.8;
+    const inDanger = reel.tension > 0.9;
+    let label, col;
+    if(danger){ label = inDanger?'⚠ RELEASE — LINE SNAPPING!':'EASE OFF!'; col='#ff7a7a'; }
+    else if(reel.holding){ label = 'REELING...'; col='#5dff9d'; }
+    else { label = 'HOLD TO REEL'; col='#ffd85e'; }
+    ctx.fillStyle=col; ctx.font='bold 15px Trebuchet MS'; ctx.textAlign='center';
+    ctx.fillText(label, bx, by);
+    // little fish icon + weight near middle
+    ctx.globalAlpha=.85;
+    ctx.fillStyle='#eaf6ff'; ctx.font='bold 12px Trebuchet MS';
+    ctx.fillText(hooked.n + ' · ' + hooked.kg.toFixed(1) + 'kg', bx, by+22);
+    ctx.globalAlpha=1;
     ctx.restore();
   }
 
@@ -619,15 +757,16 @@
   }
 
   // ---------- start ----------
-  resize(); layout(); load(); updateHUD();
-  window.addEventListener('resize', layout);
+  resize(); load(); updateHUD(); fillWater();
   resetToIdle();
   say('Welcome to Deep Cast 🎣');
   setTimeout(()=>say(''), 2200);
+  let seenTut = false;
+  try{ seenTut = localStorage.getItem('deepcast_tut')==='1'; }catch(e){}
+  if(!seenTut){ setTimeout(()=>{ if(S.state==='idle') showPanel('howPanel'); }, 700); }
   frame();
 
-  // expose a tiny API for tweaks
-  window.DEEPCast = { S, openShop, openRecords };
+  window.DEEPCast = { S, openShop, openRecords, get fishes(){return fishes;} };
 })();
 </script>
 </body>
