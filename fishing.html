@@ -200,6 +200,7 @@
       <div class="tabs">
         <button class="tab" id="tabRods">🎣 RODS</button>
         <button class="tab" id="tabBait">🪱 BAIT</button>
+        <button class="tab" id="tabBoats">⛵ BOATS</button>
       </div>
       <div class="scroll" id="shopList"></div>
     </div>
@@ -225,6 +226,7 @@
         <button class="tab" id="invTabRods">🎣 RODS</button>
         <button class="tab" id="invTabBait">🪱 BAIT</button>
         <button class="tab" id="invTabStore">📦 STORAGE</button>
+        <button class="tab" id="invTabBoats">⛵ BOATS</button>
       </div>
       <div class="scroll" id="invList"></div>
     </div>
@@ -238,6 +240,7 @@
       <div class="tabs">
         <button class="tab" id="specTabOcean">🌊 OCEAN</button>
         <button class="tab" id="specTabSnow">🧊 SNOW ISLAND</button>
+        <button class="tab" id="specTabVolcano">🌋 VOLCANO</button>
       </div>
       <div class="scroll" id="specList"></div>
     </div>
@@ -327,6 +330,23 @@
       {n:'Polar Colossus',  r:'legendary',a:200.0,b:900.0,q:'It shrugged off the sea ice like it was nothing. Because to it, it was.'},
       {n:'Frost Wyrm',      r:'mythical', a:400.0,b:1800.0,q:'A serpent of living ice. The aurora bends around it.'},
       {n:'The Eternal',     r:'transcendent', a:800.0,b:4000.0,q:'It has slept beneath the ice since the world was young. It just woke up.'}
+    ],
+    volcano: [
+      {n:'Magma Minnow',    r:'common',   a:0.1, b:0.5,  q:'A tiny fish that swims in water it has no right to survive.'},
+      {n:'Ember Bream',     r:'common',   a:0.4, b:1.6,  q:'Warm to the touch. Scales smoulder faintly.'},
+      {n:'Scorch Whiting',  r:'common',   a:0.3, b:1.2,  q:'Darts through the shallows over the hot vents.'},
+      {n:'Ash Perch',       r:'common',   a:0.7, b:2.6,  q:'Grey as cinder, striped like cooling lava.'},
+      {n:'Cinder Cod',      r:'uncommon', a:1.8, b:7.0,  q:'A big ugly brute that thrives near the plume.'},
+      {n:'Lava Eel',        r:'uncommon', a:1.5, b:6.5,  q:'Wriggles out of cracks in the seabed, glowing orange.'},
+      {n:'Obsidian Goby',   r:'uncommon', a:1.0, b:4.5,  q:'Black volcanic glass, half-buried in the ash.'},
+      {n:'Volcano Pike',    r:'rare',     a:3.0, b:16.0, q:'All teeth and bad temper.'},
+      {n:'Firefin Snapper', r:'rare',     a:4.0, b:20.0, q:'Its fin burns like a coal — even underwater.'},
+      {n:'Molten Ray',      r:'epic',     a:55.0,b:240.0,q:'It glides over the vents, wings bleeding heat.'},
+      {n:'Magma Shark',     r:'epic',     a:70.0,b:300.0,q:'The water boiled where it passed.'},
+      {n:'Infernal Serpent',r:'cursed',   a:150.0,b:700.0,q:'Fire that learned to swim, and to hate.'},
+      {n:'Volcano Titan',   r:'legendary',a:250.0,b:1100.0,q:'It rose out of the caldera and the sea turned to steam.'},
+      {n:'Ember Leviathan', r:'mythical', a:500.0,b:2200.0,q:'A living current of lava beneath the waves.'},
+      {n:'The Inferno',     r:'transcendent', a:1000.0,b:5000.0,q:'The first fire, the last fire. It was here before the water.'}
     ]
   };
   function worldFish(w){ return FISH[w] || FISH.ocean; }
@@ -362,7 +382,23 @@
     'Frost Marlin':  { t:'marlin',   c1:'#e6f6ff', c2:'#4f86c9', p:'stripe' },
     'Aurora Leviathan':{ t:'whale',  c1:'#dff6ff', c2:'#3f6fa8', p:'stripe' },
     'Polar Colossus': { t:'colossus',c1:'#f2fbff', c2:'#4a7ba8', p:'stripe' },
-    'Frost Wyrm':     { t:'wyrm',    c1:'#d8fff2', c2:'#2f7f9c', p:'scale'  }
+    'Frost Wyrm':     { t:'wyrm',    c1:'#d8fff2', c2:'#2f7f9c', p:'scale'  },
+    // ---- VOLCANO ISLAND ----
+    'Magma Minnow':   { t:'sprat',   c1:'#ffb27a', c2:'#b5432a', p:'stripe' },
+    'Ember Bream':    { t:'bream',   c1:'#ffb37a', c2:'#a83a1f', p:'spot'   },
+    'Scorch Whiting': { t:'whiting', c1:'#ffd9a0', c2:'#c26a2c', p:'stripe' },
+    'Ash Perch':      { t:'perch',   c1:'#8d7f78', c2:'#3f342e', p:'bar'    },
+    'Cinder Cod':     { t:'cod',     c1:'#9a887e', c2:'#4a352c', p:'spot'   },
+    'Lava Eel':       { t:'eel',     c1:'#ff8a3c', c2:'#8f2a12', p:'stripe' },
+    'Obsidian Goby':  { t:'goby',    c1:'#5a5560', c2:'#161218', p:'spot'   },
+    'Volcano Pike':   { t:'pike',    c1:'#c88b6a', c2:'#5f3420', p:'bar'    },
+    'Firefin Snapper':{ t:'snapper', c1:'#ff9a6a', c2:'#c23c1f', p:'spot'   },
+    'Molten Ray':     { t:'ray',     c1:'#ff9a5c', c2:'#8f2a12', p:'spot'   },
+    'Magma Shark':    { t:'shark',   c1:'#8a5a48', c2:'#3a1c14', p:'stripe' },
+    'Infernal Serpent':{ t:'serpent',c1:'#ff7a3c', c2:'#7a1f0a', p:'scale'  },
+    'Volcano Titan':  { t:'titan',   c1:'#ffab5c', c2:'#6f1f0a', p:'scale'  },
+    'Ember Leviathan':{ t:'leviathan',c1:'#ffc27a',c2:'#8f2a12', p:'stripe' },
+    'The Inferno':    { t:'inferno', c1:'#ffe08a', c2:'#c2331a', p:'scale'  }
   };
   const DEFAULT_ART = { t:'bream', c1:'#cfe0ee', c2:'#5f7f96', p:'spot' };
 
@@ -791,6 +827,62 @@
       eye(1.62,-0.32,0.13);
       ctx.save(); ctx.globalAlpha=.4+Math.sin(phase)*.2; ctx.strokeStyle='#d8fff2'; ctx.lineWidth=0.08;
       ctx.beginPath(); ctx.arc(1.45,-0.28,0.72,0,7); ctx.stroke(); ctx.restore();
+    } else if(t==='eel'){
+      // long slithering lava eel
+      ctx.strokeStyle=bodyG(); ctx.lineWidth=0.5; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(1.35,0.1);
+      for(let i=0;i<=6;i++){ const px=1.35-i*0.5, py=Math.sin(i*0.9+wob)*0.5; i?ctx.lineTo(px,py):ctx.moveTo(px,py); } ctx.stroke();
+      ctx.fillStyle=c1; ctx.beginPath(); ctx.ellipse(1.6,0.02,0.55,0.3,0.1,0,7); ctx.fill();
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(-1.9,Math.sin(6*0.9+wob)*0.5); ctx.lineTo(-2.4,0.5+Math.sin(wob)*0.2); ctx.lineTo(-2.35,-0.35+Math.sin(wob)*0.2); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='rgba(255,180,90,.5)'; for(let i=0;i<7;i++){ const px=1.0-i*0.42, py=Math.sin((3+i)*0.9+wob)*0.5; ctx.beginPath(); ctx.arc(px,py-0.28,0.05,0,7); ctx.fill(); }
+      eye(1.78,-0.06,0.13);
+      ctx.save(); ctx.globalAlpha=.4+Math.sin(phase)*.2; ctx.strokeStyle='#ffb05c'; ctx.lineWidth=0.07;
+      ctx.beginPath(); ctx.arc(1.6,0.02,0.7,0,7); ctx.stroke(); ctx.restore();
+    } else if(t==='goby'){
+      // chunky little bottom-dweller with big head
+      tailFin(0.7); ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0,0.1,0.95,0.5,0,0,7); ctx.fill();
+      ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0.55,-0.05,0.5,0.45,0,0,7); ctx.fill();
+      fin(0.2,-0.5,0.4,0.3); spots();
+      ctx.fillStyle='#0c0a10'; ctx.beginPath(); ctx.ellipse(1.0,0.12,0.3,0.2,0,0,7); ctx.fill(); // blunt mouth
+      eye(0.62,-0.12,0.18); eye(0.36,-0.18,0.12);
+    } else if(t==='serpent'){
+      // coiling molten serpent
+      ctx.strokeStyle=bodyG(); ctx.lineWidth=0.6; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(1.2,-0.1); ctx.quadraticCurveTo(0.3,0.7+wob*0.3,-0.5,-0.2); ctx.quadraticCurveTo(-1.3,-1.0+wob*0.3,-2.1,-0.1); ctx.stroke();
+      ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(1.45,-0.18,0.6,0.4,-0.2,0,7); ctx.fill();
+      ctx.fillStyle=c1; ctx.beginPath(); ctx.moveTo(1.85,-0.32); ctx.lineTo(2.5,-0.42); ctx.lineTo(1.9,-0.12); ctx.closePath(); ctx.fill();
+      ctx.fillStyle=c1; for(let i=0;i<5;i++){ const sx=0.85-i*0.42, sy=-0.02-Math.sin(i*1.2)*0.2; ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx+0.1,sy-0.4); ctx.lineTo(sx+0.2,sy); ctx.closePath(); ctx.fill(); }
+      ctx.strokeStyle=c2; ctx.lineWidth=0.1; ctx.beginPath(); ctx.moveTo(-2.1,-0.1); ctx.quadraticCurveTo(-2.5,0.3+Math.sin(wob)*0.3,-2.75,-0.25+Math.sin(wob)*0.4); ctx.stroke();
+      eye(1.6,-0.22,0.13);
+      ctx.save(); ctx.globalAlpha=.4+Math.sin(phase)*.2; ctx.strokeStyle='#ff8a3c'; ctx.lineWidth=0.07; ctx.beginPath(); ctx.arc(1.45,-0.18,0.7,0,7); ctx.stroke(); ctx.restore();
+    } else if(t==='titan'){
+      // hulking armoured volcano brute
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(-0.85,0); ctx.lineTo(-1.5,-0.75+wob*0.3); ctx.lineTo(-1.2,0); ctx.lineTo(-1.5,0.75+wob*0.3); ctx.closePath(); ctx.fill();
+      ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0,0,1.25,0.86,0,0,7); ctx.fill();
+      ctx.fillStyle=c1; for(let i=0;i<4;i++){ ctx.beginPath(); ctx.moveTo(-0.55+i*0.34,-0.66); ctx.lineTo(-0.4+i*0.34,-1.18); ctx.lineTo(-0.24+i*0.34,-0.6); ctx.closePath(); ctx.fill(); }
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.ellipse(0.9,0.2,0.55,0.5,0,0,7); ctx.fill();
+      ctx.fillStyle='#2a0d06'; for(let i=0;i<6;i++){ ctx.beginPath(); ctx.arc(-0.7+i*0.32,0.05,0.09,0,7); ctx.fill(); }
+      eye(1.05,-0.05,0.17);
+      ctx.save(); ctx.globalAlpha=.4+Math.sin(phase)*.2; ctx.strokeStyle='#ff9a3c'; ctx.lineWidth=0.08; ctx.beginPath(); ctx.arc(0.9,0.2,0.72,0,7); ctx.stroke(); ctx.restore();
+    } else if(t==='leviathan'){
+      // enormous flowing magma leviathan
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(-1.0,0); ctx.lineTo(-1.9,-0.85+wob*0.4); ctx.lineTo(-1.5,0); ctx.lineTo(-1.9,0.85+wob*0.4); ctx.closePath(); ctx.fill();
+      ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0,0,1.5,0.8,wob*0.03,0,7); ctx.fill();
+      ctx.fillStyle='rgba(255,150,60,.45)'; for(let i=0;i<5;i++){ const px=-0.7+i*0.5; ctx.beginPath(); ctx.arc(px,Math.sin(i*1.4)*0.25,0.1,0,7); ctx.fill(); }
+      ctx.fillStyle=c1; ctx.beginPath(); ctx.ellipse(1.35,0.06,0.66,0.44,0,0,7); ctx.fill();
+      ctx.fillStyle=c2; for(let i=0;i<5;i++){ ctx.beginPath(); ctx.moveTo(0.9-i*0.34,-0.7); ctx.lineTo(1.0-i*0.34,-1.05); ctx.lineTo(1.16-i*0.34,-0.64); ctx.closePath(); ctx.fill(); }
+      eye(1.6,-0.08,0.15);
+      ctx.save(); ctx.globalAlpha=.4+Math.sin(phase)*.2; ctx.strokeStyle='#ffb05c'; ctx.lineWidth=0.08; ctx.beginPath(); ctx.arc(1.35,0.06,0.78,0,7); ctx.stroke(); ctx.restore();
+    } else if(t==='inferno'){
+      // primordial firefish — blazing spined beast
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(-0.9,0); ctx.lineTo(-1.7,-0.8+wob*0.35); ctx.lineTo(-1.35,0); ctx.lineTo(-1.7,0.8+wob*0.35); ctx.closePath(); ctx.fill();
+      ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0,0,1.2,0.72,0,0,7); ctx.fill();
+      ctx.fillStyle=c1; for(let i=0;i<6;i++){ ctx.beginPath(); ctx.moveTo(-0.75+i*0.28,-0.55); ctx.lineTo(-0.6+i*0.28,-1.15-Math.sin(i)*0.2); ctx.lineTo(-0.44+i*0.28,-0.5); ctx.closePath(); ctx.fill(); }
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.ellipse(0.9,0.16,0.55,0.5,0,0,7); ctx.fill();
+      ctx.fillStyle='rgba(255,240,160,.6)'; for(let i=0;i<5;i++){ ctx.beginPath(); ctx.arc(-0.4+i*0.35,0.1,0.1,0,7); ctx.fill(); }
+      eye(1.05,-0.06,0.18);
+      ctx.save(); ctx.globalAlpha=.45+Math.sin(phase)*.25; ctx.strokeStyle='#ffe08a'; ctx.lineWidth=0.08;
+      for(let i=0;i<8;i++){ const a=i*0.785+phase*0.4; ctx.beginPath(); ctx.moveTo(Math.cos(a)*0.7,Math.sin(a)*0.7); ctx.lineTo(Math.cos(a)*1.35,Math.sin(a)*1.35); ctx.stroke(); } ctx.restore();
     } else {
       tailFin(0.9); ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0,0,1.06,0.6,0,0,7); ctx.fill();
       fin(-0.1,-0.5,0.5,0.4); spots(); eye(0.68,-0.14,0.17);
@@ -854,6 +946,36 @@
       ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,1.1,0,7); ctx.fill();
       ctx.strokeStyle='#eafff8'; ctx.lineWidth=0.12;
       for(let i=0;i<5;i++){ const a=i*1.256+t*1.2; ctx.beginPath(); ctx.moveTo(Math.cos(a)*0.3,Math.sin(a)*0.3); ctx.lineTo(Math.cos(a)*0.95,Math.sin(a)*0.95); ctx.stroke(); }
+    } else if(style==='ashgrub'){
+      ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(-0.85,0.1); ctx.quadraticCurveTo(0,-0.8,0.85,0.1); ctx.quadraticCurveTo(0,0.8,-0.85,0.1); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='rgba(60,50,44,.55)'; ctx.lineWidth=0.1;
+      for(let i=-2;i<=2;i++){ ctx.beginPath(); ctx.moveTo(i*0.3,-0.35+Math.abs(i)*0.05); ctx.lineTo(i*0.3,0.4-Math.abs(i)*0.05); ctx.stroke(); }
+      ctx.fillStyle='rgba(255,150,60,.35)'; ctx.beginPath(); ctx.arc(0.5,-0.1,0.12,0,7); ctx.fill();
+    } else if(style==='scorchworm'){
+      ctx.strokeStyle=col; ctx.lineWidth=0.5;
+      ctx.beginPath(); ctx.moveTo(-0.9,0.1);
+      for(let i=1;i<=6;i++){ ctx.lineTo(-0.9+i*0.3, Math.sin(i*1.1+wob)*0.3); } ctx.stroke();
+      ctx.save(); ctx.globalAlpha=.5+Math.sin(t*8)*.3; ctx.fillStyle='#ffd27a';
+      for(let i=0;i<5;i++){ const px=-0.8+i*0.4, py=Math.sin((i+1)*1.1+wob)*0.3; ctx.beginPath(); ctx.arc(px,py,0.09,0,7); ctx.fill(); } ctx.restore();
+    } else if(style==='firefish'||style==='magmasquid'){
+      if(style==='firefish'){
+        const g=ctx.createLinearGradient(0,-0.5,0,0.5); g.addColorStop(0,'#fff1c8'); g.addColorStop(.4,col); g.addColorStop(1,'#8f2a12');
+        ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(0,0,1.0,0.4,0,0,7); ctx.fill();
+        ctx.fillStyle='#8f2a12'; ctx.beginPath(); ctx.moveTo(-0.9,0); ctx.lineTo(-1.42,-0.42+wob*0.3); ctx.lineTo(-1.15,0); ctx.lineTo(-1.42,0.42+wob*0.3); ctx.closePath(); ctx.fill();
+        ctx.fillStyle='#2a0d06'; ctx.beginPath(); ctx.arc(0.62,-0.08,0.1,0,7); ctx.fill();
+      } else {
+        ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(0,-0.85); ctx.quadraticCurveTo(0.55,0,0.35,0.5); ctx.lineTo(-0.35,0.5); ctx.quadraticCurveTo(-0.55,0,0,-0.85); ctx.closePath(); ctx.fill();
+        ctx.fillStyle='rgba(255,240,180,.6)'; ctx.beginPath(); ctx.moveTo(0,-0.85); ctx.lineTo(0.42,-0.5); ctx.lineTo(0,-0.3); ctx.closePath(); ctx.fill();
+        ctx.strokeStyle=col; ctx.lineWidth=0.12;
+        for(let i=-2;i<=2;i++){ ctx.beginPath(); ctx.moveTo(i*0.14,0.5); ctx.quadraticCurveTo(i*0.16+wob*0.1,0.95, i*0.2,1.35+Math.sin(t*7+i)*0.08); ctx.stroke(); }
+      }
+      ctx.save(); ctx.globalAlpha=.45+Math.sin(t*6)*.25; ctx.strokeStyle='#ffb05c'; ctx.lineWidth=0.1; ctx.beginPath(); ctx.arc(0,0,1.2,0,7); ctx.stroke(); ctx.restore();
+    } else if(style==='inferno'){
+      const g=ctx.createRadialGradient(0,0,0.1,0,0,1.15); g.addColorStop(0,'#fff6d0'); g.addColorStop(.4,'#ffd23c'); g.addColorStop(1,'rgba(255,120,40,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,1.15,0,7); ctx.fill();
+      ctx.strokeStyle='#fff1c8'; ctx.lineWidth=0.12;
+      for(let i=0;i<6;i++){ const a=i*1.047+t*1.6; ctx.beginPath(); ctx.moveTo(Math.cos(a)*0.32,Math.sin(a)*0.32); ctx.lineTo(Math.cos(a)*1.0,Math.sin(a)*1.0); ctx.stroke(); }
+      ctx.fillStyle='#fff6d0'; ctx.beginPath(); ctx.arc(0,0,0.3+Math.sin(t*6)*0.05,0,7); ctx.fill();
     } else {
       ctx.fillStyle=col; ctx.beginPath(); ctx.ellipse(0,0,0.8,0.6,0.3,0,7); ctx.fill();
     }
@@ -926,6 +1048,13 @@
       {name:'Blizzard Caster',cost:4000, cast:1.55, reel:1.70, pwr:1.50, lure:2.10, luck:1, style:'blizzard', desc:'SPEED rig — a storm of bites, but mostly small ones.', mut:{chance:0.13, type:'frozen'}},
       {name:'Aurora Rod',     cost:9500, cast:1.75, reel:2.10, pwr:1.90, lure:1.00, luck:9, style:'aurora',   desc:'LUCK rig — slow, but the deep cold monsters come to it.', mut:{chance:0.15, type:'radiant'}},
       {name:'Frozen Throne',  cost:24000,cast:2.00, reel:2.80, pwr:2.40, lure:1.70, luck:12,style:'throne',   desc:'The apex rod. Fast bites and the leviathans. Nothing else needed.', mut:{chance:0.22, type:'radiant'}}
+    ],
+    volcano: [
+      {name:'Ember Rod',     cost:0,    cast:1.20, reel:1.10, pwr:1.00, lure:1.15, luck:2, style:'ember',    desc:'Scorched starter rod. Warm to hold, lucky in the plume.', mut:{chance:0.08, type:'ember'}},
+      {name:'Cinder Rig',    cost:12000,cast:1.45, reel:1.50, pwr:1.35, lure:1.40, luck:5, style:'cinder',   desc:'Charred all-rounder. Quick bites near the vents.', mut:{chance:0.12, type:'ember'}},
+      {name:'Magma Caster',  cost:26000,cast:1.65, reel:1.95, pwr:1.70, lure:2.30, luck:1, style:'magma',    desc:'SPEED rig — a firestorm of bites, mostly small fry.', mut:{chance:0.14, type:'ember'}},
+      {name:'Obsidian Rod',  cost:52000,cast:1.85, reel:2.30, pwr:2.05, lure:0.95, luck:13,style:'obsidian', desc:'LUCK rig — slow, but the fire-deep horrors answer it.', mut:{chance:0.18, type:'ember'}},
+      {name:'Infernal Rod',  cost:110000,cast:2.10, reel:2.90, pwr:2.55, lure:1.90, luck:17,style:'infernal',desc:'The apex rod of the burning deep. Fast bites AND the titans.', mut:{chance:0.27, type:'ember'}}
     ]
   };
 
@@ -944,6 +1073,13 @@
       {name:'Frost Fish',   cost:750,  lure:-0.05,luck:4, col:'#cfe9ff', style:'frostfish', desc:'Silver smelt. The big ones hunt it.'},
       {name:'Glow Squid',   cost:1800, lure:-0.15,luck:6, col:'#bfe0ff', style:'glowsquid', desc:'Glows faintly under the ice. Serious bait.'},
       {name:'Aurora Bait',  cost:5000, lure:0.50, luck:10,col:'#7dffd8', style:'aurora',    desc:'Radiates cold light. Fast bites AND leviathans.'}
+    ],
+    volcano: [
+      {name:'Ash Grubs',    cost:400,  lure:0.20, luck:0, col:'#8a7f76', style:'ashgrub',   desc:'Fat grey grubs that live in the ash. Fish snap them up.'},
+      {name:'Scorch Worms', cost:1200, lure:0.35, luck:1, col:'#e08b4a', style:'scorchworm', desc:'Glowing embers that wriggle on a hot hook.'},
+      {name:'Firefish',     cost:3200, lure:-0.05,luck:4, col:'#ff7a3c', style:'firefish',   desc:'Blazing smelt. The big ones hunt it.'},
+      {name:'Magma Squid',  cost:8000, lure:-0.15,luck:6, col:'#ff5c9c', style:'magmasquid', desc:'Iridescent and hot to the touch. Serious bait.'},
+      {name:'Inferno Bait', cost:20000,lure:0.55, luck:12,col:'#ffd23c', style:'inferno',    desc:'A ball of bottled firelight. Fast bites AND titans.'}
     ]
   };
   function worldRods(w){ return RODS[w] || RODS.ocean; }
@@ -957,9 +1093,25 @@
              theme:'ocean' },
     snow:  { name:'Snow Island', icon:'🧊', locked:true, cost:7500, order:1,
              blurb:'Frozen water under green skies. Different fish, rods and bait.',
-             theme:'snow' }
+             theme:'snow' },
+    volcano:{ name:'Volcano Island', icon:'🌋', locked:true, cost:60000, order:2,
+             blurb:'Boiling water and black rock. The deadliest fish in the game live here.',
+             theme:'volcano' }
   };
-  const WORLD_ORDER = ['ocean','snow'];
+  const WORLD_ORDER = ['ocean','snow','volcano'];
+
+  // ---------- BOATS ----------
+  // Your boat decides where you can sail. Each island has a `roughness` — the sea
+  // on the way there demands a boat of at least that durability, or it capszes.
+  const BOAT = [
+    {name:'Rowboat',      cost:0,     dur:1,  speed:1.00, style:'rowboat',  desc:'A creaky little thing. Calm coastal water only.'},
+    {name:'Fishing Dinghy', cost:2500, dur:3,  speed:1.10, style:'dinghy',   desc:'A proper little tub. Handles the run to Snow Island.'},
+    {name:'Skipper',      cost:15000, dur:5,  speed:1.20, style:'skipper',  desc:'Sturdy cabin boat. Rides out rough water and open sea.'},
+    {name:'Trawler',      cost:40000, dur:8,  speed:1.30, style:'trawler',  desc:'Heavy steel hull. Nothing in these waters worries it.'},
+    {name:'Icebreaker',   cost:120000,dur:12, speed:1.40, style:'icebreaker',desc:'Military-grade deep-water vessel. It goes wherever it wants, even into volcanic seas.'}
+  ];
+  // sea roughness per destination — the boat must have >= this durability to reach it
+  const SEA_ROUGHNESS = { ocean:0, snow:3, volcano:8 };
   const FIGHT = {
     common:  {pull:0.22, tension:0.30, thrash:0.55},
     uncommon:{pull:0.30, tension:0.40, thrash:0.75},
@@ -1004,13 +1156,16 @@
   function weatherWeights(){
     const w={};
     for(const k in WEATHERS) w[k]=WEATHERS[k].weight;
-    if(sceneTheme()==='snow'){ w.snow=24; w.rain*=0.5; w.storm*=0.6; w.heat=0; w.fog*=0.7; }
+    const TH=sceneTheme();
+    if(TH==='snow'){ w.snow=24; w.rain*=0.5; w.storm*=0.6; w.heat=0; w.fog*=0.7; }
+    else if(TH==='volcano'){ w.heat=22; w.ember=0; w.snow=0; w.rain*=0.5; w.storm*=0.8; w.fog*=0.6; w.goldenrain*=0.5; }
     else { w.snow=0; w.goldenrain=1; }
     return w;
   }
 
   const S = { coins:0, world:'ocean', unlocked:{ocean:true},
               rod:{ocean:0,snow:0}, rodEq:null, owned:{ocean:[0],snow:[0]},
+              boat:0, boats:[0],
               caught:{}, total:0, state:'idle', cap:8, inv:[], upg:0,
               bait:null, baits:{} };
   const INVENTORY = 8;
@@ -1044,6 +1199,9 @@
   function curRod(){ const e=rodRef(); return (RODS[e.w]&&RODS[e.w][e.i]) || worldRods(S.world)[0]; }
   function isRodEquipped(w,i){ const e=rodRef(); return e.w===w && e.i===i; }
   function curOwned(){ if(!S.owned[S.world]) S.owned[S.world]=[0]; return S.owned[S.world]; }
+  // boats — owned list + equipped index
+  function curBoat(){ if(typeof S.boat!=='number' || !BOAT[S.boat]) S.boat=0; return BOAT[S.boat]; }
+  function ownedBoats(){ if(!Array.isArray(S.boats)) S.boats=[0]; if(!S.boats.includes(0)) S.boats.unshift(0); return S.boats; }
   function baitKey(w,i){ return w+':'+i; }
   function baitCount(key){ return (S.baits && S.baits[key]) || 0; }
   function equippedBaitKey(){ return (S.bait && baitCount(S.bait)>0) ? S.bait : null; }
@@ -1069,6 +1227,7 @@
   function save(){ try{ localStorage.setItem('deepcast_v1', JSON.stringify({
     coins:S.coins, world:S.world, unlocked:S.unlocked,
     rod:S.rod, rodEq:S.rodEq, owned:S.owned, caught:S.caught, total:S.total,
+    boat:S.boat, boats:S.boats,
     inv:S.inv, upg:S.upg, rodSold:S.rodSold, bait:S.bait, baits:S.baits })); }catch(e){} }
   function load(){ try{ const d=JSON.parse(localStorage.getItem('deepcast_v1')||'null');
     if(d){
@@ -1087,6 +1246,8 @@
       if(!Array.isArray(S.owned.snow)) S.owned.snow=[0];
       if(!S.owned.ocean.includes(S.rod.ocean)) S.owned.ocean.push(S.rod.ocean);
       S.rodEq=(d.rodEq && RODS[d.rodEq.w] && typeof d.rodEq.i==='number') ? {w:d.rodEq.w, i:d.rodEq.i} : null;
+      S.boats=Array.isArray(d.boats)?d.boats.filter(i=>BOAT[i]).slice():[0]; if(!S.boats.includes(0)) S.boats.unshift(0);
+      S.boat=(typeof d.boat==='number' && BOAT[d.boat]) ? d.boat : 0;
       // baits: migrate index-keyed {0:15} to world-keyed {'ocean:0':15}
       S.baits={};
       if(d.baits&&typeof d.baits==='object'){
@@ -1320,14 +1481,17 @@
   document.getElementById('shopClose').addEventListener('click', ()=>hidePanel('shopPanel'));
   document.getElementById('tabRods').addEventListener('click', ()=>{ shopTab='rods'; renderShop(); });
   document.getElementById('tabBait').addEventListener('click', ()=>{ shopTab='bait'; renderShop(); });
+  document.getElementById('tabBoats').addEventListener('click', ()=>{ shopTab='boats'; renderShop(); });
   document.getElementById('worldClose').addEventListener('click', ()=>hidePanel('worldPanel'));
   document.getElementById('invClose').addEventListener('click', ()=>hidePanel('invPanel'));
   document.getElementById('invTabRods').addEventListener('click', ()=>{ invTab='rods'; renderInventory(); });
   document.getElementById('invTabBait').addEventListener('click', ()=>{ invTab='bait'; renderInventory(); });
   document.getElementById('invTabStore').addEventListener('click', ()=>{ invTab='store'; renderInventory(); });
+  document.getElementById('invTabBoats').addEventListener('click', ()=>{ invTab='boats'; renderInventory(); });
   document.getElementById('specClose').addEventListener('click', ()=>hidePanel('specPanel'));
   document.getElementById('specTabOcean').addEventListener('click', ()=>{ specWorld='ocean'; renderSpecies(); });
   document.getElementById('specTabSnow').addEventListener('click', ()=>{ specWorld='snow'; renderSpecies(); });
+  document.getElementById('specTabVolcano').addEventListener('click', ()=>{ specWorld='volcano'; renderSpecies(); });
   document.getElementById('howClose').addEventListener('click', ()=>{ hidePanel('howPanel'); try{localStorage.setItem('deepcast_tut','1');}catch(e){} resetToIdle(); });
   document.getElementById('shopChip').style.pointerEvents='auto';
   document.getElementById('shopChip').addEventListener('click', ()=>openShop('rods'));
@@ -1586,9 +1750,10 @@
   function paintScene(g, cssW, cssH, scale, theme){
     g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,g.canvas.width,g.canvas.height);
     g.scale(scale,scale);
-    const snow = theme==='snow';
+    const snow = theme==='snow', volc = theme==='volcano';
     const sky=g.createLinearGradient(0,0,0,cssH);
     if(snow){ sky.addColorStop(0,'#0b2b45'); sky.addColorStop(.55,'#1c6a86'); sky.addColorStop(1,'#2f8ba6'); }
+    else if(volc){ sky.addColorStop(0,'#1a0b12'); sky.addColorStop(.55,'#5a2018'); sky.addColorStop(1,'#a8481f'); }
     else { sky.addColorStop(0,'#124a74'); sky.addColorStop(.55,'#3a90c2'); sky.addColorStop(1,'#6fc0e6'); }
     g.fillStyle=sky; g.fillRect(0,0,cssW,cssH);
     const hz=cssH*0.56;
@@ -1606,6 +1771,15 @@
       g.fillStyle='#eaf6ff';
       g.beginPath(); g.moveTo(cssW*0.3,hz*0.42); g.lineTo(cssW*0.36,hz*0.56); g.lineTo(cssW*0.26,hz*0.54); g.closePath(); g.fill();
       g.beginPath(); g.moveTo(cssW*0.6,hz*0.3); g.lineTo(cssW*0.66,hz*0.48); g.lineTo(cssW*0.54,hz*0.46); g.closePath(); g.fill();
+    } else if(volc){
+      // dark cone with a glowing crater
+      g.fillStyle='#3a2422'; g.beginPath(); g.moveTo(cssW*0.1,hz);
+      g.lineTo(cssW*0.34,hz*0.34); g.lineTo(cssW*0.46,hz*0.6); g.lineTo(cssW*0.66,hz); g.closePath(); g.fill();
+      g.fillStyle='#241413'; g.beginPath(); g.moveTo(cssW*0.2,hz);
+      g.lineTo(cssW*0.34,hz*0.34); g.lineTo(cssW*0.42,hz*0.62); g.lineTo(cssW*0.2,hz); g.closePath(); g.fill();
+      const cg=g.createRadialGradient(cssW*0.34,hz*0.34,1,cssW*0.34,hz*0.34,22); cg.addColorStop(0,'rgba(255,170,70,.95)'); cg.addColorStop(1,'rgba(255,90,30,0)');
+      g.fillStyle=cg; g.beginPath(); g.arc(cssW*0.34,hz*0.34,22,0,7); g.fill();
+      g.strokeStyle='#ff7a2e'; g.lineWidth=2; g.beginPath(); g.moveTo(cssW*0.34,hz*0.4); g.quadraticCurveTo(cssW*0.3,hz*0.65, cssW*0.28,hz); g.stroke();
     } else {
       g.fillStyle='#c9b06a'; g.beginPath(); g.ellipse(cssW*0.42,hz, cssW*0.34, cssH*0.07,0,0,7); g.fill();
       g.fillStyle='#2f7a4a'; g.beginPath(); g.ellipse(cssW*0.46,hz-cssH*0.03, cssW*0.28, cssH*0.1,0,0,7); g.fill();
@@ -1621,6 +1795,7 @@
     // water
     const wg=g.createLinearGradient(0,hz,0,cssH);
     if(snow){ wg.addColorStop(0,'#2f8ba6'); wg.addColorStop(1,'#0a3046'); }
+    else if(volc){ wg.addColorStop(0,'#5a2018'); wg.addColorStop(1,'#22080c'); }
     else { wg.addColorStop(0,'#3a90c2'); wg.addColorStop(1,'#0d5680'); }
     g.fillStyle=wg; g.fillRect(0,hz,cssW,cssH-hz);
     g.strokeStyle='rgba(230,250,255,.7)'; g.lineWidth=1.6; g.beginPath();
@@ -1686,6 +1861,12 @@
   function startTravel(to){
     if(to===S.world){ say("You're already here! 📍"); hint('You can\'t GO to the place you\'re already at.'); return; }
     const w=WORLDS[to];
+    const rough=SEA_ROUGHNESS[to]||0;
+    if(curBoat().dur < rough){
+      say('⛵ Your boat can\'t handle that sea!');
+      hint(w.icon+' '+w.name+' needs a boat with durability '+rough+'+ — yours has '+curBoat().dur+'. Buy a sturdier boat in the 🛒 Shop → ⛵ BOATS.');
+      return;
+    }
     if(!S.unlocked[to] && w.cost>0){
       if(S.coins < w.cost){
         say('You need 🪙 '+w.cost+' to sail to '+w.name+'!');
@@ -1772,8 +1953,10 @@
     document.getElementById('shopInv').textContent=invUsed()+'/'+crateSize();
     document.getElementById('tabRods').classList.toggle('on', shopTab==='rods');
     document.getElementById('tabBait').classList.toggle('on', shopTab==='bait');
+    document.getElementById('tabBoats').classList.toggle('on', shopTab==='boats');
     const el=document.getElementById('shopList'); el.innerHTML='';
     if(shopTab==='bait') renderBaitList(el);
+    else if(shopTab==='boats') renderBoatsList(el);
     else renderRodsList(el);
   }
   function renderWorlds(){
@@ -1782,23 +1965,30 @@
     renderWorldsList(el);
   }
   function renderWorldsList(el){
+    const boat=curBoat();
     WORLD_ORDER.forEach(w=>{
       const Wd=WORLDS[w], here=(S.world===w), unlocked=!!S.unlocked[w];
+      const rough=SEA_ROUGHNESS[w]||0;
+      const canSail = boat.dur >= rough;
       const row=document.createElement('div'); row.className='worldcard'+(here?' here':'');
       const pic=document.createElement('canvas'); pic.width=168; pic.height=116;
       paintScene(pic.getContext('2d'), 84, 58, 2, Wd.theme);
       row.appendChild(pic);
       const info=document.createElement('div'); info.className='info';
-      info.innerHTML='<b>'+Wd.icon+' '+Wd.name+'</b><span>'+Wd.blurb+'</span>'+
-        (unlocked?'<span style="color:#7dffb8">Unlocked — its rods &amp; bait can be bought</span>'
-                 : (Wd.cost>0
-                    ? '<span style="color:#ffd85e">Locked — costs 🪙 '+Wd.cost+' to sail here (one-off)</span>'
-                    : '<span style="color:#ffd85e">Travel here to unlock its rods &amp; bait</span>'));
+      let status;
+      if(here) status='<span style="color:#7dffb8">You\'re here.</span>';
+      else if(!canSail) status='<span style="color:#ff7a7a">⛵ Sea too rough — needs a boat with durability '+rough+'+ (you have '+boat.dur+')</span>';
+      else if(unlocked) status='<span style="color:#7dffb8">Unlocked — its rods &amp; bait can be bought</span>';
+      else if(Wd.cost>0) status='<span style="color:#ffd85e">Locked — costs 🪙 '+Wd.cost+' to sail here (one-off)</span>';
+      else status='<span style="color:#ffd85e">Travel here to unlock its rods &amp; bait</span>';
+      info.innerHTML='<b>'+Wd.icon+' '+Wd.name+'</b><span>'+Wd.blurb+'</span>'+status;
       row.appendChild(info);
       const btn=document.createElement('button');
       if(here){
         btn.textContent='HERE 📍'; btn.className='go here'; btn.disabled=true;
         btn.onclick=()=>say("You're already here! 📍");
+      } else if(!canSail){
+        btn.textContent='⛵ TOO WEAK'; btn.className='go'; btn.disabled=true;
       } else {
         const need = (!unlocked && Wd.cost>0);
         btn.textContent = need ? ('GO → 🪙'+Wd.cost) : 'GO →';
@@ -1810,7 +2000,7 @@
       el.appendChild(row);
     });
     const note=document.createElement('p'); note.style.cssText='font-size:11px;opacity:.6;margin-top:8px';
-    note.textContent='Ocean is free. New islands cost a one-off fee the first time you sail there — after that you can go back and forth freely. You can\'t GO to a place you\'re already at.';
+    note.textContent='Ocean is free. New islands cost a one-off fee the first time you sail there — after that you can go back and forth freely. Rough islands need a sturdier boat: Snow needs durability 3+, Volcano needs 8+. You can\'t GO to a place you\'re already at.';
     el.appendChild(note);
   }
 
@@ -1842,6 +2032,38 @@
     });
     const note=document.createElement('p'); note.style.cssText='font-size:11px;opacity:.6;margin-top:8px';
     note.textContent='Owned rods show OWNED. Open 🎒 Inventory → 🎣 RODS to equip one.';
+    el.appendChild(note);
+  }
+
+  // shop boats: BUY here; EQUIP in your 🎒 Inventory → ⛵ BOATS. Boat durability decides where you can sail.
+  function renderBoatsList(el){
+    const owned=ownedBoats(), cur=S.boat||0;
+    const head=document.createElement('div'); head.style.cssText='font-size:12px;opacity:.85;margin:2px 0 6px';
+    head.innerHTML='⛵ Boats — your boat decides which islands you can reach. Buy here, then equip in your 🎒 Inventory → ⛵ BOATS.';
+    el.appendChild(head);
+    BOAT.forEach((b,i)=>{
+      const has=owned.includes(i);
+      const row=document.createElement('div'); row.className='shoprow';
+      const pic=document.createElement('canvas'); pic.width=120; pic.height=72;
+      pic.style.cssText='width:60px;height:36px;flex:0 0 60px';
+      paintBoat(pic, b.style, 60, 36, 2, 0);
+      row.appendChild(pic);
+      const left=document.createElement('div'); left.style.flex='1';
+      left.innerHTML='<b>⛵ '+b.name+'</b><span>'+b.desc+'</span>'+
+        '<span style="color:#8fd6ff">durability '+b.dur+' · speed ×'+b.speed.toFixed(2)+'</span>'+
+        '<span style="color:#ffd85e">'+(b.cost===0?'free':'🪙 '+b.cost)+'</span>';
+      row.appendChild(left);
+      if(has){
+        const o=document.createElement('div'); o.className='owned'; o.textContent=(i===cur?'EQUIPPED':'OWNED'); row.appendChild(o);
+      } else {
+        const btn=document.createElement('button'); btn.className='buy'; btn.textContent='BUY 🪙'+b.cost; btn.disabled=S.coins<b.cost;
+        btn.onclick=()=>{ if(S.coins>=b.cost){ S.coins-=b.cost; ownedBoats().push(i); save(); updateHUD(); renderShop(); say('Bought the '+b.name+'! Equip it in 🎒 Inventory.'); } };
+        row.appendChild(btn);
+      }
+      el.appendChild(row);
+    });
+    const note=document.createElement('p'); note.style.cssText='font-size:11px;opacity:.6;margin-top:8px';
+    note.textContent='Rough seas sink weak boats. Snow Island needs durability 3+, Volcano Island needs 8+. Equip your strongest boat in 🎒 Inventory → ⛵ BOATS.';
     el.appendChild(note);
   }
 
@@ -1905,13 +2127,14 @@
   function renderSpecies(){
     document.getElementById('specTabOcean').classList.toggle('on', specWorld==='ocean');
     document.getElementById('specTabSnow').classList.toggle('on', specWorld==='snow');
+    document.getElementById('specTabVolcano').classList.toggle('on', specWorld==='volcano');
     const el=document.getElementById('specList'); el.innerHTML='';
     speciesRows(el);
     const total=worldFish(specWorld).length;
     let got=worldFish(specWorld).filter(f=>S.caught[f.n]).length;
     const note=document.createElement('p'); note.style.cssText='font-size:11px;opacity:.6;margin-top:8px';
     note.textContent=got+' / '+total+' species caught in '+WORLDS[specWorld].name+' form.'+
-      (specWorld==='snow' && !S.unlocked.snow ? ' Travel to Snow Island to unlock it.' : '');
+      (specWorld!=='ocean' && !S.unlocked[specWorld] ? ' Travel to '+WORLDS[specWorld].name+' to unlock it.' : '');
     el.appendChild(note);
   }
 
@@ -1924,9 +2147,11 @@
     document.getElementById('invTabRods').classList.toggle('on', invTab==='rods');
     document.getElementById('invTabBait').classList.toggle('on', invTab==='bait');
     document.getElementById('invTabStore').classList.toggle('on', invTab==='store');
+    document.getElementById('invTabBoats').classList.toggle('on', invTab==='boats');
     const el=document.getElementById('invList'); el.innerHTML='';
     if(invTab==='rods') renderInvRods(el);
     else if(invTab==='bait') renderInvBait(el);
+    else if(invTab==='boats') renderInvBoats(el);
     else renderInvStore(el);
   }
   function renderInvRods(el){
@@ -1997,6 +2222,36 @@
       off.onclick=()=>{ S.bait=null; save(); updateHUD(); renderInventory(); say('Bait off — plain hook.'); };
       el.appendChild(off);
     }
+  }
+  function renderInvBoats(el){
+    const owned=ownedBoats(), cur=S.boat||0;
+    const head=document.createElement('div'); head.style.cssText='font-size:12px;opacity:.85;margin:2px 0 6px';
+    head.innerHTML='⛵ Your boats. Equip the sturdiest one to reach rougher islands.';
+    el.appendChild(head);
+    owned.forEach(i=>{
+      const b=BOAT[i]; if(!b) return;
+      const row=document.createElement('div'); row.className='shoprow';
+      const pic=document.createElement('canvas'); pic.width=120; pic.height=72;
+      pic.style.cssText='width:60px;height:36px;flex:0 0 60px';
+      paintBoat(pic, b.style, 60, 36, 2, 0);
+      row.appendChild(pic);
+      const left=document.createElement('div'); left.style.flex='1';
+      left.innerHTML='<b>⛵ '+b.name+'</b><span>'+b.desc+'</span>'+
+        '<span style="color:#8fd6ff">durability '+b.dur+' · speed ×'+b.speed.toFixed(2)+'</span>'+
+        (b.dur>=8?'<span style="color:#7dffa8">can reach Volcano Island</span>':(b.dur>=3?'<span style="color:#bfe0ff">can reach Snow Island</span>':'<span style="color:#ff9d76">calm coastal water only</span>'));
+      row.appendChild(left);
+      if(i===cur){
+        const o=document.createElement('div'); o.className='owned'; o.textContent='EQUIPPED'; row.appendChild(o);
+      } else {
+        const btn=document.createElement('button'); btn.className='go'; btn.textContent='EQUIP';
+        btn.onclick=()=>{ S.boat=i; save(); updateHUD(); renderInventory(); say('Equipped the '+b.name+'! ⛵'); };
+        row.appendChild(btn);
+      }
+      el.appendChild(row);
+    });
+    const note=document.createElement('p'); note.style.cssText='font-size:11px;opacity:.6;margin-top:8px';
+    note.textContent='Snow Island needs a boat with durability 3+. Volcano Island needs durability 8+. Buy stronger boats in the 🛒 Shop → ⛵ BOATS.';
+    el.appendChild(note);
   }
   function renderInvStore(el){
     const cap=crateSize(), used=invUsed();
@@ -2312,7 +2567,7 @@
   }
   function draw(){
     const t=performance.now()/1000;
-    const TH=sceneTheme(), snow=(TH==='snow');
+    const TH=sceneTheme(), snow=(TH==='snow'), volc=(TH==='volcano');
     // sun/moon angle from the time of day (0=midnight .5=noon)
     const sunAng = (dayT-0.25)*Math.PI*2;      // -pi/2 at midnight
     const sunUp = Math.sin(sunAng) > -0.15;
@@ -2321,11 +2576,12 @@
     // SKY
     let g=ctx.createLinearGradient(0,0,0,waterY);
     if(snow){ g.addColorStop(0,'#04121f'); g.addColorStop(.45,'#0d3350'); g.addColorStop(.8,'#1c6a86'); g.addColorStop(1,'#3f9fae'); }
+    else if(volc){ g.addColorStop(0,'#1a0b12'); g.addColorStop(.5,'#3a1620'); g.addColorStop(.82,'#6e2a1e'); g.addColorStop(1,'#a8481f'); }
     else { g.addColorStop(0,'#0a2540'); g.addColorStop(.6,'#15507e'); g.addColorStop(1,'#3a90c2'); }
     ctx.fillStyle=g; ctx.fillRect(0,0,W,waterY);
     // day/night: darken toward night (a deep navy wash), brighten at noon
-    if(dayAmt<1){ ctx.save(); ctx.globalAlpha=(1-dayAmt)*0.6; ctx.fillStyle=snow?'#020a18':'#03101f'; ctx.fillRect(0,0,W,waterY); ctx.restore(); }
-    if(dayAmt>0.75){ ctx.save(); ctx.globalAlpha=(dayAmt-0.75)*0.5; ctx.fillStyle='#ffe9c0'; ctx.fillRect(0,0,W,waterY); ctx.restore(); }
+    if(dayAmt<1){ ctx.save(); ctx.globalAlpha=(1-dayAmt)*0.6; ctx.fillStyle=snow?'#020a18':(volc?'#120409':'#03101f'); ctx.fillRect(0,0,W,waterY); ctx.restore(); }
+    if(dayAmt>0.75){ ctx.save(); ctx.globalAlpha=(dayAmt-0.75)*(volc?0.35:0.5); ctx.fillStyle=volc?'#ffd0a0':'#ffe9c0'; ctx.fillRect(0,0,W,waterY); ctx.restore(); }
 
     if(snow){
       // aurora ribbons brighten at night + a pale sun/moon
@@ -2341,6 +2597,18 @@
       }
       ctx.restore();
       drawCelestial(t, sunAng, dayAmt, true);
+    } else if(volc){
+      // a hazy red sun and drifting smoke plumes over the caldera
+      ctx.save(); ctx.globalAlpha=.35;
+      const sx2=W*0.5+Math.cos(sunAng)*W*0.3, sy2=waterY*0.6+Math.sin(sunAng)*waterY*0.4;
+      const sg=ctx.createRadialGradient(sx2,sy2,4,sx2,sy2,H*0.32); sg.addColorStop(0,'rgba(255,150,90,.9)'); sg.addColorStop(1,'rgba(255,120,60,0)');
+      ctx.fillStyle=sg; ctx.beginPath(); ctx.arc(sx2,sy2,H*0.32,0,7); ctx.fill(); ctx.restore();
+      ctx.fillStyle='rgba(255,170,110,.85)'; ctx.beginPath(); ctx.arc(sx2,sy2,12,0,7); ctx.fill();
+      ctx.save(); ctx.globalAlpha=.22; ctx.fillStyle='#241a18';
+      for(let i=0;i<4;i++){ const cx=W*0.74+Math.sin(t*0.4+i)*14, cy=waterY*0.28-i*26;
+        ctx.beginPath(); ctx.ellipse(cx,cy,34+i*10,20+i*6,0,0,7); ctx.fill(); }
+      ctx.restore();
+      drawCelestial(t, sunAng, dayAmt, false);
     } else {
       drawCelestial(t, sunAng, dayAmt, false);
     }
@@ -2400,6 +2668,7 @@
     // ---- UNDERWATER (base of the boat down) ----
     g=ctx.createLinearGradient(0,waterY,0,H);
     if(snow){ g.addColorStop(0,'#2f8ba6'); g.addColorStop(.35,'#16566f'); g.addColorStop(.72,'#0a3046'); g.addColorStop(1,'#04182a'); }
+    else if(volc){ g.addColorStop(0,'#3f1a1e'); g.addColorStop(.35,'#5a2018'); g.addColorStop(.72,'#2a0f14'); g.addColorStop(1,'#140508'); }
     else { g.addColorStop(0,'#1e7fb4'); g.addColorStop(.35,'#0d5680'); g.addColorStop(.72,'#08375a'); g.addColorStop(1,'#03203a'); }
     ctx.fillStyle=g; ctx.fillRect(0,waterY,W,H-waterY);
 
@@ -2408,26 +2677,34 @@
     for(let i=0;i<6;i++){
       const rx=(i*W/6)+Math.sin(t*0.3+i)*20;
       const rg=ctx.createLinearGradient(rx,waterY,rx+80,H);
-      rg.addColorStop(0,snow?'rgba(210,245,255,.18)':'rgba(190,235,255,.16)'); rg.addColorStop(1,'rgba(190,235,255,0)');
+      rg.addColorStop(0,snow?'rgba(210,245,255,.18)':(volc?'rgba(255,170,110,.16)':'rgba(190,235,255,.16)')); rg.addColorStop(1,'rgba(190,235,255,0)');
       ctx.fillStyle=rg;
       ctx.beginPath(); ctx.moveTo(rx-30,waterY); ctx.lineTo(rx+30,waterY); ctx.lineTo(rx+120,H); ctx.lineTo(rx-90,H); ctx.closePath(); ctx.fill();
     }
     ctx.restore();
 
     // sea floor
-    ctx.fillStyle=snow?'#0a2d40':'#062a44';
+    ctx.fillStyle=snow?'#0a2d40':(volc?'#150a0c':'#062a44');
     ctx.beginPath(); ctx.moveTo(0,H); ctx.lineTo(0,H-32);
     for(let x=0;x<=W;x+=30){ ctx.lineTo(x, H-32 - 10*Math.sin(x*0.02+2) - 6*Math.sin(x*0.05)); }
     ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
-    ctx.fillStyle=snow?'#123f52':'#083a56';
+    ctx.fillStyle=snow?'#123f52':(volc?'#2a1418':'#083a56');
     ctx.beginPath(); ctx.moveTo(0,H-30);
     for(let x=0;x<=W;x+=30){ ctx.lineTo(x, H-30 - 10*Math.sin(x*0.02+2) - 6*Math.sin(x*0.05)); }
     ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath(); ctx.fill();
-    // weeds (ocean) or ice shards (snow)
+    // weeds (ocean) / ice shards (snow) / glowing vents (volcano)
     if(snow){
       ctx.fillStyle='rgba(200,240,255,.28)';
       for(let i=0;i<7;i++){ const sx=50+i*(W/7)+Math.sin(i)*18, base=H-34, h=26+((i*13)%30);
         ctx.beginPath(); ctx.moveTo(sx-8,base); ctx.lineTo(sx,base-h); ctx.lineTo(sx+8,base); ctx.closePath(); ctx.fill(); }
+    } else if(volc){
+      // glowing lava vents on the seabed
+      ctx.save(); ctx.globalCompositeOperation='lighter';
+      for(let i=0;i<6;i++){ const sx=60+i*(W/6)+Math.sin(i)*22, base=H-30;
+        const vg=ctx.createRadialGradient(sx,base,2,sx,base,46); vg.addColorStop(0,'rgba(255,150,60,'+(0.45+Math.sin(t*2+i)*0.2)+')'); vg.addColorStop(1,'rgba(255,120,40,0)');
+        ctx.fillStyle=vg; ctx.beginPath(); ctx.arc(sx,base,46,0,7); ctx.fill();
+        ctx.fillStyle='#ffd07a'; ctx.beginPath(); ctx.arc(sx,base-4,4,0,7); ctx.fill(); }
+      ctx.restore();
     } else {
       ctx.strokeStyle='rgba(40,150,110,.5)'; ctx.lineWidth=5; ctx.lineCap='round';
       for(let i=0;i<8;i++){
@@ -2636,6 +2913,57 @@
     ctx.restore();
   }
 
+  // each boat has a unique hull, matched to its name. drawn around the origin, waterline at y=0.
+  function drawBoatShape(style){
+    if(style==='dinghy'){
+      ctx.fillStyle='#3f6f8a'; ctx.beginPath();
+      ctx.moveTo(-64,-8); ctx.lineTo(64,-8); ctx.lineTo(48,20); ctx.lineTo(-48,20); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#5c93b0'; ctx.fillRect(-64,-12,128,6);
+      ctx.fillStyle='#22303a'; ctx.fillRect(46,-6,11,22);
+      ctx.fillStyle='#0d1519'; ctx.beginPath(); ctx.arc(51.5,18,5,0,7); ctx.fill();
+    } else if(style==='skipper'){
+      ctx.fillStyle='#d7e3ea'; ctx.beginPath();
+      ctx.moveTo(-68,-6); ctx.lineTo(70,-6); ctx.lineTo(54,22); ctx.lineTo(-52,22); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#b6c8d4'; ctx.fillRect(-68,-10,138,6);
+      ctx.fillStyle='#eef5fa'; ctx.beginPath(); ctx.moveTo(-36,-10); ctx.lineTo(-36,-34); ctx.lineTo(20,-34); ctx.lineTo(28,-10); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#4aa8e0'; ctx.fillRect(-30,-30,42,13);
+    } else if(style==='trawler'){
+      ctx.fillStyle='#8a6a4a'; ctx.beginPath();
+      ctx.moveTo(-76,-6); ctx.lineTo(78,-6); ctx.lineTo(58,26); ctx.lineTo(-58,26); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#6f533a'; ctx.fillRect(-76,-11,154,7);
+      ctx.fillStyle='#d9c9a8'; ctx.beginPath(); ctx.moveTo(-30,-11); ctx.lineTo(-30,-40); ctx.lineTo(26,-40); ctx.lineTo(34,-11); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#3a4a58'; ctx.fillRect(-22,-36,42,16);
+      ctx.strokeStyle='#5a4632'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(-52,-11); ctx.lineTo(-52,-48); ctx.stroke();
+    } else if(style==='icebreaker'){
+      ctx.fillStyle='#c0ccd6'; ctx.beginPath();
+      ctx.moveTo(-82,-6); ctx.lineTo(84,-6); ctx.lineTo(74,26); ctx.lineTo(-66,26); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#8f9ba6'; ctx.fillRect(-82,-11,166,7);
+      ctx.fillStyle='#ffcf4a'; ctx.beginPath(); ctx.moveTo(84,-6); ctx.lineTo(99,3); ctx.lineTo(84,15); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#eef5fa'; ctx.beginPath(); ctx.moveTo(-42,-11); ctx.lineTo(-42,-46); ctx.lineTo(30,-46); ctx.lineTo(40,-11); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#2f4a5c'; ctx.fillRect(-34,-42,58,20);
+      ctx.strokeStyle='#5a6a76'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(-60,-11); ctx.lineTo(-60,-52); ctx.stroke();
+    } else {
+      // rowboat (default starter)
+      ctx.fillStyle='#7a4a24'; ctx.beginPath();
+      ctx.moveTo(-60,-8); ctx.lineTo(60,-8); ctx.lineTo(44,18); ctx.lineTo(-44,18); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#a8622f'; ctx.fillRect(-60,-12,120,6);
+      ctx.strokeStyle='#8a5a30'; ctx.lineWidth=3; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(-42,-5); ctx.lineTo(-74,11); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(42,-5); ctx.lineTo(74,11); ctx.stroke();
+    }
+  }
+  function paintBoat(canvasEl, style, cssW, cssH, scale, phase){
+    const g=canvasEl.getContext('2d');
+    g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,canvasEl.width,canvasEl.height);
+    g.scale(scale,scale);
+    const keep=ctx; ctx=g;
+    const s=Math.min(cssW/180, cssH/66);
+    ctx.save(); ctx.translate(cssW/2, cssH*0.60); ctx.scale(s,s);
+    drawBoatShape(style);
+    ctx.restore();
+    ctx=keep;
+  }
+
   function drawBoat(t){
     const x=rod.x, y=waterY;      // y = waterline, water meets the base of the hull
     const bobY = travel ? Math.sin(t*7)*3.4 : Math.sin(t*1.4)*2;   // bob harder while sailing
@@ -2645,12 +2973,8 @@
     const hookLean = -hs*6;                                   // body rocks back
     ctx.save();
     ctx.translate(throwLean + hookLean, bobY - hs*4);
-    // hull
-    ctx.fillStyle='#7a4a24';
-    ctx.beginPath();
-    ctx.moveTo(x-74,y-8); ctx.lineTo(x+74,y-8);
-    ctx.lineTo(x+56,y+20); ctx.lineTo(x-56,y+20); ctx.closePath(); ctx.fill();
-    ctx.fillStyle='#a8622f'; ctx.fillRect(x-74,y-12,148,6);   // rim
+    // hull — the equipped boat's shape
+    ctx.save(); ctx.translate(x,y); drawBoatShape((curBoat().style)||'rowboat'); ctx.restore();
     ctx.fillStyle='#2d4354'; ctx.fillRect(x-56,y+12,112,8);   // waterline stripe (under surface)
     // angler (leans forward on the throw, rocks back on the feel / hookset)
     const lean = (castAnim>=0? Math.sin(Math.max(0,(castAnim-0.25)/0.75)*Math.PI)*3 : 0) - feelDip*4;
@@ -2720,11 +3044,11 @@
 
   // scenic island on the horizon — different look per world
   function drawIsland(t){
-    const TH=sceneTheme(), snow=(TH==='snow');
+    const TH=sceneTheme(), snow=(TH==='snow'), volc=(TH==='volcano');
     const x=W*0.74, base=waterY+2, s=Math.min(1, W/900);
     ctx.save();
     // far haze
-    ctx.globalAlpha=.4; ctx.fillStyle=snow?'#8fc7e0':'#7fc2ea';
+    ctx.globalAlpha=.4; ctx.fillStyle=snow?'#8fc7e0':(volc?'#e08a5a':'#7fc2ea');
     ctx.beginPath(); ctx.ellipse(x,base, 150*s, 26*s,0,0,7); ctx.fill(); ctx.globalAlpha=1;
     if(snow){
       // jagged snow peaks with white caps
@@ -2741,6 +3065,28 @@
       ctx.globalAlpha=.55; ctx.fillStyle='#dff2ff';
       ctx.beginPath(); ctx.moveTo(x-120*s,base); ctx.lineTo(x-40*s,base-40*s); ctx.lineTo(x+40*s,base-40*s); ctx.lineTo(x+120*s,base); ctx.closePath(); ctx.fill();
       ctx.globalAlpha=1;
+    } else if(volc){
+      // dark volcanic cone with a glowing crater and lava streaks
+      ctx.fillStyle='#3a2422';
+      ctx.beginPath(); ctx.moveTo(x-140*s,base);
+      ctx.lineTo(x-30*s,base-104*s); ctx.lineTo(x+14*s,base-70*s); ctx.lineTo(x+56*s,base-96*s);
+      ctx.lineTo(x+140*s,base); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#241413';
+      ctx.beginPath(); ctx.moveTo(x-70*s,base); ctx.lineTo(x-30*s,base-104*s); ctx.lineTo(x+6*s,base-58*s); ctx.lineTo(x-70*s,base); ctx.closePath(); ctx.fill();
+      // glowing crater
+      ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.7+Math.sin(t*2)*.2;
+      const cg=ctx.createRadialGradient(x-30*s,base-104*s,2,x-30*s,base-104*s,52*s); cg.addColorStop(0,'rgba(255,170,70,.95)'); cg.addColorStop(1,'rgba(255,90,30,0)');
+      ctx.fillStyle=cg; ctx.beginPath(); ctx.arc(x-30*s,base-104*s,52*s,0,7); ctx.fill(); ctx.restore();
+      // lava streaks down the cone
+      ctx.strokeStyle='#ff7a2e'; ctx.lineWidth=3*s; ctx.lineCap='round';
+      for(const lx of [-46,4,-16]){
+        ctx.beginPath(); ctx.moveTo(x-30*s,base-98*s);
+        ctx.quadraticCurveTo(x+lx*s, base-50*s, x+lx*s+6*s, base); ctx.stroke();
+      }
+      // smoke plume
+      ctx.save(); ctx.globalAlpha=.28; ctx.fillStyle='#4a3a36';
+      for(let i=0;i<4;i++){ const cx=x-30*s+Math.sin(t*0.5+i)*10*s, cy=base-116*s-i*20*s; ctx.beginPath(); ctx.ellipse(cx,cy,24*s+i*8*s,15*s+i*5*s,0,0,7); ctx.fill(); }
+      ctx.restore();
     } else {
       // green palm island
       ctx.fillStyle='#c9b06a';
