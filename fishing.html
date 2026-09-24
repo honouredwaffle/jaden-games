@@ -1867,8 +1867,8 @@
     el.appendChild(note);
   }
   function speciesRows(el){
-    // show the rarest species first — higher rarity sits above lower rarity
-    const sorted = worldFish(specWorld).slice().sort((a,b)=> rarRank(b.r)-rarRank(a.r));
+    // higher rarity sits BELOW lower rarity — commonest first, rarest at the bottom
+    const sorted = worldFish(specWorld).slice().sort((a,b)=> rarRank(a.r)-rarRank(b.r));
     sorted.forEach(f=>{
       const c=S.caught[f.n]; const row=document.createElement('div'); row.className='shoprow';
       const rc=RARITY[f.r].color;
