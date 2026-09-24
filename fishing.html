@@ -94,6 +94,17 @@
   .tvbar { width:62%; max-width:340px; height:10px; border-radius:6px; background:rgba(255,255,255,.15); overflow:hidden; }
   .tvbar > div { height:100%; width:0%; background:linear-gradient(90deg,#39d98a,#8fe3ff); transition:width .12s linear; }
   .tvsub { color:#cfe9ff; font-size:13px; opacity:.8; letter-spacing:1px; }
+  #rowHud { position:absolute; bottom:15%; left:0; right:0; display:none; flex-direction:column; align-items:center; gap:9px; z-index:20; pointer-events:none; }
+  #rowHud.show { display:flex; }
+  #rowCountdown { position:absolute; top:22%; left:0; right:0; text-align:center; font-size:min(13vw,60px); font-weight:bold; color:#8fe3ff; text-shadow:0 0 26px rgba(120,210,255,.85),0 3px 10px rgba(0,0,0,.7); opacity:0; pointer-events:none; z-index:21; }
+  #rowCountdown.go { animation:rowcount 1s ease-out; }
+  @keyframes rowcount { 0%{opacity:0; transform:scale(1.7)} 25%{opacity:1; transform:scale(1)} 70%{opacity:1} 100%{opacity:0; transform:scale(.8)} }
+  .rowtitle { color:#8fe3ff; font-weight:bold; letter-spacing:4px; font-size:15px; text-shadow:0 2px 10px rgba(0,0,0,.6); }
+  .rowbar { width:64%; max-width:330px; height:13px; border-radius:7px; background:rgba(0,0,0,.42); border:1px solid rgba(140,220,255,.55); overflow:hidden; }
+  .rowbar > div { height:100%; width:0%; background:linear-gradient(90deg,#39d98a,#8fe3ff); transition:width .06s linear; }
+  .rowsub { color:#cfe9ff; font-size:12px; opacity:.88; text-shadow:0 1px 6px rgba(0,0,0,.6); }
+  .rowsub b { color:#ffd85e; }
+  #throwBtn.rowing { background:linear-gradient(180deg,#8fe3ff,#39d98a); box-shadow:0 5px 0 #1f7d49; }
   #rarityPop { position:absolute; top:36%; left:0; right:0; text-align:center; font-size:34px; font-weight:bold; opacity:0; pointer-events:none; transition:opacity .25s; }
   #arriveBanner { position:absolute; top:30%; left:0; right:0; text-align:center; pointer-events:none; opacity:0; z-index:9; }
   #arriveBanner.show { animation:arriveIn 2.8s ease-out; }
@@ -134,6 +145,12 @@
   <div class="hud" id="hint">Tap the water to aim, then THROW to cast</div>
   <div id="rarityPop"></div>
   <div id="arriveBanner"></div>
+  <div id="rowCountdown"></div>
+  <div id="rowHud">
+    <div class="rowtitle" id="rowTitle">🧭 ROW TO SET SAIL</div>
+    <div class="rowbar"><div id="rowFill"></div></div>
+    <div class="rowsub" id="rowSub">Hold the water (or the <b>ROW</b> button) to paddle right</div>
+  </div>
 
   <div id="gauges">
     <div class="gaugeCol">
@@ -1036,25 +1053,25 @@
 
   const RODS = {
     ocean: [
-      {name:'Basic Rod',      cost:0,    cast:1.00, reel:0.75, pwr:0.70, lure:1.00, luck:0, style:'basic',   desc:'Slow, basic. Every fish is a fight.'},
-      {name:'Estuary Rig',    cost:350,  cast:1.18, reel:1.05, pwr:0.95, lure:1.15, luck:1, style:'estuary', desc:'A steady all-rounder. Slightly faster bites.'},
-      {name:'Carbon Spinner', cost:1100, cast:1.38, reel:1.45, pwr:1.25, lure:1.80, luck:0, style:'spinner', desc:'SPEED rig — bites come thick and fast, but it pulls in anything that swims.'},
-      {name:'Deep Caster',    cost:3000, cast:1.60, reel:1.95, pwr:1.60, lure:0.80, luck:6, style:'deep',    desc:'LUCK rig — slow to attract, but what turns up is worth the wait.', mut:{chance:0.08, type:'abyssal'}},
-      {name:'Cursed Rod',     cost:8000, cast:1.85, reel:2.60, pwr:2.10, lure:1.55, luck:9, style:'cursed',  desc:'Top of the line: fast bites AND the monsters. You paid for both.', mut:{chance:0.16, type:'abyssal'}}
+      {name:'Basic Rod',      cost:0,    cast:1.00, reel:0.75, pwr:1.05, lure:1.00, luck:0, style:'basic',   desc:'Slow, basic. Every fish is a fight.'},
+      {name:'Estuary Rig',    cost:350,  cast:1.18, reel:1.05, pwr:1.45, lure:1.15, luck:1, style:'estuary', desc:'A steady all-rounder. Slightly faster bites.'},
+      {name:'Carbon Spinner', cost:1100, cast:1.38, reel:1.45, pwr:1.85, lure:1.80, luck:0, style:'spinner', desc:'SPEED rig — bites come thick and fast, but it pulls in anything that swims.'},
+      {name:'Deep Caster',    cost:3000, cast:1.60, reel:1.95, pwr:2.35, lure:0.80, luck:6, style:'deep',    desc:'LUCK rig — slow to attract, but what turns up is worth the wait.', mut:{chance:0.08, type:'abyssal'}},
+      {name:'Cursed Rod',     cost:8000, cast:1.85, reel:2.60, pwr:3.70, lure:1.55, luck:9, style:'cursed',  desc:'Top of the line: fast bites AND the monsters. You paid for both.', mut:{chance:0.16, type:'abyssal'}}
     ],
     snow: [
-      {name:'Ice Rod',        cost:0,    cast:1.15, reel:1.00, pwr:0.90, lure:1.10, luck:2, style:'ice',      desc:'Basic cold-water setup. A touch luckier than the ocean starter.', mut:{chance:0.07, type:'frozen'}},
-      {name:'Glacier Rig',    cost:1600, cast:1.35, reel:1.30, pwr:1.20, lure:1.30, luck:4, style:'glacier',  desc:'Balanced cold-weather rig. Quick bites, decent fish.', mut:{chance:0.11, type:'frozen'}},
-      {name:'Blizzard Caster',cost:4000, cast:1.55, reel:1.70, pwr:1.50, lure:2.10, luck:1, style:'blizzard', desc:'SPEED rig — a storm of bites, but mostly small ones.', mut:{chance:0.13, type:'frozen'}},
-      {name:'Aurora Rod',     cost:9500, cast:1.75, reel:2.10, pwr:1.90, lure:1.00, luck:9, style:'aurora',   desc:'LUCK rig — slow, but the deep cold monsters come to it.', mut:{chance:0.15, type:'radiant'}},
-      {name:'Frozen Throne',  cost:24000,cast:2.00, reel:2.80, pwr:2.40, lure:1.70, luck:12,style:'throne',   desc:'The apex rod. Fast bites and the leviathans. Nothing else needed.', mut:{chance:0.22, type:'radiant'}}
+      {name:'Ice Rod',        cost:0,    cast:1.15, reel:1.00, pwr:1.20, lure:1.10, luck:2, style:'ice',      desc:'Basic cold-water setup. A touch luckier than the ocean starter.', mut:{chance:0.07, type:'frozen'}},
+      {name:'Glacier Rig',    cost:1600, cast:1.35, reel:1.30, pwr:1.65, lure:1.30, luck:4, style:'glacier',  desc:'Balanced cold-weather rig. Quick bites, decent fish.', mut:{chance:0.11, type:'frozen'}},
+      {name:'Blizzard Caster',cost:4000, cast:1.55, reel:1.70, pwr:2.00, lure:2.10, luck:1, style:'blizzard', desc:'SPEED rig — a storm of bites, but mostly small ones.', mut:{chance:0.13, type:'frozen'}},
+      {name:'Aurora Rod',     cost:9500, cast:1.75, reel:2.10, pwr:2.60, lure:1.00, luck:9, style:'aurora',   desc:'LUCK rig — slow, but the deep cold monsters come to it.', mut:{chance:0.15, type:'radiant'}},
+      {name:'Frozen Throne',  cost:24000,cast:2.00, reel:2.80, pwr:3.50, lure:1.70, luck:12,style:'throne',   desc:'The apex rod. Fast bites and the leviathans. Nothing else needed.', mut:{chance:0.22, type:'radiant'}}
     ],
     volcano: [
-      {name:'Ember Rod',     cost:0,    cast:1.20, reel:1.10, pwr:1.00, lure:1.15, luck:2, style:'ember',    desc:'Scorched starter rod. Warm to hold, lucky in the plume.', mut:{chance:0.08, type:'ember'}},
-      {name:'Cinder Rig',    cost:12000,cast:1.45, reel:1.50, pwr:1.35, lure:1.40, luck:5, style:'cinder',   desc:'Charred all-rounder. Quick bites near the vents.', mut:{chance:0.12, type:'ember'}},
-      {name:'Magma Caster',  cost:26000,cast:1.65, reel:1.95, pwr:1.70, lure:2.30, luck:1, style:'magma',    desc:'SPEED rig — a firestorm of bites, mostly small fry.', mut:{chance:0.14, type:'ember'}},
-      {name:'Obsidian Rod',  cost:52000,cast:1.85, reel:2.30, pwr:2.05, lure:0.95, luck:13,style:'obsidian', desc:'LUCK rig — slow, but the fire-deep horrors answer it.', mut:{chance:0.18, type:'ember'}},
-      {name:'Infernal Rod',  cost:110000,cast:2.10, reel:2.90, pwr:2.55, lure:1.90, luck:17,style:'infernal',desc:'The apex rod of the burning deep. Fast bites AND the titans.', mut:{chance:0.27, type:'ember'}}
+      {name:'Ember Rod',     cost:0,    cast:1.20, reel:1.10, pwr:1.35, lure:1.15, luck:2, style:'ember',    desc:'Scorched starter rod. Warm to hold, lucky in the plume.', mut:{chance:0.08, type:'ember'}},
+      {name:'Cinder Rig',    cost:12000,cast:1.45, reel:1.50, pwr:1.90, lure:1.40, luck:5, style:'cinder',   desc:'Charred all-rounder. Quick bites near the vents.', mut:{chance:0.12, type:'ember'}},
+      {name:'Magma Caster',  cost:26000,cast:1.65, reel:1.95, pwr:2.25, lure:2.30, luck:1, style:'magma',    desc:'SPEED rig — a firestorm of bites, mostly small fry.', mut:{chance:0.14, type:'ember'}},
+      {name:'Obsidian Rod',  cost:52000,cast:1.85, reel:2.30, pwr:2.95, lure:0.95, luck:13,style:'obsidian', desc:'LUCK rig — slow, but the fire-deep horrors answer it.', mut:{chance:0.18, type:'ember'}},
+      {name:'Infernal Rod',  cost:110000,cast:2.10, reel:2.90, pwr:4.00, lure:1.90, luck:17,style:'infernal',desc:'The apex rod of the burning deep. Fast bites AND the titans.', mut:{chance:0.27, type:'ember'}}
     ]
   };
 
@@ -1120,7 +1137,7 @@
     cursed:  {pull:1.02, tension:1.14, thrash:2.05},
     legendary:{pull:1.16,tension:1.30, thrash:2.45},
     mythical:{pull:1.32, tension:1.46, thrash:2.85},
-    transcendent:{pull:1.58, tension:1.74, thrash:3.50}
+    transcendent:{pull:1.48, tension:1.62, thrash:3.50}
   };
   // a few named fish are extra nasty to land (multiplies their fight stats)
   const FIGHT_BOOST = { 'Cursed King':1.22, 'Kraken':1.15, 'Tide Sovereign':1.24,
@@ -1164,15 +1181,15 @@
   // biome disasters: rare, exclusive, each mutates the water and can surface a boss
   const DISASTERS = {
     ocean:   { key:'hurricane', name:'Hurricane',  icon:'🌀', mutation:'tempest',
-               boss:{name:'The Maelstrom', r:'legendary', a:500, b:1600, boost:1.4,
+               boss:{name:'The Maelstrom', r:'legendary', a:500, b:1600, boost:1.35,
                      q:'The hurricane has an eye — and something huge is staring back from inside it.',
                      art:{t:'kraken', c1:'#8fe6ff', c2:'#1f5f8f', p:'stripe'}} },
     snow:    { key:'blizzard',  name:'Blizzard',   icon:'❄️', mutation:'glacial',
-               boss:{name:'Whiteout Colossus', r:'legendary', a:500, b:1600, boost:1.4,
+               boss:{name:'Whiteout Colossus', r:'legendary', a:500, b:1600, boost:1.35,
                      q:'It walked out of the whiteout. You never saw the whole of it at once.',
                      art:{t:'colossus', c1:'#ffffff', c2:'#6f9fc8', p:'stripe'}} },
     volcano: { key:'eruption',  name:'Eruption',   icon:'🌋', mutation:'molten',
-               boss:{name:'The Eruption', r:'mythical', a:700, b:2200, boost:1.45,
+               boss:{name:'The Eruption', r:'mythical', a:700, b:2200, boost:1.35,
                      q:'The mountain stood up. The mountain has a face.',
                      art:{t:'titan', c1:'#ffbe5c', c2:'#8f1f0a', p:'scale'}} }
   };
@@ -1216,6 +1233,14 @@
   function rodRef(){
     const e=S.rodEq;
     if(e && RODS[e.w] && RODS[e.w][e.i]) return e;
+    // no rod explicitly equipped: hold your best PURCHASED rod (from any island) so a rod you
+    // bought in one place is never swapped for another island's weak free rod when you travel.
+    let best=null, bestP=-1;
+    for(const w in RODS){
+      const owned=(S.owned && Array.isArray(S.owned[w]))?S.owned[w]:[];
+      for(const i of owned){ if(i<1) continue; const r=RODS[w][i]; if(r && (r.pwr||0) > bestP){ bestP=r.pwr||0; best={w, i}; } }
+    }
+    if(best) return best;
     const i=(typeof S.rod[S.world]==='number')?S.rod[S.world]:0;
     return {w:S.world, i};
   }
@@ -1514,12 +1539,13 @@
     target.y = Math.max(fishZoneTop()+6, Math.min(fishZoneBot()-6, target.y));
   }
   function pointerDown(e){
-    if(travel) return;
+    if(travel){ if(travel.phase==='row'){ travel.rowing=true; } return; }
     if(e){ const p=canvasPos(e); target.x=p.x; target.y=p.y; }
     if(S.state==='idle'){ dragging=true; clampTarget(); }      // aim by tapping the water
     else if(S.state==='bite'){ hookIt(); }                     // tap anywhere to strike
   }
   function pointerMove(e){
+    if(travel) return;
     if(!dragging || S.state!=='idle') return;
     const p=canvasPos(e); target.x=p.x; target.y=p.y; clampTarget();
   }
@@ -1532,10 +1558,10 @@
   function reelRelease(){ if(reel) reel.holding=false; }
 
   cv.addEventListener('pointerdown', e=>{ e.preventDefault(); try{cv.setPointerCapture(e.pointerId);}catch(_){} pointerDown(e); });
-  cv.addEventListener('pointermove', e=>{ if(dragging){ e.preventDefault(); pointerMove(e); } });
+  cv.addEventListener('pointermove', e=>{ if(dragging||travel){ e.preventDefault(); pointerMove(e); } });
   cv.addEventListener('pointerup', ()=>{ dragging=false; });
   cv.addEventListener('pointercancel', ()=>{ dragging=false; });
-  window.addEventListener('pointerup', ()=>{ dragging=false; });
+  window.addEventListener('pointerup', ()=>{ dragging=false; if(travel) travel.rowing=false; });
   window.addEventListener('keydown', e=>{ if(e.code==='Space'&&!e.repeat){ e.preventDefault(); if(S.state==='idle') doCast(); else if(S.state==='bite') hookIt(); } });
 
   // ---- on-screen THROW + REEL buttons ----
@@ -1546,13 +1572,26 @@
   function bindDown(el, fn){
     el.addEventListener('pointerdown', e=>{ e.preventDefault(); try{ el.setPointerCapture(e.pointerId); }catch(_){ } fn(); });
   }
-  bindDown(throwBtn, ()=>{ if(S.state==='idle') doCast(); });
+  bindDown(throwBtn, ()=>{ if(travel){ if(travel.phase==='row') travel.rowing=true; } else if(S.state==='idle') doCast(); });
+  throwBtn.addEventListener('pointerup', ()=>{ if(travel) travel.rowing=false; });
+  throwBtn.addEventListener('pointercancel', ()=>{ if(travel) travel.rowing=false; });
+  throwBtn.addEventListener('lostpointercapture', ()=>{ if(travel) travel.rowing=false; });
   bindDown(reelBtn, reelPress);
   reelBtn.addEventListener('pointerup', e=>{ e.preventDefault(); reelRelease(); });
   reelBtn.addEventListener('pointercancel', ()=>reelRelease());
   reelBtn.addEventListener('lostpointercapture', ()=>reelRelease());
 
   function updateControls(){
+    if(travel){
+      const rowing = travel.phase==='row';
+      throwBtn.classList.toggle('dim', !rowing);
+      throwBtn.classList.toggle('hot', rowing);
+      throwBtn.classList.toggle('rowing', rowing);
+      throwLabel.textContent = rowing ? 'ROW ➡️' : '…';
+      reelBtn.classList.add('dim'); reelLabel.textContent='REEL';
+      return;
+    }
+    throwBtn.classList.remove('rowing');
     const idle = S.state==='idle';
     throwBtn.classList.toggle('dim', !idle);
     throwBtn.classList.toggle('hot', idle);
@@ -1971,8 +2010,23 @@
     hidePanel('shopPanel');
     hidePanel('worldPanel');
     resetToIdle();
-    travel={ to, phase:'out', t:0, boatX:0 };
-    say('Sailing to '+w.icon+' '+w.name+'…'); hint('');
+    travel={ to, phase:'row', t:0, boatX:0, x:0, v:0, rowing:false, shake:0, minT:0.6 };
+    say('Set sail! Hold the water (or ROW) to paddle to the right ➡️'); hint('Paddle right until the boat reaches the open sea.');
+    showRowHud(true);
+  }
+  function showRowHud(on){
+    const el=document.getElementById('rowHud'); if(el) el.classList.toggle('show', !!on);
+    const f=document.getElementById('rowFill'); if(f && !on) f.style.width='0%';
+  }
+  function updateRowHud(prog, v, ready){
+    const f=document.getElementById('rowFill'); if(f) f.style.width=(Math.min(1,prog)*100)+'%';
+    const t=document.getElementById('rowTitle');
+    const s=document.getElementById('rowSub');
+    const deep=prog>0.75;
+    if(t) t.textContent = (!ready?'🧭 GET READY…':(deep?'⛵ ALMOST THERE!':(v>40?'🌊 ROWING!':'🧭 ROW TO SET SAIL')));
+    if(s) s.innerHTML = !ready ? 'Hold on — casting off…'
+      : (deep ? 'Just a <b>little further right</b> to reach open water!'
+      : 'Hold the water (or the <b>ROW</b> button) to paddle right ➡️');
   }
   function showArrival(w){
     const el=document.getElementById('arriveBanner');
@@ -1986,10 +2040,34 @@
   }
   function updateTravel(dt){
     travel.t += dt;
-    if(travel.phase==='out'){
-      // slower departure — the boat takes its time sailing off to the right
-      travel.boatX = (travel.t/3.0)*(W+220);
-      if(travel.t>=3.0){ travel.phase='black'; travel.t=0; showTravelVeil(true); }
+    if(travel.phase==='row'){
+      // rows only build once the angle counts down; momentum carries then eases off
+      const ready = travel.t >= travel.minT;
+      if(ready && travel.rowing && travel.x < W-140){
+        // the closer to the open sea (right), the harder it pulls — a sprint finish
+        const boost = 1 + 1.3*(travel.x/(W-140));
+        travel.v = Math.min((travel.v||0) + dt*900*boost, 760);
+        travel.stroke = Math.min(1, (travel.stroke||0) + dt*4);   // oar stroke visual
+      } else {
+        travel.v = (travel.v||0) * Math.pow(0.32, dt);            // release = glides to a stop
+        travel.stroke = Math.max(0, (travel.stroke||0) - dt*3);
+      }
+      travel.x = Math.min(W-140, (travel.x||0) + travel.v*dt);
+      travel.boatX = travel.x;
+      travel.rowPhase = (travel.rowPhase||0) + dt*(2.2 + Math.min(9, travel.v*0.03));
+      updateRowHud(travel.x/(W-140), travel.v, ready);
+      if(travel.x >= W-140-0.5){
+        // reached open water — the closer you got (and the harder you rowed), the sooner the veil comes
+        travel.phase='count'; travel.t=0; showRowHud(false);
+        const cd=document.getElementById('rowCountdown');
+        cd.textContent='⚓ SET SAIL!'; cd.classList.remove('go'); void cd.offsetWidth; cd.classList.add('go');
+        say('Off we go! 🌊');
+      }
+    } else if(travel.phase==='count'){
+      // boat keeps gliding off-screen, then the black TRAVELING veil appears
+      travel.v=(travel.v||0)*Math.pow(0.5,dt); travel.x=Math.min(W+80, travel.x + travel.v*dt);
+      travel.boatX=travel.x;
+      if(travel.t>=1.0){ travel.phase='black'; travel.t=0; showTravelVeil(true); }
     } else if(travel.phase==='black'){
       const p=Math.min(1, travel.t/2.2);
       const fill=document.getElementById('tvFill'); if(fill) fill.style.width=(p*100)+'%';
@@ -2585,13 +2663,14 @@
       let dProg = 0;
       if(reel.holding){
         // reeling lifts the fish up; your rod determines how fast
-        dProg += 0.34 * reel.pwr / (1 + ratio*0.9) * edt;
+        dProg += 0.38 * reel.pwr / (1 + ratio*0.9) * edt;
         // harder when the fish runs
-        if(reel.running) dProg -= 0.30 * F.pull * edt;
+        if(reel.running) dProg -= 0.26 * F.pull * edt;
         // a dive drags it down hard — reeling fights it, but it still loses ground
-        if(reel.diving) dProg -= 0.26 * F.pull * edt;
-        // tension climbs faster the more the rod struggles
-        reel.tension += F.tension * (0.8 + ratio*0.6) * edt;
+        if(reel.diving) dProg -= 0.22 * F.pull * edt;
+        // tension climbs faster the more the fish struggles — but a STRONGER ROD keeps it under control (bar rises slower)
+        const relief = 1/(1 + 0.34*(reel.pwr-1));
+        reel.tension += F.tension * (0.70 + ratio*0.60) * relief * edt;
       } else {
         reel.tension -= 0.85*edt;
         // the fish pulls back down when you stop reeling — progress slips away
@@ -3332,6 +3411,7 @@
 
   function drawBoat(t){
     const x=rod.x, y=waterY;      // y = waterline, water meets the base of the hull
+    const rowing = travel && travel.phase==='row';
     const bobY = travel ? Math.sin(t*7)*3.4 : Math.sin(t*1.4)*2;   // bob harder while sailing
     const throwLean = castAnim>=0 ? Math.sin(Math.max(0,(castAnim-0.25)/0.75)*Math.PI)*7 : 0;  // lean into the cast
     // hookset: a fast upward YANK when the fish commits
@@ -3339,9 +3419,26 @@
     const hookLean = -hs*6;                                   // body rocks back
     ctx.save();
     ctx.translate(throwLean + hookLean, bobY - hs*4);
+    // wake behind the hull while rowing hard
+    if(rowing && travel.v>30){
+      ctx.save(); ctx.globalAlpha=Math.min(.5, travel.v/900); ctx.strokeStyle='#eafcff'; ctx.lineWidth=2; ctx.lineCap='round';
+      for(let i=0;i<5;i++){ const wx=x-42-i*11, wy=y+6+Math.sin(t*9+i)*1.6; ctx.beginPath(); ctx.moveTo(wx,wy-3); ctx.lineTo(wx-16,wy+3); ctx.stroke(); }
+      ctx.restore();
+    }
     // hull — the equipped boat's shape
     ctx.save(); ctx.translate(x,y); drawBoatShape((curBoat().style)||'rowboat'); ctx.restore();
     ctx.fillStyle='#2d4354'; ctx.fillRect(x-56,y+12,112,8);   // waterline stripe (under surface)
+    // oars sweep when rowing
+    if(rowing){
+      const sw=Math.sin(travel.rowPhase||t*2)*1.0;
+      ctx.save(); ctx.strokeStyle='#8fb2c8'; ctx.lineWidth=3; ctx.lineCap='round';
+      for(const s of [-1,1]){
+        const ay=y-6, ax=x+6*s;
+        ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(ax+16*s, ay+(10+sw*5)); ctx.stroke();
+        ctx.lineWidth=5; ctx.beginPath(); ctx.moveTo(ax+16*s, ay+(10+sw*5)); ctx.lineTo(ax+22*s, ay+(22+sw*9)); ctx.stroke(); ctx.lineWidth=3;
+      }
+      ctx.restore();
+    }
     // angler (leans forward on the throw, rocks back on the feel / hookset)
     const lean = (castAnim>=0? Math.sin(Math.max(0,(castAnim-0.25)/0.75)*Math.PI)*3 : 0) - feelDip*4;
     ctx.fillStyle='#1b2b38';
@@ -3404,6 +3501,57 @@
       for(let i=0;i<4;i++){ const f=0.3+i*0.16; ctx.fillStyle=i%2?'#7de0ff':'#eafcff';
         ctx.beginPath(); ctx.moveTo(len*f,-4); ctx.lineTo(len*f+4,0); ctx.lineTo(len*f,4); ctx.closePath(); ctx.fill(); }
       ctx.fillStyle='#ffd85e'; ctx.beginPath(); ctx.moveTo(len+2,-4); ctx.lineTo(len+9,0); ctx.lineTo(len+2,4); ctx.closePath(); ctx.fill();
+    } else if(style==='ember'){            // scorched starter rod — charred shaft + smouldering orange tip
+      shaft(3.2,'#4a2f28'); ctx.fillStyle='#7a3b22'; ctx.fillRect(-9,-3,9,6);
+      ctx.strokeStyle='#3a2320'; ctx.lineWidth=1.4; for(const f of [0.4,0.72]){ ctx.beginPath(); ctx.arc(len*f,0,2.6,0,7); ctx.stroke(); }
+      ctx.fillStyle='#ff8a3c'; ctx.beginPath(); ctx.arc(len,0,2.6,0,7); ctx.fill();
+      ctx.save(); ctx.globalAlpha=.55; ctx.fillStyle='#ff5a1a'; ctx.beginPath(); ctx.arc(len,0,6,0,7); ctx.fill(); ctx.restore();
+    } else if(style==='cinder'){           // charred all-rounder — very black body with bright glowing lava cracks
+      shaft(3.4,'#120d0b'); ctx.fillStyle='#0b0806'; ctx.fillRect(-10,-3.4,10,6.8);
+      ctx.save(); ctx.globalCompositeOperation='lighter';
+      // irregular branching cracks down the shaft (not symmetric notches)
+      const cracks=[[0.14,-2.6,0.24,2.4],[0.30,2.6,0.40,-2.6],[0.46,-2.8,0.58,2.6],[0.62,-2.4,0.74,2.8],[0.80,-2.8,0.92,2.4]];
+      for(const [f0,o0,f1,o1] of cracks){
+        ctx.strokeStyle='#ff8a2a'; ctx.lineWidth=2.0;
+        ctx.beginPath(); ctx.moveTo(len*f0,o0); ctx.lineTo(len*(f0+f1)/2, 0); ctx.lineTo(len*f1,o1); ctx.stroke();
+        ctx.strokeStyle='#ffe08a'; ctx.lineWidth=0.9;
+        ctx.beginPath(); ctx.moveTo(len*f0,o0); ctx.lineTo(len*(f0+f1)/2, 0); ctx.lineTo(len*f1,o1); ctx.stroke();
+      }
+      ctx.restore();
+      ctx.strokeStyle='#3a2a20'; ctx.lineWidth=1.4; for(const f of [0.26,0.72]){ ctx.beginPath(); ctx.arc(len*f,0,2.9,0,7); ctx.stroke(); }
+      ctx.fillStyle='#ffd24a'; ctx.beginPath(); ctx.arc(len,0,2.8,0,7); ctx.fill();
+      ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.6; ctx.fillStyle='#ff7a1a'; ctx.beginPath(); ctx.arc(len,0,6,0,7); ctx.fill(); ctx.restore();
+    } else if(style==='magma'){            // SPEED rig — molten streak down the shaft + a flaring tip
+      shaft(2.8,'#201614');
+      const mg=ctx.createLinearGradient(0,0,len,0); mg.addColorStop(0,'#ff4a10'); mg.addColorStop(.55,'#ffb020'); mg.addColorStop(1,'#fff0a0');
+      ctx.strokeStyle=mg; ctx.lineWidth=2.6; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(len,0); ctx.stroke();
+      ctx.fillStyle='#ffe07a'; ctx.beginPath(); ctx.moveTo(len-2,-3.4); ctx.lineTo(len+8,0); ctx.lineTo(len-2,3.4); ctx.closePath(); ctx.fill();
+      ctx.save(); ctx.globalAlpha=.5; ctx.fillStyle='#ff7a1a'; ctx.beginPath(); ctx.arc(len,0,7,0,7); ctx.fill(); ctx.restore();
+    } else if(style==='obsidian'){         // LUCK rig — pure polished black volcanic glass, faceted shards + cool sheen
+      shaft(4.0,'#0a0c11');
+      // glossy top+underside highlights so it reads as smooth glass
+      ctx.strokeStyle='rgba(190,210,235,.7)'; ctx.lineWidth=1.1; ctx.beginPath(); ctx.moveTo(6,-2.1); ctx.lineTo(len-6,-2.1); ctx.stroke();
+      ctx.strokeStyle='rgba(120,140,165,.35)'; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(8,2.1); ctx.lineTo(len-8,2.1); ctx.stroke();
+      // sharp black glass shards jutting up, each with a bright edge facet
+      for(let i=0;i<5;i++){ const f=0.26+i*0.16;
+        ctx.fillStyle='#14171f'; ctx.beginPath(); ctx.moveTo(len*f,-5); ctx.lineTo(len*f+5.4,-1); ctx.lineTo(len*f,4.6); ctx.lineTo(len*f-3.4,0.8); ctx.closePath(); ctx.fill();
+        ctx.fillStyle='rgba(210,228,248,.85)'; ctx.beginPath(); ctx.moveTo(len*f,-5); ctx.lineTo(len*f+5.4,-1); ctx.lineTo(len*f+1.2,-1.8); ctx.closePath(); ctx.fill(); }
+      ctx.fillStyle='#0a0c11'; ctx.fillRect(-10,-4,10,8);
+      ctx.fillStyle='rgba(200,220,245,.85)'; ctx.fillRect(-10,-4,10,1.4);   // grip sheen
+      ctx.fillStyle='#171b24'; ctx.beginPath(); ctx.moveTo(len,0); ctx.lineTo(len+7,-3.4); ctx.lineTo(len+7,3.4); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='rgba(210,228,248,.8)'; ctx.beginPath(); ctx.moveTo(len,0); ctx.lineTo(len+7,-3.4); ctx.lineTo(len+3,-0.6); ctx.closePath(); ctx.fill();
+    } else if(style==='infernal'){        // APEX — blackened bone shaft wreathed in fire, crown of flame at the tip
+      shaft(3.6,'#1a0f0a');
+      const ig=ctx.createLinearGradient(0,0,len,0); ig.addColorStop(0,'#7a1a06'); ig.addColorStop(.6,'#ff6a1a'); ig.addColorStop(1,'#ffd24a');
+      ctx.strokeStyle=ig; ctx.lineWidth=3.0; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(len,0); ctx.stroke();
+      ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.5;
+      ctx.strokeStyle='#ff8a2a'; ctx.lineWidth=8; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(len,0); ctx.stroke(); ctx.restore();
+      // flame crown at the tip
+      ctx.fillStyle='#ffd24a';
+      for(const dy of [-4,0,4]){ ctx.beginPath(); ctx.moveTo(len-3,dy-2.4); ctx.lineTo(len+9,dy); ctx.lineTo(len-3,dy+2.4); ctx.closePath(); ctx.fill(); }
+      ctx.fillStyle='#fff4c0'; ctx.beginPath(); ctx.moveTo(len-2,-3.2); ctx.lineTo(len+7,0); ctx.lineTo(len-2,3.2); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#7a1a06'; ctx.fillRect(-10,-3.6,10,7.2);
+      ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.5; ctx.fillStyle='#ff6a1a'; ctx.beginPath(); ctx.arc(len,0,9,0,7); ctx.fill(); ctx.restore();
     } else { shaft(3,'#b9854e'); }
     ctx.restore();
   }
@@ -3669,6 +3817,7 @@
     get birds(){return birds;}, get jumps(){return jumps;}, get horizonBoats(){return horizonBoats;},
     get embers(){return embers;}, get ash(){return ash;}, get iceFloes(){return iceFloes;},
     startDisaster, endDisaster, doLightningStrike, biomeDisaster,
+    rodPower, curRod, rodRef, totalLure, totalLuck, equippedBait,
     forceWeather:(w)=>{ weather=w; weatherT=9999; lightning=(w==='storm'||w==='hurricane'||w==='eruption')?0.5:0; updateWeatherChip(); },
     get disaster(){return disaster;}, get weather(){return weather;}, get MUTATIONS(){return MUTATIONS;} };
 })();
