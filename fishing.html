@@ -1700,8 +1700,9 @@
   function updateTravel(dt){
     travel.t += dt;
     if(travel.phase==='out'){
-      travel.boatX = (travel.t/1.1)*(W+220);
-      if(travel.t>=1.1){ travel.phase='black'; travel.t=0; showTravelVeil(true); }
+      // slower departure — the boat takes its time sailing off to the right
+      travel.boatX = (travel.t/3.0)*(W+220);
+      if(travel.t>=3.0){ travel.phase='black'; travel.t=0; showTravelVeil(true); }
     } else if(travel.phase==='black'){
       const p=Math.min(1, travel.t/2.2);
       const fill=document.getElementById('tvFill'); if(fill) fill.style.width=(p*100)+'%';
