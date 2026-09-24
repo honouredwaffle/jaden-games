@@ -16,6 +16,7 @@
   .chip { background:rgba(3,20,36,.72); border:1px solid rgba(120,210,255,.35); border-radius:12px; padding:5px 9px; font-size:13px; font-weight:bold; backdrop-filter:blur(4px); }
   .chip small { display:block; font-size:9px; font-weight:normal; opacity:.65; letter-spacing:.5px; }
   #coin { color:#ffd85e; }
+  #weatherChip { color:#bfe9ff; }
   #msg { top:64px; left:0; right:0; text-align:center; font-size:16px; font-weight:bold; min-height:22px; letter-spacing:.4px; }
   #hint { top:114px; left:0; right:0; text-align:center; font-size:13px; opacity:.95; padding:0 16px; }
   #gauges { display:none; }                 /* retired — you aim by tapping / dragging the water */
@@ -121,6 +122,7 @@
       <div class="chip" id="coin">🪙 0<small>COINS</small></div>
       <div class="chip" id="baitChip">🪱 NO BAIT<small>TAP: BAIT</small></div>
       <div class="chip" id="invChip">🎒 0/8<small>TAP: INVENTORY</small></div>
+      <div class="chip" id="weatherChip">☀️ Clear<small>NOON · CALM</small></div>
     </div>
     <div class="tbgroup right">
       <div class="chip" id="specChip">📖 SPECIES<small>FISH LIST</small></div>
@@ -180,6 +182,7 @@
       <h2 id="cName">Fish</h2>
       <div class="picwrap"><canvas class="fishpic" id="cPic" width="170" height="118"></canvas></div>
       <div class="rar" id="cRar">Common</div>
+      <div class="rar" id="cMut" style="display:none">Mutation</div>
       <p id="cStats"></p>
       <p id="cQuote" style="font-style:italic;opacity:.8"></p>
       <button class="btn" id="cKeep">Keep it 🎣</button>
@@ -282,7 +285,9 @@
     uncommon: {name:'Uncommon',  color:'#6dff9b', mult:1.8, weight:26, rs:16},
     rare:     {name:'Rare',      color:'#4fa8ff', mult:3.2, weight:14, rs:18},
     epic:     {name:'Epic',      color:'#c07dff', mult:6.0, weight:6,  rs:22},
-    cursed:   {name:'CURSED',    color:'#ff4d6d', mult:14.0,weight:5,  rs:26}
+    cursed:   {name:'CURSED',    color:'#ff4d6d', mult:14.0,weight:5,  rs:26},
+    legendary:{name:'LEGENDARY', color:'#ffb020', mult:30.0,weight:1.2,rs:34},
+    mythical: {name:'MYTHICAL',  color:'#7dffd8', mult:72.0,weight:0.4,rs:46}
   };
   const FISH = {
     ocean: [
@@ -297,7 +302,9 @@
       {n:'Mangrove Jack',  r:'rare',     a:1.5, b:8.0,  q:'Hides in the roots, hits like a truck.'},
       {n:'Marlin',         r:'epic',     a:40.0,b:180.0,q:'You did NOT expect this.'},
       {n:'Giant Trevally', r:'epic',     a:10.0,b:45.0, q:'Brutal from the first second.'},
-      {n:'Cursed King',    r:'cursed',   a:60.0,b:400.0,q:'Something ancient took the hook. It took the boat too.'}
+      {n:'Cursed King',    r:'cursed',   a:60.0,b:400.0,q:'Something ancient took the hook. It took the boat too.'},
+      {n:'Kraken',         r:'legendary',a:120.0,b:600.0,q:'The whole reef went silent. Then the arms came up.'},
+      {n:'Tide Sovereign', r:'mythical', a:300.0,b:1400.0,q:'It has ruled these waters since before there were names for them.'}
     ],
     snow: [
       {n:'Ice Sprat',       r:'common',   a:0.05,b:0.3,  q:'Tiny, fast, freezing cold.'},
@@ -311,7 +318,9 @@
       {n:'Frost Ray',       r:'rare',     a:5.0, b:22.0, q:'Glides like a frozen kite.'},
       {n:'Iceberg Shark',   r:'epic',     a:50.0,b:220.0,q:'The water went cold. Then it appeared.'},
       {n:'Frost Marlin',    r:'epic',     a:60.0,b:260.0,q:'A bill of pure ice.'},
-      {n:'Aurora Leviathan',r:'cursed',   a:120.0,b:600.0,q:'The sky lit green and something enormous stirred.'}
+      {n:'Aurora Leviathan',r:'cursed',   a:120.0,b:600.0,q:'The sky lit green and something enormous stirred.'},
+      {n:'Polar Colossus',  r:'legendary',a:200.0,b:900.0,q:'It shrugged off the sea ice like it was nothing. Because to it, it was.'},
+      {n:'Frost Wyrm',      r:'mythical', a:400.0,b:1800.0,q:'A serpent of living ice. The aurora bends around it.'}
     ]
   };
   function worldFish(w){ return FISH[w] || FISH.ocean; }
@@ -329,6 +338,8 @@
     'Marlin':        { t:'marlin',   c1:'#a9dcff', c2:'#2f6fbf', p:'stripe' },
     'Giant Trevally':{ t:'trevally', c1:'#dfeeff', c2:'#5a86b8', p:'spot'   },
     'Cursed King':   { t:'cursed',   c1:'#ff8fa3', c2:'#8f1230', p:'stripe' },
+    'Kraken':        { t:'kraken',   c1:'#c58af0', c2:'#5b1f8f', p:'stripe' },
+    'Tide Sovereign':{ t:'sovereign',c1:'#9ff0ff', c2:'#1560a8', p:'scale'  },
     // ---- SNOW ISLAND ----
     'Ice Sprat':     { t:'sprat',    c1:'#eaf6ff', c2:'#8fbfe0', p:'stripe' },
     'Frost Bream':   { t:'bream',    c1:'#dfeefb', c2:'#7d9fc4', p:'spot'   },
@@ -341,7 +352,9 @@
     'Frost Ray':     { t:'ray',      c1:'#e6f2fb', c2:'#7fa8cc', p:'spot'   },
     'Iceberg Shark': { t:'shark',    c1:'#eaf4ff', c2:'#5e84a8', p:'stripe' },
     'Frost Marlin':  { t:'marlin',   c1:'#e6f6ff', c2:'#4f86c9', p:'stripe' },
-    'Aurora Leviathan':{ t:'whale',  c1:'#dff6ff', c2:'#3f6fa8', p:'stripe' }
+    'Aurora Leviathan':{ t:'whale',  c1:'#dff6ff', c2:'#3f6fa8', p:'stripe' },
+    'Polar Colossus': { t:'colossus',c1:'#f2fbff', c2:'#4a7ba8', p:'stripe' },
+    'Frost Wyrm':     { t:'wyrm',    c1:'#d8fff2', c2:'#2f7f9c', p:'scale'  }
   };
   const DEFAULT_ART = { t:'bream', c1:'#cfe0ee', c2:'#5f7f96', p:'spot' };
 
@@ -625,6 +638,76 @@
       ctx.save(); ctx.globalAlpha=.3; ctx.strokeStyle=c2; ctx.lineWidth=0.05;
       for(let i=0;i<4;i++){ ctx.beginPath(); ctx.moveTo(0.3,0.28+i*0.1); ctx.lineTo(-0.6,0.34+i*0.06); ctx.stroke(); } ctx.restore();
       eye(1.2,-0.1,0.11);
+    } else if(t==='kraken'){
+      // bulbous mantle body with a beak, big eye, and trailing tentacles
+      ctx.fillStyle=c2; // tentacles behind
+      ctx.lineCap='round';
+      for(let i=-2;i<=2;i++){ ctx.strokeStyle=i%2?c2:c1; ctx.lineWidth=0.16;
+        ctx.beginPath(); ctx.moveTo(-0.2,0.2);
+        ctx.quadraticCurveTo(-1.0-i*0.1, 0.7+i*0.22+wob*0.2, -1.7, 1.05+i*0.34+Math.sin(phase+i)*0.2); ctx.stroke(); }
+      ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0.15,0,1.05,0.78,0,0,7); ctx.fill();
+      // fin flare on top
+      ctx.fillStyle=c1; ctx.beginPath(); ctx.moveTo(0.1,-0.72); ctx.lineTo(0.55,-1.25); ctx.lineTo(0.8,-0.55); ctx.closePath(); ctx.fill();
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(-0.1,0.62);
+      for(let i=0;i<4;i++){ const bx=-0.75+i*0.24; ctx.lineTo(bx,0.95+Math.sin(phase*2+i)*0.06); ctx.lineTo(bx+0.12,0.62); }
+      ctx.closePath(); ctx.fill();
+      eye(0.72,-0.14,0.2);
+      ctx.save(); ctx.globalAlpha=.4+Math.sin(phase)*.2; ctx.strokeStyle='#ffd6ff'; ctx.lineWidth=0.07;
+      ctx.beginPath(); ctx.arc(0.15,0,1.35,0,7); ctx.stroke(); ctx.restore();
+    } else if(t==='sovereign'){
+      // crowned, regal long-bodied leviathan: big body, horn crown, flowing fins
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(-1.15,0);
+      ctx.lineTo(-1.85,-0.9+wob*0.5); ctx.lineTo(-1.42,0.02); ctx.lineTo(-1.85,0.75+wob*0.5); ctx.closePath(); ctx.fill();
+      ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0,0,1.35,0.6,0,0,7); ctx.fill();
+      ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0.95,-0.05,0.55,0.55,0,0,7); ctx.fill();
+      // crown of horns
+      ctx.fillStyle='#ffe08a';
+      for(let i=0;i<5;i++){ const cx=0.5+i*0.16;
+        ctx.beginPath(); ctx.moveTo(cx,-0.5); ctx.lineTo(cx+0.06,-0.98-i*0.06); ctx.lineTo(cx+0.13,-0.48); ctx.closePath(); ctx.fill(); }
+      // flowing pectoral fin
+      ctx.fillStyle=c1; ctx.beginPath(); ctx.moveTo(0.2,0.42);
+      ctx.quadraticCurveTo(-0.3,1.05,-0.9,0.7); ctx.quadraticCurveTo(-0.3,0.55,0.2,0.42); ctx.closePath(); ctx.fill();
+      // scale rows
+      ctx.save(); ctx.beginPath(); ctx.ellipse(0,0,1.35,0.6,0,0,7); ctx.clip();
+      ctx.globalAlpha=.4; ctx.strokeStyle=c2; ctx.lineWidth=0.045;
+      for(let r=0;r<3;r++){ for(let i=-4;i<=4;i++){
+        const sx=i*0.3+(r%2?0.15:0), sy=-0.36+r*0.32;
+        ctx.beginPath(); ctx.arc(sx,sy,0.17,-2.5,-0.64); ctx.stroke(); } } ctx.restore();
+      eye(1.25,-0.14,0.16);
+      ctx.save(); ctx.globalAlpha=.45+Math.sin(phase)*.22; ctx.strokeStyle='#bff4ff'; ctx.lineWidth=0.09;
+      ctx.beginPath(); ctx.arc(0.9,-0.05,0.66,0,7); ctx.stroke(); ctx.restore();
+    } else if(t==='colossus'){
+      // massive glacier-turtle/whale hybrid: domed shell back + broad head
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(-1.2,0);
+      ctx.lineTo(-1.9,-0.95+wob*0.45); ctx.lineTo(-1.5,0.02); ctx.lineTo(-1.9,0.8+wob*0.45); ctx.closePath(); ctx.fill();
+      ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(-0.1,0.05,1.3,0.72,0,0,7); ctx.fill();
+      // ice shell plates on the back
+      ctx.fillStyle='#dff2ff';
+      for(let i=0;i<4;i++){ const bx=-0.75+i*0.4;
+        ctx.beginPath(); ctx.moveTo(bx,-0.55); ctx.lineTo(bx+0.18,-0.95-i%2*0.08); ctx.lineTo(bx+0.36,-0.5); ctx.closePath(); ctx.fill(); }
+      // broad armoured head
+      ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(1.05,-0.02,0.6,0.6,0,0,7); ctx.fill();
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(1.0,0.5); ctx.quadraticCurveTo(1.5,0.95,1.05,0.72); ctx.closePath(); ctx.fill();
+      ctx.save(); ctx.globalAlpha=.35; ctx.strokeStyle=c2; ctx.lineWidth=0.05;
+      for(let i=0;i<4;i++){ ctx.beginPath(); ctx.moveTo(0.4,0.3+i*0.1); ctx.lineTo(-0.7,0.4+i*0.06); ctx.stroke(); } ctx.restore();
+      eye(1.35,-0.12,0.14);
+    } else if(t==='wyrm'){
+      // long coiling serpent of ice with a spined ridge
+      ctx.strokeStyle=bodyG(); ctx.lineWidth=0.72; ctx.lineCap='round'; ctx.lineJoin='round';
+      ctx.beginPath(); ctx.moveTo(1.25,-0.15);
+      ctx.quadraticCurveTo(0.4,0.55+wob*0.3, -0.35,-0.25); ctx.quadraticCurveTo(-1.05,-0.95+wob*0.3, -1.85,-0.1); ctx.stroke();
+      // head
+      ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(1.45,-0.28,0.62,0.42,-0.25,0,7); ctx.fill();
+      ctx.fillStyle=c1; ctx.beginPath(); ctx.moveTo(1.9,-0.4); ctx.lineTo(2.5,-0.5); ctx.lineTo(1.95,-0.2); ctx.closePath(); ctx.fill();
+      // spine ridge
+      ctx.fillStyle='#bdf6ff';
+      for(let i=0;i<6;i++){ const sx=0.9-i*0.42, sy=-0.05-Math.abs(Math.sin(i*1.3))*0.3;
+        ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx+0.1,sy-0.42); ctx.lineTo(sx+0.22,sy); ctx.closePath(); ctx.fill(); }
+      ctx.strokeStyle=c2; ctx.lineWidth=0.1; ctx.beginPath(); ctx.moveTo(-1.85,-0.1);
+      ctx.quadraticCurveTo(-2.3,0.2+Math.sin(wob)*0.3, -2.6,-0.3+Math.sin(wob)*0.4); ctx.stroke();
+      eye(1.62,-0.32,0.13);
+      ctx.save(); ctx.globalAlpha=.4+Math.sin(phase)*.2; ctx.strokeStyle='#d8fff2'; ctx.lineWidth=0.08;
+      ctx.beginPath(); ctx.arc(1.45,-0.28,0.72,0,7); ctx.stroke(); ctx.restore();
     } else {
       tailFin(0.9); ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0,0,1.06,0.6,0,0,7); ctx.fill();
       fin(-0.1,-0.5,0.5,0.4); spots(); eye(0.68,-0.14,0.17);
@@ -632,38 +715,131 @@
     ctx.restore();
   }
 
+  // each bait has a unique look, matched to its name
+  function drawBaitArt(style, col, s, phase){
+    const t=phase||0, wob=Math.sin(t*6);
+    ctx.save(); ctx.scale(s,s); ctx.lineCap='round'; ctx.lineJoin='round';
+    if(style==='worm'){
+      ctx.strokeStyle=col; ctx.lineWidth=0.5;
+      ctx.beginPath(); ctx.moveTo(-0.9,0);
+      for(let i=1;i<=6;i++){ ctx.lineTo(-0.9+i*0.3, Math.sin(i*1.1+wob)*0.28); }
+      ctx.stroke();
+      ctx.strokeStyle='rgba(90,40,20,.4)'; ctx.lineWidth=0.09;
+      for(let i=0;i<6;i++){ const px=-0.9+i*0.3, py=Math.sin(i*1.1+wob)*0.28;
+        ctx.beginPath(); ctx.moveTo(px,-0.22); ctx.lineTo(px,0.22); ctx.stroke(); }
+    } else if(style==='prawn'){
+      ctx.fillStyle=col; ctx.beginPath(); ctx.ellipse(0,0,0.85,0.42,wob*0.1,0,7); ctx.fill();
+      for(let i=-1;i<=1;i++){ ctx.beginPath(); ctx.moveTo(-0.7,0); ctx.lineTo(-1.28,i*0.45); ctx.lineTo(-0.85,i*0.2); ctx.closePath(); ctx.fill(); }
+      ctx.strokeStyle=col; ctx.lineWidth=0.1; for(let i=0;i<4;i++){ ctx.beginPath(); ctx.moveTo(-0.3+i*0.3,0.3); ctx.lineTo(-0.25+i*0.3,0.72); ctx.stroke(); }
+      ctx.fillStyle='#2a1010'; ctx.beginPath(); ctx.arc(0.55,-0.1,0.09,0,7); ctx.fill();
+      ctx.strokeStyle=col; ctx.lineWidth=0.08; ctx.beginPath(); ctx.moveTo(0.8,-0.2); ctx.lineTo(1.55,-0.62+wob*0.2); ctx.stroke();
+    } else if(style==='pilchard'||style==='frostfish'){
+      const c1=style==='frostfish'?'#eafaff':col, c2=style==='frostfish'?'#9fd6ff':'#7fa0b8';
+      const g=ctx.createLinearGradient(0,-0.5,0,0.5); g.addColorStop(0,'#ffffff'); g.addColorStop(.4,c1); g.addColorStop(1,c2);
+      ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(0,0,1.0,0.4,0,0,7); ctx.fill();
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(-0.9,0); ctx.lineTo(-1.42,-0.42+wob*0.3); ctx.lineTo(-1.15,0); ctx.lineTo(-1.42,0.42+wob*0.3); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#04121f'; ctx.beginPath(); ctx.arc(0.62,-0.08,0.1,0,7); ctx.fill();
+      if(style==='frostfish'){ ctx.save(); ctx.globalAlpha=.5+Math.sin(t*4)*.3; ctx.strokeStyle='#eafcff'; ctx.lineWidth=0.1; ctx.beginPath(); ctx.arc(0,0,1.3,0,7); ctx.stroke(); ctx.restore(); }
+    } else if(style==='squid'||style==='glowsquid'){
+      const c=style==='glowsquid'?'#bfe0ff':col;
+      ctx.fillStyle=c; ctx.beginPath(); ctx.moveTo(0,-0.85); ctx.quadraticCurveTo(0.55,0,0.35,0.5); ctx.lineTo(-0.35,0.5); ctx.quadraticCurveTo(-0.55,0,0,-0.85); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,.5)'; ctx.beginPath(); ctx.moveTo(0,-0.85); ctx.lineTo(0.42,-0.5); ctx.lineTo(0,-0.3); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(0,-0.85); ctx.lineTo(-0.42,-0.5); ctx.lineTo(0,-0.3); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle=c; ctx.lineWidth=0.12;
+      for(let i=-2;i<=2;i++){ ctx.beginPath(); ctx.moveTo(i*0.14,0.5); ctx.quadraticCurveTo(i*0.16+wob*0.1,0.95, i*0.2,1.35+Math.sin(t*7+i)*0.08); ctx.stroke(); }
+      if(style==='glowsquid'){ ctx.save(); ctx.globalAlpha=.45+Math.sin(t*5)*.25; ctx.strokeStyle='#eafcff'; ctx.lineWidth=0.12; ctx.beginPath(); ctx.arc(0,0,1.25,0,7); ctx.stroke(); ctx.restore(); }
+    } else if(style==='cursedbait'){
+      ctx.fillStyle=col; ctx.beginPath(); ctx.ellipse(0,0,0.85,0.7,0,0,7); ctx.fill();
+      ctx.fillStyle='#7a0d2a'; for(let i=0;i<6;i++){ const a=i*1.05+wob*0.4; ctx.beginPath(); ctx.arc(Math.cos(a)*0.85,Math.sin(a)*0.7,0.14,0,7); ctx.fill(); }
+      ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(0,-0.05,0.22,0,7); ctx.fill();
+      ctx.fillStyle='#ff2b52'; ctx.beginPath(); ctx.arc(0,-0.05,0.12,0,7); ctx.fill();
+      ctx.save(); ctx.globalAlpha=.5+Math.sin(t*8)*.3; ctx.strokeStyle='#ff8fa3'; ctx.lineWidth=0.12; ctx.beginPath(); ctx.arc(0,0,1.05,0,7); ctx.stroke(); ctx.restore();
+    } else if(style==='krill'){
+      ctx.fillStyle=col;
+      for(const p of [[-0.5,-0.2],[0.4,-0.3],[0.1,0.35],[-0.3,0.3],[0.55,0.2]]){
+        ctx.save(); ctx.translate(p[0],p[1]+Math.sin(t*6+p[0])*0.06); ctx.rotate(p[0]);
+        ctx.beginPath(); ctx.ellipse(0,0,0.32,0.16,0,0,7); ctx.fill();
+        ctx.strokeStyle=col; ctx.lineWidth=0.07; ctx.beginPath(); ctx.moveTo(-0.3,0); ctx.lineTo(-0.62,-0.2); ctx.stroke();
+        ctx.restore();
+      }
+    } else if(style==='maggot'){
+      ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(-0.9,0.2); ctx.quadraticCurveTo(0,-0.85,0.9,0.2); ctx.quadraticCurveTo(0,0.85,-0.9,0.2); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='rgba(120,110,60,.5)'; ctx.lineWidth=0.12;
+      for(let i=-2;i<=2;i++){ ctx.beginPath(); ctx.moveTo(i*0.32,-0.4+Math.abs(i)*0.06); ctx.lineTo(i*0.32,0.42-Math.abs(i)*0.06); ctx.stroke(); }
+    } else if(style==='aurora'){
+      const g=ctx.createRadialGradient(0,0,0.1,0,0,1.1); g.addColorStop(0,'#ffffff'); g.addColorStop(.4,'#7dffd8'); g.addColorStop(1,'rgba(125,255,216,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,1.1,0,7); ctx.fill();
+      ctx.strokeStyle='#eafff8'; ctx.lineWidth=0.12;
+      for(let i=0;i<5;i++){ const a=i*1.256+t*1.2; ctx.beginPath(); ctx.moveTo(Math.cos(a)*0.3,Math.sin(a)*0.3); ctx.lineTo(Math.cos(a)*0.95,Math.sin(a)*0.95); ctx.stroke(); }
+    } else {
+      ctx.fillStyle=col; ctx.beginPath(); ctx.ellipse(0,0,0.8,0.6,0.3,0,7); ctx.fill();
+    }
+    ctx.restore();
+  }
+  function paintBait(canvasEl, bait, cssW, cssH, scale){
+    const g=canvasEl.getContext('2d');
+    g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,canvasEl.width,canvasEl.height);
+    g.scale(scale,scale);
+    const keep=ctx; ctx=g;
+    ctx.save(); ctx.translate(cssW/2, cssH/2);
+    drawBaitArt(bait.style||'worm', bait.col, Math.min(cssW,cssH)*0.32, 0.8);
+    ctx.restore();
+    ctx=keep;
+  }
+  // a mutation aura for fish that carry one
+  function drawMutation(f, t, s){
+    const m=f.mut; if(!m) return; const M=MUTATIONS[m]; if(!M) return;
+    ctx.save();
+    if(m==='electric'){
+      ctx.globalAlpha=.5+Math.sin(t*14)*.3; ctx.strokeStyle=M.color; ctx.lineWidth=1.6;
+      for(let i=0;i<3;i++){ ctx.beginPath(); let x=(Math.random()-.5)*s*2, y=(Math.random()-.5)*s*2; ctx.moveTo(x,y);
+        for(let k=0;k<3;k++){ x+=(Math.random()-.5)*12; y+=(Math.random()-.5)*12; ctx.lineTo(x,y); } ctx.stroke(); }
+      ctx.globalAlpha=.35; const gg=ctx.createRadialGradient(0,0,1,0,0,s*2.2); gg.addColorStop(0,M.color); gg.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(0,0,s*2.2,0,7); ctx.fill();
+    } else if(m==='frozen'){
+      ctx.globalAlpha=.6; ctx.fillStyle='rgba(200,245,255,.55)';
+      for(const p of [[-s*0.7,-s*0.3],[s*0.7,-s*0.2],[0,s*0.7],[-s*0.3,s*0.55],[s*0.35,s*0.5]]){
+        ctx.save(); ctx.translate(p[0],p[1]); ctx.rotate(t+p[0]);
+        ctx.beginPath(); ctx.moveTo(0,-4.5); ctx.lineTo(1.6,0); ctx.lineTo(0,4.5); ctx.lineTo(-1.6,0); ctx.closePath(); ctx.fill(); ctx.restore(); }
+    } else {
+      ctx.globalAlpha=.42+Math.sin(t*3)*.15; const gg=ctx.createRadialGradient(0,0,1,0,0,s*2.1); gg.addColorStop(0,M.color); gg.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(0,0,s*2.1,0,7); ctx.fill();
+    }
+    ctx.restore();
+  }
+
   const RODS = {
     ocean: [
-      {name:'Basic Rod',      cost:0,    cast:1.00, reel:0.75, pwr:0.70, lure:1.00, luck:0, desc:'Slow, basic. Every fish is a fight.'},
-      {name:'Estuary Rig',    cost:120,  cast:1.18, reel:1.05, pwr:0.95, lure:1.15, luck:1, desc:'A steady all-rounder. Slightly faster bites.'},
-      {name:'Carbon Spinner', cost:420,  cast:1.38, reel:1.45, pwr:1.25, lure:1.80, luck:0, desc:'SPEED rig — bites come thick and fast, but it pulls in anything that swims.'},
-      {name:'Deep Caster',    cost:1100, cast:1.60, reel:1.95, pwr:1.60, lure:0.80, luck:6, desc:'LUCK rig — slow to attract, but what turns up is worth the wait.'},
-      {name:'Cursed Rod',     cost:3000, cast:1.85, reel:2.60, pwr:2.10, lure:1.55, luck:9, desc:'Top of the line: fast bites AND the monsters. You paid for both.'}
+      {name:'Basic Rod',      cost:0,    cast:1.00, reel:0.75, pwr:0.70, lure:1.00, luck:0, style:'basic',   desc:'Slow, basic. Every fish is a fight.'},
+      {name:'Estuary Rig',    cost:120,  cast:1.18, reel:1.05, pwr:0.95, lure:1.15, luck:1, style:'estuary', desc:'A steady all-rounder. Slightly faster bites.'},
+      {name:'Carbon Spinner', cost:420,  cast:1.38, reel:1.45, pwr:1.25, lure:1.80, luck:0, style:'spinner', desc:'SPEED rig — bites come thick and fast, but it pulls in anything that swims.'},
+      {name:'Deep Caster',    cost:1100, cast:1.60, reel:1.95, pwr:1.60, lure:0.80, luck:6, style:'deep',    desc:'LUCK rig — slow to attract, but what turns up is worth the wait.'},
+      {name:'Cursed Rod',     cost:3000, cast:1.85, reel:2.60, pwr:2.10, lure:1.55, luck:9, style:'cursed',  desc:'Top of the line: fast bites AND the monsters. You paid for both.'}
     ],
     snow: [
-      {name:'Ice Rod',        cost:0,    cast:1.15, reel:1.00, pwr:0.90, lure:1.10, luck:2, desc:'Basic cold-water setup. A touch luckier than the ocean starter.'},
-      {name:'Glacier Rig',    cost:600,  cast:1.35, reel:1.30, pwr:1.20, lure:1.30, luck:4, desc:'Balanced cold-weather rig. Quick bites, decent fish.'},
-      {name:'Blizzard Caster',cost:1500, cast:1.55, reel:1.70, pwr:1.50, lure:2.10, luck:1, desc:'SPEED rig — a storm of bites, but mostly small ones.'},
-      {name:'Aurora Rod',     cost:3500, cast:1.75, reel:2.10, pwr:1.90, lure:1.00, luck:9, desc:'LUCK rig — slow, but the deep cold monsters come to it.'},
-      {name:'Frozen Throne',  cost:9000, cast:2.00, reel:2.80, pwr:2.40, lure:1.70, luck:12, desc:'The apex rod. Fast bites and the leviathans. Nothing else needed.'}
+      {name:'Ice Rod',        cost:0,    cast:1.15, reel:1.00, pwr:0.90, lure:1.10, luck:2, style:'ice',      desc:'Basic cold-water setup. A touch luckier than the ocean starter.'},
+      {name:'Glacier Rig',    cost:600,  cast:1.35, reel:1.30, pwr:1.20, lure:1.30, luck:4, style:'glacier',  desc:'Balanced cold-weather rig. Quick bites, decent fish.'},
+      {name:'Blizzard Caster',cost:1500, cast:1.55, reel:1.70, pwr:1.50, lure:2.10, luck:1, style:'blizzard', desc:'SPEED rig — a storm of bites, but mostly small ones.'},
+      {name:'Aurora Rod',     cost:3500, cast:1.75, reel:2.10, pwr:1.90, lure:1.00, luck:9, style:'aurora',   desc:'LUCK rig — slow, but the deep cold monsters come to it.'},
+      {name:'Frozen Throne',  cost:9000, cast:2.00, reel:2.80, pwr:2.40, lure:1.70, luck:12,style:'throne',   desc:'The apex rod. Fast bites and the leviathans. Nothing else needed.'}
     ]
   };
 
   // baits attach to the hook. each cast burns 1 charge. effects stack on the rod.
   const BAITS = {
     ocean: [
-      {name:'Worms',       cost:20,   lure:0.15, luck:0, col:'#e08b6f', desc:'Cheap and cheerful. Fish find it a touch quicker.'},
-      {name:'Prawns',      cost:70,   lure:0.30, luck:1, col:'#ff9d76', desc:'A local favourite — quick interest and better fish.'},
-      {name:'Pilchards',   cost:180,  lure:-0.10,luck:3, col:'#bcd6ea', desc:'Oily and smelly. Big fish notice. Slower bites.'},
-      {name:'Squid',       cost:450,  lure:-0.20,luck:5, col:'#e8c7e0', desc:'Serious bait. Slow interest, serious fish.'},
-      {name:'Cursed Bait', cost:1200, lure:0.45, luck:8, col:'#ff5f7a', desc:'It wriggles on its own. Fast bites AND monsters.'}
+      {name:'Worms',       cost:20,   lure:0.15, luck:0, col:'#e08b6f', style:'worm',      desc:'Cheap and cheerful. Fish find it a touch quicker.'},
+      {name:'Prawns',      cost:70,   lure:0.30, luck:1, col:'#ff9d76', style:'prawn',     desc:'A local favourite — quick interest and better fish.'},
+      {name:'Pilchards',   cost:180,  lure:-0.10,luck:3, col:'#bcd6ea', style:'pilchard',  desc:'Oily and smelly. Big fish notice. Slower bites.'},
+      {name:'Squid',       cost:450,  lure:-0.20,luck:5, col:'#e8c7e0', style:'squid',     desc:'Serious bait. Slow interest, serious fish.'},
+      {name:'Cursed Bait', cost:1200, lure:0.45, luck:8, col:'#ff5f7a', style:'cursedbait',desc:'It wriggles on its own. Fast bites AND monsters.'}
     ],
     snow: [
-      {name:'Krill',        cost:40,   lure:0.20, luck:0, col:'#ffc9d6', desc:'Tiny pink shrimp. Cold-water fish love them.'},
-      {name:'Ice Maggots',  cost:120,  lure:0.35, luck:1, col:'#eaf3d0', desc:'Wriggly and pale. Gets attention fast.'},
-      {name:'Frost Fish',   cost:300,  lure:-0.05,luck:4, col:'#cfe9ff', desc:'Silver smelt. The big ones hunt it.'},
-      {name:'Glow Squid',   cost:700,  lure:-0.15,luck:6, col:'#bfe0ff', desc:'Glows faintly under the ice. Serious bait.'},
-      {name:'Aurora Bait',  cost:2000, lure:0.50, luck:10,col:'#7dffd8', desc:'Radiates cold light. Fast bites AND leviathans.'}
+      {name:'Krill',        cost:40,   lure:0.20, luck:0, col:'#ffc9d6', style:'krill',     desc:'Tiny pink shrimp. Cold-water fish love them.'},
+      {name:'Ice Maggots',  cost:120,  lure:0.35, luck:1, col:'#eaf3d0', style:'maggot',    desc:'Wriggly and pale. Gets attention fast.'},
+      {name:'Frost Fish',   cost:300,  lure:-0.05,luck:4, col:'#cfe9ff', style:'frostfish', desc:'Silver smelt. The big ones hunt it.'},
+      {name:'Glow Squid',   cost:700,  lure:-0.15,luck:6, col:'#bfe0ff', style:'glowsquid', desc:'Glows faintly under the ice. Serious bait.'},
+      {name:'Aurora Bait',  cost:2000, lure:0.50, luck:10,col:'#7dffd8', style:'aurora',    desc:'Radiates cold light. Fast bites AND leviathans.'}
     ]
   };
   function worldRods(w){ return RODS[w] || RODS.ocean; }
@@ -685,8 +861,35 @@
     uncommon:{pull:0.30, tension:0.40, thrash:0.75},
     rare:    {pull:0.42, tension:0.55, thrash:1.05},
     epic:    {pull:0.58, tension:0.72, thrash:1.40},
-    cursed:  {pull:0.80, tension:0.95, thrash:1.85}
+    cursed:  {pull:0.98, tension:1.10, thrash:2.00},
+    legendary:{pull:1.05,tension:1.15, thrash:2.20},
+    mythical:{pull:1.15, tension:1.25, thrash:2.45}
   };
+  // a few named fish are extra nasty to land (multiplies their fight stats)
+  const FIGHT_BOOST = { 'Cursed King':1.22, 'Kraken':1.10, 'Tide Sovereign':1.20,
+                        'Polar Colossus':1.12, 'Frost Wyrm':1.22 };
+
+  // ---------- WEATHER + MUTATIONS ----------
+  // weather rolls over time; some weathers mutate fish already in the water (raises their price)
+  const MUTATIONS = {
+    electric:{name:'Electric', color:'#ffe94a', mult:2.5},
+    frozen:  {name:'Frozen',   color:'#bff4ff', mult:2.1},
+    lunar:   {name:'Lunar',    color:'#cdb4ff', mult:1.9},
+    golden:  {name:'Golden',   color:'#ffd85e', mult:1.7}
+  };
+  const WEATHERS = {
+    clear:  {name:'Clear',        icon:'☀️', weight:30, sky:'#0a2540'},
+    cloudy: {name:'Cloudy',       icon:'⛅', weight:26},
+    rain:   {name:'Rain',         icon:'🌧️', weight:22},
+    storm:  {name:'Thunderstorm', icon:'⛈️', weight:14},
+    snow:   {name:'Snowfall',     icon:'🌨️', weight:0}    // only on the snow island
+  };
+  function weatherWeights(){
+    const w={};
+    for(const k in WEATHERS) w[k]=WEATHERS[k].weight;
+    if(sceneTheme()==='snow'){ w.snow=24; w.rain*=0.5; w.storm*=0.6; }
+    return w;
+  }
 
   const S = { coins:0, world:'ocean', unlocked:{ocean:true},
               rod:{ocean:0,snow:0}, owned:{ocean:[0],snow:[0]},
@@ -800,6 +1003,11 @@
   let specWorld='ocean';
   // world travel — the boat sails off-screen then arrives at the new spot
   let travel=null;                  // {phase,t,to,boatX}
+  // ---- day/night cycle + weather ----
+  let dayT = 0.30;                  // 0..1 through the day (0=midnight, .5=noon, 1=midnight again)
+  const DAY_LEN = 240;              // seconds for a full day→night→day cycle
+  let weather='clear', weatherT=30+Math.random()*40, lightning=0, lightningCd=6+Math.random()*8;
+  let rainDrops=[], snowFlakes=[];
   const STK=[];                       // fish shown stacked in the bucket
   const BUCKET={x:0,y:0};
   let recastT=0;                      // reserved (no-op)
@@ -814,24 +1022,63 @@
     });
   }
 
+  function rollMutation(){
+    // weather decides which mutation (if any) a newly-arriving fish can carry
+    const r=Math.random();
+    if(weather==='storm' && r<0.55) return 'electric';
+    if(weather==='snow'  && r<0.40) return 'frozen';
+    if(weather==='rain'  && r<0.22) return 'lunar';
+    if(weather==='clear' && r<0.10) return 'golden';
+    if(r<0.06) return 'golden';
+    return null;
+  }
+  function mutateValue(f){
+    return f.mut ? Math.round(f.value * MUTATIONS[f.mut].mult) : f.value;
+  }
+  function spinWeather(){
+    const w=weatherWeights(); let tot=0; for(const k in w) tot+=w[k];
+    let r=Math.random()*tot, pick='clear';
+    for(const k in w){ r-=w[k]; if(r<=0){ pick=k; break; } }
+    if(pick!==weather){ weather=pick; weatherT=26+Math.random()*44;
+      if(weather==='storm') lightningCd=2+Math.random()*3;
+      // a storm charges fish already in the water
+      if(weather==='storm'){ for(const f of fishes) if(!f.mut && Math.random()<0.4) f.mut='electric'; }
+      if(weather==='snow'){ for(const f of fishes) if(!f.mut && Math.random()<0.3) f.mut='frozen'; }
+      const Wd=WEATHERS[weather]||WEATHERS.clear;
+      if(S.state==='idle'){ say(Wd.icon+' '+Wd.name+' rolling in…'); setTimeout(()=>{ if(S.state==='idle') say(''); },1900); }
+    } else { weatherT=18+Math.random()*26; }
+    updateWeatherChip();
+  }
+  let hudWxT=0;
+  function updateWeatherChip(){
+    const wc=document.getElementById('weatherChip'); if(!wc) return;
+    const Wd=WEATHERS[weather]||WEATHERS.clear;
+    wc.innerHTML=Wd.icon+' '+Wd.name+'<small>'+dayLabel()+'</small>';
+    wc.style.color = weather==='storm'?'#ffd85e':weather==='snow'?'#dff6ff':weather==='rain'?'#9fd6ff':'#bfe9ff';
+  }
+
   function rollFishDef(){
     const luck = totalLuck();
     const w = {};
     for(const k in RARITY) w[k]=RARITY[k].weight;
     // luck pushes odds hard toward rare+: each point of luck adds a lot
     w.rare += luck*4.0; w.epic += luck*2.0; w.cursed += luck*1.4;
+    w.legendary += luck*0.22; w.mythical += luck*0.07;
     w.common = Math.max(4, w.common - luck*4.5);
     w.uncommon = Math.max(4, w.uncommon - luck*2.0);
     let tot=0; for(const k in w) tot+=w[k];
     let r=Math.random()*tot, pick='common';
     for(const k in w){ r-=w[k]; if(r<=0){pick=k;break;} }
-    const pool = worldFish(S.world).filter(f=>f.r===pick);
+    let pool = worldFish(S.world).filter(f=>f.r===pick);
+    if(!pool.length) pool = worldFish(S.world);
     const def = pool[Math.floor(Math.random()*pool.length)] || worldFish(S.world)[0];
     const t = Math.random();
     const kg = def.a + t*(def.b-def.a);
-    const value = Math.round(kg*9*RARITY[def.r].mult*(12+Math.random()*10)/9);
+    const mut = rollMutation();
+    const baseValue = Math.round(kg*9*RARITY[def.r].mult*(12+Math.random()*10)/9);
+    const value = mut ? Math.round(baseValue * MUTATIONS[mut].mult) : baseValue;   // mutation baked into the price
     const size = RARITY[def.r].rs + t*8;
-    return {n:def.n, r:def.r, kg, value, quote:def.q, size};
+    return {n:def.n, r:def.r, kg, value, quote:def.q, size, mut};
   }
 
   function spawnFish(){
@@ -1106,12 +1353,15 @@
   function startReel(f){
     fishes = fishes.filter(x=>x.id!==f.id);   // it's off the free-swim list — it's on the hook now
     nibbler=null; nibblePhase='idle';
-    const ratio = FIGHT[f.r].pull / rodPower();   // slower ramp for a tough fish
+    const boost = FIGHT_BOOST[f.n] || 1;      // some named monsters are extra nasty
+    const F = { pull:FIGHT[f.r].pull*boost, tension:FIGHT[f.r].tension*boost, thrash:FIGHT[f.r].thrash*boost };
+    const ratio = F.pull / rodPower();   // slower ramp for a tough fish
     reel = {
       prog:0.12, tension:0.08, holding:false,
-      fight:FIGHT[f.r], pwr:rodPower(), elapsed:0,
-      fx: bob.tx, fy: fishDepth(0.12), vx:0,
+      fight:F, pwr:rodPower(), elapsed:0,
+      fx: bob.tx, fy: fishDepth(0.12), vx:0, dive:0,
       running:false, runT:0, runCd: 2.0+Math.random()*2.0,
+      diving:false, diveT:0, diveCd: 2.4+Math.random()*2.4,
       grace: 1.6 + Math.min(1.4, ratio*1.1),    // slow-motion head start so you can react
       slowFade:0
     };
@@ -1230,6 +1480,13 @@
     const rr=document.getElementById('cRar');
     rr.textContent=RARITY[f.r].name; rr.style.background=RARITY[f.r].color+'22';
     rr.style.color=RARITY[f.r].color; rr.style.border='1px solid '+RARITY[f.r].color;
+    const mutEl=document.getElementById('cMut');
+    if(mutEl){
+      if(f.mut){ const M=MUTATIONS[f.mut];
+        mutEl.style.display='inline-block'; mutEl.textContent='⚡ '+M.name+' 🧬 ×'+M.mult;
+        mutEl.style.background=M.color+'22'; mutEl.style.color=M.color; mutEl.style.border='1px solid '+M.color;
+      } else { mutEl.style.display='none'; }
+    }
     document.getElementById('cStats').textContent=f.kg.toFixed(2)+' kg'+(isRecord?' · ⭐ NEW RECORD':'');
     document.getElementById('cQuote').textContent='"'+f.quote+'"';
     const full=invUsed()>=crateSize();
@@ -1242,7 +1499,7 @@
     const p=pendingCatch; if(!p){ hidePanel('catchPanel'); resetToIdle(); return; }
     if(invUsed()>=crateSize()){ document.getElementById('cCoins').textContent='🎒 Crate full — SELL this one or upgrade storage!'; return; }
     const f=p.f;
-    S.inv.push({n:f.n, r:f.r, kg:+f.kg.toFixed(2), value:f.value, size:f.size});
+    S.inv.push({n:f.n, r:f.r, kg:+f.kg.toFixed(2), value:f.value, size:f.size, mut:f.mut||null});
     addStk(f); save(); updateHUD();
     hidePanel('catchPanel');
     const f2=f; pendingCatch=null; resetToIdle();
@@ -1434,7 +1691,8 @@
     baits.forEach((b,i)=>{
       const key=baitKey(S.world,i), have=baitCount(key);
       const row=document.createElement('div'); row.className='shoprow';
-      const sw=document.createElement('div'); sw.className='baitsw'; sw.style.background=b.col; row.appendChild(sw);
+      const sw=document.createElement('canvas'); sw.className='baitsw'; sw.width=52; sw.height=52;
+      paintBait(sw, b, 26, 26, 2); row.appendChild(sw);
       const left=document.createElement('div'); left.style.flex='1';
       left.innerHTML='<b>'+b.name+'</b><span>'+b.desc+'</span>'+
         '<span style="color:'+(b.lure>0?'#7dffa8':b.lure<0?'#ff9d76':'#bfe0ff')+'">lure speed '+(b.lure>0?'+':'')+b.lure.toFixed(2)+'</span>'+
@@ -1540,7 +1798,8 @@
       const key=baitKey(S.world,i), have=baitCount(key); if(have<=0) return; any=true;
       const onHook = eq && eq.key===key;
       const row=document.createElement('div'); row.className='shoprow';
-      const sw=document.createElement('div'); sw.className='baitsw'; sw.style.background=b.col; row.appendChild(sw);
+      const sw=document.createElement('canvas'); sw.className='baitsw'; sw.width=52; sw.height=52;
+      paintBait(sw, b, 26, 26, 2); row.appendChild(sw);
       const left=document.createElement('div'); left.style.flex='1';
       left.innerHTML='<b>'+b.name+'</b><span>'+b.desc+'</span>'+
         '<span style="color:'+(b.lure>0?'#7dffa8':b.lure<0?'#ff9d76':'#bfe0ff')+'">lure speed '+(b.lure>0?'+':'')+b.lure.toFixed(2)+'</span>'+
@@ -1582,7 +1841,7 @@
         pic.style.cssText='width:78px;height:54px;flex:0 0 78px;display:block';
         paintFish(pic, f.n, 78, 54, 2);
         const info=document.createElement('div'); info.className='info';
-        info.innerHTML='<b>'+f.n+'</b>'+
+        info.innerHTML='<b>'+f.n+(f.mut?' <span style="color:'+MUTATIONS[f.mut].color+'">⚡'+MUTATIONS[f.mut].name+'</span>':'')+'</b>'+
           '<span class="meta" style="color:'+R.color+'">'+R.name+'</span>'+
           '<span class="meta">'+f.kg.toFixed(2)+' kg</span>'+
           '<span class="meta" style="color:#ffd85e">sells for 🪙 '+f.value+'</span>';
@@ -1627,12 +1886,23 @@
   }
 
   // ---------- HUD ----------
+  function dayLabel(){
+    if(dayT<0.22||dayT>=0.82) return 'NIGHT';
+    if(dayT<0.30) return 'DAWN';
+    if(dayT<0.68) return 'DAY';
+    return 'DUSK';
+  }
   function updateHUD(){
     document.getElementById('coin').innerHTML='🪙 '+S.coins+'<small>COINS</small>';
     document.getElementById('worldChipName').innerHTML=WORLDS[S.world].icon+' '+WORLDS[S.world].name.toUpperCase();
     const rodName=(curRod()||{}).name||'—';
     document.getElementById('shopChip').innerHTML='🛒 SHOP<small>🎣 '+rodName+'</small>';
     document.getElementById('invChip').innerHTML='🎒 '+invUsed()+'/'+crateSize()+'<small>TAP: INVENTORY</small>';
+    const wc=document.getElementById('weatherChip');
+    if(wc){ const Wd=WEATHERS[weather]||WEATHERS.clear;
+      wc.innerHTML=Wd.icon+' '+Wd.name+'<small>'+dayLabel()+'</small>';
+      wc.style.color = weather==='storm'?'#ffd85e':weather==='snow'?'#dff6ff':weather==='rain'?'#9fd6ff':'#bfe9ff';
+    }
     const b=equippedBait();
     const bc=document.getElementById('baitChip');
     if(bc){
@@ -1647,6 +1917,24 @@
   let last=performance.now();
   function update(dt){
     if(travel){ updateTravel(dt); }
+    // ---- day/night + weather cycle ----
+    dayT += dt/DAY_LEN; if(dayT>=1) dayT-=1;
+    weatherT -= dt;
+    if(weatherT<=0) spinWeather();
+    if(weather==='storm'){ lightningCd-=dt; if(lightningCd<=0){ lightning=0.55; lightningCd=3+Math.random()*7; } }
+    if(lightning>0) lightning=Math.max(0, lightning-dt*1.6);
+    hudWxT -= dt; if(hudWxT<=0){ hudWxT=1.0; updateWeatherChip(); }
+    // weather particles
+    const wantRain = (weather==='rain'||weather==='storm');
+    const wantSnow = (weather==='snow');
+    if(wantRain && rainDrops.length<120){ for(let i=0;i<3;i++) rainDrops.push({x:Math.random()*W, y:-20-Math.random()*H, v:520+Math.random()*380, len:12+Math.random()*16}); }
+    if(wantSnow && snowFlakes.length<90){ for(let i=0;i<2;i++) snowFlakes.push({x:Math.random()*W, y:-20-Math.random()*H, r:1+Math.random()*2.4, sp:30+Math.random()*50, ph:Math.random()*6.28}); }
+    for(const d of rainDrops){ d.y += d.v*dt; d.x += d.v*dt*0.14; }
+    rainDrops = rainDrops.filter(d=> d.y < H+30 && d.x < W+40);
+    for(const s of snowFlakes){ s.y += s.sp*dt; s.ph += dt*1.6; s.x += Math.sin(s.ph)*14*dt*6; }
+    snowFlakes = snowFlakes.filter(s=> s.y < H+20);
+    if(!wantRain) rainDrops.length=0;
+    if(!wantSnow) snowFlakes.length=0;
     if(bob.flying){ bob.t+=dt/bob.land; if(bob.t>=1){ bob.t=1; bob.flying=false; beginWait(); } }
     // float boing physics — a little spring wobble on the surface
     bob.boingV += (-bob.boing*95 - bob.boingV*6.5)*dt;
@@ -1741,12 +2029,22 @@
       }
       if(reel.running){ reel.runT -= edt; if(reel.runT<=0) reel.running=false; }
 
+      // does the fish DIVE? — it drags the hook straight down, even while you reel
+      reel.diveCd -= edt;
+      if(!reel.diving && reel.diveCd<=0 && !graceActive){
+        reel.diving = true; reel.diveT = 0.8 + Math.random()*1.1;
+        reel.diveCd = 2.4 + Math.random()*2.6; reel.diveV = 0; feelDip = 0.85;   // the rod bows hard
+      }
+      if(reel.diving){ reel.diveT -= edt; if(reel.diveT<=0) reel.diving=false; }
+
       let dProg = 0;
       if(reel.holding){
         // reeling lifts the fish up; your rod determines how fast
         dProg += 0.34 * reel.pwr / (1 + ratio*0.9) * edt;
         // harder when the fish runs
         if(reel.running) dProg -= 0.30 * F.pull * edt;
+        // a dive drags it down hard — reeling fights it, but it still loses ground
+        if(reel.diving) dProg -= 0.26 * F.pull * edt;
         // tension climbs faster the more the rod struggles
         reel.tension += F.tension * (0.8 + ratio*0.6) * edt;
       } else {
@@ -1763,7 +2061,10 @@
 
       // ---- move the fish: holistically toward the surface, thrashing side to side ----
       const targetY = fishDepth(reel.prog);
-      reel.fy += (targetY - reel.fy) * Math.min(1, 4.2*edt);
+      // a dive pushes the fish's actual depth down, so it visibly yanks the hook down
+      reel.dive = (reel.dive||0) + ((reel.diving?1:0) - (reel.dive||0)) * Math.min(1, 5*edt);
+      const diveDrop = reel.dive * 90 * (1 + F.pull*0.4);
+      reel.fy += (targetY + diveDrop - reel.fy) * Math.min(1, 4.2*edt);
       reel.vx = (reel.vx||0) + (Math.random()-.5)*260*F.thrash*edt;
       reel.vx *= Math.pow(0.90, edt*60);
       // fish dodges sideways when it runs
@@ -1801,18 +2102,50 @@
 
   // ---------- render ----------
   function sceneTheme(){ return WORLDS[S.world].theme || 'ocean'; }
+  // sun by day, moon by night — arcs across the sky with the time of day
+  function drawCelestial(t, sunAng, dayAmt, snow){
+    const cx=W*0.5 + Math.cos(sunAng)*W*0.34;
+    const cy=waterY*0.62 + Math.sin(sunAng)*waterY*0.5;
+    const night = dayAmt < 0.35;
+    ctx.save(); ctx.globalAlpha=.5;
+    const isMoon = night;
+    const col = isMoon ? 'rgba(210,230,255,.9)' : (snow?'rgba(210,240,255,.9)':'rgba(255,225,150,.95)');
+    const gg2=ctx.createRadialGradient(cx,cy,4,cx,cy,H*0.3);
+    gg2.addColorStop(0,col); gg2.addColorStop(1,'rgba(255,255,255,0)');
+    ctx.fillStyle=gg2; ctx.beginPath(); ctx.arc(cx,cy,H*0.3,0,7); ctx.fill(); ctx.restore();
+    if(isMoon){
+      ctx.fillStyle='#e6eefc'; ctx.beginPath(); ctx.arc(cx,cy,13,0,7); ctx.fill();
+      ctx.fillStyle='#c9d6ea'; ctx.beginPath(); ctx.arc(cx+5,cy-3,3,0,7); ctx.fill();
+      ctx.beginPath(); ctx.arc(cx-4,cy+4,2,0,7); ctx.fill();
+      // stars at deep night
+      const starA=Math.max(0,0.35-dayAmt)*2.4;
+      if(starA>0){ ctx.save(); ctx.globalAlpha=starA; ctx.fillStyle='#eaf6ff';
+        for(let i=0;i<40;i++){ const sx=((i*137.5)%1)*W, sy=((i*79.3)%1)*waterY*0.85;
+          const tw=0.6+0.4*Math.sin(t*2+i); ctx.globalAlpha=starA*tw; ctx.fillRect(sx,sy,2,2); } ctx.restore(); }
+    } else {
+      ctx.fillStyle=snow?'#eaf7ff':'#ffedbe'; ctx.beginPath(); ctx.arc(cx,cy,15,0,7); ctx.fill();
+    }
+  }
   function draw(){
     const t=performance.now()/1000;
     const TH=sceneTheme(), snow=(TH==='snow');
+    // sun/moon angle from the time of day (0=midnight .5=noon)
+    const sunAng = (dayT-0.25)*Math.PI*2;      // -pi/2 at midnight
+    const sunUp = Math.sin(sunAng) > -0.15;
+    const dayAmt = Math.max(0, Math.min(1, (Math.sin((dayT-0.25)*Math.PI*2)+0.2)/1.1));  // 0 night, 1 noon
 
     // SKY
     let g=ctx.createLinearGradient(0,0,0,waterY);
     if(snow){ g.addColorStop(0,'#04121f'); g.addColorStop(.45,'#0d3350'); g.addColorStop(.8,'#1c6a86'); g.addColorStop(1,'#3f9fae'); }
     else { g.addColorStop(0,'#0a2540'); g.addColorStop(.6,'#15507e'); g.addColorStop(1,'#3a90c2'); }
     ctx.fillStyle=g; ctx.fillRect(0,0,W,waterY);
+    // day/night: darken toward night (a deep navy wash), brighten at noon
+    if(dayAmt<1){ ctx.save(); ctx.globalAlpha=(1-dayAmt)*0.6; ctx.fillStyle=snow?'#020a18':'#03101f'; ctx.fillRect(0,0,W,waterY); ctx.restore(); }
+    if(dayAmt>0.75){ ctx.save(); ctx.globalAlpha=(dayAmt-0.75)*0.5; ctx.fillStyle='#ffe9c0'; ctx.fillRect(0,0,W,waterY); ctx.restore(); }
+
     if(snow){
-      // aurora ribbons in the sky + a pale low sun
-      ctx.save(); ctx.globalCompositeOperation='lighter';
+      // aurora ribbons brighten at night + a pale sun/moon
+      ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=0.5+ (1-dayAmt)*0.6;
       for(let i=0;i<3;i++){
         const ay=waterY*0.20+i*20;
         const ag=ctx.createLinearGradient(0,ay-26,0,ay+40);
@@ -1823,20 +2156,9 @@
         ctx.lineTo(W,ay+60); ctx.lineTo(0,ay+60); ctx.closePath(); ctx.fill();
       }
       ctx.restore();
-      ctx.save(); ctx.globalAlpha=.5;
-      const sunx=W*0.74, suny=waterY*0.42;
-      const sg=ctx.createRadialGradient(sunx,suny,4,sunx,suny,H*0.3);
-      sg.addColorStop(0,'rgba(210,240,255,.9)'); sg.addColorStop(1,'rgba(210,240,255,0)');
-      ctx.fillStyle=sg; ctx.beginPath(); ctx.arc(sunx,suny,H*0.3,0,7); ctx.fill(); ctx.restore();
-      ctx.fillStyle='#eaf7ff'; ctx.beginPath(); ctx.arc(sunx,suny,14,0,7); ctx.fill();
+      drawCelestial(t, sunAng, dayAmt, true);
     } else {
-      // warm sun
-      ctx.save(); ctx.globalAlpha=.5;
-      const sunx=W*0.74, suny=waterY*0.36;
-      const sg=ctx.createRadialGradient(sunx,suny,4,sunx,suny,H*0.3);
-      sg.addColorStop(0,'rgba(255,225,150,.95)'); sg.addColorStop(1,'rgba(255,225,150,0)');
-      ctx.fillStyle=sg; ctx.beginPath(); ctx.arc(sunx,suny,H*0.3,0,7); ctx.fill(); ctx.restore();
-      ctx.fillStyle='#ffedbe'; ctx.beginPath(); ctx.arc(sunx,suny,16,0,7); ctx.fill();
+      drawCelestial(t, sunAng, dayAmt, false);
     }
     // clouds
     ctx.save(); ctx.globalAlpha=snow?.10:.14; ctx.fillStyle='#ffffff';
@@ -1844,6 +2166,25 @@
       ctx.beginPath(); ctx.ellipse(cx,cy,70,16,0,0,7); ctx.fill();
       ctx.beginPath(); ctx.ellipse(cx+40,cy-8,48,13,0,0,7); ctx.fill(); }
     ctx.restore();
+    // weather sky tint + storm clouds
+    if(weather!=='clear'){
+      ctx.save();
+      if(weather==='storm') ctx.globalAlpha=.42;
+      else if(weather==='rain') ctx.globalAlpha=.30;
+      else if(weather==='cloudy') ctx.globalAlpha=.22;
+      else if(weather==='snow') ctx.globalAlpha=.20;
+      ctx.fillStyle=weather==='storm'?'#0a1420':'#26343f'; ctx.fillRect(0,0,W,waterY);
+      ctx.restore();
+      if(weather==='storm'||weather==='rain'||weather==='snow'){
+        ctx.save(); ctx.globalAlpha=weather==='storm'?.55:.35; ctx.fillStyle=weather==='storm'?'#1b2733':'#3a4956';
+        for(let i=0;i<4;i++){ const cx=((t*6 + i*W*0.3)%(W+300))-150, cy=waterY*0.16+i*10;
+          ctx.beginPath(); ctx.ellipse(cx,cy,90,22,0,0,7); ctx.fill();
+          ctx.beginPath(); ctx.ellipse(cx+50,cy+6,64,18,0,0,7); ctx.fill(); }
+        ctx.restore();
+      }
+    }
+    // lightning flash over the whole sky
+    if(lightning>0){ ctx.save(); ctx.globalAlpha=lightning*0.9; ctx.fillStyle='#eaf6ff'; ctx.fillRect(0,0,W,waterY); ctx.restore(); }
 
     // ---- UNDERWATER (base of the boat down) ----
     g=ctx.createLinearGradient(0,waterY,0,H);
@@ -1888,6 +2229,25 @@
 
     // ---- FISH ----
     for(const f of fishes) drawFish(f,t);
+
+    // weather particles (rain / snow / lightning bolts)
+    if(weather==='rain'||weather==='storm'){
+      ctx.save(); ctx.strokeStyle=weather==='storm'?'rgba(180,215,255,.55)':'rgba(190,220,255,.42)'; ctx.lineWidth=1.4;
+      for(const d of rainDrops){ ctx.beginPath(); ctx.moveTo(d.x,d.y); ctx.lineTo(d.x-3,d.y+d.len); ctx.stroke(); }
+      ctx.restore();
+    }
+    if(weather==='snow'){
+      ctx.save(); ctx.fillStyle='rgba(240,250,255,.85)';
+      for(const s of snowFlakes){ ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,7); ctx.fill(); }
+      ctx.restore();
+    }
+    if(lightning>0.25){
+      const lx=W*(0.2+((t*13)%1)*0.6);
+      ctx.save(); ctx.globalAlpha=Math.min(1,(lightning-0.25)*2.5); ctx.strokeStyle='#eaf6ff'; ctx.lineWidth=3; ctx.lineCap='round';
+      ctx.beginPath(); let x=lx, y=0; ctx.moveTo(x,y);
+      while(y<waterY*0.8){ x+=(Math.random()-.5)*40; y+=18+Math.random()*22; ctx.lineTo(x,y); }
+      ctx.stroke(); ctx.restore();
+    }
 
     // bubbles
     ctx.save(); ctx.globalAlpha=.5; ctx.strokeStyle='#cdeeff'; ctx.lineWidth=1;
@@ -1969,12 +2329,13 @@
     const R=RARITY[f.r], s=f.size;
     ctx.save();
     ctx.translate(f.x, f.y + Math.sin(f.phase*0.5)*1.5);
-    if(f.r==='rare'||f.r==='epic'||f.r==='cursed'){
-      ctx.save(); ctx.globalAlpha=.35;
+    if(f.r==='rare'||f.r==='epic'||f.r==='cursed'||f.r==='legendary'||f.r==='mythical'){
+      ctx.save(); ctx.globalAlpha=(f.r==='legendary'||f.r==='mythical')?0.5:0.35;
       const gg=ctx.createRadialGradient(0,0,2,0,0,s*1.9);
       gg.addColorStop(0,R.color); gg.addColorStop(1,'rgba(0,0,0,0)');
       ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(0,0,s*1.9,0,7); ctx.fill(); ctx.restore();
     }
+    if(f.mut) drawMutation(f, t + f.phase, s);
     if(f.target){ ctx.save(); ctx.globalAlpha=.7+Math.sin(t*6)*.3; ctx.strokeStyle='#ffd85e'; ctx.lineWidth=1.5;
       ctx.beginPath(); ctx.arc(0,-s-9,3,0,7); ctx.stroke(); ctx.restore(); }
     drawFishArt(0,0, speciesArt(f.n), s, { phase:f.phase, dir:f.dir });
@@ -2005,12 +2366,13 @@
     ctx.restore();
 
     // rare glow halo
-    if(f.r==='rare'||f.r==='epic'||f.r==='cursed'){
+    if(f.r==='rare'||f.r==='epic'||f.r==='cursed'||f.r==='legendary'||f.r==='mythical'){
       ctx.save(); ctx.globalAlpha=.4;
       const gg=ctx.createRadialGradient(reel.fx,reel.fy,2,reel.fx,reel.fy,s*2.2);
       gg.addColorStop(0,R.color); gg.addColorStop(1,'rgba(0,0,0,0)');
       ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(reel.fx,reel.fy,s*2.2,0,7); ctx.fill(); ctx.restore();
     }
+    if(f.mut) drawMutation(f, reel.elapsed*2, s);
 
     // the hook, right at the fish's mouth
     const mx = reel.fx + dir*s*1.02, my = reel.fy;
@@ -2079,8 +2441,55 @@
     const hx=rod.x+20*turn, hy=waterY-44;
     ctx.strokeStyle='#ffd9a8'; ctx.lineWidth=5; ctx.lineCap='round';
     ctx.beginPath(); ctx.moveTo(x+4+lean,y-36); ctx.lineTo(hx,hy); ctx.stroke();
-    ctx.strokeStyle='#caa06a'; ctx.lineWidth=3.5;
-    ctx.beginPath(); ctx.moveTo(hx,hy); ctx.lineTo(tip.x,tip.y); ctx.stroke();
+    drawRodArt(hx, hy, tip.x, tip.y, (curRod().style)||'basic');
+    ctx.restore();
+  }
+
+  // each rod has a unique look, matched to its name
+  function drawRodArt(hx,hy,tx,ty,style){
+    const ang=Math.atan2(ty-hy, tx-hx);
+    const len=Math.hypot(tx-hx,ty-hy);
+    ctx.save(); ctx.translate(hx,hy); ctx.rotate(ang); ctx.lineCap='round';
+    const shaft=(w,col)=>{ ctx.strokeStyle=col; ctx.lineWidth=w; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(len,0); ctx.stroke(); };
+    if(style==='basic'){                 // plain wooden rod + 2 guides
+      shaft(3,'#b9854e'); ctx.strokeStyle='#7a5230'; ctx.lineWidth=1.4;
+      for(const f of [0.35,0.7]){ ctx.beginPath(); ctx.arc(len*f,0,2.4,0,7); ctx.stroke(); }
+      ctx.fillStyle='#3a2a1c'; ctx.fillRect(-9,-3.2,9,6.4);
+    } else if(style==='estuary'){        // cork grip + green accents
+      shaft(3.2,'#9aa86a'); ctx.fillStyle='#c79a5c'; ctx.fillRect(-10,-3,10,6);
+      ctx.strokeStyle='#5f6f2f'; ctx.lineWidth=1.4; for(const f of [0.4,0.72]){ ctx.beginPath(); ctx.arc(len*f,0,2.6,0,7); ctx.stroke(); }
+    } else if(style==='spinner'){        // slim carbon, red whipping + little spinner blade
+      shaft(2.6,'#2b3a44'); ctx.strokeStyle='#e14b4b'; ctx.lineWidth=1.6;
+      for(const f of [0.18,0.34,0.5]){ ctx.beginPath(); ctx.moveTo(len*f,-2.6); ctx.lineTo(len*f,2.6); ctx.stroke(); }
+      ctx.fillStyle='#d9e6ee'; ctx.beginPath(); ctx.ellipse(len*0.8,0,4,2.2,0.5,0,7); ctx.fill();
+    } else if(style==='deep'){            // heavy dark rod with a big reel + double guides
+      shaft(3.6,'#243042'); ctx.fillStyle='#0f1c26'; ctx.beginPath(); ctx.arc(-4,4,5,0,7); ctx.fill();
+      ctx.strokeStyle='#8fd6ff'; ctx.lineWidth=1.6; for(const f of [0.3,0.55,0.8]){ ctx.beginPath(); ctx.arc(len*f,0,3,0,7); ctx.stroke(); }
+    } else if(style==='cursed'){          // gnarled bone rod with a glowing red tip
+      ctx.strokeStyle='#c9b6d6'; ctx.lineWidth=3.4; ctx.beginPath(); ctx.moveTo(0,0);
+      for(let i=1;i<=6;i++){ const px=len*i/6; ctx.lineTo(px, Math.sin(i*2.3)*2.2); } ctx.stroke();
+      ctx.fillStyle='#ff4d6d'; ctx.beginPath(); ctx.arc(len,0,3.4,0,7); ctx.fill();
+      ctx.save(); ctx.globalAlpha=.6; ctx.beginPath(); ctx.arc(len,0,7,0,7); ctx.fillStyle='#ff8fa3'; ctx.fill(); ctx.restore();
+    } else if(style==='ice'){             // pale cyan ice rod
+      shaft(3,'#bfeaff'); ctx.fillStyle='#7fd0f0'; ctx.fillRect(-9,-3,9,6);
+      ctx.strokeStyle='#eafcff'; ctx.lineWidth=1.4; for(const f of [0.4,0.72]){ ctx.beginPath(); ctx.arc(len*f,0,2.6,0,7); ctx.stroke(); }
+    } else if(style==='glacier'){         // teal shaft with a white grip + ice crystals
+      shaft(3.3,'#5fd0c8'); ctx.fillStyle='#eafcff'; ctx.fillRect(-10,-3,10,6);
+      ctx.fillStyle='#dff6ff'; for(const f of [0.4,0.65,0.85]){ ctx.beginPath(); ctx.moveTo(len*f,-3); ctx.lineTo(len*f+3,0); ctx.lineTo(len*f,3); ctx.closePath(); ctx.fill(); }
+    } else if(style==='blizzard'){        // stormy grey rod with wind swirls + blade
+      shaft(2.8,'#9fb0c0'); ctx.strokeStyle='#eaf6ff'; ctx.lineWidth=1.4;
+      for(let i=0;i<3;i++){ ctx.beginPath(); ctx.arc(len*0.3+i*len*0.22,0, 5, 0.4, 2.6); ctx.stroke(); }
+      ctx.fillStyle='#cfe9ff'; ctx.beginPath(); ctx.arc(len*0.9,0,3.4,0,7); ctx.fill();
+    } else if(style==='aurora'){          // iridescent green-violet rod, glowing
+      const gg=ctx.createLinearGradient(0,0,len,0); gg.addColorStop(0,'#7dffd8'); gg.addColorStop(.5,'#79d0ff'); gg.addColorStop(1,'#c07dff');
+      shaft(3.2,'#c07dff'); ctx.strokeStyle=gg; ctx.lineWidth=2.4; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(len,0); ctx.stroke();
+      ctx.save(); ctx.globalAlpha=.5; ctx.strokeStyle='#7dffd8'; ctx.lineWidth=6; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(len,0); ctx.stroke(); ctx.restore();
+    } else if(style==='throne'){          // regal crystalline rod, gold crown + ice shards
+      shaft(3.6,'#cfeaff'); ctx.fillStyle='#ffd85e'; ctx.fillRect(-10,-3.4,10,6.8);
+      for(let i=0;i<4;i++){ const f=0.3+i*0.16; ctx.fillStyle=i%2?'#7de0ff':'#eafcff';
+        ctx.beginPath(); ctx.moveTo(len*f,-4); ctx.lineTo(len*f+4,0); ctx.lineTo(len*f,4); ctx.closePath(); ctx.fill(); }
+      ctx.fillStyle='#ffd85e'; ctx.beginPath(); ctx.moveTo(len+2,-4); ctx.lineTo(len+9,0); ctx.lineTo(len+2,4); ctx.closePath(); ctx.fill();
+    } else { shaft(3,'#b9854e'); }
     ctx.restore();
   }
 
@@ -2244,18 +2653,14 @@
       return;
     }
     ctx.save();
-    // bait blob in the bait's colour, with a highlight + tiny wiggle
-    const cr=6.0 + (bd.luck>=5?1.6:0);
-    const wig=Math.sin(t*7)*0.9;
-    ctx.fillStyle=bd.col; ctx.beginPath(); ctx.ellipse(hx,hy+wig,cr,cr*0.8,0.3,0,7); ctx.fill();
-    ctx.fillStyle='rgba(255,255,255,.55)'; ctx.beginPath(); ctx.arc(hx-cr*0.3,hy-2+wig,cr*0.28,0,7); ctx.fill();
-    if(bd.luck>=3){ // oily shimmer for the smelly baits
-      ctx.globalAlpha=.5; ctx.strokeStyle=bd.col; ctx.lineWidth=1;
-      ctx.beginPath(); ctx.arc(hx,hy+wig,cr+3,0,7); ctx.stroke(); ctx.globalAlpha=1;
-    }
+    // the equipped bait's unique look, hanging on the hook
+    drawBaitArt(bd.style||'worm', bd.col, 7.2 + (bd.luck>=5?1.4:0), t);
+    ctx.restore();
+    // the hook itself, just above the bait
+    ctx.save();
     ctx.strokeStyle='#eef6ff'; ctx.lineWidth=2; ctx.lineCap='round';
-    ctx.beginPath(); ctx.moveTo(hx,hy-10); ctx.lineTo(hx,hy-1);
-    ctx.arc(hx+3,hy-1,3,Math.PI,0,true); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(hx,hy-15); ctx.lineTo(hx,hy-10);
+    ctx.arc(hx+3,hy-10,3,Math.PI,0,true); ctx.stroke();
     ctx.restore();
   }
 
@@ -2295,7 +2700,7 @@
     ctx.fillStyle=col; ctx.font='bold 15px Trebuchet MS'; ctx.textAlign='center';
     ctx.fillText(label,bx,by);
     ctx.globalAlpha=.85; ctx.fillStyle='#eaf6ff'; ctx.font='bold 12px Trebuchet MS';
-    ctx.fillText(hooked.n+' · '+hooked.kg.toFixed(1)+'kg'+(reel.running?' · RUNNING!':''),bx,by+22);
+    ctx.fillText(hooked.n+(hooked.mut?' ⚡'+MUTATIONS[hooked.mut].name:'')+' · '+hooked.kg.toFixed(1)+'kg'+(reel.running?' · RUNNING!':'')+(reel.diving?' · DIVING ↓':''),bx,by+22);
     ctx.globalAlpha=1; ctx.restore();
   }
 
