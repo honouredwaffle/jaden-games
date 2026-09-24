@@ -125,7 +125,16 @@
   .ctl.mode.rowmode { background:linear-gradient(180deg,#1f7d49,#12503a); }
   #modeChip { cursor:pointer; border-color:rgba(255,216,94,.55); }
   #modeChip.rowmode { background:linear-gradient(180deg,#1f7d49,#12503a); border-color:rgba(125,255,168,.7); }
+  #modeChip.divemode { background:linear-gradient(180deg,#1f6f8f,#0f3a5a); border-color:rgba(125,230,255,.75); }
   #adminChip { border-color:rgba(255,120,120,.6); }
+  #diveChip { border-color:rgba(125,255,214,.6); background:rgba(20,90,80,.35); }
+  #diveHud { top:100px; left:8px; right:8px; display:none; flex-direction:column; gap:5px; align-items:center; pointer-events:none; }
+  #diveHud .drow { background:rgba(3,20,36,.72); border:1px solid rgba(120,210,255,.35); border-radius:11px; padding:5px 12px; font-size:12px; font-weight:bold; display:flex; align-items:center; gap:8px; backdrop-filter:blur(4px); }
+  #diveHud .dbar { width:118px; height:9px; border-radius:5px; background:rgba(0,0,0,.5); overflow:hidden; border:1px solid rgba(150,220,255,.35); }
+  #diveHud .dbar > i { display:block; height:100%; width:100%; }
+  #airFill { background:linear-gradient(90deg,#8fe3ff,#39d98a); }
+  #depFill { background:linear-gradient(90deg,#3fa9f5,#c07dff); }
+  #diveHud .dtip { font-size:10.5px; opacity:.85; font-weight:normal; text-align:center; 
   #rarityPop { position:absolute; top:36%; left:0; right:0; text-align:center; font-size:34px; font-weight:bold; opacity:0; pointer-events:none; transition:opacity .25s; }
   #arriveBanner { position:absolute; top:30%; left:0; right:0; text-align:center; pointer-events:none; opacity:0; z-index:9; }
   #arriveBanner.show { animation:arriveIn 2.8s ease-out; }
@@ -159,7 +168,7 @@
     <div class="tbrow">
       <div class="chip" id="shopChip">🛒 SHOP<small>GEAR &amp; BAIT</small></div>
       <div class="chip" id="worldChip">🗺️ WORLD<small id="worldChipName">🌊 OCEAN</small></div>
-      <div class="chip" id="weatherChip">☀️ Clear<small>NOON · CALM</small></div>
+      <div class="chip" id="diveChip">🤿 DIVE<small>GO UNDER</small></div>
       <div class="chip" id="menuChip">☰ MENU<small>MORE</small></div>
     </div>
   </div>
@@ -176,11 +185,18 @@
       <div class="mbtn" id="tournChip">🎖️ EVENT<small>FISH OF THE DAY</small></div>
       <div class="mbtn" id="capChip">🧑‍✈️ CAPTAIN<small>CUSTOMISE</small></div>
       <div class="mbtn" id="muteChip">🔊 SOUND<small>TAP: TOGGLE</small></div>
+      <div class="mbtn" id="weatherMbtnChip">☀️ WEATHER<small id="wxMbtnTxt">CLEAR</small></div>
       <div class="mbtn" id="adminChip" style="display:none">🛠️ ADMIN<small>TAP: CHEATS</small></div>
     </div>
   </div>
   <div class="hud" id="msg"></div>
   <div class="hud" id="hint">Tap the water to aim, then THROW to cast</div>
+  <div class="hud" id="diveHud">
+    <div class="drow"><span id="diveZone">🌊 OPEN WATER</span></div>
+    <div class="drow">🫧 AIR <span class="dbar"><i id="airFill"></i></span> <span id="airTxt">50s</span></div>
+    <div class="drow">⬇ DEPTH <span class="dbar"><i id="depFill"></i></span> <span id="depTxt">0m</span></div>
+    <div class="drow dtip" id="diveTip">Tap the water to aim · 🔱 SPEAR · hold SINK to go deeper</div>
+  </div>
   <div id="rarityPop"></div>
   <div id="arriveBanner"></div>
   <div id="rowCountdown"></div>
@@ -207,8 +223,7 @@
 
   <div id="controls">
     <button class="ctl" id="throwBtn"><span class="ic">🎣</span><span id="throwLabel">THROW</span></button>
-    <button class="ctl" id="diveBtn" style="display:none"><span class="ic">🤿</span><span>DIVE</span></button>
-    <button class="ctl paddle" id="paddleL" style="display:none"><span class="ic">⬅️</span><span>ROW</span></button>
+    <button class="ctl paddle" id="paddleL" style="display:none"><span class="ic">⬅️</span><span id="paddleLLabel">ROW</span></button>
     <button class="ctl" id="reelBtn">
       <svg viewBox="0 0 72 72" width="56" height="56">
         <circle cx="36" cy="36" r="26" fill="#0b2e49" stroke="#4aa8e0" stroke-width="3"/>
@@ -223,7 +238,7 @@
       </svg>
       <span id="reelLabel">REEL</span>
     </button>
-    <button class="ctl paddle" id="paddleR" style="display:none"><span class="ic">➡️</span><span>ROW</span></button>
+    <button class="ctl paddle" id="paddleR" style="display:none"><span class="ic">➡️</span><span id="paddleRLabel">ROW</span></button>
   </div>
 
   <!-- TRAVEL OVERLAY -->
@@ -276,6 +291,7 @@
         <button class="tab" id="tabBait">🪱 BAIT</button>
         <button class="tab" id="tabLine">🧵 LINE</button>
         <button class="tab" id="tabBoats">⛵ BOATS</button>
+        <button class="tab" id="tabDive">🤿 DIVE</button>
       </div>
       <div class="scroll" id="shopList"></div>
     </div>
@@ -303,6 +319,7 @@
         <button class="tab" id="invTabLine">🧵 LINE</button>
         <button class="tab" id="invTabStore">📦 STORAGE</button>
         <button class="tab" id="invTabBoats">⛵ BOATS</button>
+        <button class="tab" id="invTabDive">🤿 DIVE</button>
       </div>
       <div class="scroll" id="invList"></div>
     </div>
@@ -319,6 +336,8 @@
         <button class="tab" id="specTabSnow">🧊 SNOW</button>
         <button class="tab" id="specTabVolcano">🌋 VOLCANO</button>
         <button class="tab" id="specTabReef">🪸 REEF</button>
+        <button class="tab" id="specTabJungle">🌴 JUNGLE</button>
+        <button class="tab" id="specTabRuins">🏛️ RUINS</button>
         <button class="tab" id="specTabAbyss">🕳️ ABYSS</button>
       </div>
       <div class="scroll" id="specList"></div>
@@ -452,6 +471,42 @@
   const RARITY_ORDER = ['common','uncommon','rare','epic','cursed','legendary','mythical','transcendent','boss'];
   const rarRank = r => { const i=RARITY_ORDER.indexOf(r); return i<0?0:i; };
   const FISH = {
+    jungle: [
+      {n:'Greenfin Perch', r:'common',   a:0.2, b:1.2,  q:'Stripy little river fish. Everywhere in the delta.'},
+      {n:'Silver Mullet',  r:'common',   a:0.4, b:2.2,  q:'Schools under the mangrove roots.'},
+      {n:'Mud Bream',      r:'common',   a:0.5, b:2.6,  q:'Roots around in the warm brown water.'},
+      {n:'Catfish Whiskers',r:'common',  a:1.0, b:5.0,  q:'Feels its way along the bottom with its moustache.'},
+      {n:'Jungle Snapper', r:'uncommon', a:1.5, b:7.0,  q:'Red scales in green water. Looks out of place.'},
+      {n:'Freshwater Barra',r:'uncommon',a:3.0, b:14.0, q:'Same family as the barra you know, meaner in here.'},
+      {n:'River Gar',      r:'rare',     a:2.5, b:12.0, q:'A living fossil with a long snout full of teeth.'},
+      {n:'Peacock Bass',   r:'rare',     a:3.0, b:15.0, q:'Flashy, aggressive, and hates the bait on sight.'},
+      {n:'Arapaima',       r:'epic',     a:60.0,b:260.0,q:'Armoured, air-breathing giant of the delta.'},
+      {n:'Giant Snakehead',r:'epic',     a:15.0,b:70.0, q:'Walks between ponds. Looks you in the eye.'},
+      {n:'Black Lagoon Catfish',r:'cursed',a:120.0,b:560.0,q:'Only comes up out of the black water after dark.'},
+      {n:'The Devourer',   r:'legendary',a:220.0,b:980.0,q:'It has eaten everything in the lagoon except you.'},
+      {n:'Delta Leviathan',r:'mythical', a:420.0,b:1900.0,q:'A python of a fish. The creek bends where it lies.'},
+      {n:'Mangrove Spirit',r:'transcendent',a:900.0,b:4600.0,q:'The old people told stories about this one. They were right.'},
+      {n:'Moonlit Mullet', r:'uncommon', a:1.0, b:4.5, q:'Only rises when the moon is out over the delta.', cond:{night:true}},
+      {n:'Monsoon Bass',   r:'rare',     a:4.0, b:18.0, q:'Only bites while the monsoon is pouring.', cond:{wx:'monsoon'}}
+    ],
+    ruins: [
+      {n:'Scrollfish',     r:'common',   a:0.1, b:0.6,  q:'A pale ribbon of a fish, like a strip of old paper.'},
+      {n:'Coin Perch',     r:'common',   a:0.3, b:1.4,  q:'Flat and round and gold-coloured. Easy to mistake.'},
+      {n:'Marble Cod',     r:'common',   a:0.6, b:3.0,  q:'Stone-grey, with veins like the columns.'},
+      {n:'Amphora Fish',   r:'common',   a:0.8, b:3.6,  q:'Swims in and out of the broken pots.'},
+      {n:'Mosaic Wrasse',  r:'uncommon', a:1.0, b:5.0,  q:'Its scales look like a floor someone laid by hand.'},
+      {n:'Column Grouper', r:'uncommon', a:3.0, b:14.0, q:'Wedges itself into the standing columns.'},
+      {n:'Bronze Pike',    r:'rare',     a:5.0, b:24.0, q:'Weathered green-bronze. Older than the city.'},
+      {n:'Statue Fish',    r:'rare',     a:8.0, b:36.0, q:'You will swear it was carved first and swam later.'},
+      {n:'Golden Bass',    r:'epic',     a:40.0,b:190.0,q:'A glint among the ruins that turns out to be alive.'},
+      {n:'Temple Shark',   r:'epic',     a:70.0,b:300.0,q:'It patrols the marbled plaza like it still owns it.'},
+      {n:'Drowned Emperor',r:'cursed',   a:150.0,b:700.0,q:'Crowned, robed, and somehow still on its throne.'},
+      {n:'Sunken Colossus',r:'legendary',a:300.0,b:1400.0,q:'A giant under the fallen dome. The city was built around it.'},
+      {n:'The Drowned God',r:'mythical', a:600.0,b:2600.0,q:'They prayed to this. The water answered.'},
+      {n:'The Eternal City',r:'transcendent',a:1300.0,b:6000.0,q:'You realise the city is not built on bedrock. It is built on this.'},
+      {n:'Ghost Sculptor', r:'epic',     a:60.0,b:240.0,q:'Only appears in the fog, quietly shaping the coral.', cond:{wx:'fog'}},
+      {n:'Nocturne Eel',   r:'rare',     a:6.0, b:26.0, q:'Winds out of the inner tomb once the light is gone.', cond:{night:true}}
+    ],
     ocean: [
       {n:'Sardine',        r:'common',   a:0.05,b:0.25, q:'Small, silver, everywhere.'},
       {n:'Bream',          r:'common',   a:0.3, b:1.1,  q:'A reliable little fighter.'},
@@ -552,6 +607,13 @@
     ]
   };
   function worldFish(w){ return FISH[w] || FISH.ocean; }
+  // ---- areas (the water you row to inside an island) ----
+  function curArea(){ const list=islandAreas(S.world); if(!list[S.area]) S.area=0; return list[S.area]; }
+  function areaKeyOf(w,a){ return w+':'+a; }
+  function areaFish(){ return (S.area>0 && AREA_FISH[areaKeyOf(S.world,S.area)]) || FISH[S.world] || FISH.ocean; }
+  function areaTheme(){ const a=curArea(); return (a && a.theme) || 'ocean'; }
+  function areaOwned(w,a){ return a===0 || !!S.areaOwned[areaKeyOf(w,a)]; }
+  function areaCount(){ return islandAreas(S.world).length; }
   // a fish with a `cond` only shows up when that condition holds (night / specific weather)
   function condOK(def){
     const c=def && def.cond; if(!c) return true;
@@ -649,9 +711,155 @@
     'Coral Sovereign':{ t:'sovereign',c1:'#ff9ff0',c2:'#7f1f9f', p:'scale'  },
     'The Great Barrier':{ t:'primordial',c1:'#9ff0e0',c2:'#1f4f5f', p:'scale' },
     'Moonfish':       { t:'trevally', c1:'#eaf6ff',c2:'#8fa8c8', p:'spot'   },
-    'Reef Ghost':     { t:'ghostfish',c1:'#dff0ff',c2:'#7fa8c8', p:'spot'   }
+    'Reef Ghost':     { t:'ghostfish',c1:'#dff0ff',c2:'#7fa8c8', p:'spot'   },
+    // ---- JUNGLE DELTA ----
+    'Greenfin Perch': { t:'perch',   c1:'#9fd88a', c2:'#3f6f2f', p:'bar'    },
+    'Silver Mullet':  { t:'whiting', c1:'#e8f0f4', c2:'#8fa0a8', p:'stripe' },
+    'Mud Bream':      { t:'bream',   c1:'#b8a06a', c2:'#5f4a26', p:'spot'   },
+    'Catfish Whiskers':{ t:'catfish',c1:'#8f7f6a', c2:'#3f3428', p:'spot'   },
+    'Jungle Snapper': { t:'snapper', c1:'#ff8f7a', c2:'#a03a2a', p:'spot'   },
+    'Freshwater Barra':{ t:'barra',  c1:'#cfe3a6', c2:'#5f7f3f', p:'scale'  },
+    'River Gar':      { t:'gar',     c1:'#8fa86a', c2:'#3f4f2a', p:'bar'    },
+    'Peacock Bass':   { t:'snapper', c1:'#ffd05c', c2:'#2f6f6f', p:'spot'   },
+    'Arapaima':       { t:'arapaima',c1:'#a8b88f', c2:'#4a5a3a', p:'scale'  },
+    'Giant Snakehead':{ t:'snakehead',c1:'#6f7f5a',c2:'#252f1a', p:'scale'  },
+    'Black Lagoon Catfish':{ t:'catfish',c1:'#4a4a55',c2:'#15151c', p:'spot'},
+    'The Devourer':   { t:'serpent', c1:'#6faa5a', c2:'#203a18', p:'scale'  },
+    'Delta Leviathan':{ t:'leviathan',c1:'#7fb06a',c2:'#1f3a18', p:'stripe' },
+    'Mangrove Spirit':{ t:'primordial',c1:'#8ff0b0',c2:'#1f5f3a', p:'scale' },
+    'Moonlit Mullet': { t:'whiting', c1:'#dff0ff', c2:'#7f8fc0', p:'stripe' },
+    'Monsoon Bass':   { t:'snapper', c1:'#cfe0e8', c2:'#3f5f7f', p:'spot'   },
+    // ---- SUNKEN CITY ----
+    'Scrollfish':     { t:'whiting', c1:'#f0e6c8', c2:'#bfa878', p:'stripe' },
+    'Coin Perch':     { t:'perch',   c1:'#ffd85e', c2:'#a8842a', p:'spot'   },
+    'Marble Cod':     { t:'cod',     c1:'#e8ecef', c2:'#8f9aa4', p:'spot'   },
+    'Amphora Fish':   { t:'bream',   c1:'#d8b890', c2:'#7a5230', p:'spot'   },
+    'Mosaic Wrasse':  { t:'bream',   c1:'#8fd0ff', c2:'#7f5fbf', p:'scale'  },
+    'Column Grouper': { t:'jewfish', c1:'#d4d0c4', c2:'#6f6a5c', p:'spot'   },
+    'Bronze Pike':    { t:'pike',    c1:'#a8a06a', c2:'#4f4a26', p:'bar'    },
+    'Statue Fish':    { t:'colossus',c1:'#cfd4d8', c2:'#7f8a92', p:'spot'   },
+    'Golden Bass':    { t:'trevally',c1:'#ffe08a', c2:'#c08a2a', p:'spot'   },
+    'Temple Shark':   { t:'shark',   c1:'#c8cdd2', c2:'#5f6a72', p:'stripe' },
+    'Drowned Emperor':{ t:'sovereign',c1:'#dce6ff',c2:'#3f5f9f', p:'scale'  },
+    'The Drowned God':{ t:'eternal', c1:'#dff0ff', c2:'#2f5f8f', p:'scale'  },
+    'The Eternal City':{ t:'primordial',c1:'#cfe0ff',c2:'#1f3f6f',p:'scale' },
+    'Ghost Sculptor': { t:'ghostfish',c1:'#e8f4ff',c2:'#8fa8c8', p:'spot'  },
+    'Nocturne Eel':   { t:'eel',     c1:'#a0b0d0', c2:'#2f3f5f', p:'stripe' }
   };
   const DEFAULT_ART = { t:'bream', c1:'#cfe0ee', c2:'#5f7f96', p:'spot' };
+
+  // ---------- AREA-SPECIFIC FISH ----------
+  // each island is split into 3 areas; area 0 uses the island's base list, and these
+  // are the fish that ONLY live in areas 1 and 2 (the ones you row to across the border).
+  // [areaKey, name, rarity, kgMin, kgMax, artType, c1, c2, pattern, quote]
+  const AREA_FISH_DEFS = [
+    // ---- OCEAN: Coral Shallows ----
+    ['ocean:1','Greenback Herring','common',0.1,0.6,'sardine','#cfeadd','#5f9f8a','stripe','Stripey little school fish. Everywhere in the shallows.'],
+    ['ocean:1','Grass Bream','uncommon',0.4,1.8,'bream','#cfe3a6','#6e8f45','spot','Nose down in the weed, chewing all day.'],
+    ['ocean:1','Coral Trout','uncommon',1.5,7,'trevally','#ff9d8a','#c2462a','spot','Red as the coral it lives in.'],
+    ['ocean:1','Queenfish','rare',3,14,'tailor','#d8ecff','#5f8fc0','stripe','Silver rocket. Leaps when it feels the hook.'],
+    ['ocean:1','Silver King','rare',8,30,'trevally','#eaf6ff','#7f9fc0','spot','Brawls in the shallows like it owns them.'],
+    ['ocean:1','Giant Grouper','epic',40,190,'jewfish','#c8b090','#7a5230','spot','It came out of a hole you didn\u0027t know was there.'],
+    // ---- OCEAN: The Blue Drop ----
+    ['ocean:2','Slender Tuna','uncommon',5,25,'tailor','#bcdcff','#3f6fa8','stripe','Built like a torpedo. Goes down and stays down.'],
+    ['ocean:2','Bigeye Trevalla','rare',8,30,'jewfish','#b9c6d0','#4a5a68','stripe','Lives in the cold layer under the shelf.'],
+    ['ocean:2','Orange Roughy','rare',6,22,'snapper','#ff9a5c','#b03a1f','spot','Slow as stone. It has seen a hundred years of nothing.'],
+    ['ocean:2','Gemfish','epic',30,140,'serpent','#cfe0ff','#5f5fa8','scale','Rises from the dark in ribbons.'],
+    ['ocean:2','Blue Marlin','epic',90,420,'marlin','#a9dcff','#2f5fbf','stripe','The bill comes up first. It always comes up first.'],
+    ['ocean:2','Great White','cursed',300,1400,'shark','#b9c6d0','#3a4a58','stripe','It smelled the blood in the water before you did.'],
+    // ---- SNOW: Glacier Shelf ----
+    ['snow:1','Shelf Herring','common',0.1,0.5,'sprat','#eaf6ff','#8fbfe0','stripe','A silver cloud under the ice.'],
+    ['snow:1','Frost Goby','common',0.2,0.9,'goby','#dfeefb','#6f8fb0','spot','Sits in the silt and stares.'],
+    ['snow:1','Glacier Smelt','uncommon',0.8,3.5,'char','#e6f6ff','#8fa8d0','bar','Runs in tight silver shoals.'],
+    ['snow:1','Wolf Fish','uncommon',3,14,'pike','#a8b8c0','#3f5260','bar','Ugly, ancient, and all teeth.'],
+    ['snow:1','Greenland Shark','rare',60,320,'shark','#a8bcc8','#40566a','stripe','Slow. Older than your country. Patient.'],
+    ['snow:1','Glacier Halibut','epic',25,120,'flounder','#eef4f8','#8fa6b8','spot','A barn door lying on the bottom of the world.'],
+    // ---- SNOW: The Deep Freeze ----
+    ['snow:2','Pale Grenadier','uncommon',1.5,7,'cod','#dfe8f0','#7f8fa8','spot','A long soft tail trailing through the black.'],
+    ['snow:2','Ice Skate','rare',8,34,'ray','#dff0ff','#6f8fb8','spot','It flies an inch above the sea floor.'],
+    ['snow:2','Ghost Cod','rare',6,28,'cod','#f2f8ff','#9fb0c8','spot','White on white. You only see the eyes.'],
+    ['snow:2','Ice Dragonfish','epic',20,90,'serpent','#bfe8ff','#2f5f9f','scale','A needle of ice with a barbed tail.'],
+    ['snow:2','Frozen Kraken','epic',140,600,'kraken','#cfeaff','#2f5f8f','stripe','Its arms are furred with ice.'],
+    ['snow:2','The Pale One','cursed',500,2400,'eternal','#ffffff','#5f8fc0','scale','Something under the ice has been awake the whole time.'],
+    // ---- VOLCANO: Lava Flats ----
+    ['volcano:1','Cinder Minnow','common',0.1,0.5,'sprat','#e0a878','#8f4a2a','stripe','Sparkles faintly with cooling ash.'],
+    ['volcano:1','Warm Goby','common',0.2,1,'goby','#c8a08a','#6f3f2a','spot','Sits on stones that would cook you.'],
+    ['volcano:1','Vent Snapper','uncommon',1.2,6,'snapper','#ffa06a','#b0452a','spot','Never far from a glowing crack in the rock.'],
+    ['volcano:1','Sulphur Bream','uncommon',0.8,3.6,'bream','#e8e070','#8f7a20','spot','Faintly yellow. Smells like the vents.'],
+    ['volcano:1','Basalt Grouper','rare',8,36,'jewfish','#6f6660','#241c18','spot','Grey as the rock it pretends to be.'],
+    ['volcano:1','Rift Marlin','epic',70,300,'marlin','#ff9a5c','#7f2a10','stripe','Rides the hot current up out of the rift.'],
+    // ---- VOLCANO: The Caldera ----
+    ['volcano:2','Magma Skate','uncommon',3,14,'ray','#ff9a5c','#8f2a12','spot','It glows orange through the black water.'],
+    ['volcano:2','Rift Ray','rare',16,64,'ray','#ffb05c','#6f1f0a','spot','Wings like cooling steel.'],
+    ['volcano:2','Obsidian Marlin','rare',40,180,'marlin','#4a4a52','#101014','stripe','A black bill, and then nothing.'],
+    ['volcano:2','Cinder Titan','epic',160,700,'titan','#ff9a4a','#5f1a08','scale','It stood up out of the boiling shallows.'],
+    ['volcano:2','Magma Wyrm','epic',220,900,'wyrm','#ff8a3c','#6f1a0a','scale','Fire that learned to coil.'],
+    ['volcano:2','The Kiln','cursed',600,2800,'inferno','#ffe08a','#c2331a','scale','The caldera is not empty. It never was.'],
+    // ---- REEF: The Drop-Off ----
+    ['reef:1','Blue Chromis','common',0.05,0.25,'sardine','#8fd8ff','#2f6fbf','stripe','A blue flicker in the sunbeams.'],
+    ['reef:1','Anthias','common',0.1,0.5,'whiting','#ffb05c','#e0532a','stripe','A drift of orange over the wall.'],
+    ['reef:1','Wahoo','uncommon',4,18,'tailor','#d8e8ff','#4f7fb8','stripe','Fastest thing on the reef, and it knows it.'],
+    ['reef:1','Dogtooth Tuna','uncommon',8,34,'trevally','#cfe0ee','#4a6f9f','spot','Ambushes from the blue, never from the reef.'],
+    ['reef:1','Maori Wrasse','rare',15,70,'jewfish','#7fe8c0','#2f8f6a','spot','Huge, green and grumpy. Older than the dive shop.'],
+    ['reef:1','Sailfish','epic',30,140,'marlin','#9fd8ff','#3f5fbf','stripe','The sail goes up and the whole reef goes quiet.'],
+    // ---- REEF: Coral Cathedral ----
+    ['reef:2','Golden Trevally','uncommon',4,20,'trevally','#ffe27a','#c08a2a','spot','Swims in the shadow of the big arches.'],
+    ['reef:2','Humphead Wrasse','rare',20,90,'jewfish','#9ff0d0','#2f8f8f','spot','A forehead like a battering ram.'],
+    ['reef:2','Coral Serpent','rare',12,55,'serpent','#ff9ff0','#7f1f6f','scale','It lives inside the coral and comes out for you.'],
+    ['reef:2','Cathedral Manta','epic',180,800,'ray','#a0d8f0','#2f5f8f','spot','It fills the whole arch when it passes.'],
+    ['reef:2','Barrier Titan','epic',300,1300,'colossus','#a0e8d0','#1f6f7f','scale','The spire stood up and shook the coral off.'],
+    ['reef:2','The Archpriest','cursed',500,2200,'sovereign','#ff9ff0','#7f1f9f','scale','Every fish in the cathedral stopped swimming when it arrived.'],
+    // ---- ABYSS: Midnight Zone ----
+    ['abyss:1','Hatchetfish','common',0.05,0.3,'sardine','#cfe0f0','#3f4f7f','stripe','A silver blade with a lantern under it.'],
+    ['abyss:1','Bristlemouth','common',0.05,0.25,'sprat','#9fb0c8','#2a3550','stripe','The most common fish alive, and you\u0027ll never see one again.'],
+    ['abyss:1','Viperfish','uncommon',0.3,1.6,'eel','#8fbfd0','#1f3048','stripe','Fangs too long for its own mouth.'],
+    ['abyss:1','Barreleye','uncommon',0.4,2,'goby','#7fa8c8','#1f2a40','spot','See-through head. Looks straight up.'],
+    ['abyss:1','Chimaera','rare',6,26,'ray','#b0c8e0','#3a4f7a','spot','A ghost shark from before sharks were invented.'],
+    ['abyss:1','Goblin Shark','epic',60,260,'shark','#d0a8b0','#4a2a38','stripe','Its jaw comes out of its face. On purpose.'],
+    // ---- ABYSS: The Hadal Plain ----
+    ['abyss:2','Hadal Snailfish','uncommon',0.2,1.2,'goby','#e0e8f0','#8fa0b8','spot','Soft as jelly. Somehow alive down here.'],
+    ['abyss:2','Dumbo Octopus','rare',2,10,'kraken','#ffb0d0','#8f2a6f','spot','It flaps, slowly, through a place with no floor.'],
+    ['abyss:2','Hadal Grenadier','rare',4,18,'cod','#9fb0c8','#2a3550','spot','A tail like a whip, and no light at all.'],
+    ['abyss:2','Colossal Squid','epic',300,1400,'kraken','#c0a8e0','#3a1f6f','spot','The hooks on its arms are the size of your hand.'],
+    ['abyss:2','Frilled Shark','epic',80,340,'serpent','#8fa8c0','#1f2a44','scale','A living fossil, coiled like a question mark.'],
+    ['abyss:2','The Nameless','cursed',800,3600,'primordial','#b0a0ff','#1a0a3a','scale','You will not be able to describe it afterwards.'],
+    // ---- JUNGLE: The Delta ----
+    ['jungle:1','Rasbora','common',0.02,0.12,'sprat','#e0d0a0','#a08a4a','stripe','A tiny flash of silver in the brown water.'],
+    ['jungle:1','Tilapia','common',0.5,2.4,'bream','#b0b088','#5f5f3a','spot','Tough, common and everywhere.'],
+    ['jungle:1','Climbing Perch','uncommon',0.2,1.0,'perch','#9fb87a','#3f5f2a','bar','It can breathe air and walk on land. Here, it just swims.'],
+    ['jungle:1','Freshwater Stingray','uncommon',3,14,'ray','#b8a878','#5f4a2a','spot','Hides in the mud under a metre of warm water.'],
+    ['jungle:1','Mahseer','rare',6,28,'trevally','#d8c090','#8f6a2a','spot','A river battler with armour-plated scales.'],
+    ['jungle:1','Giant Freshwater Ray','epic',120,520,'ray','#a89878','#4a3a22','spot','The river bottom moved. It was not the bottom.'],
+    // ---- JUNGLE: The Black Lagoon ----
+    ['jungle:2','Blind Cave Fish','uncommon',0.1,0.5,'goby','#f0e8d8','#b0a890','spot','No eyes. Feels its way through the dark.'],
+    ['jungle:2','Lagoon Eel','rare',4,18,'eel','#6f7f5a','#1f2a18','stripe','Coils out of a root tangle without a sound.'],
+    ['jungle:2','Albino Gar','rare',8,34,'gar','#f2f2ea','#c8c8b8','bar','A ghost of the gar, pale as the water it hides in.'],
+    ['jungle:2','Lagoon Snakehead','epic',20,90,'snakehead','#5f6f4a','#181f10','scale','It surfaces to breathe, and watches you.'],
+    ['jungle:2','Black Arapaima','epic',180,760,'arapaima','#3a4a3a','#101a12','scale','The black-water cousin. Twice the attitude.'],
+    ['jungle:2','The Lagoon King','cursed',400,1800,'serpent','#4a6a3a','#101f0a','scale','Everything in the lagoon answers to it.'],
+    // ---- RUINS: The Forum ----
+    ['ruins:1','Mosaic Goby','common',0.05,0.3,'goby','#ffd08a','#a06a2a','spot','Tiny, bright, lives between the mosaic tiles.'],
+    ['ruins:1','Column Damsel','common',0.1,0.5,'whiting','#9fd0ff','#3f6fbf','stripe','Darts around the standing columns.'],
+    ['ruins:1','Amphora Wrasse','uncommon',0.8,3.6,'bream','#d8b890','#7a5230','spot','Sleeps inside the broken pots.'],
+    ['ruins:1','Bronze Bream','uncommon',0.6,2.8,'bream','#c8a86a','#6f5a2a','spot','Green-bronze. Older than anything else on the reef.'],
+    ['ruins:1','Marble Ray','rare',20,90,'ray','#e8ecef','#8f9aa4','spot','Glides over the plaza like a slow white ghost.'],
+    ['ruins:1','Praetor Shark','epic',90,400,'shark','#c0c8cc','#5f6a72','stripe','It still patrols the same square it always did.'],
+    // ---- RUINS: The Inner Tomb ----
+    ['ruins:2','Tomb Loach','uncommon',0.3,1.6,'goby','#cfc8b0','#8f8a70','spot','Sifts the silt in complete darkness.'],
+    ['ruins:2','Golden Icon Fish','rare',4,18,'trevally','#ffe08a','#c08a2a','spot','It looks like something that was once worshipped.'],
+    ['ruins:2','Sarcophagus Eel','rare',6,26,'eel','#8f8a7a','#2f2f28','stripe','Squeezes out through a crack in the stone.'],
+    ['ruins:2','Temple Guardian','epic',300,1300,'colossus','#cfd4d8','#7f8a92','scale','Stone, until it is not.'],
+    ['ruins:2','Reliquary Ray','epic',100,440,'ray','#c9b8ff','#4a3f8f','spot','Its wingbeats stir the relics off the floor.'],
+    ['ruins:2','The Sealed King','cursed',600,2600,'sovereign','#dce6ff','#3f5f9f','scale','The tomb was not built to keep things out.'],
+    // ---- JUNGLE/RUINS fixed bosses are in DISASTERS
+  ];
+  // build the pools + teach the game what each one looks like
+  const AREA_FISH = {};
+  for(const row of AREA_FISH_DEFS){
+    const k=row[0]; if(!AREA_FISH[k]) AREA_FISH[k]=[];
+    AREA_FISH[k].push({n:row[1], r:row[2], a:row[3], b:row[4], q:row[9]});
+    SPECIES[row[1]]={ t:row[5], c1:row[6], c2:row[7], p:row[8] };
+  }
   // colour helper: amt>0 lightens toward white, amt<0 darkens toward black
   function shadeC(hex, amt){
     if(typeof hex!=='string' || hex[0]!=='#') return hex;
@@ -1177,6 +1385,65 @@
       eye(1.05,-0.06,0.18);
       ctx.save(); ctx.globalAlpha=.45+Math.sin(phase)*.25; ctx.strokeStyle='#ffe08a'; ctx.lineWidth=0.08;
       for(let i=0;i<8;i++){ const a=i*0.785+phase*0.4; ctx.beginPath(); ctx.moveTo(Math.cos(a)*0.7,Math.sin(a)*0.7); ctx.lineTo(Math.cos(a)*1.35,Math.sin(a)*1.35); ctx.stroke(); } ctx.restore();
+    } else if(t==='catfish'){
+      // catfish: wide flat head, long whisker barbels, smooth wormy body
+      body(1.28,0.56,{nose:0.62,ped:0.22});
+      tailFin(0.72);
+      fin(-0.32,-0.44,0.62,0.36);
+      // long low dorsal
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(-0.5,-0.4); ctx.quadraticCurveTo(-1.15,-0.5,-1.28,-0.24); ctx.lineTo(-0.5,-0.28); ctx.closePath(); ctx.fill();
+      // fat head
+      ctx.fillStyle=bodyG(0.62); ctx.beginPath(); ctx.ellipse(0.82,-0.04,0.62,0.5,0,0,7); ctx.fill();
+      // whiskers (barbels)
+      ctx.strokeStyle=c2; ctx.lineWidth=0.045; ctx.lineCap='round';
+      for(const b of [[1.36,-0.28,1.95,-0.62],[1.34,-0.06,1.86,-0.12],[1.3,0.16,1.8,0.42],[1.22,0.34,1.55,0.72]]){ ctx.beginPath(); ctx.moveTo(b[0],b[1]); ctx.quadraticCurveTo((b[0]+b[2])/2,(b[1]+b[3])/2-0.12,b[2],b[3]); ctx.stroke(); }
+      ctx.fillStyle='#0c0810'; ctx.beginPath(); ctx.ellipse(1.28,0.14,0.2,0.12,0,0,7); ctx.fill();
+      // mottled belly
+      ctx.save(); fishBody(1.28,0.56,{nose:0.62,ped:0.22}); ctx.clip(); ctx.globalAlpha=.35; ctx.fillStyle=shadeC(c2,-0.3);
+      for(const p of [[-0.6,0.18],[-0.1,0.24],[0.4,0.2],[-0.9,0.1],[0.8,0.2]]){ ctx.beginPath(); ctx.arc(p[0],p[1],0.1,0,7); ctx.fill(); } ctx.restore();
+      eye(0.98,-0.18,0.13);
+    } else if(t==='gar'){
+      // gar: long slender body, very long toothy snout, dorsal pushed far back
+      body(1.9,0.30,{nose:0.5,ped:0.12});
+      tailFin(0.66);
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(0.35,0.06); ctx.quadraticCurveTo(1.55,0.0, 1.95,-0.08); ctx.lineTo(1.95,0.08); ctx.quadraticCurveTo(1.55,0.16,0.35,0.22); ctx.closePath(); ctx.fill();
+      // dorsal + anal shoved toward the tail
+      ctx.fillStyle=c1; ctx.beginPath(); ctx.moveTo(-1.28,-0.16); ctx.quadraticCurveTo(-1.5,-0.5,-1.66,-0.1); ctx.lineTo(-1.28,-0.06); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-1.28,0.16); ctx.quadraticCurveTo(-1.5,0.5,-1.66,0.1); ctx.lineTo(-1.28,0.06); ctx.closePath(); ctx.fill();
+      // long snout with teeth
+      ctx.fillStyle=c1; ctx.beginPath(); ctx.moveTo(1.42,-0.12); ctx.lineTo(2.15,-0.05); ctx.lineTo(2.15,0.04); ctx.lineTo(1.42,0.12); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='#f0f4f8'; ctx.lineWidth=0.03;
+      for(let i=0;i<7;i++){ const px=1.5+i*0.09; ctx.beginPath(); ctx.moveTo(px,0.06); ctx.lineTo(px,0.14); ctx.stroke(); ctx.beginPath(); ctx.moveTo(px,-0.06); ctx.lineTo(px,-0.13); ctx.stroke(); }
+      // leopard spots
+      ctx.save(); fishBody(1.9,0.30,{nose:0.5,ped:0.12}); ctx.clip(); ctx.globalAlpha=.4; ctx.fillStyle=shadeC(c1,-0.3);
+      for(let i=0;i<8;i++){ ctx.beginPath(); ctx.arc(-1.3+i*0.32, (i%2?0.06:-0.06), 0.07, 0, 7); ctx.fill(); } ctx.restore();
+      eye(1.14,-0.12,0.12);
+    } else if(t==='arapaima'){
+      // arapaima: long armoured body, blunt bony head, red-tipped rear fins
+      body(1.42,0.62,{nose:0.7,ped:0.2});
+      tailFin(0.7);
+      ctx.fillStyle=shadeC(c2,-0.15); ctx.beginPath(); ctx.moveTo(-0.2,-0.5); ctx.quadraticCurveTo(-0.95,-0.56,-1.32,-0.2); ctx.lineTo(-0.2,-0.34); ctx.closePath(); ctx.fill();
+      // blunt armoured head
+      ctx.fillStyle=bodyG(0.6); ctx.beginPath(); ctx.moveTo(1.5,0.18); ctx.lineTo(1.72,-0.16); ctx.lineTo(1.95,-0.12); ctx.lineTo(1.98,0.1); ctx.lineTo(1.5,0.3); ctx.closePath(); ctx.fill();
+      // red-tipped rear fins
+      ctx.fillStyle='#e0533a'; ctx.beginPath(); ctx.moveTo(-1.28,-0.1); ctx.quadraticCurveTo(-1.62,-0.42,-1.72,-0.04); ctx.lineTo(-1.28,0.0); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(-1.26,0.14); ctx.quadraticCurveTo(-1.6,0.46,-1.7,0.08); ctx.lineTo(-1.26,0.04); ctx.closePath(); ctx.fill();
+      // heavy scale rows
+      ctx.save(); fishBody(1.42,0.62,{nose:0.7,ped:0.2}); ctx.clip(); ctx.globalAlpha=.5; ctx.strokeStyle=shadeC(c2,-0.35); ctx.lineWidth=0.03;
+      for(let r=-1;r<4;r++){ ctx.beginPath(); ctx.moveTo(-1.4,-0.4+r*0.24); for(let x=-1.4;x<1.4;x+=0.2) ctx.lineTo(x+0.1,-0.4+r*0.24+Math.sin(x*3)*0.02); ctx.stroke(); } ctx.restore();
+      eye(1.42,-0.16,0.13);
+    } else if(t==='snakehead'){
+      // snakehead: long body, blunt snake head, long dorsal + anal fins
+      body(1.72,0.42,{nose:0.72,ped:0.18});
+      tailFin(0.6);
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(-0.1,-0.36); ctx.quadraticCurveTo(-1.0,-0.48,-1.5,-0.14); ctx.lineTo(-1.5,0.16); ctx.quadraticCurveTo(-1.0,0.48,-0.1,0.36); ctx.closePath(); ctx.fill();
+      // snake head: flat top, wide mouth
+      ctx.fillStyle=bodyG(0.58); ctx.beginPath(); ctx.moveTo(1.3,-0.24); ctx.lineTo(1.9,-0.14); ctx.quadraticCurveTo(2.0,0.0,1.9,0.14); ctx.lineTo(1.3,0.3); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#0c0810'; ctx.beginPath(); ctx.moveTo(1.5,0.06); ctx.lineTo(1.96,0.06); ctx.quadraticCurveTo(1.96,0.16,1.5,0.18); ctx.closePath(); ctx.fill();
+      // dark blotches
+      ctx.save(); fishBody(1.72,0.42,{nose:0.72,ped:0.18}); ctx.clip(); ctx.globalAlpha=.4; ctx.fillStyle=shadeC(c2,-0.4);
+      for(const p of [[-1.2,-0.1],[-0.7,0.16],[-0.2,-0.14],[0.3,0.14],[0.8,-0.1],[-0.95,-0.2],[0.55,0.22]]){ ctx.beginPath(); ctx.ellipse(p[0],p[1],0.12,0.09,0.4,0,7); ctx.fill(); } ctx.restore();
+      eye(1.5,-0.16,0.12);
     } else if(t==='bossmaelstrom'){
       // The Maelstrom — a colossal storm-fish: deep armoured body, huge forked tail, spiny sail dorsal, lightning in its veins
       ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(-1.05,0);
@@ -1550,23 +1817,107 @@
              theme:'abyss' },
     reef:   { name:'Coral Reef',     icon:'🪸', locked:true, cost:30000, order:2,
              blurb:'Shallow turquoise water over living coral. Bright, busy, and full of teeth.',
-             theme:'reef' }
+             theme:'reef' },
+    jungle: { name:'Jungle Delta',   icon:'🌴', locked:true, cost:20000, order:3,
+             blurb:'A warm freshwater delta tangled in mangroves. River monsters.',
+             theme:'jungle' },
+    ruins:  { name:'Sunken City',    icon:'🏛️', locked:true, cost:90000, order:5,
+             blurb:'A drowned city of marble columns and broken statues. Something still guards it.',
+             theme:'ruins' }
   };
-  const WORLD_ORDER = ['ocean','snow','volcano','reef','abyss'];
+  const WORLD_ORDER = ['ocean','snow','volcano','reef','jungle','ruins','abyss'];
+
+  // ---------- AREAS (the water you row to inside each island) ----------
+  // Every island is split into 3 areas laid out west → east. Row your boat to the
+  // LEFT or RIGHT EDGE of the screen and you cross the border into the next area.
+  // Deeper areas = rougher water (needs a sturdier hull) + rarer fish + fatter hauls.
+  const AREAS = {
+    ocean: [
+      {name:'Open Water',     theme:'ocean',   rough:0,  fee:0,      tint:null,                    blurb:'Calm blue water. Where everyone starts.'},
+      {name:'Coral Shallows', theme:'reef',    rough:2,  fee:6000,   tint:'rgba(60,220,200,.10)',  blurb:'Turquoise flats over living coral. Bright fish, busier water.'},
+      {name:'The Blue Drop',  theme:'deep',    rough:6,  fee:32000,  tint:'rgba(40,40,150,.22)',   blurb:'The shelf falls away into open blue. Big things cruise up from below.'}
+    ],
+    snow: [
+      {name:'Frozen Bay',     theme:'snow',    rough:0,  fee:0,      tint:null,                    blurb:'Pack ice and pale light.'},
+      {name:'Glacier Shelf',  theme:'snow',    rough:3,  fee:9000,   tint:'rgba(140,220,255,.14)', blurb:'Cold green water under the glacier wall.'},
+      {name:'The Deep Freeze',theme:'deep',    rough:8,  fee:44000,  tint:'rgba(120,200,255,.18)', blurb:'Black water under a mile of ice.'}
+    ],
+    volcano: [
+      {name:'Ash Shore',      theme:'volcano', rough:0,  fee:0,      tint:null,                    blurb:'Black sand and warm shallows.'},
+      {name:'Lava Flats',     theme:'volcano', rough:5,  fee:30000,  tint:'rgba(255,110,40,.16)',  blurb:'Shallow flats cracked with glowing vents.'},
+      {name:'The Caldera',    theme:'volcano', rough:10, fee:90000,  tint:'rgba(255,70,20,.26)',   blurb:'The crater itself. The water boils.'}
+    ],
+    reef: [
+      {name:'Shallow Reef',   theme:'reef',    rough:0,  fee:0,      tint:null,                    blurb:'Sunlit coral gardens.'},
+      {name:'The Drop-Off',   theme:'deep',    rough:4,  fee:20000,  tint:'rgba(30,120,200,.18)',  blurb:'The wall. Reef on one side, nothing on the other.'},
+      {name:'Coral Cathedral',theme:'reef',    rough:7,  fee:60000,  tint:'rgba(255,140,240,.14)', blurb:'Towering coral spires. Something huge lives in the arches.'}
+    ],
+    abyss: [
+      {name:'Trench Mouth',   theme:'abyss',   rough:0,  fee:0,      tint:null,                    blurb:'Where the shelf ends and the dark begins.'},
+      {name:'Midnight Zone',  theme:'deep',    rough:12, fee:120000, tint:'rgba(90,60,200,.22)',   blurb:'Sunlight died a long way above you.'},
+      {name:'The Hadal Plain',theme:'abyss',   rough:16, fee:260000, tint:'rgba(120,80,255,.26)',  blurb:'The floor of the world. Nothing should be alive down here.'}
+    ],
+    jungle: [
+      {name:'Mangrove Creek', theme:'jungle',  rough:0,  fee:0,      tint:null,                    blurb:'Green water under the mangrove roots.'},
+      {name:'The Delta',      theme:'jungle',  rough:4,  fee:14000,  tint:'rgba(120,220,120,.12)', blurb:'Warm brown water where the rivers meet. Busy and loud.'},
+      {name:'The Black Lagoon',theme:'jungle', rough:9,  fee:48000,  tint:'rgba(40,140,90,.22)',   blurb:'Still, dark water cut off from the sun. Something lives here.'}
+    ],
+    ruins: [
+      {name:'Drowned Gate',   theme:'ruins',   rough:0,  fee:0,      tint:null,                    blurb:'Broken marble steps slipping into the sea.'},
+      {name:'The Forum',      theme:'ruins',   rough:8,  fee:60000,  tint:'rgba(120,170,200,.16)', blurb:'A sunken plaza ringed with toppled columns.'},
+      {name:'The Inner Tomb', theme:'ruins',   rough:14, fee:300000, tint:'rgba(80,120,180,.26)', blurb:'The city\'s heart. The water here is very cold and very still.'}
+    ]
+  };
+  const AREA_MAX = 3;
+  function islandAreas(w){ return AREAS[w] || AREAS.ocean; }
 
   // ---------- BOATS ----------
   // Your boat decides where you can sail. Each island has a `roughness` — the sea
   // on the way there demands a boat of at least that durability, or it capszes.
+  // your boat now actually DOES something:
+  //   hull  → how rough a sea it survives (also gates islands + deeper areas)
+  //   speed → how fast you row (and how quick island crossings are)
+  //   hold  → +crate slots when equipped
+  //   lamp  → lights the water (better night vision + rare odds after dark)
   const BOAT = [
-    {name:'Rowboat',      cost:0,     dur:1,  speed:1.00, style:'rowboat',  desc:'A creaky little thing. Calm coastal water only.'},
-    {name:'Fishing Dinghy', cost:2500, dur:3,  speed:1.10, style:'dinghy',   desc:'A proper little tub. Handles the run to Snow Island.'},
-    {name:'Skipper',      cost:15000, dur:5,  speed:1.20, style:'skipper',  desc:'Sturdy cabin boat. Rides out rough water and open sea.'},
-    {name:'Trawler',      cost:40000, dur:8,  speed:1.30, style:'trawler',  desc:'Heavy steel hull. Nothing in these waters worries it.'},
-    {name:'Icebreaker',   cost:120000,dur:12, speed:1.40, style:'icebreaker',desc:'Military-grade deep-water vessel. It goes wherever it wants, even into volcanic seas.'},
-    {name:'Bathysphere',  cost:300000,dur:16, speed:1.55, style:'bathysphere',desc:'A reinforced diving bell built for the trench. Pressure-proof. Almost.'}
+    {name:'Rowboat',      cost:0,     dur:1,  speed:1.00, hold:0,  lamp:0,   style:'rowboat',  desc:'A creaky little thing. Calm coastal water only.'},
+    {name:'Fishing Dinghy', cost:2500, dur:3,  speed:1.15, hold:4,  lamp:0.5, style:'dinghy',   desc:'A proper little tub. Handles the run to Snow Island and carries a few more fish.'},
+    {name:'Skipper',      cost:15000, dur:5,  speed:1.30, hold:8,  lamp:1.0, style:'skipper',  desc:'Sturdy cabin boat. Rides out rough water and open sea.'},
+    {name:'Trawler',      cost:40000, dur:8,  speed:1.45, hold:14, lamp:1.4, style:'trawler',  desc:'Heavy steel hull and a hold packed with ice.'},
+    {name:'Icebreaker',   cost:120000,dur:12, speed:1.65, hold:22, lamp:1.8, style:'icebreaker',desc:'Military-grade deep-water vessel. Goes wherever it wants, even into volcanic seas.'},
+    {name:'Bathysphere',  cost:300000,dur:16, speed:1.90, hold:34, lamp:2.4, style:'bathysphere',desc:'A reinforced diving bell built for the trench. Pressure-proof. Almost.'},
+    {name:'Submarine',    cost:600000,dur:20, speed:2.15, hold:60, lamp:3.2, dive:true, style:'submarine',desc:'A personal submersible. Ignores rough seas AND pressure — dive to ANY depth with it.'}
   ];
   // sea roughness per destination — the boat must have >= this durability to reach it
-  const SEA_ROUGHNESS = { ocean:0, snow:3, volcano:8, reef:5, abyss:16 };
+  const SEA_ROUGHNESS = { ocean:0, snow:3, volcano:8, reef:5, jungle:4, ruins:14, abyss:16 };
+
+  // ---------- DIVE GEAR ----------
+  // To get off the boat and dive you need gear. Better gear = deeper + more air + more light.
+  // `depth` = the deepest ZONE (see AREAS) it can survive: the pressure at that depth.
+  const DIVE_KIT = [
+    {name:'Mask & Snorkel',  cost:0,      depth:0, air:50,  light:0.00, style:'snorkel', desc:'Enough to duck your head under and see the shallows.'},
+    {name:'Wetsuit & Fins',  cost:2500,   depth:0, air:70,  light:0.10, style:'wetsuit', desc:'Warmer and faster — you can stay under much longer.'},
+    {name:'Scuba Set',       cost:12000,  depth:1, air:100, light:0.25, style:'scuba',   desc:'Tanks, regulator and a buoyancy vest. Reaches the SECOND zone.'},
+    {name:'Dive Lamp Rig',   cost:32000,  depth:1, air:130, light:0.60, style:'lamp',    desc:'Lights up the dark water — rarer fish come to the glow.'},
+    {name:'Rebreather',      cost:95000,  depth:2, air:190, light:0.75, style:'rebreather', desc:'No bubbles, no sound. The deep things never hear you coming. Reaches zone THREE.'},
+    {name:'Exo-Dive Suit',   cost:280000, depth:2, air:280, light:1.00, style:'exo',     desc:'A pressure-proof exosuit. Cold, dark and crushing — none of it matters now.'}
+  ];
+  // ---------- SPEARS & HARPOONS ----------
+  // `pwr` = how tough a fish it punches through. Too weak and the fish shakes the spear off.
+  const SPEARS = [
+    {name:'Hand Spear',     cost:0,      pwr:1.0, range:34, style:'hand',    desc:'A sharpened pole. Enough for the little ones.'},
+    {name:'Harpoon Gun',    cost:4500,   pwr:1.9, range:44, style:'harpoon', desc:'Fires a barbed harpoon on a line. Takes real fish now.'},
+    {name:'Pneumatic Spear',cost:18000,  pwr:2.9, range:52, style:'pneumatic',desc:'Air-powered. Punches clean through big scales.'},
+    {name:'Speargun Pro',   cost:60000,  pwr:4.2, range:60, style:'speargun',desc:'Competition rig. Long reach, hard hit.'},
+    {name:'Abyss Harpoon',  cost:200000, pwr:6.0, range:70, style:'abyssharpoon',desc:'Built for the trench. Kills things that have no name.'}
+  ];
+  function curKit(){ const d=S.dive||{}; return DIVE_KIT[d.kit] || DIVE_KIT[0]; }
+  function ownedSpears(){ const d=S.dive||{}; if(!Array.isArray(d.spears)) d.spears=[0]; if(!d.spears.includes(0)) d.spears.unshift(0); return d.spears; }
+  function curSpearIdx(){ const d=S.dive||{}; const i=(typeof d.spear==='number')?d.spear:0; return SPEARS[i]?i:0; }
+  function curSpear(){ return SPEARS[curSpearIdx()] || SPEARS[0]; }
+  function spearTough(f){ return 1 + rarRank(f.r)*0.78 + (f.boss?0.6:0); }
+  // a submarine takes the pressure for you — never blocked by depth
+  function diveDepthOK(zone){ return !!((curBoat()&&curBoat().dive) || (curKit().depth||0)>=zone); }
   const FIGHT = {
     common:  {pull:0.22, tension:0.30, thrash:0.55},
     uncommon:{pull:0.30, tension:0.40, thrash:0.75},
@@ -1600,7 +1951,9 @@
     tempest: {name:'Tempest',  color:'#7fe3ff', mult:3.2},
     glacial: {name:'Glacial',  color:'#dcf6ff', mult:3.0},
     molten:  {name:'Molten',   color:'#ff6a2a', mult:3.4},
-    void:    {name:'Void',     color:'#a08aff', mult:3.6}
+    void:    {name:'Void',     color:'#a08aff', mult:3.6},
+    monsoon: {name:'Monsoon',  color:'#6fd0ff', mult:3.0},
+    sunken:  {name:'Sunken',   color:'#8fb0d0', mult:3.3}
   };
 
   // ---------- FISH TRAITS ----------
@@ -1671,7 +2024,9 @@
     blizzard:  {name:'Blizzard',     icon:'❄️', weight:0},
     eruption:  {name:'Eruption',     icon:'🌋', weight:0},
     voidstorm: {name:'Voidstorm',    icon:'🌑', weight:0},
-    coralspawn:{name:'Coral Spawn',  icon:'🪸', weight:0}
+    coralspawn:{name:'Coral Spawn',  icon:'🪸', weight:0},
+    monsoon:   {name:'Monsoon',      icon:'🌧️', weight:0},
+    tidewake:  {name:'Tidewake',     icon:'🌊', weight:0}
   };
   // biome disasters: rare, exclusive, each mutates the water and can surface a boss
   const DISASTERS = {
@@ -1694,7 +2049,15 @@
     reef:    { key:'coralspawn', name:'Coral Spawn', icon:'🪸', mutation:'radiant',
                boss:{name:'The Spawning', r:'boss', a:600, b:2000, boost:1.45,
                      q:'The whole reef let go at once. In the pink water, something enormous answered.',
-                     art:{t:'sovereign', c1:'#ff9ff0', c2:'#7f1f9f', p:'scale'}} }
+                     art:{t:'sovereign', c1:'#ff9ff0', c2:'#7f1f9f', p:'scale'}} },
+    jungle:  { key:'monsoon', name:'Monsoon Deluge', icon:'🌧️', mutation:'monsoon',
+               boss:{name:'The Devourer', r:'boss', a:520, b:1700, boost:1.45,
+                     q:'The creek rose in a single night. Something long and green came with it.',
+                     art:{t:'serpent', c1:'#6faa5a', c2:'#203a18', p:'scale'}} },
+    ruins:   { key:'tidewake', name:'Tidewake', icon:'🌊', mutation:'sunken',
+               boss:{name:'The Drowned Sentinel', r:'boss', a:660, b:2300, boost:1.5,
+                     q:'The plaza lit up under the water, and the statue at the far end turned its head.',
+                     art:{t:'colossus', c1:'#c8cdd2', c2:'#5f6a72', p:'spot'}} }
   };
   function biomeDisaster(){ return DISASTERS[sceneTheme()] || DISASTERS.ocean; }
   // register boss looks up-front so their portraits/species entries always render (not only after a disaster)
@@ -1707,17 +2070,19 @@
     else if(TH==='volcano'){ w.heat=22; w.ember=0; w.snow=0; w.rain*=0.5; w.storm*=0.8; w.fog*=0.6; w.goldenrain*=0.5; }
     else if(TH==='abyss'){ w.snow=0; w.heat=0; w.goldenrain=0; w.clear*=0.4; w.fog*=1.6; w.storm*=1.2; w.lunar*=1.5; w.voidstorm=0; }
     else if(TH==='reef'){ w.snow=0; w.heat*=0.5; w.storm*=0.8; w.goldenrain*=1.6; w.lunar*=1.2; }
+    else if(TH==='jungle'){ w.snow=0; w.heat*=1.4; w.rain*=2.2; w.fog*=1.4; w.storm*=1.2; w.goldenrain*=1.2; }
+    else if(TH==='ruins'){ w.snow=0; w.heat=0; w.goldenrain=0; w.clear*=0.5; w.fog*=1.9; w.lunar*=1.3; w.storm*=1.1; }
     else { w.snow=0; w.goldenrain=1; }
     return w;
   }
 
-  const S = { coins:0, world:'ocean', unlocked:{ocean:true},
+  const S = { coins:0, world:'ocean', area:0, areaOwned:{}, areaFor:{}, dive:{kit:0,spears:[0],spear:0}, unlocked:{ocean:true},
               rod:{ocean:0,snow:0}, rodEq:null, owned:{ocean:[0],snow:[0]},
               boat:0, boats:[0],
               caught:{}, total:0, state:'idle', cap:8, inv:[], upg:0,
               bait:null, baits:{}, mode:'fish', boatF:0.20, instant:false,
               tank:[], xp:0, lvl:1, pts:0, skills:{}, rodLv:{},
-              line:0, lines:[0], style:'steady', dived:false, ach:{}, tourn:{}, tournSeen:'',
+              line:0, lines:[0], style:'steady', ach:{}, tourn:{}, tournSeen:'',
               captain:{hat:0,skin:1,shirt:2}, muted:false, raid:null,
               stat:{}, q:{ main:0, sd:{}, d:{date:'', ids:[], prog:{}, set:{}, done:{}} } };
   const INVENTORY = 8;
@@ -1729,7 +2094,7 @@
     {name:'Fish Wharf',   desc:'Practically endless.',   add:40, base:18000 }
   ];
   function invUpgradesBought(){ return S.upg||0; }
-  function crateSize(){ let c=INVENTORY; for(let i=0;i<invUpgradesBought()&&i<UPGRADES.length;i++) c+=UPGRADES[i].add; return c + skillVal('cargo'); }
+  function crateSize(){ let c=INVENTORY; for(let i=0;i<invUpgradesBought()&&i<UPGRADES.length;i++) c+=UPGRADES[i].add; return c + skillVal('cargo') + ((curBoat()&&curBoat().hold)||0); }
   function invUsed(){ return S.inv ? S.inv.length : 0; }
   function nextUpgrade(){ return UPGRADES[invUpgradesBought()] || null; }
   function nextUpgradeCost(){ const u=nextUpgrade(); return u ? Math.round(u.base*Math.pow(2.6, invUpgradesBought())) : null; }
@@ -1839,7 +2204,9 @@
     { id:'s_skill', title:'Specialist',   desc:'Spend 5 skill points.',             goal:{type:'count', stat:'skillSpent', n:5}, reward:{coins:2600, xp:480} },
     { id:'s_baits', title:'Tackle Box',   desc:'Buy 20 bait.',                      goal:{type:'count', stat:'baitBought', n:20}, reward:{coins:1800, xp:340} },
     { id:'s_release',title:'Catch & Release',desc:'Release 3 fish from your tank.', goal:{type:'count', stat:'trophies', n:3},    reward:{coins:2200, xp:420} },
-    { id:'s_islands',title:'Globetrotter',desc:'Travel to an island 3 times.',      goal:{type:'count', stat:'travels', n:3},    reward:{coins:3400, xp:560} }
+    { id:'s_islands',title:'Globetrotter',desc:'Travel to an island 3 times.',      goal:{type:'count', stat:'travels', n:3},    reward:{coins:3400, xp:560} },
+    { id:'s_dive',   title:'Into the Deep',desc:'Descend into a deeper part of the ocean.', goal:{type:'count', stat:'descends', n:1}, reward:{coins:2600, xp:480} },
+    { id:'s_spear',  title:'Spearfisher',  desc:'Spear 5 fish while diving.',            goal:{type:'count', stat:'catches', n:5},  reward:{coins:2200, xp:420} }
   ];
 
   const DAILY_QUESTS = [
@@ -1944,10 +2311,12 @@
       case 'sell':    statAdd('sold', data.n||1); break;
       case 'trophy':  break;                                   // trophies counted in releaseTank
       case 'travel':  statAdd('travels',1); break;
+      case 'descend': statAdd('descends',1); statAdd('travels',0); break;
       case 'rod':     statAdd('rodUpgrades',1); break;
       case 'skill':   statAdd('skillSpent', data.n||1); break;
       case 'bait':    statAdd('baitBought', data.n||1); break;
       case 'coins':   statAdd('earned', data.n||0); break;
+      case 'loot':    break;   // treasures/pearls/relics counted in collectColl/collectFloorLoot
     }
     save(); checkQuests(); checkAchievements();
   }
@@ -2017,7 +2386,7 @@
     {id:'trav',    icon:'🗺️', name:'Globetrotter',      desc:'Unlock all four islands.',           test:()=>Object.keys(WORLDS).every(w=>S.unlocked[w])},
     {id:'collector',icon:'📖', name:'Collector',        desc:'Discover 40 species.',              test:()=>Object.keys(S.caught).length>=40},
     {id:'tank',    icon:'🐠', name:'Aquarist',          desc:'Fill the trophy tank (12).',         test:()=>tankCount()>=TANK_MAX},
-    {id:'diver',   icon:'🤿', name:'Deep Diver',        desc:'Use a Deep Dive in a fight.',        test:()=>!!S.dived},
+    {id:'diver',   icon:'🤿', name:'Deep Diver',        desc:'Descend into a deeper part of the ocean.',    test:()=>Object.keys(S.areaOwned||{}).some(k=>k.slice(-2)!==':0')},
     {id:'tourney', icon:'🎖️', name:'Champion',          desc:'Win a daily tournament.',           test:()=>statGet('tournWins')>=1},
     {id:'quest',   icon:'📜', name:'Story Complete',    desc:'Finish the main quest chain.',       test:()=>S.q.main>=MAIN_QUESTS.length},
     {id:'master',  icon:'🏆', name:'Master of the Deep',desc:'Catch every species.',              test:()=>Object.keys(S.caught).length>=68}
@@ -2233,13 +2602,13 @@
 
   // ---------- persistence ----------
   function save(){ try{ localStorage.setItem('deepcast_v1', JSON.stringify({
-    coins:S.coins, world:S.world, unlocked:S.unlocked,
+    coins:S.coins, world:S.world, area:S.area, areaOwned:S.areaOwned, areaFor:S.areaFor, dive:S.dive, unlocked:S.unlocked,
     rod:S.rod, rodEq:S.rodEq, owned:S.owned, caught:S.caught, total:S.total,
     boat:S.boat, boats:S.boats,
     inv:S.inv, upg:S.upg, rodSold:S.rodSold, bait:S.bait, baits:S.baits,
     mode:S.mode, boatF:S.boatF,
     tank:S.tank, xp:S.xp, lvl:S.lvl, pts:S.pts, skills:S.skills, rodLv:S.rodLv,
-    line:S.line, lines:S.lines, style:S.style, dived:S.dived, ach:S.ach,
+    line:S.line, lines:S.lines, style:S.style, ach:S.ach,
     tourn:S.tourn, tournSeen:S.tournSeen, captain:S.captain, muted:S.muted,
     stat:S.stat, q:S.q })); }catch(e){} }
   function load(){ try{ const d=JSON.parse(localStorage.getItem('deepcast_v1')||'null');
@@ -2253,7 +2622,6 @@
       S.line=(typeof d.line==='number'&&LINES[d.line])?d.line:0;
       S.lines=Array.isArray(d.lines)?d.lines.filter(i=>LINES[i]).slice():[0]; if(!S.lines.includes(0)) S.lines.unshift(0);
       S.style=STYLES[d.style]?d.style:'steady';
-      S.dived=!!d.dived;
       S.ach=(d.ach&&typeof d.ach==='object')?d.ach:{};
       S.tourn=(d.tourn&&typeof d.tourn==='object')?d.tourn:{};
       S.tournSeen=typeof d.tournSeen==='string'?d.tournSeen:'';
@@ -2268,6 +2636,14 @@
             set:(dqd.set&&typeof dqd.set==='object')?dqd.set:{},
             done:(dqd.done&&typeof dqd.done==='object')?dqd.done:{} } };
       S.world=(d.world && WORLDS[d.world])?d.world:'ocean';
+      S.area=(typeof d.area==='number' && d.area>=0 && d.area<AREA_MAX)?d.area:0;
+      S.areaOwned=(d.areaOwned&&typeof d.area==='object')?d.areaOwned:{};
+      S.areaFor=(d.areaFor&&typeof d.areaFor==='object')?d.areaFor:{};
+      S.dive=(d.dive&&typeof d.dive==='object')?Object.assign({kit:0,spears:[0],spear:0}, d.dive):{kit:0,spears:[0],spear:0};
+      if(!Array.isArray(S.dive.spears)||!S.dive.spears.length) S.dive.spears=[0];
+      if(!SPEARS[S.dive.spear]) S.dive.spear=0;
+      if(!DIVE_KIT[S.dive.kit]) S.dive.kit=0;
+      S.areaOwned[S.world+':0']=true;
       S.mode=(d.mode==='row')?'row':'fish';
       S.boatF=(typeof d.boatF==='number')?Math.max(0.08,Math.min(0.58,d.boatF)):0.20;
       S.unlocked=(d.unlocked&&typeof d.unlocked==='object')?d.unlocked:{ocean:true};
@@ -2329,6 +2705,7 @@
   // world travel — the boat sails off-screen then arrives at the new spot
   let travel=null;                  // {phase,t,to,boatX}
   const ROW={v:0,dir:0,phase:0};   // free-rowing momentum
+  let rowCrossCd=0, areaSail=null; // rowing to a border to cross into the next stretch of water
   // ---- day/night cycle + weather ----
   let dayT = 0.30;                  // 0..1 through the day (0=midnight, .5=noon, 1=midnight again)
   const DAY_LEN = 240;              // seconds for a full day→night→day cycle
@@ -2339,13 +2716,50 @@
   let strikeX=0, thunderShake=0;
   // ambient background life (always animating, independent of weather)
   let ambient=[], birds=[], embers=[], ash=[], jumps=[], iceFloes=[], horizonBoats=[];
+  // extra biome ambient life (jungle + ruins)
+  let dragonflies=[], leaves=[], motes=[];
+  // ---- NON-FISHING COLLECTABLES ----
+  // floating crates & pearls bob on the surface (sail over them to collect) and relics
+  // sit on the sea floor down in diving mode. Pure exploration loot — no rods involved.
+  let COLL=[], FLOORLOOT=[], lootCd=4, floorCd=6;
   function spawnBirds(){
     const n=1+Math.floor(Math.random()*3), dir=Math.random()<.5?1:-1;
     const y0=waterY*(0.10+Math.random()*0.20);
     for(let i=0;i<n;i++) birds.push({x: dir>0? -40-i*26 : W+40+i*26, y:y0+Math.random()*16, dir, sp:34+Math.random()*22, ph:Math.random()*6.28, flap:5+Math.random()*3});
   }
   function spawnJump(){ jumps.push({x:W*(0.15+Math.random()*0.7), dir:Math.random()<.5?1:-1, t:0, dur:0.9+Math.random()*0.4, s:6+Math.random()*7, arc:26+Math.random()*22, sp:120+Math.random()*90}); }
-  function spawnHorizonBoat(){ const dir=Math.random()<.5?1:-1; horizonBoats.push({x: dir>0?-60:W+60, dir, sp:9+Math.random()*9, y:waterY+1+Math.random()*3, s:0.5+Math.random()*0.45, ph:Math.random()*6.28}); }
+  function areaLootMult(){ const wo=(WORLDS[S.world]&&WORLDS[S.world].order)||0; return (1+wo*0.7)*(1+(S.area||0)*0.55); }
+  function spawnColl(){
+    if(COLL.length>=3) return;
+    const pearl=Math.random()<0.28;
+    COLL.push({ kind: pearl?'pearl':'crate', x: W*(0.12+Math.random()*0.76), y: waterY+10+Math.random()*34,
+      t:0, bob:Math.random()*6.28, vx:(Math.random()-.5)*7, drift:0 });
+  }
+  function spawnFloorLoot(){
+    if(FLOORLOOT.length>=3) return;
+    const relic=Math.random()<0.35;
+    FLOORLOOT.push({ kind: relic?'relic':'shell', x: W*(0.1+Math.random()*0.8), y: diveFloorY()-8, t:0, bob:Math.random()*6.28 });
+  }
+  function collectColl(c){
+    c.got=true;
+    const pearl=(c.kind==='pearl');
+    const val=Math.round(130*areaLootMult()*(pearl?3.4:1));
+    S.coins+=val; statAdd('treasure',1); if(pearl) statAdd('pearls',1);
+    floatText(c.x, waterY-24, (pearl?'🦪 ':'📦 ')+'+'+val, pearl?'#cfeaff':'#ffd85e');
+    sfx(pearl?'hook':'buy');
+    popRarityText(pearl?'🦪 PEARL!':'📦 TREASURE!', pearl?'#cfeaff':'#ffd85e');
+    if(pearl && (S.stat.pearls%4===0)){ /* occasional bonus bait */ S.baits= S.baits||{}; }
+    save(); updateHUD(); questEvent('loot',{pearl});
+  }
+  function collectFloorLoot(it){
+    it.got=true;
+    const relic=(it.kind==='relic');
+    const val=Math.round(240*areaLootMult()*(relic?4.2:1));
+    S.coins+=val; statAdd('treasure',1); if(relic) statAdd('relics',1);
+    floatText(it.x, it.y-20, (relic?'🏺 ':'🐚 ')+'+'+val, relic?'#c9b8ff':'#9fe8ff');
+    popRarityText(relic?'🏺 RELIC!':'🐚 SALVAGE!', relic?'#c9b8ff':'#9fe8ff');
+    sfx('buy'); save(); updateHUD(); questEvent('loot',{relic});
+  }
   const STK=[];                       // fish shown stacked in the bucket
   const BUCKET={x:0,y:0};
   let recastT=0;                      // reserved (no-op)
@@ -2653,37 +3067,29 @@
     target.y = Math.max(fishZoneTop()+6, Math.min(fishZoneBot()-6, target.y));
   }
   function pointerDown(e){
+    if(areaSail) return;
     if(travel){ if(travel.phase==='row'){ travel.rowing=true; } return; }
     if(S.mode==='row'){ return; }
+    if(S.mode==='dive'){ if(e){ const p=canvasPos(e); target.x=Math.max(20,Math.min(W-20,p.x)); target.y=Math.max(waterY+20,Math.min(H-16,p.y)); dragging=true; } return; }
     if(e){ const p=canvasPos(e); target.x=p.x; target.y=p.y; }
     if(S.state==='idle'){ dragging=true; clampTarget(); }      // aim by tapping the water
     else if(S.state==='bite'){ hookIt(); }                     // tap anywhere to strike
   }
   function pointerMove(e){
-    if(travel) return;
+    if(travel || areaSail) return;
+    if(S.mode==='dive'){ if(e){ const p=canvasPos(e); target.x=Math.max(20,Math.min(W-20,p.x)); target.y=Math.max(waterY+20,Math.min(H-16,p.y)); } return; }
     if(!dragging || S.state!=='idle') return;
     const p=canvasPos(e); target.x=p.x; target.y=p.y; clampTarget();
   }
   function releaseCast(){ /* legacy no-op */ }
   // REEL button — hold to fight; also strikes on a bite
   function reelPress(){
+    if(S.mode==='dive'){ diveSink=true; return; }
     if(S.state==='bite'){ hookIt(); }
     else if(S.state==='reeling'&&reel){ reel.holding=true; }
   }
-  function reelRelease(){ if(reel) reel.holding=false; }
-  // DEEP DIVE — a one-shot power move per fish: huge lift, but the line screams
-  function deepDive(){
-    if(S.state!=='reeling'||!reel||reel.divedYet) return;
-    reel.divedYet=true; S.dived=true;
-    sfx('dive');
-    reel.prog=Math.min(1, reel.prog+0.34);
-    reel.tension+=0.30;
-    reel.stam=Math.max(0, reel.stam-0.25);
-    feelDip=1.0;
-    floatText(reel.fx, reel.fy-20, 'DEEP DIVE!', '#7dffd8');
-    say('🤿 Deep dive — big lift, but the line screams!');
-    updateControls();
-  }
+  function reelRelease(){ if(S.mode==='dive'){ diveSink=false; return; } if(reel) reel.holding=false; }
+  // (dive button removed — replaced by the full 🤿 DIVING mode)
 
   cv.addEventListener('pointerdown', e=>{ e.preventDefault(); try{cv.setPointerCapture(e.pointerId);}catch(_){} pointerDown(e); });
   cv.addEventListener('pointermove', e=>{ if(dragging||travel){ e.preventDefault(); pointerMove(e); } });
@@ -2694,19 +3100,22 @@
 
   // ---- on-screen THROW + REEL buttons ----
   const throwBtn=document.getElementById('throwBtn'), reelBtn=document.getElementById('reelBtn');
-  const diveBtn=document.getElementById('diveBtn');
   const throwLabel=document.getElementById('throwLabel'), reelLabel=document.getElementById('reelLabel');
+  const paddleLLabel=document.getElementById('paddleLLabel'), paddleRLabel=document.getElementById('paddleRLabel');
   const reelSpin=document.getElementById('reelSpin');
   let spinDeg=0, FRAME_DT=0.016;
   function bindDown(el, fn){
     el.addEventListener('pointerdown', e=>{ e.preventDefault(); try{ el.setPointerCapture(e.pointerId); }catch(_){ } fn(); });
   }
-  bindDown(throwBtn, ()=>{ if(travel){ if(travel.phase==='row') travel.rowing=true; } else if(S.state==='idle') doCast(); });
+  bindDown(throwBtn, ()=>{ if(travel){ if(travel.phase==='row') travel.rowing=true; }
+    else if(areaSail){ /* crossing */ }
+    else if(S.mode==='dive'){ const atFloor=DIVER.y>=diveFloorY()-8; const more=(S.area+1)<islandAreas(S.world).length;
+      if(atFloor && more && !diveShot) diveDescend(); else fireSpear(); }
+    else if(S.state==='idle') doCast(); });
   throwBtn.addEventListener('pointerup', ()=>{ if(travel) travel.rowing=false; });
   throwBtn.addEventListener('pointercancel', ()=>{ if(travel) travel.rowing=false; });
   throwBtn.addEventListener('lostpointercapture', ()=>{ if(travel) travel.rowing=false; });
   bindDown(reelBtn, reelPress);
-  bindDown(diveBtn, deepDive);
   reelBtn.addEventListener('pointerup', e=>{ e.preventDefault(); reelRelease(); });
   reelBtn.addEventListener('pointercancel', ()=>reelRelease());
   reelBtn.addEventListener('lostpointercapture', ()=>reelRelease());
@@ -2714,7 +3123,7 @@
   // ---- fishing <-> rowing mode toggle + paddle controls ----
   const modeBtn=document.getElementById('modeChip');
   const paddleL=document.getElementById('paddleL'), paddleR=document.getElementById('paddleR');
-  modeBtn.addEventListener('click', ()=>setMode(S.mode==='row'?'fish':'row'));
+  modeBtn.addEventListener('click', ()=>cycleMode());
   bindDown(paddleL, ()=>rowHold(-1));
   bindDown(paddleR, ()=>rowHold(1));
   for(const el of [paddleL,paddleR]){
@@ -2723,6 +3132,21 @@
     el.addEventListener('lostpointercapture', ()=>rowRelease());
   }
 
+  function cycleMode(){ if(travel||S.state==='reeling'||S.state==='bite') return; closeMenu();
+    if(S.mode==='fish') setMode('row'); else if(S.mode==='row') setMode('dive'); else setMode('fish'); }
+  function setDiveHud(on){ const el=document.getElementById('diveHud'); if(el) el.style.display=on?'flex':'none'; }
+  function updateDiveHud(){
+    const a=curArea();
+    const z=document.getElementById('diveZone');
+    if(z) z.textContent=(WORLDS[S.world].icon||'🌊')+' '+a.name.toUpperCase()+'  ·  ZONE '+(S.area+1)+'/'+islandAreas(S.world).length;
+    const kit=curKit();
+    const af=document.getElementById('airFill'); if(af) af.style.width=Math.max(0,Math.min(100,(diveAir/(kit.air||50))*100))+'%';
+    const at=document.getElementById('airTxt'); if(at) at.textContent=Math.ceil(Math.max(0,diveAir))+'s';
+    const span=Math.max(1,diveFloorY()-(waterY+34));
+    const dp=Math.min(1,Math.max(0,(DIVER.y-(waterY+34))/span));
+    const df=document.getElementById('depFill'); if(df) df.style.width=(dp*100)+'%';
+    const dt=document.getElementById('depTxt'); if(dt) dt.textContent=Math.round(dp*120)+'m';
+  }
   function updateControls(){
     if(travel){
       const rowing = travel.phase==='row';
@@ -2735,6 +3159,37 @@
       throwLabel.textContent = rowing ? 'ROW ➡️' : '…';
       return;
     }
+    // ---- DIVING ----
+    if(S.mode==='dive'){
+      modeBtn.style.display='';
+      modeBtn.classList.remove('rowmode');
+      modeBtn.innerHTML='🤿 DIVING<small>TAP: BOAT ⛵</small>';
+      throwBtn.style.display=''; reelBtn.style.display='none';
+      paddleL.style.display=''; paddleR.style.display='';
+      throwBtn.style.order=1; paddleL.style.order=0; reelBtn.style.order=2; paddleR.style.order=3;
+      modeBtn.classList.add('divemode');
+      const atFloor = DIVER.y >= diveFloorY()-8;
+      const more = (S.area+1)<islandAreas(S.world).length;
+      throwBtn.querySelector('.ic').textContent = (atFloor&&more)?'⬇':'🔱';
+      throwLabel.textContent = (atFloor&&more)?'DESCEND':'SPEAR';
+      throwBtn.classList.remove('rowing');
+      throwBtn.classList.toggle('dim', !!diveShot);
+      throwBtn.classList.toggle('hot', !diveShot);
+      reelLabel.textContent='SINK';
+      reelBtn.classList.toggle('hot', diveSink);
+      reelBtn.classList.remove('dim');
+      paddleLLabel.textContent='SWIM'; paddleRLabel.textContent='SWIM';
+      paddleL.classList.toggle('hot', ROW.dir===-1);
+      paddleR.classList.toggle('hot', ROW.dir===1);
+      updateDiveHud();
+      return;
+    }
+    setDiveHud(false);
+    modeBtn.classList.remove('divemode');
+    throwBtn.style.order=''; paddleL.style.order=''; reelBtn.style.order=''; paddleR.style.order='';
+    throwBtn.querySelector('.ic').textContent='🎣';
+    if(paddleLLabel) paddleLLabel.textContent='ROW';
+    if(paddleRLabel) paddleRLabel.textContent='ROW';
     const rowMode = S.mode==='row';
     modeBtn.style.display='';
     throwBtn.style.display = rowMode?'none':'';
@@ -2758,9 +3213,6 @@
 
     const canReel = S.state==='bite'||S.state==='reeling';
     reelBtn.classList.toggle('dim', !canReel);
-    const showDive=(S.state==='reeling' && reel && !reel.divedYet);
-    diveBtn.style.display = showDive ? '' : 'none';
-    if(showDive) diveBtn.classList.remove('dim');
     const active = (S.state==='reeling' && reel && reel.holding);
     reelBtn.classList.toggle('hot', !!active || S.state==='bite');
     if(S.state==='bite') reelLabel.textContent='STRIKE!';
@@ -2778,6 +3230,8 @@
   document.getElementById('tabBait').addEventListener('click', ()=>{ shopTab='bait'; renderShop(); });
   document.getElementById('tabLine').addEventListener('click', ()=>{ shopTab='line'; renderShop(); });
   document.getElementById('tabBoats').addEventListener('click', ()=>{ shopTab='boats'; renderShop(); });
+  document.getElementById('tabDive').addEventListener('click', ()=>{ shopTab='dive'; renderShop(); });
+  document.getElementById('invTabDive').addEventListener('click', ()=>{ invTab='dive'; renderInventory(); });
   document.getElementById('worldClose').addEventListener('click', ()=>hidePanel('worldPanel'));
   document.getElementById('invClose').addEventListener('click', ()=>hidePanel('invPanel'));
   document.getElementById('invTabRods').addEventListener('click', ()=>{ invTab='rods'; renderInventory(); });
@@ -2790,6 +3244,8 @@
   document.getElementById('specTabSnow').addEventListener('click', ()=>{ specWorld='snow'; renderSpecies(); });
   document.getElementById('specTabVolcano').addEventListener('click', ()=>{ specWorld='volcano'; renderSpecies(); });
   document.getElementById('specTabReef').addEventListener('click', ()=>{ specWorld='reef'; renderSpecies(); });
+  document.getElementById('specTabJungle').addEventListener('click', ()=>{ specWorld='jungle'; renderSpecies(); });
+  document.getElementById('specTabRuins').addEventListener('click', ()=>{ specWorld='ruins'; renderSpecies(); });
   document.getElementById('specTabAbyss').addEventListener('click', ()=>{ specWorld='abyss'; renderSpecies(); });
   document.getElementById('aquaClose').addEventListener('click', ()=>hidePanel('aquaPanel'));
   document.getElementById('skillClose').addEventListener('click', ()=>hidePanel('skillPanel'));
@@ -2822,6 +3278,9 @@
   document.getElementById('qTabDaily').addEventListener('click', ()=>{ questTab='daily'; renderQuests(); });
   document.getElementById('worldChip').style.pointerEvents='auto';
   document.getElementById('worldChip').addEventListener('click', openWorlds);
+  document.getElementById('diveChip').style.pointerEvents='auto';
+  document.getElementById('diveChip').addEventListener('click', ()=>setMode(S.mode==='dive'?'fish':'dive'));
+  { const wx=document.getElementById('weatherMbtnChip'); if(wx) wx.addEventListener('click', ()=>{ closeMenu(); spinWeather(); const Wd=WEATHERS[weather]||WEATHERS.clear; say(Wd.icon+' Weather: '+Wd.name); updateHUD(); }); }
   document.getElementById('baitChip').style.pointerEvents='auto';
   document.getElementById('baitChip').addEventListener('click', ()=>{ invTab='bait'; openInventory(); });
   document.getElementById('modeChip').style.pointerEvents='auto';
@@ -2846,6 +3305,7 @@
   function adminAllRods(){ for(const w in RODS){ S.owned[w]=RODS[w].map((_,i)=>i); } const web=RODS.volcano? 'volcano':'ocean'; S.rodEq={w:web, i:RODS[web].length-1}; if(S.rod) S.rod[web]=RODS[web].length-1; save(); updateHUD(); renderAdmin(); say('🎣 All rods owned + best equipped'); }
   function adminAllBait(){ for(const w in BAITS){ BAITS[w].forEach((_,i)=>{ S.baits[w+':'+i]=(S.baits[w+':'+i]||0)+99; }); } const w0=BAITS.volcano?'volcano':'ocean'; if(!S.bait) S.bait=w0+':'+(BAITS[w0].length-1); save(); updateHUD(); renderAdmin(); say('🪱 All bait +99 (stacked)'); }
   function adminAllBoats(){ S.boats=BOAT.map((_,i)=>i); S.boat=BOAT.length-1; save(); updateHUD(); renderAdmin(); say('⛵ Best boat equipped'); }
+  function adminAllDive(){ S.dive.kit=DIVE_KIT.length-1; S.dive.kitOwned={}; DIVE_KIT.forEach((_,i)=>S.dive.kitOwned[i]=true); S.dive.spears=SPEARS.map((_,i)=>i); S.dive.spear=SPEARS.length-1; save(); updateHUD(); renderAdmin(); say('🤿 All dive gear + best spear'); }
   function adminWeather(w){ weather=w; weatherT=9999; lightning=(w==='storm'||w==='hurricane'||w==='eruption')?0.5:0; updateWeatherChip(); renderAdmin(); say('☁️ Weather: '+w); }
   function adminSpawn(n){ for(let i=0;i<(n||10);i++) spawnFish(); renderAdmin(); say('🐟 +'+(n||10)+' fish'); }
   function adminInstant(){ S.instant=!S.instant; renderAdmin(); say(S.instant?'⚡ Instant catch ON':'⚡ Instant catch OFF'); }
@@ -2857,7 +3317,6 @@
   function adminAllAch(){ ACHIEVEMENTS.forEach(a=>{ S.ach[a.id]=Date.now(); }); save(); updateHUD(); renderAdmin(); say('🏅 All achievements unlocked'); }
   function adminCompleteDailies(){ for(const id of (S.q.d.ids||[])) S.q.d.done[id]=1; save(); renderQuests(); renderAdmin(); say('📅 Dailies completed'); }
   function adminStyle(s){ S.style=s; if(reel) reel.style=s; updateStyleChip(); save(); renderAdmin(); say('🎛️ Style: '+STYLES[s].name); }
-  function adminDived(){ S.dived=true; save(); renderAdmin(); say('🤿 Deep dive flagged'); }
   function adminQuests(){ S.q.main=MAIN_QUESTS.length; save(); updateHUD(); renderAdmin(); say('📜 Main quest chain completed'); }
   // hook a fish of a chosen rarity straight onto the line — skips the cast + nibble wait
   function adminHookRarity(r){
@@ -2907,7 +3366,7 @@
         b.onclick=it.fn; d.appendChild(b); }); el.appendChild(d); };
     const note=document.createElement('p'); note.style.cssText='font-size:12px;opacity:.7;margin:2px 4px 6px'; note.textContent='Only your device has this. Keep the passcode secret.'; el.appendChild(note);
     sec('💰 COINS'); row('+1,000', ()=>adminCoins(1000)); row('+100,000', ()=>adminCoins(100000)); row('+10,000,000', ()=>adminCoins(10000000));
-    sec('🔓 UNLOCKS'); row('Unlock all islands', adminUnlockAll); row('Own ALL rods (+ equip best)', adminAllRods); row('All bait ×99', adminAllBait); row('Own ALL boats (+ best boat)', adminAllBoats);
+    sec('🔓 UNLOCKS'); row('Unlock all islands', adminUnlockAll); row('Own ALL rods (+ equip best)', adminAllRods); row('All bait ×99', adminAllBait); row('Own ALL boats (+ best boat)', adminAllBoats); row('Own ALL dive gear (+ best spear)', adminAllDive);
     sec('⚡ TESTING'); row((S.instant?'✓ ':'')+'Instant catch (skip the fight)', adminInstant, S.instant); row('Spawn 10 random fish', ()=>adminSpawn(10));
     sec('🌟 NEW-SYSTEM CHEATS');
     row('+5 skill points', ()=>adminPts(5)); row('+50 skill points', ()=>adminPts(50));
@@ -2917,7 +3376,6 @@
     row('Unlock ALL achievements', adminAllAch);
     row('Complete all dailies', adminCompleteDailies);
     row('Complete main quest chain', adminQuests);
-    row((S.dived?'✓ ':'')+'Flag deep dive used', adminDived);
     sub('reel style');
     wrap(Object.keys(STYLES).map(k=>({ label:(S.style===k?'✓ ':'')+STYLES[k].icon+' '+STYLES[k].name, color:S.style===k?'#7dffa8':'#bfe0ff', fn:()=>adminStyle(k) })));
     sec('🎣 HOOK A FISH NOW — PICK RARITY');
@@ -3137,7 +3595,7 @@
       diving:false, diveT:0, diveCd: 2.4+Math.random()*2.4,
       grace: 1.6 + Math.min(1.4, ratio*1.1),    // slow-motion head start so you can react
       slowFade:0,
-      style:S.style||'steady', pref:f.stylePref, stam:1, line:curLine(), burstT:0, divedYet:false
+      style:S.style||'steady', pref:f.stylePref, stam:1, line:curLine(), burstT:0
     };
     S.state='reeling';
     if(rodMut){
@@ -3270,6 +3728,23 @@
         g.strokeStyle=ccols[i%4]; g.lineWidth=2;
         for(let b=0;b<3;b++){ g.beginPath(); g.moveTo(cx,cy+10); g.quadraticCurveTo(cx+(b-1)*5,cy, cx+(b-1)*8,cy-10); g.stroke(); }
         g.fillStyle=ccols[i%4]; g.beginPath(); g.arc(cx,cy-10,1.6,0,7); g.fill(); }
+    } else if(theme==='jungle'){
+      // green tangle + mangrove roots
+      g.fillStyle='#3f6a3a'; g.beginPath(); g.ellipse(cssW*0.42,hz, cssW*0.4, cssH*0.09,0,0,7); g.fill();
+      g.fillStyle='#2f5a2a'; g.beginPath(); g.ellipse(cssW*0.46,hz-cssH*0.04, cssW*0.32, cssH*0.12,0,0,7); g.fill();
+      g.strokeStyle='#4a3a22'; g.lineWidth=2.6;
+      for(let i=0;i<6;i++){ const rx=cssW*(0.18+i*0.12); g.beginPath(); g.moveTo(rx,hz); g.quadraticCurveTo(rx+6,hz-cssH*0.1,rx+2,hz-cssH*0.16); g.stroke(); }
+      g.strokeStyle='#6b4a28'; g.lineWidth=3; g.beginPath(); g.moveTo(cssW*0.5,hz-cssH*0.06); g.quadraticCurveTo(cssW*0.53,hz-cssH*0.3, cssW*0.47,hz-cssH*0.46); g.stroke();
+      g.fillStyle='#2f8a4a';
+      for(let a=0;a<6;a++){ const ang=-Math.PI/2+(a-2.5)*0.5; g.beginPath(); g.moveTo(cssW*0.47,hz-cssH*0.46);
+        g.quadraticCurveTo(cssW*0.47+Math.cos(ang)*20, hz-cssH*0.46+Math.sin(ang)*20, cssW*0.47+Math.cos(ang)*27, hz-cssH*0.46+Math.sin(ang)*27+7); g.lineTo(cssW*0.47+Math.cos(ang)*9, hz-cssH*0.46+Math.sin(ang)*9); g.closePath(); g.fill(); }
+    } else if(theme==='ruins'){
+      // marble columns on a pale shore
+      g.fillStyle='#b8bcb8'; g.beginPath(); g.ellipse(cssW*0.42,hz, cssW*0.42, cssH*0.07,0,0,7); g.fill();
+      g.fillStyle='#e2e6e4';
+      for(const c of [[0.24,0.34],[0.4,0.5],[0.58,0.42],[0.72,0.56]]){ const cx=cssW*c[0], ch=cssH*c[1];
+        g.fillRect(cx-4, hz-ch, 8, ch); g.fillRect(cx-6, hz-ch-4, 12, 4); g.fillRect(cx-6, hz-4, 12, 4); }
+      g.fillStyle='#cfd4d0'; g.fillRect(cssW*0.62,hz-cssH*0.44,6,cssH*0.42); g.fillRect(cssW*0.76,hz-cssH*0.44,6,cssH*0.42); g.fillRect(cssW*0.62,hz-cssH*0.5,cssW*0.15,6);
     } else {
       g.fillStyle='#c9b06a'; g.beginPath(); g.ellipse(cssW*0.42,hz, cssW*0.34, cssH*0.07,0,0,7); g.fill();
       g.fillStyle='#2f7a4a'; g.beginPath(); g.ellipse(cssW*0.46,hz-cssH*0.03, cssW*0.28, cssH*0.1,0,0,7); g.fill();
@@ -3375,7 +3850,7 @@
 
   // ---------- free rowing (Fishing <-> Rowing mode) ----------
   function isRowingPose(){ return (travel && travel.phase==='row') || (!travel && S.mode==='row'); }
-  function rowHold(d){ if(travel || S.mode!=='row' || S.state==='reeling') return; ROW.dir=d; }
+  function rowHold(d){ if(travel || (S.mode!=='row' && S.mode!=='dive') || S.state==='reeling') return; ROW.dir=d; }
   function rowRelease(){ ROW.dir=0; }
   // ---------- REEL STYLE ----------
   function cycleStyle(){
@@ -3395,24 +3870,300 @@
 
   // ---------- LINE + GEAR UI (buy line, equip line, stats) ----------
   function setMode(m){
-    const nm=(m==='row')?'row':'fish';
+    const nm=(m==='row')?'row':(m==='dive'?'dive':'fish');
     if(nm===S.mode) return;
-    if(travel || S.state==='reeling') return;
+    if(travel || S.state==='reeling' || S.state==='bite') return;
+    if(nm==='dive'){ enterDive(); return; }
+    if(S.mode==='dive'){ exitDive(null); }
     S.mode=nm; ROW.dir=0; ROW.v*=0.25;
     if(S.mode==='row'){ say('🚣 Rowing mode — steer with ⬅️ ➡️'); hint('Row left or right, then tap 🎣 to fish from wherever you stop.'); }
     else { say('🎣 Fishing mode'); hint('Tap the water to aim, then THROW to cast'); }
     save(); updateHUD();
   }
-  function updateRowing(dt){
+
+  // ================= DIVING =================
+  // Get off the boat and hunt underwater with a harpoon / spear. Sink to the sea floor
+  // and you can descend into a deeper part of the ocean — if your gear can take the pressure.
+  const DIVER={x:0,y:0,vx:0,vy:0,phase:0};
+  let diveAir=0, diveSink=false, diveShot=null, diveBubbles=[], divePops=[];
+  function diveFloorY(){ return fishZoneBot()+34; }
+  function curZone(){ return curArea(); }
+  function enterDive(){
     if(travel) return;
+    resetToIdle();
+    S.mode='dive';
+    ROW.dir=0; ROW.v=0;
+    DIVER.x=Math.max(60,Math.min(W-60, rod.x||W*0.3));
+    DIVER.y=waterY+80; DIVER.vx=0; DIVER.vy=0;
+    diveAir=(curKit().air||50);
+    diveShot=null; diveBubbles=[];
+    save(); updateHUD();
+    say('🤿 Diving — tap the water to aim, fire the spear, sink to the floor');
+    hint('Reach the sea floor to descend deeper. Watch your air!');
+    setTimeout(()=>{ if(S.mode==='dive') say(''); },3400);
+  }
+  function exitDive(msg){
+    S.mode='fish'; DIVER.vx=0; DIVER.vy=0; diveShot=null; diveSink=false; ROW.dir=0;
+    resetToIdle();
+    if(msg) say(msg);
+    save(); updateHUD();
+  }
+  function fireSpear(){
+    if(S.mode!=='dive' || diveShot) return;
+    const sp=curSpear();
+    const dx=(target.x||W*0.5)-DIVER.x, dy=(target.y||DIVER.y)-DIVER.y, d=Math.hypot(dx,dy)||1;
+    const spd=560*(0.75+sp.pwr*0.14);
+    diveShot={ x:DIVER.x+(dx/d)*22, y:DIVER.y+(dy/d)*22, vx:(dx/d)*spd, vy:(dy/d)*spd, t:0, dead:false };
+    sfx('cast');
+    DIVER.phase+=1.2;
+  }
+  function diveCatch(f){
+    fishes=fishes.filter(x=>x!==f);
+    const prev=S.caught[f.n];
+    const isNew=!prev, isRecord=!prev||f.kg>prev.kg;
+    if(isRecord) S.caught[f.n]={kg:f.kg,value:f.value};
+    S.total++; save();
+    questEvent('catch',{ rar:f.r, kg:f.kg, mut:!!f.mut, trait:(f.trait||null), boss:(f.r==='boss'), night:dayLabel()==='NIGHT', storm:(weather==='storm'||!!disaster) });
+    tournCheck(f); popRarity(f.r);
+    floatText(f.x, f.y-24, 'SPEARED!', '#7dffd8');
+    sfx('hook');
+    while(fishes.length < diveTarget()) spawnFish();
+    showCatchPanel(f, isNew, isRecord);
+  }
+  function diveTarget(){ return Math.max(12, Math.min(20, Math.round(W/42))); }
+  function diveDescend(){
+    const list=islandAreas(S.world);
+    const nz=S.area+1;
+    if(nz>=list.length){ say('You have reached the deepest part of '+WORLDS[S.world].name+' ⬇'); return; }
+    const need=DIVE_KIT.find(k=>k.depth>=nz);
+    if(!diveDepthOK(nz)){
+      say('Too deep for your gear! You need the '+(need?need.name:'better dive gear')+' — or a Submarine 🚢');
+      hint('Buy better dive gear in the 🛒 Shop → 🤿 DIVE tab.');
+      return;
+    }
+    S.area=nz; S.areaOwned[S.world+':'+nz]=true; S.areaFor[S.world]=nz;
+    fishes=[]; fillWater();
+    const a=curArea();
+    DIVER.y=waterY+80; DIVER.vy=0; diveAir=Math.max(diveAir, Math.round(curKit().air*0.65));
+    popRarityText('⬇ '+a.name.toUpperCase(), '#8fe3ff');
+    showArrival(S.world, a.name, '⬇ DESCENDED ⬇');
+    say('You descended into '+a.name+' 🌊');
+    questEvent('descend');
+    save(); updateHUD();
+    setTimeout(()=>{ if(S.mode==='dive') say(''); },3000);
+  }
+  function updateDive(dt){
+    // horizontal swim
+    if(ROW.dir!==0) DIVER.vx += ROW.dir*dt*430; else DIVER.vx *= Math.pow(0.06, dt);
+    DIVER.vx=Math.max(-300,Math.min(300,DIVER.vx));
+    // vertical: hold SINK to go down, otherwise you slowly float up
+    DIVER.vy += (diveSink ? 250 : -80)*dt;
+    DIVER.vy=Math.max(-170,Math.min(310,DIVER.vy));
+    DIVER.x += DIVER.vx*dt; DIVER.y += DIVER.vy*dt;
+    const top=waterY+34, bot=diveFloorY();
+    if(DIVER.x<40){ DIVER.x=40; DIVER.vx=Math.abs(DIVER.vx)*0.4; }
+    if(DIVER.x>W-40){ DIVER.x=W-40; DIVER.vx=-Math.abs(DIVER.vx)*0.4; }
+    if(DIVER.y<top){ DIVER.y=top; if(DIVER.vy<0) DIVER.vy=0; }
+    if(DIVER.y>bot){ DIVER.y=bot; if(DIVER.vy>0) DIVER.vy=0; }
+    DIVER.phase += dt*(2.2 + Math.abs(DIVER.vx)*0.012 + Math.abs(DIVER.vy)*0.008);
+    // air
+    diveAir -= dt*(1 + (diveSink?0.45:0));
+    if(diveAir<=0){ exitDive('🫧 Out of air — you kicked back up to the boat!'); return; }
+    // spear flight + hit test
+    if(diveShot){
+      const s=diveShot; s.x+=s.vx*dt; s.y+=s.vy*dt; s.t+=dt;
+      for(const f of fishes){
+        if(s.dead) break;
+        if(Math.hypot(f.x-s.x, f.y-s.y) < 15+f.size*0.28){
+          s.dead=true;
+          if(curSpear().pwr >= spearTough(f)){ diveCatch(f); }
+          else {
+            floatText(f.x, f.y-18, 'TOO TOUGH!', '#ff9d76');
+            say('The spear bounced off — that one needs a stronger spear 🔱');
+            f.vx=(f.x>DIVER.x?1:-1)*70; f.vy=-26; s.dead=true;
+          }
+        }
+      }
+      if(s.t>1.3 || s.x<-60 || s.x>W+60 || s.y<waterY-60 || s.y>H+60) diveShot=null;
+    }
+    // bubbles trailing the diver
+    if(Math.random()<0.3) diveBubbles.push({x:DIVER.x+(Math.random()-.5)*14, y:DIVER.y-14, r:1+Math.random()*2.3, v:28+Math.random()*30, life:1});
+    for(const b of diveBubbles){ b.y-=b.v*dt; b.life-=dt*0.45; b.x+=Math.sin(b.y*0.08)*10*dt; }
+    diveBubbles=diveBubbles.filter(b=>b.life>0 && b.y>waterY-20);
+    // keep the water stocked for spearing
+    if(fishes.length<diveTarget()) spawnFish();
+  }
+  function drawDiver(t){
+    const x=DIVER.x, y=DIVER.y;
+    const dir=(DIVER.vx<-6?-1:(DIVER.vx>6?1:(rod.x>x?-1:1)));
+    const kick=Math.sin(DIVER.phase*2.2)*6;
+    ctx.save(); ctx.translate(x,y); ctx.scale(dir,1);
+    ctx.fillStyle='rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(-2,20,16,5,0,0,7); ctx.fill();
+    // fins
+    ctx.fillStyle='#2b6f9f';
+    ctx.beginPath(); ctx.ellipse(-21,16+kick,12,5,-0.5,0,7); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(-21,10-kick,12,5,-0.3,0,7); ctx.fill();
+    // legs + body
+    ctx.strokeStyle='#123a56'; ctx.lineWidth=7; ctx.lineCap='round';
+    ctx.beginPath(); ctx.moveTo(-6,12); ctx.lineTo(-16,14); ctx.stroke();
+    ctx.fillStyle='#123a56'; ctx.beginPath(); ctx.ellipse(0,8,11,15,0,0,7); ctx.fill();
+    // tank
+    ctx.fillStyle='#c8d6e0'; ctx.fillRect(-9,-3,9,18);
+    ctx.fillStyle='#8fa0b0'; ctx.fillRect(-9,4,9,3);
+    // head + mask
+    ctx.fillStyle='#ffd9a8'; ctx.beginPath(); ctx.arc(3,-9,8,0,7); ctx.fill();
+    ctx.fillStyle='rgba(150,230,255,.92)'; ctx.beginPath(); ctx.ellipse(5,-9,5.4,3.6,0,0,7); ctx.fill();
+    // arm + spear gun pointed at the aim
+    const ang=Math.atan2((target.y||y)-y, (target.x||x)-x);
+    ctx.save(); ctx.translate(3,-1); ctx.rotate(dir>0?ang:Math.PI-ang);
+    ctx.strokeStyle='#ffd9a8'; ctx.lineWidth=4.4; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(12,0); ctx.stroke();
+    ctx.strokeStyle='#3a4a58'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(8,0); ctx.lineTo(30,0); ctx.stroke();
+    ctx.fillStyle='#cfe0ee'; ctx.beginPath(); ctx.moveTo(30,0); ctx.lineTo(38,-2.4); ctx.lineTo(38,2.4); ctx.closePath(); ctx.fill();
+    ctx.restore();
+    ctx.restore();
+  }
+  function drawDive(t){
+    const a=curArea(), TH=areaTheme();
+    const span=Math.max(1, diveFloorY()-(waterY+34));
+    const p=Math.min(1, Math.max(0, (DIVER.y-(waterY+34))/span));
+    let top,mid,bot;
+    if(TH==='reef'){ top='#2fb0c8'; mid='#0e6f96'; bot='#053a58'; }
+    else if(TH==='snow'){ top='#2f8ba6'; mid='#0e4f6a'; bot='#03192c'; }
+    else if(TH==='volcano'){ top='#7a2a18'; mid='#40120e'; bot='#160406'; }
+    else if(TH==='abyss'){ top='#0c1e40'; mid='#050d22'; bot='#01030a'; }
+    else if(TH==='deep'){ top='#12518f'; mid='#062a52'; bot='#01101f'; }
+    else { top='#1e7fb4'; mid='#0b4670'; bot='#032038'; }
+    const g=ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,top); g.addColorStop(.55,mid); g.addColorStop(1,bot);
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    // sunlight shafts fading with depth
+    const lightP=Math.max(0.05,1-0.9*p);
+    ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=lightP;
+    for(let i=0;i<5;i++){ const rx=(i*W/5)+Math.sin(t*0.3+i)*22;
+      const rg=ctx.createLinearGradient(rx,0,rx+90,H*0.85);
+      rg.addColorStop(0,'rgba(210,245,255,.16)'); rg.addColorStop(1,'rgba(210,245,255,0)');
+      ctx.fillStyle=rg; ctx.beginPath(); ctx.moveTo(rx-42,0); ctx.lineTo(rx+42,0); ctx.lineTo(rx+150,H); ctx.lineTo(rx-110,H); ctx.closePath(); ctx.fill(); }
+    ctx.restore();
+    // surface shimmer at the very top
+    ctx.save(); ctx.globalAlpha=.55*lightP; ctx.strokeStyle='rgba(230,250,255,.75)'; ctx.lineWidth=2.4;
+    ctx.beginPath(); for(let x=0;x<=W;x+=12){ ctx.lineTo(x, waterY + Math.sin(x*0.02+t*1.3)*3); } ctx.stroke(); ctx.restore();
+    // sea floor + a dark drop where you can descend
+    const fy=diveFloorY();
+    ctx.fillStyle=TH==='volcano'?'#1c0b0a':(TH==='snow'?'#0b2c40':(TH==='abyss'?'#05080f':'#06283f'));
+    ctx.beginPath(); ctx.moveTo(0,H); ctx.lineTo(0,fy);
+    for(let x=0;x<=W;x+=32){ ctx.lineTo(x, fy - 9*Math.sin(x*0.02+1) - 5*Math.sin(x*0.05)); }
+    ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
+    // trench mouth marker at the deepest point
+    const more=(S.area+1)<islandAreas(S.world).length;
+    const canGo=more && diveDepthOK(S.area+1);
+    ctx.save();
+    ctx.fillStyle='rgba(0,0,0,.55)';
+    ctx.beginPath(); ctx.ellipse(W*0.5, fy, 60, 13, 0, 0, 7); ctx.fill();
+    ctx.globalCompositeOperation='lighter';
+    const tg=ctx.createRadialGradient(W*0.5,fy,2,W*0.5,fy,74);
+    tg.addColorStop(0, canGo?'rgba(140,230,255,.55)':'rgba(255,140,120,.35)'); tg.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=tg; ctx.beginPath(); ctx.arc(W*0.5,fy,74,0,7); ctx.fill();
+    ctx.restore();
+    // fish
+    for(const f of fishes) drawFish(f,t);
+    // spear in flight
+    if(diveShot){ const s=diveShot; const ang=Math.atan2(s.vy,s.vx);
+      ctx.save(); ctx.translate(s.x,s.y); ctx.rotate(ang);
+      ctx.strokeStyle='#e6f2ff'; ctx.lineWidth=2.6; ctx.lineCap='round';
+      ctx.beginPath(); ctx.moveTo(-22,0); ctx.lineTo(6,0); ctx.stroke();
+      ctx.fillStyle='#cfe0ee'; ctx.beginPath(); ctx.moveTo(6,0); ctx.lineTo(16,-3.2); ctx.lineTo(16,3.2); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha=.35; ctx.strokeStyle='#bfe9ff'; ctx.lineWidth=1.4;
+      ctx.beginPath(); ctx.moveTo(-22,0); ctx.lineTo(-64,0); ctx.stroke();
+      ctx.restore();
+    }
+    // diver + bubbles
+    drawDiver(t);
+    drawFloorLoot(t);
+    ctx.save(); ctx.globalAlpha=.5; ctx.strokeStyle='#cdeeff'; ctx.lineWidth=1;
+    for(const b of diveBubbles){ ctx.globalAlpha=.5*b.life; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,7); ctx.stroke(); }
+    ctx.restore();
+    // aiming reticle
+    if(!diveShot && S.state==='idle'){
+      const rx=target.x, ry=target.y;
+      ctx.save(); ctx.strokeStyle='rgba(125,255,214,.85)'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(rx,ry,10,0,7); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(rx-16,ry); ctx.lineTo(rx-4,ry); ctx.moveTo(rx+4,ry); ctx.lineTo(rx+16,ry);
+      ctx.moveTo(rx,ry-16); ctx.lineTo(rx,ry-4); ctx.moveTo(rx,ry+4); ctx.lineTo(rx,ry+16); ctx.stroke(); ctx.restore();
+    }
+    // floor prompt
+    if(DIVER.y>=fy-8 && more){
+      const txt=canGo?'⬇  TAP SPEAR TO DESCEND':'⬇  GEAR TOO WEAK FOR THE NEXT DEPTH';
+      ctx.save(); ctx.textAlign='center'; ctx.font='bold 15px Trebuchet MS';
+      ctx.fillStyle=canGo?'#8fe3ff':'#ff9d76'; ctx.globalAlpha=.6+0.4*Math.sin(t*3);
+      ctx.fillText(txt, W/2, H-24); ctx.restore();
+    }
+  }
+  function updateRowing(dt){
+    if(travel || areaSail) return;
     if(S.mode==='row' && ROW.dir!==0){ ROW.v += ROW.dir*dt*300; }
     else { ROW.v *= Math.pow(0.18, dt); }
     ROW.v=Math.max(-320,Math.min(320,ROW.v));
     if(Math.abs(ROW.v)>0.6){
-      S.boatF=Math.max(0.08,Math.min(0.58,(S.boatF||0.20)+ROW.v*dt/W));
+      S.boatF=Math.max(0.04,Math.min(0.62,(S.boatF||0.20)+ROW.v*dt/W));
       rod.x=S.boatF*W; BUCKET.x=rod.x+56;
     }
     ROW.phase += dt*(2.2 + Math.min(9, Math.abs(ROW.v)*0.03));
+    // rowed all the way to a border? cross into the next stretch of water
+    if(rowCrossCd>0) rowCrossCd-=dt;
+    if(S.mode==='row' && rowCrossCd<=0 && Math.abs(ROW.v)>90){
+      if(S.boatF>=0.60) tryAreaCross(1);
+      else if(S.boatF<=0.06) tryAreaCross(-1);
+    }
+  }
+  function tryAreaCross(dir){
+    const target=S.area+dir, list=islandAreas(S.world), n=list.length;
+    if(target>=n){ rowCrossCd=2.4; S.boatF=0.56; rod.x=S.boatF*W; BUCKET.x=rod.x+56;
+      say('This is the deepest water on '+WORLDS[S.world].name+' 🌊'); hint('You can still dive straight down from here 🤿'); return; }
+    if(target<0){ rowCrossCd=2.4; S.boatF=0.10; rod.x=S.boatF*W; BUCKET.x=rod.x+56;
+      say('Open ocean that way — nothing further back 🌊'); return; }
+    const a=list[target], rough=a.rough||0;
+    if(curBoat().dur < rough){ rowCrossCd=2.8; S.boatF=0.52; rod.x=S.boatF*W; BUCKET.x=rod.x+56;
+      say('⛵ The water out there is too rough for your '+curBoat().name+'!');
+      hint(a.name+' needs a boat with hull '+rough+'+ — buy one in 🛒 Shop → ⛵ BOATS. (You have '+curBoat().dur+'.)'); return; }
+    if(!areaOwned(S.world,target) && a.fee>0){
+      if(S.coins<a.fee){ rowCrossCd=2.8; S.boatF=0.52; rod.x=S.boatF*W; BUCKET.x=rod.x+56;
+        say('You need 🪙 '+a.fee+' to sail into '+a.name+'!'); return; }
+      S.coins-=a.fee; save(); updateHUD();
+    }
+    startAreaSail(target);
+  }
+  function startAreaSail(to){
+    const dir=(to>S.area)?1:-1;
+    areaSail={ to, dir, phase:'out', t:0, boatX:(S.boatF||0.2)*W };
+    showRowHud(false);
+    say(dir>0?'Sailing further out… 🌊':'Heading back… 🌊');
+  }
+  function updateAreaSail(dt){
+    const a=areaSail; a.t+=dt;
+    if(a.phase==='out'){
+      a.boatX += a.dir*W*1.7*dt;
+      if(Math.abs(a.boatX-(a.dir>0?W+240:-240))<60 || a.t>0.75){
+        a.phase='in'; a.t=0;
+        S.area=a.to; S.areaOwned[S.world+':'+a.to]=true; S.areaFor[S.world]=a.to;
+        fishes=[]; fillWater();
+        S.boatF = (a.dir>0)?0.12:0.5;
+        a.boatX = (a.dir>0)? -(W*0.5) : (W*1.5);
+        questEvent('travel');
+      }
+    } else {
+      const tx=S.boatF*W;
+      a.boatX += (tx-a.boatX)*Math.min(1,dt*6);
+      if(Math.abs(a.boatX-tx)<3.5){
+        a.boatX=tx; rod.x=tx; BUCKET.x=tx+56; areaSail=null; rowCrossCd=1.8;
+        const ar=curArea();
+        popRarityText((a.dir>0?'⬇ ':'⬆ ')+ar.name.toUpperCase(), a.dir>0?'#8fe3ff':'#ffd85e');
+        showArrival(S.world, ar.name, a.dir>0?'⬇ NEW WATER ⬇':'⬆ BACK TO ⬆');
+        say('Arrived at '+ar.name+' '+WORLDS[S.world].icon);
+        setTimeout(()=>{ if(S.mode==='row') say(''); },2600);
+        save(); updateHUD();
+      }
+    }
+    if(areaSail){ rod.x=areaSail.boatX; BUCKET.x=areaSail.boatX+56; S.boatF=Math.max(0.04,Math.min(0.62,areaSail.boatX/W)); }
   }
   function startTravel(to){
     if(to===S.world){ say("You're already here! 📍"); hint('You can\'t GO to the place you\'re already at.'); return; }
@@ -3452,11 +4203,12 @@
       : (deep ? 'Just a <b>little further right</b> to reach open water!'
       : 'Hold the water (or the <b>ROW</b> button) to paddle right ➡️');
   }
-  function showArrival(w){
+  function showArrival(w, nameOverride, subOverride){
     const el=document.getElementById('arriveBanner');
     if(!el) return;
-    el.innerHTML='<div class="arriveSub">✦ ARRIVED ✦</div>'+
-                 '<div class="arriveName">'+WORLDS[w].name.toUpperCase()+'</div>'+
+    const nm=(nameOverride || (WORLDS[w]&&WORLDS[w].name) || '').toString();
+    el.innerHTML='<div class="arriveSub">'+(subOverride||'✦ ARRIVED ✦')+'</div>'+
+                 '<div class="arriveName">'+nm.toUpperCase()+'</div>'+
                  '<div class="arriveLine"></div>';
     el.classList.remove('show'); void el.offsetWidth; el.classList.add('show');
     clearTimeout(showArrival._t);
@@ -3554,10 +4306,12 @@
     document.getElementById('tabBait').classList.toggle('on', shopTab==='bait');
     document.getElementById('tabLine').classList.toggle('on', shopTab==='line');
     document.getElementById('tabBoats').classList.toggle('on', shopTab==='boats');
+    document.getElementById('tabDive').classList.toggle('on', shopTab==='dive');
     const el=document.getElementById('shopList'); el.innerHTML='';
     if(shopTab==='bait') renderBaitList(el);
     else if(shopTab==='line') renderLinesList(el);
     else if(shopTab==='boats') renderBoatsList(el);
+    else if(shopTab==='dive') renderDiveShopList(el);
     else renderRodsList(el);
   }
   // lines: buy here, equip in inventory. A line decides how heavy a fish you can SURVIVE.
@@ -3682,7 +4436,7 @@
       row.appendChild(pic);
       const left=document.createElement('div'); left.style.flex='1';
       left.innerHTML='<b>⛵ '+b.name+'</b><span>'+b.desc+'</span>'+
-        '<span style="color:#8fd6ff">durability '+b.dur+' · speed ×'+b.speed.toFixed(2)+'</span>'+
+        '<span style="color:#8fd6ff">durability '+b.dur+' · speed ×'+b.speed.toFixed(2)+' · hold +'+(b.hold||0)+' · lamp '+((b.lamp||0)>0?b.lamp.toFixed(1):'none')+(b.dive?' · DIVES':'')+'</span>'+
         '<span style="color:#ffd85e">'+(b.cost===0?'free':'🪙 '+b.cost)+'</span>';
       row.appendChild(left);
       if(has){
@@ -3696,6 +4450,61 @@
     });
     const note=document.createElement('p'); note.style.cssText='font-size:11px;opacity:.6;margin-top:8px';
     note.textContent='Rough seas sink weak boats. Snow Island needs durability 3+, Volcano Island needs 8+, Coral Reef needs 5+. Equip your strongest boat in 🎒 Inventory → ⛵ BOATS.';
+    el.appendChild(note);
+  }
+
+  // shop dive tab: dive kits + spears. Buy here, equip in your 🎒 Inventory → 🤿 DIVE.
+  function renderDiveShopList(el){
+    const head=document.createElement('div'); head.style.cssText='font-size:12px;opacity:.85;margin:2px 0 6px';
+    head.innerHTML='🤿 <b>Dive gear</b> lets you get off the boat and hunt with a spear. Better <b>kits</b> go deeper + hold more air; better <b>spears</b> punch through tougher fish. Buy here, equip in 🎒 Inventory → 🤿 DIVE.';
+    el.appendChild(head);
+    const ks=document.createElement('div'); ks.style.cssText='font-size:11px;opacity:.7;letter-spacing:1px;margin:6px 0 2px'; ks.textContent='DIVE KITS';
+    el.appendChild(ks);
+    DIVE_KIT.forEach((k,i)=>{
+      const has=(S.dive.kit||0)>=0 && (S.dive.owned&&S.dive.owned.kit||[]).includes(i) || i===0 || !!((S.dive.kitOwned||{})[i]);
+      const owned=(i===0)||!!((S.dive.kitOwned||{})[i]);
+      const row=document.createElement('div'); row.className='shoprow';
+      const sw=document.createElement('canvas'); sw.width=64; sw.height=44; sw.style.cssText='width:32px;height:22px;flex:0 0 32px';
+      const g=sw.getContext('2d'); g.fillStyle='#0b2e49'; g.fillRect(0,0,64,44); g.fillStyle='rgba(150,230,255,.85)'; g.beginPath(); g.arc(32,22,12,0,7); g.fill(); g.fillStyle='#0b2e49'; g.beginPath(); g.arc(32,22,7,0,7); g.fill();
+      row.appendChild(sw);
+      const left=document.createElement('div'); left.style.flex='1';
+      left.innerHTML='<b>🤿 '+k.name+'</b><span>'+k.desc+'</span>'+
+        '<span style="color:#8fd6ff">max depth: zone '+(k.depth+1)+' · air '+k.air+'s · light '+Math.round(k.light*100)+'%</span>'+
+        '<span style="color:'+((S.dive.kit===i)?'#7dffa8':'#bfe0ff')+'">'+((S.dive.kit===i)?'EQUIPPED':'not equipped')+'</span>'+
+        '<span style="color:#ffd85e">'+(k.cost===0?'free':'🪙 '+k.cost)+'</span>';
+      row.appendChild(left);
+      if(owned){ const o=document.createElement('div'); o.className='owned'; o.textContent=(S.dive.kit===i?'EQUIPPED':'OWNED'); row.appendChild(o); }
+      else {
+        const b=document.createElement('button'); b.className='buy'; b.textContent='BUY 🪙'+k.cost; b.disabled=S.coins<k.cost;
+        b.onclick=()=>{ if(S.coins>=k.cost){ S.coins-=k.cost; S.dive.kitOwned=S.dive.kitOwned||{}; S.dive.kitOwned[i]=true; save(); updateHUD(); renderShop(); sfx('buy'); say('Bought the '+k.name+'! Equip it in 🎒 Inventory → 🤿 DIVE.'); } };
+        row.appendChild(b);
+      }
+      el.appendChild(row);
+    });
+    const ss=document.createElement('div'); ss.style.cssText='font-size:11px;opacity:.7;letter-spacing:1px;margin:10px 0 2px'; ss.textContent='SPEARS & HARPOONS';
+    el.appendChild(ss);
+    SPEARS.forEach((sp,i)=>{
+      const owned=(i===0)||ownedSpears().includes(i);
+      const row=document.createElement('div'); row.className='shoprow';
+      const sw=document.createElement('canvas'); sw.width=64; sw.height=44; sw.style.cssText='width:32px;height:22px;flex:0 0 32px';
+      const g=sw.getContext('2d'); g.strokeStyle='#e6f2ff'; g.lineWidth=2.4; g.beginPath(); g.moveTo(8,34); g.lineTo(52,10); g.stroke(); g.fillStyle='#cfe0ee'; g.beginPath(); g.moveTo(52,10); g.lineTo(60,6); g.lineTo(58,16); g.closePath(); g.fill();
+      row.appendChild(sw);
+      const left=document.createElement('div'); left.style.flex='1';
+      left.innerHTML='<b>🔱 '+sp.name+'</b><span>'+sp.desc+'</span>'+
+        '<span style="color:#8fd6ff">power ×'+sp.pwr.toFixed(1)+' · range '+sp.range+'</span>'+
+        '<span style="color:'+((curSpearIdx()===i)?'#7dffa8':'#bfe0ff')+'">'+((curSpearIdx()===i)?'EQUIPPED':'not equipped')+'</span>'+
+        '<span style="color:#ffd85e">'+(sp.cost===0?'free':'🪙 '+sp.cost)+'</span>';
+      row.appendChild(left);
+      if(owned){ const o=document.createElement('div'); o.className='owned'; o.textContent=(curSpearIdx()===i?'EQUIPPED':'OWNED'); row.appendChild(o); }
+      else {
+        const b=document.createElement('button'); b.className='buy'; b.textContent='BUY 🪙'+sp.cost; b.disabled=S.coins<sp.cost;
+        b.onclick=()=>{ if(S.coins>=sp.cost){ S.coins-=sp.cost; ownedSpears().push(i); save(); updateHUD(); renderShop(); sfx('buy'); say('Bought the '+sp.name+'! Equip it in 🎒 Inventory → 🤿 DIVE.'); } };
+        row.appendChild(b);
+      }
+      el.appendChild(row);
+    });
+    const note=document.createElement('p'); note.style.cssText='font-size:11px;opacity:.6;margin-top:8px';
+    note.textContent='A stronger boat = a sturdier dive. The Submarine ignores pressure completely — no gear limit at all. Deeper water = rarer fish.';
     el.appendChild(note);
   }
 
@@ -3772,6 +4581,8 @@
     document.getElementById('specTabSnow').classList.toggle('on', specWorld==='snow');
     document.getElementById('specTabVolcano').classList.toggle('on', specWorld==='volcano');
     document.getElementById('specTabReef').classList.toggle('on', specWorld==='reef');
+    document.getElementById('specTabJungle').classList.toggle('on', specWorld==='jungle');
+    document.getElementById('specTabRuins').classList.toggle('on', specWorld==='ruins');
     document.getElementById('specTabAbyss').classList.toggle('on', specWorld==='abyss');
     const el=document.getElementById('specList'); el.innerHTML='';
     speciesRows(el);
@@ -3960,12 +4771,56 @@
     document.getElementById('invTabLine').classList.toggle('on', invTab==='line');
     document.getElementById('invTabStore').classList.toggle('on', invTab==='store');
     document.getElementById('invTabBoats').classList.toggle('on', invTab==='boats');
+    document.getElementById('invTabDive').classList.toggle('on', invTab==='dive');
     const el=document.getElementById('invList'); el.innerHTML='';
     if(invTab==='rods') renderInvRods(el);
     else if(invTab==='bait') renderInvBait(el);
     else if(invTab==='line') renderInvLines(el);
     else if(invTab==='boats') renderInvBoats(el);
+    else if(invTab==='dive') renderInvDive(el);
     else renderInvStore(el);
+  }
+  function renderInvDive(el){
+    const head=document.createElement('div'); head.style.cssText='font-size:12px;opacity:.85;margin:2px 0 6px';
+    head.innerHTML='🤿 Equip your <b>dive kit</b> (goes deeper + holds air) and your <b>spear</b> (punches through tougher fish).';
+    el.appendChild(head);
+    const kc=curKit();
+    const kd=document.createElement('div'); kd.style.cssText='font-size:12px;margin:2px 0 6px';
+    kd.innerHTML='Kit: <b style="color:#8fe3ff">'+kc.name+'</b> · max depth zone <b>'+(kc.depth+1)+'</b> · air <b>'+kc.air+'s</b> · light <b>'+Math.round(kc.light*100)+'%</b>';
+    el.appendChild(kd);
+    DIVE_KIT.forEach((k,i)=>{
+      const owned=(i===0)||!!((S.dive.kitOwned||{})[i]); if(!owned) return;
+      const row=document.createElement('div'); row.className='shoprow';
+      const sw=document.createElement('canvas'); sw.width=64; sw.height=44; sw.style.cssText='width:32px;height:22px;flex:0 0 32px';
+      const g=sw.getContext('2d'); g.fillStyle='#0b2e49'; g.fillRect(0,0,64,44); g.fillStyle='rgba(150,230,255,.85)'; g.beginPath(); g.arc(32,22,12,0,7); g.fill(); g.fillStyle='#0b2e49'; g.beginPath(); g.arc(32,22,7,0,7); g.fill();
+      row.appendChild(sw);
+      const left=document.createElement('div'); left.style.flex='1';
+      left.innerHTML='<b>🤿 '+k.name+'</b><span>depth zone '+(k.depth+1)+' · air '+k.air+'s · light '+Math.round(k.light*100)+'%</span>';
+      row.appendChild(left);
+      if(S.dive.kit===i){ const o=document.createElement('div'); o.className='owned'; o.textContent='EQUIPPED'; row.appendChild(o); }
+      else { const b=document.createElement('button'); b.className='go'; b.textContent='EQUIP'; b.onclick=()=>{ S.dive.kit=i; save(); updateHUD(); renderInventory(); say('Equipped the '+k.name+' 🤿'); }; row.appendChild(b); }
+      el.appendChild(row);
+    });
+    const kc2=curSpear();
+    const sd=document.createElement('div'); sd.style.cssText='font-size:12px;margin:12px 0 6px';
+    sd.innerHTML='Spear: <b style="color:#8fe3ff">'+kc2.name+'</b> · power ×<b>'+kc2.pwr.toFixed(1)+'</b> · range <b>'+kc2.range+'</b>';
+    el.appendChild(sd);
+    ownedSpears().forEach(i=>{
+      const sp=SPEARS[i]; if(!sp) return;
+      const row=document.createElement('div'); row.className='shoprow';
+      const sw=document.createElement('canvas'); sw.width=64; sw.height=44; sw.style.cssText='width:32px;height:22px;flex:0 0 32px';
+      const g=sw.getContext('2d'); g.strokeStyle='#e6f2ff'; g.lineWidth=2.4; g.beginPath(); g.moveTo(8,34); g.lineTo(52,10); g.stroke(); g.fillStyle='#cfe0ee'; g.beginPath(); g.moveTo(52,10); g.lineTo(60,6); g.lineTo(58,16); g.closePath(); g.fill();
+      row.appendChild(sw);
+      const left=document.createElement('div'); left.style.flex='1';
+      left.innerHTML='<b>🔱 '+sp.name+'</b><span>power ×'+sp.pwr.toFixed(1)+' · range '+sp.range+'</span>';
+      row.appendChild(left);
+      if(curSpearIdx()===i){ const o=document.createElement('div'); o.className='owned'; o.textContent='EQUIPPED'; row.appendChild(o); }
+      else { const b=document.createElement('button'); b.className='go'; b.textContent='EQUIP'; b.onclick=()=>{ S.dive.spear=i; save(); updateHUD(); renderInventory(); say('Equipped the '+sp.name+' 🔱'); }; row.appendChild(b); }
+      el.appendChild(row);
+    });
+    const note=document.createElement('p'); note.style.cssText='font-size:11px;opacity:.6;margin-top:8px';
+    note.textContent='Buy dive kits & spears in the 🛒 Shop → 🤿 DIVE. A submarine lets you dive to any depth with no gear limit.';
+    el.appendChild(note);
   }
   function renderInvLines(el){
     const head=document.createElement('div'); head.style.cssText='font-size:12px;opacity:.85;margin:2px 0 6px';
@@ -4080,7 +4935,7 @@
       row.appendChild(pic);
       const left=document.createElement('div'); left.style.flex='1';
       left.innerHTML='<b>⛵ '+b.name+'</b><span>'+b.desc+'</span>'+
-        '<span style="color:#8fd6ff">durability '+b.dur+' · speed ×'+b.speed.toFixed(2)+'</span>'+
+        '<span style="color:#8fd6ff">durability '+b.dur+' · speed ×'+b.speed.toFixed(2)+' · hold +'+(b.hold||0)+' · lamp '+((b.lamp||0)>0?b.lamp.toFixed(1):'none')+(b.dive?' · DIVES':'')+'</span>'+
         (b.dur>=8?'<span style="color:#7dffa8">can reach Volcano Island</span>':(b.dur>=3?'<span style="color:#bfe0ff">can reach Snow Island</span>':'<span style="color:#ff9d76">calm coastal water only</span>'));
       row.appendChild(left);
       if(i===cur){
@@ -4203,6 +5058,9 @@
     const tcn=document.getElementById('tournChip');
     if(tcn){ try{ const tt=tournamentForToday(); tcn.innerHTML='🎖️ '+tt.species+'<small>FISH OF THE DAY</small>'; }catch(e){} }
     updateMenuBadges();
+    const dc=document.getElementById('diveChip');
+    if(dc) dc.innerHTML=(S.mode==='dive')?'🤿 UNDERWATER<small>TAP: BOAT ⛵</small>':('🤿 DIVE<small>'+curArea().name.toUpperCase()+'</small>');
+    const wm=document.getElementById('wxMbtnTxt'); if(wm){ const Wd=WEATHERS[weather]||WEATHERS.clear; wm.textContent=Wd.name.toUpperCase(); }
   }
   // small hint on the ☰ MENU chip when you have unspent skill points
   function updateMenuBadges(){
@@ -4215,7 +5073,9 @@
   let last=performance.now();
   function update(dt){
     if(travel){ updateTravel(dt); }
+    else if(areaSail){ updateAreaSail(dt); }
     updateRowing(dt);
+    if(S.mode==='dive' && !travel && !areaSail) updateDive(dt);
     // ---- day/night + weather cycle ----
     dayT += dt/DAY_LEN; if(dayT>=1) dayT-=1;
     // ---- biome disaster has priority over normal weather ----
@@ -4229,13 +5089,13 @@
       if(weatherT<=0) spinWeather();
       if(weather==='storm'){ lightningCd-=dt; if(lightningCd<=0){ doLightningStrike(); lightningCd=2.6+Math.random()*6; } }
       disasterCd -= dt;
-      if(disasterCd<=0 && S.state!=='reeling' && !travel && !catchAnim){ startDisaster(); disasterCd=150+Math.random()*200; }
+      if(disasterCd<=0 && S.state!=='reeling' && !travel && !catchAnim && S.mode!=='dive'){ startDisaster(); disasterCd=150+Math.random()*200; }
     }
     if(lightning>0) lightning=Math.max(0, lightning-dt*1.6);
     thunderShake=Math.max(0, thunderShake-dt*1.7);
     hudWxT -= dt; if(hudWxT<=0){ hudWxT=1.0; updateWeatherChip(); }
     // weather particles
-    const wantRain = (weather==='rain'||weather==='storm'||weather==='goldenrain'||weather==='hurricane');
+    const wantRain = (weather==='rain'||weather==='storm'||weather==='goldenrain'||weather==='hurricane'||weather==='monsoon');
     const wantSnow = (weather==='snow'||weather==='blizzard');
     if(wantRain && rainDrops.length<200){ for(let i=0;i<4;i++) rainDrops.push({x:Math.random()*W, y:-20-Math.random()*H, v:520+Math.random()*380, len:12+Math.random()*16}); }
     if(wantSnow && snowFlakes.length<90){ for(let i=0;i<2;i++) snowFlakes.push({x:Math.random()*W, y:-20-Math.random()*H, r:1+Math.random()*2.4, sp:30+Math.random()*50, ph:Math.random()*6.28}); }
@@ -4434,7 +5294,7 @@
   }
 
   // ---------- render ----------
-  function sceneTheme(){ return WORLDS[S.world].theme || 'ocean'; }
+  function sceneTheme(){ return areaTheme(); }
   // sun by day, moon by night — arcs across the sky with the time of day
   function drawCelestial(t, sunAng, dayAmt, snow){
     const cx=W*0.5 + Math.cos(sunAng)*W*0.34;
@@ -4489,6 +5349,21 @@
     }
     for(const e of embers){ e.life-=dt/e.max; e.x+=e.vx*dt+Math.sin(e.life*9)*6*dt; e.y+=e.vy*dt; e.vy*=(1-dt*0.15); }
     embers=embers.filter(e=> e.life>0);
+    // jungle: dragonflies skimming the water + leaves drifting down from the mangroves
+    if(TH==='jungle'){
+      if(dragonflies.length<9 && Math.random()<dt*1.4) dragonflies.push({x:Math.random()<.5?-20:W+20, y:waterY*(0.3+Math.random()*0.4), sp:26+Math.random()*20, ph:Math.random()*6.28, wob:Math.random()*6.28});
+      if(leaves.length<14 && Math.random()<dt*1.8) leaves.push({x:Math.random()*W, y:-10-Math.random()*30, vx:(Math.random()-.5)*18, vy:16+Math.random()*16, ph:Math.random()*6.28, rot:(Math.random()-.5)*3, c:Math.random()<.5?'#4f8f3a':'#7fae4a'});
+    }
+    for(const df of dragonflies){ df.x += (df.x<W*0.5?1:-1)*df.sp*dt; df.ph += dt*22; df.wob += dt*2.4; df.y += Math.sin(df.wob)*8*dt; }
+    dragonflies=dragonflies.filter(df=> df.x>-40 && df.x<W+40);
+    for(const lf of leaves){ lf.x += lf.vx*dt + Math.sin(lf.ph)*16*dt; lf.y += lf.vy*dt; lf.ph += lf.rot*dt; }
+    leaves=leaves.filter(lf=> lf.y<waterY+6);
+    // ruins: glowing plankton motes drifting up through the water column
+    if(TH==='ruins'){
+      if(motes.length<40 && Math.random()<dt*3) motes.push({x:Math.random()*W, y:H-30-Math.random()*40, vy:-(4+Math.random()*10), r:0.8+Math.random()*1.6, ph:Math.random()*6.28, hue:Math.random()<.5?'150,220,255':'200,190,255'});
+    }
+    for(const m of motes){ m.y += m.vy*dt; m.x += Math.sin(m.ph)*6*dt; m.ph += dt*0.9; }
+    motes=motes.filter(m=> m.y>waterY*0.5 && m.y<H-16);
     for(const a of ash){ a.x+=a.vx*dt+Math.sin(a.y*0.03)*10*dt; a.y+=a.vy*dt; }
     ash=ash.filter(a=> a.y<waterY+4);
     // snow: drifting ice floes on the surface
@@ -4497,6 +5372,22 @@
     } else if(iceFloes.length){ /* let them sail off then clear */ }
     for(const f of iceFloes) f.x+=f.v*dt;
     iceFloes=iceFloes.filter(f=> f.x<W+80);
+    // ---- floating treasure + sea-floor loot (non-fishing) ----
+    lootCd-=dt;
+    if(lootCd<=0 && !travel && !areaSail && S.mode!=='dive'){ lootCd=7+Math.random()*10; spawnColl(); }
+    for(const c of COLL){ c.t+=dt; c.x += Math.sin(c.t*0.8+c.bob)*9*dt + c.vx*dt; if(c.x<W*0.05||c.x>W*0.95) c.vx*=-1; }
+    if(!travel && !areaSail){
+      const bx=(S.boatF||0.20)*W;
+      for(const c of COLL){ if(!c.got && Math.abs(bx-c.x) < 64) collectColl(c); }
+    }
+    COLL=COLL.filter(c=> !c.got && c.t<45);
+    // sea-floor loot only shows up while diving (swim into it to grab it)
+    if(S.mode==='dive' && !travel && !areaSail){
+      floorCd-=dt;
+      if(floorCd<=0){ floorCd=9+Math.random()*11; spawnFloorLoot(); }
+      for(const it of FLOORLOOT){ it.t+=dt; if(!it.got && Math.hypot(DIVER.x-it.x, DIVER.y-it.y) < 42) collectFloorLoot(it); }
+      FLOORLOOT=FLOORLOOT.filter(it=> !it.got && it.t<70);
+    }
     ambientCd=Math.max(ambientCd,0);
   }
 
@@ -4523,6 +5414,24 @@
     // volcano ash drifting down
     if(ash.length){ ctx.save(); ctx.fillStyle='rgba(70,58,54,.5)';
       for(const a of ash){ ctx.globalAlpha=0.4+Math.sin(t*3+a.y*0.1)*0.2; ctx.beginPath(); ctx.arc(a.x,a.y,a.r,0,7); ctx.fill(); } ctx.restore(); }
+    // jungle dragonflies — fast fluttering hoverers with shimmering wings
+    for(const df of dragonflies){
+      const wing=Math.sin(df.ph)*0.9;
+      ctx.save(); ctx.translate(df.x, df.y);
+      ctx.globalAlpha=.75; ctx.strokeStyle='#bfe8ff'; ctx.lineWidth=1.4;
+      ctx.beginPath(); ctx.ellipse(-4,-3,5,2.2,wing*0.5,0,7); ctx.stroke();
+      ctx.beginPath(); ctx.ellipse(4,-3,5,2.2,-wing*0.5,0,7); ctx.stroke();
+      ctx.fillStyle='#3f6f4a'; ctx.beginPath(); ctx.ellipse(0,0,6,1.8,0,0,7); ctx.fill();
+      ctx.fillStyle='#2f5a3a'; ctx.beginPath(); ctx.arc(6,0,2,0,7); ctx.fill();
+      ctx.restore();
+    }
+    // jungle leaves drifting down
+    for(const lf of leaves){
+      ctx.save(); ctx.translate(lf.x, lf.y); ctx.rotate(lf.ph); ctx.globalAlpha=.85;
+      ctx.fillStyle=lf.c; ctx.beginPath(); ctx.ellipse(0,0,7,3,0,0,7); ctx.fill();
+      ctx.strokeStyle='rgba(0,0,0,.25)'; ctx.lineWidth=0.8; ctx.beginPath(); ctx.moveTo(-6,0); ctx.lineTo(6,0); ctx.stroke();
+      ctx.restore();
+    }
   }
 
   // ---- per-weather visuals: EVERY weather gets a distinct look ----
@@ -4664,6 +5573,54 @@
       ctx.fillStyle=eg; ctx.beginPath(); ctx.arc(ex,ey,3,0,7); ctx.fill(); }
     ctx.restore();
   }
+  // ---- floating treasure (crates & pearls) — sail over them to collect ----
+  function drawColl(t){
+    for(const c of COLL){
+      const y=c.y + Math.sin(t*2+c.bob)*3.2, x=c.x;
+      // gentle sparkle so you spot it on the water
+      ctx.save(); ctx.globalCompositeOperation='lighter';
+      const spark=c.kind==='pearl'?0.5:0.34, sg=ctx.createRadialGradient(x,y,1,x,y,26);
+      sg.addColorStop(0, c.kind==='pearl'?'rgba(150,225,255,'+spark+')':'rgba(255,220,120,'+spark+')'); sg.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=sg; ctx.beginPath(); ctx.arc(x,y,26,0,7); ctx.fill(); ctx.restore();
+      ctx.save(); ctx.translate(x,y-Math.sin(t*2.2+c.bob)*2);
+      if(c.kind==='pearl'){
+        ctx.fillStyle='#dfeef7'; ctx.beginPath(); ctx.ellipse(0,0,10,8,0,0,7); ctx.fill();
+        ctx.fillStyle='#f7fcff'; ctx.beginPath(); ctx.ellipse(-2,-2,5,3.4,0,0,7); ctx.fill();
+        ctx.strokeStyle='#8fa8b8'; ctx.lineWidth=1.4; ctx.beginPath(); ctx.ellipse(0,0,10,8,0,0,7); ctx.stroke();
+        ctx.globalCompositeOperation='lighter'; ctx.fillStyle='rgba(160,230,255,.4)'; ctx.beginPath(); ctx.arc(0,-1,13,0,7); ctx.fill();
+      } else {
+        ctx.fillStyle='#7a5230'; ctx.fillRect(-13,-11,26,22);
+        ctx.fillStyle='#a06a3a'; ctx.fillRect(-13,-11,26,4);
+        ctx.strokeStyle='#5a3a20'; ctx.lineWidth=2; ctx.strokeRect(-13,-11,26,22);
+        ctx.beginPath(); ctx.moveTo(-13,-3); ctx.lineTo(13,-3); ctx.moveTo(0,-11); ctx.lineTo(0,11); ctx.stroke();
+        ctx.strokeStyle='#c9a24a'; ctx.lineWidth=2.4; ctx.strokeRect(-13,-11,26,22);
+      }
+      ctx.restore();
+    }
+  }
+  // ---- sea-floor loot (relics & shells) — only while diving ----
+  function drawFloorLoot(t){
+    for(const it of FLOORLOOT){
+      const x=it.x, y=it.y;
+      ctx.save(); ctx.globalCompositeOperation='lighter';
+      const sg=ctx.createRadialGradient(x,y,1,x,y,24);
+      sg.addColorStop(0, it.kind==='relic'?'rgba(190,160,255,.45)':'rgba(140,230,255,.35)'); sg.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=sg; ctx.beginPath(); ctx.arc(x,y,24,0,7); ctx.fill(); ctx.restore();
+      ctx.save(); ctx.translate(x,y+Math.sin(t*1.8+it.bob)*1.6);
+      if(it.kind==='relic'){
+        // a little amphora/urn
+        ctx.fillStyle='#b48a4a'; ctx.beginPath(); ctx.ellipse(0,0,9,11,0,0,7); ctx.fill();
+        ctx.fillStyle='#8a6432'; ctx.fillRect(-4,-15,8,5);
+        ctx.strokeStyle='#e0c07a'; ctx.lineWidth=1.4; ctx.beginPath(); ctx.ellipse(0,-9,7,2.4,0,0,7); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-8,-2); ctx.quadraticCurveTo(-13,0,-8,3); ctx.moveTo(8,-2); ctx.quadraticCurveTo(13,0,8,3); ctx.stroke();
+      } else {
+        ctx.fillStyle='#f0d8b8'; ctx.beginPath(); ctx.moveTo(0,6); ctx.quadraticCurveTo(-13,2,-9,-5); ctx.quadraticCurveTo(0,-9,9,-5); ctx.quadraticCurveTo(13,2,0,6); ctx.fill();
+        ctx.strokeStyle='#c9a882'; ctx.lineWidth=1; for(let i=-2;i<=2;i++){ ctx.beginPath(); ctx.moveTo(0,5); ctx.quadraticCurveTo(i*3,-2,i*5,-5+Math.abs(i)*1.4); ctx.stroke(); }
+      }
+      ctx.restore();
+    }
+  }
+
   function drawWaterAmbient(t){
     const TH=sceneTheme(), snow=(TH==='snow'), volc=(TH==='volcano');
     // distant sailboats on the horizon — tiny triangular sails
@@ -4700,6 +5657,14 @@
       if(splash>0){ ctx.save(); ctx.globalAlpha=splash*0.6; ctx.strokeStyle='#eafcff'; ctx.lineWidth=1.6;
         for(const sx of [j.x-j.dir*j.sp*0.3, j.x+j.dir*j.sp*0.3]){ ctx.beginPath(); ctx.ellipse(sx,waterY,4+(1-splash)*16,2+(1-splash)*6,0,0,7); ctx.stroke(); } ctx.restore(); }
     }
+    // ruins: glowing plankton motes rising through the water
+    if(motes.length){
+      ctx.save(); ctx.globalCompositeOperation='lighter';
+      for(const m of motes){ const tw=0.55+0.45*Math.sin(m.ph*3);
+        const mg=ctx.createRadialGradient(m.x,m.y,0,m.x,m.y,m.r*4); mg.addColorStop(0,'rgba('+m.hue+','+0.7*tw+')'); mg.addColorStop(1,'rgba('+m.hue+',0)');
+        ctx.fillStyle=mg; ctx.beginPath(); ctx.arc(m.x,m.y,m.r*4,0,7); ctx.fill(); }
+      ctx.restore();
+    }
     // sun glitter on the surface (daytime only, clearish water)
     const dayAmt = Math.max(0, Math.min(1, (Math.sin((dayT-0.25)*Math.PI*2)+0.2)/1.1));
     if(dayAmt>0.4 && weather!=='storm' && weather!=='lunar'){
@@ -4717,6 +5682,7 @@
 
   function draw(){
     const t=performance.now()/1000;
+    if(S.mode==='dive' && !travel && !areaSail){ try{ drawDive(t); }catch(e){ if(!draw._dw){ draw._dw=true; try{console.warn('dive draw (recovered):',e);}catch(_){} } try{ ctx.setTransform(1,0,0,1,0,0); ctx.globalAlpha=1; }catch(_){} } return; }
     const TH=sceneTheme(), snow=(TH==='snow'), volc=(TH==='volcano'), abis=(TH==='abyss'), reef=(TH==='reef');
     // thunder/eruption rumble — a brief whole-scene shake
     if(thunderShake>0){ const k=thunderShake*9; ctx.save(); ctx.translate((Math.random()-.5)*k,(Math.random()-.5)*k); }
@@ -4777,7 +5743,7 @@
     // weather sky tint + per-weather visuals
     if(weather!=='clear'){
       ctx.save();
-      const WX={storm:{a:.44,c:'#0a1420'},rain:{a:.34,c:'#26343f'},cloudy:{a:.22,c:'#26343f'},snow:{a:.20,c:'#26343f'},fog:{a:.52,c:'#a9c0cd'},heat:{a:.24,c:'#ffab52'},lunar:{a:.55,c:'#241a52'},goldenrain:{a:.30,c:'#ffcf5e'},hurricane:{a:.58,c:'#0c2230'},blizzard:{a:.62,c:'#9fb6c4'},eruption:{a:.52,c:'#2a0f0a'},voidstorm:{a:.60,c:'#0a0418'}};
+      const WX={storm:{a:.44,c:'#0a1420'},rain:{a:.34,c:'#26343f'},cloudy:{a:.22,c:'#26343f'},snow:{a:.20,c:'#26343f'},fog:{a:.52,c:'#a9c0cd'},heat:{a:.24,c:'#ffab52'},lunar:{a:.55,c:'#241a52'},goldenrain:{a:.30,c:'#ffcf5e'},hurricane:{a:.58,c:'#0c2230'},blizzard:{a:.62,c:'#9fb6c4'},eruption:{a:.52,c:'#2a0f0a'},voidstorm:{a:.60,c:'#0a0418'},monsoon:{a:.46,c:'#12303a'},tidewake:{a:.50,c:'#123a4a'}};
       const wx=WX[weather]||{a:.22,c:'#26343f'};
       ctx.globalAlpha=wx.a; ctx.fillStyle=wx.c; ctx.fillRect(0,0,W,waterY);
       ctx.restore();
@@ -4795,7 +5761,7 @@
     else { g.addColorStop(0,'#1e7fb4'); g.addColorStop(.35,'#0d5680'); g.addColorStop(.72,'#08375a'); g.addColorStop(1,'#03203a'); }
     ctx.fillStyle=g; ctx.fillRect(0,waterY,W,H-waterY);
     // weather tint on the water itself
-    const WX2={rain:'rgba(60,90,110,.22)',storm:'rgba(15,25,36,.34)',cloudy:'rgba(70,90,105,.14)',snow:'rgba(180,215,235,.16)',fog:'rgba(190,205,215,.30)',heat:'rgba(255,170,90,.16)',lunar:'rgba(60,45,120,.32)',goldenrain:'rgba(255,205,90,.18)',hurricane:'rgba(20,45,60,.32)',blizzard:'rgba(205,225,235,.34)',eruption:'rgba(120,35,10,.34)',voidstorm:'rgba(40,15,80,.40)'}[weather];
+    const WX2={rain:'rgba(60,90,110,.22)',storm:'rgba(15,25,36,.34)',cloudy:'rgba(70,90,105,.14)',snow:'rgba(180,215,235,.16)',fog:'rgba(190,205,215,.30)',heat:'rgba(255,170,90,.16)',lunar:'rgba(60,45,120,.32)',goldenrain:'rgba(255,205,90,.18)',hurricane:'rgba(20,45,60,.32)',blizzard:'rgba(205,225,235,.34)',eruption:'rgba(120,35,10,.34)',voidstorm:'rgba(40,15,80,.40)',monsoon:'rgba(20,60,60,.30)',tidewake:'rgba(30,70,90,.34)'}[weather];
     if(WX2){ ctx.fillStyle=WX2; ctx.fillRect(0,waterY,W,H-waterY); }
 
     // light rays
@@ -4837,6 +5803,22 @@
         ctx.fillStyle=vg; ctx.beginPath(); ctx.arc(sx,base,46,0,7); ctx.fill();
         ctx.fillStyle='#ffd07a'; ctx.beginPath(); ctx.arc(sx,base-4,4,0,7); ctx.fill(); }
       ctx.restore();
+    } else if(reef){
+      ctx.save(); const cc=['#ff9ff0','#ffb05c','#9ff0e0','#c08aff'];
+      for(let i=0;i<10;i++){ const cx=30+i*(W/10)+Math.sin(i)*22, base=H-30; ctx.strokeStyle=cc[i%4]; ctx.lineWidth=4; ctx.lineCap='round';
+        for(let b=0;b<3;b++){ ctx.beginPath(); ctx.moveTo(cx,base); ctx.quadraticCurveTo(cx+(b-1)*6,base-16, cx+(b-1)*11,base-30); ctx.stroke(); }
+        ctx.fillStyle=cc[i%4]; ctx.beginPath(); ctx.arc(cx-11,base-30,2.4,0,7); ctx.fill(); }
+      ctx.restore();
+    } else if(TH==='jungle'){
+      ctx.save(); ctx.strokeStyle='rgba(60,140,80,.55)'; ctx.lineWidth=5; ctx.lineCap='round';
+      for(let i=0;i<9;i++){ const sx=34+i*(W/9)+Math.sin(i)*20, base=H-32;
+        ctx.beginPath(); ctx.moveTo(sx,base); for(let k=0;k<4;k++){ const yy=base-k*20; ctx.lineTo(sx+Math.sin(t*1.1+i+k)*11, yy-20); } ctx.stroke(); }
+      ctx.restore();
+    } else if(TH==='ruins'){
+      ctx.save(); ctx.fillStyle='rgba(210,214,210,.4)';
+      for(let i=0;i<8;i++){ const sx=40+i*(W/8)+Math.sin(i)*22, base=H-32, ch=10+((i*9)%16);
+        ctx.fillRect(sx-6,base-ch,12,ch); ctx.fillRect(sx-9,base-ch-5,18,5); }
+      ctx.restore();
     } else {
       ctx.strokeStyle='rgba(40,150,110,.5)'; ctx.lineWidth=5; ctx.lineCap='round';
       for(let i=0;i<8;i++){
@@ -4851,8 +5833,8 @@
     for(const f of fishes) drawFish(f,t);
 
     // weather particles (rain / snow / golden rain / lightning bolts)
-    if(weather==='rain'||weather==='storm'||weather==='goldenrain'){
-      const col=weather==='storm'?'rgba(180,215,255,.55)':weather==='goldenrain'?'rgba(255,220,120,.7)':'rgba(190,220,255,.42)';
+    if(weather==='rain'||weather==='storm'||weather==='goldenrain'||weather==='monsoon'){
+      const col=weather==='storm'?'rgba(180,215,255,.55)':weather==='goldenrain'?'rgba(255,220,120,.7)':weather==='monsoon'?'rgba(170,210,255,.5)':'rgba(190,220,255,.42)';
       ctx.save(); ctx.strokeStyle=col; ctx.lineWidth=1.4;
       for(const d of rainDrops){ ctx.beginPath(); ctx.moveTo(d.x,d.y); ctx.lineTo(d.x-3,d.y+d.len); ctx.stroke(); }
       ctx.restore();
@@ -4936,6 +5918,7 @@
 
     // ambient water life (distant boats, ice floes, breaching fish, sun glitter)
     drawWaterAmbient(t);
+    drawColl(t);
     // scenic island on the horizon (varies by world)
     drawIsland(t);
 
@@ -5107,8 +6090,27 @@
       ctx.fillStyle='#eef5fa'; ctx.beginPath(); ctx.moveTo(-42,-11); ctx.lineTo(-42,-46); ctx.lineTo(30,-46); ctx.lineTo(40,-11); ctx.closePath(); ctx.fill();
       ctx.fillStyle='#2f4a5c'; ctx.fillRect(-34,-42,58,20);
       ctx.strokeStyle='#5a6a76'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(-60,-11); ctx.lineTo(-60,-52); ctx.stroke();
+    } else if(style==='bathysphere'){
+      // spherical steel diving bell
+      ctx.fillStyle='#5a6a76'; ctx.beginPath(); ctx.arc(0,4,26,0,7); ctx.fill();
+      ctx.fillStyle='#8f9ba6'; ctx.beginPath(); ctx.arc(-8,4,26,Math.PI*1.15,Math.PI*1.75); ctx.fill();
+      ctx.fillStyle='#3fd0e0'; ctx.beginPath(); ctx.arc(4,0,10,0,7); ctx.fill();
+      ctx.strokeStyle='#c8d6e0'; ctx.lineWidth=3; ctx.beginPath(); ctx.arc(0,4,26,0,7); ctx.stroke();
+      ctx.fillStyle='#3a4a58'; ctx.fillRect(-4,26,8,10);
+    } else if(style==='submarine'){
+      // long grey hull with a conning tower + propeller
+      const hullG=ctx.createLinearGradient(0,-16,0,20); hullG.addColorStop(0,'#8f9ba6'); hullG.addColorStop(.5,'#5a6a76'); hullG.addColorStop(1,'#3a4a58');
+      ctx.fillStyle=hullG; ctx.beginPath();
+      ctx.moveTo(-74,4); ctx.quadraticCurveTo(-74,-14, -40,-14); ctx.lineTo(44,-14);
+      ctx.quadraticCurveTo(76,-14, 84,4); ctx.quadraticCurveTo(76,20, 44,20); ctx.lineTo(-40,20);
+      ctx.quadraticCurveTo(-74,20, -74,4); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#c8d6e0'; ctx.fillRect(-36,-13,58,4);
+      ctx.fillStyle='#6f7f8c'; ctx.beginPath(); ctx.moveTo(-16,-14); ctx.lineTo(-12,-30); ctx.lineTo(16,-30); ctx.lineTo(20,-14); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#3fd0e0'; ctx.beginPath(); ctx.arc(4,-22,4,0,7); ctx.fill();
+      ctx.fillStyle='#ffcf4a'; ctx.beginPath(); ctx.arc(84,4,4,0,7); ctx.fill();
+      ctx.fillStyle='#2f3a44'; ctx.beginPath(); ctx.ellipse(-78,4,7,11,0,0,7); ctx.fill();
+      ctx.strokeStyle='#aab8c4'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(-20,-30); ctx.lineTo(-20,-44); ctx.stroke();
     } else {
-      // rowboat (default starter)
       ctx.fillStyle='#7a4a24'; ctx.beginPath();
       ctx.moveTo(-60,-8); ctx.lineTo(60,-8); ctx.lineTo(44,18); ctx.lineTo(-44,18); ctx.closePath(); ctx.fill();
       ctx.fillStyle='#a8622f'; ctx.fillRect(-60,-12,120,6);
@@ -5164,6 +6166,26 @@
     // hull — the equipped boat's shape
     ctx.save(); ctx.translate(x,y); drawBoatShape((curBoat().style)||'rowboat'); ctx.restore();
     ctx.fillStyle='#2d4354'; ctx.fillRect(x-56,y+12,112,8);   // waterline stripe (under surface)
+    // boat LAMP — lights the water. Brighter lamp = a bigger glow + better night fishing.
+    { const lamp=(curBoat().lamp||0);
+      if(lamp>0.05){
+        const night=(dayAmt!==undefined)?(1-dayAmt):0.5;
+        ctx.save(); ctx.globalCompositeOperation='lighter';
+        const lg=ctx.createRadialGradient(x,y-6,2,x,y-6,40+lamp*46);
+        const a=0.12+0.09*lamp+0.10*night;
+        lg.addColorStop(0,'rgba(255,240,190,'+(a+0.12)+')'); lg.addColorStop(.5,'rgba(255,225,150,'+(a*0.5)+')'); lg.addColorStop(1,'rgba(255,220,150,0)');
+        ctx.fillStyle=lg; ctx.beginPath(); ctx.arc(x,y-6,40+lamp*46,0,7); ctx.fill();
+        const cone=ctx.createLinearGradient(x,y-6,x,y-6+120);
+        cone.addColorStop(0,'rgba(255,245,200,'+(0.16+0.10*lamp)+')'); cone.addColorStop(1,'rgba(255,240,190,0)');
+        ctx.fillStyle=cone; ctx.beginPath(); ctx.moveTo(x-8,y-6); ctx.lineTo(x+8,y-6);
+        ctx.lineTo(x+26+lamp*14,y-6+130); ctx.lineTo(x-26-lamp*14,y-6+130); ctx.closePath(); ctx.fill();
+        ctx.fillStyle='#fff2c4'; ctx.beginPath(); ctx.arc(x,y-8,2.6,0,7); ctx.fill();
+        ctx.restore();
+      }
+      if(curBoat().dive && !isRowingPose()){   // submarine: a soft dive dome
+        ctx.fillStyle='rgba(120,230,255,.35)'; ctx.beginPath(); ctx.arc(x,y-6,60,0,7); ctx.fill();
+      }
+    }
     // oars sweep when rowing
     if(rowing){
       const rp = travel ? (travel.rowPhase||t*2) : (ROW.phase||t*2);
@@ -5416,6 +6438,36 @@
         for(let b=0;b<3;b++){ ctx.beginPath(); ctx.moveTo(cx,cy); ctx.quadraticCurveTo(cx+(b-1)*6*s,cy-14*s, cx+(b-1)*11*s,cy-26*s); ctx.stroke(); }
         ctx.fillStyle=cc[i%4]; ctx.beginPath(); ctx.arc(cx-11*s,cy-26*s,2*s,0,7); ctx.fill(); }
       ctx.restore();
+    } else if(TH==='jungle'){
+      // tangled green shoreline + mangrove roots + a leaning palm
+      ctx.fillStyle='#3f6a3a'; ctx.beginPath(); ctx.ellipse(x,base, 130*s, 18*s,0,0,7); ctx.fill();
+      ctx.fillStyle='#2f5a2a'; ctx.beginPath(); ctx.ellipse(x-20*s,base-10*s, 90*s, 24*s,0,0,7); ctx.fill();
+      for(let i=0;i<7;i++){ const rx=x-90*s+i*28*s, rh=18*s+((i*7)%20)*s;
+        ctx.strokeStyle='#4a3a22'; ctx.lineWidth=3.2*s; ctx.beginPath();
+        ctx.moveTo(rx,base-6*s); ctx.quadraticCurveTo(rx+5*s,base-6*s-rh*0.6, rx+2*s,base-6*s-rh); ctx.stroke();
+        ctx.lineWidth=2*s; ctx.beginPath(); ctx.moveTo(rx+2*s,base-6*s-rh); ctx.lineTo(rx+9*s,base+4*s); ctx.stroke();
+      }
+      ctx.fillStyle='#2f7a4a'; ctx.beginPath(); ctx.ellipse(x+50*s,base-12*s, 62*s, 20*s,0,0,7); ctx.fill();
+      const px=x+16*s, pb=base-14*s;
+      ctx.strokeStyle='#6b4a28'; ctx.lineWidth=3.4*s; ctx.beginPath(); ctx.moveTo(px,pb); ctx.quadraticCurveTo(px+10*s,pb-26*s, px+2*s,pb-50*s); ctx.stroke();
+      ctx.fillStyle='#2f8a4a';
+      for(let a=0;a<7;a++){ const ang=-Math.PI/2+(a-3)*0.5; ctx.beginPath(); ctx.moveTo(px+2*s,pb-50*s);
+        ctx.quadraticCurveTo(px+2*s+Math.cos(ang)*22*s, pb-50*s+Math.sin(ang)*22*s, px+2*s+Math.cos(ang)*33*s, pb-50*s+Math.sin(ang)*33*s+9*s);
+        ctx.lineTo(px+2*s+Math.cos(ang)*11*s, pb-50*s+Math.sin(ang)*11*s); ctx.closePath(); ctx.fill(); }
+    } else if(TH==='ruins'){
+      // toppled marble columns + a broken arch on a pale shore
+      ctx.fillStyle='#b8bcb8'; ctx.beginPath(); ctx.ellipse(x,base, 150*s, 14*s,0,0,7); ctx.fill();
+      ctx.fillStyle='#e2e6e4';
+      for(const c of [[-96,46],[-52,66],[8,58],[64,72],[112,40]]){
+        const cx=x+c[0]*s, ch=c[1]*s;
+        ctx.fillRect(cx-6*s, base-ch, 12*s, ch);
+        ctx.fillRect(cx-9*s, base-ch-6*s, 18*s, 6*s);
+        ctx.fillRect(cx-9*s, base-6*s, 18*s, 6*s);
+      }
+      ctx.save(); ctx.translate(x-24*s, base-4*s); ctx.rotate(-0.5); ctx.fillStyle='#d8dcda'; ctx.fillRect(-5*s,-44*s,10*s,44*s); ctx.fillRect(-8*s,-52*s,16*s,7*s); ctx.restore();
+      ctx.fillStyle='#cfd4d0'; ctx.fillRect(x+30*s,base-58*s,10*s,54*s); ctx.fillRect(x+74*s,base-58*s,10*s,54*s); ctx.fillRect(x+30*s,base-66*s,54*s,9*s);
+      ctx.save(); ctx.globalAlpha=.35; ctx.fillStyle='#6f8a7a';
+      for(let i=0;i<6;i++){ ctx.beginPath(); ctx.ellipse(x+(-90+i*36)*s, base-4*s, 10*s, 4*s,0,0,7); ctx.fill(); } ctx.restore();
     } else {
       // green palm island
       ctx.fillStyle='#c9b06a';
@@ -5664,7 +6716,9 @@
     get disaster(){return disaster;}, get weather(){return weather;}, get MUTATIONS(){return MUTATIONS;}, get RARITY(){return RARITY;}, paintFish,
     LINES, STYLES, LINE_ORDER:STYLE_ORDER, curLine, ownedLines, lineOwned, cycleStyle,
     get line(){return S.line;}, get style(){return S.style;}, get reel(){return reel;}, get hookedFish(){return hooked;},
-    rollStylePref, fishStylePref, STYLE_BY_ID:STYLES, traitName, TRAITS };
+    rollStylePref, fishStylePref, STYLE_BY_ID:STYLES, traitName, TRAITS,
+    get coll(){return COLL;}, get floorLoot(){return FLOORLOOT;}, get diver(){return DIVER;}, get dive(){return S.dive;},
+    DIVE_KIT, SPEARS, BOAT, areaList:(w)=>islandAreas(w||S.world).map(a=>a.name) };
 })();
 </script>
 </body>
