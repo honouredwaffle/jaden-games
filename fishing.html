@@ -10,17 +10,29 @@
   #wrap { position:fixed; inset:0; touch-action:none; }
   canvas { display:block; width:100%; height:100%; }
   .hud { position:absolute; color:#eaf6ff; text-shadow:0 2px 6px rgba(0,0,0,.7); pointer-events:none; user-select:none; }
-  #topbar { top:8px; left:8px; right:8px; display:flex; justify-content:space-between; align-items:flex-start; gap:6px; }
-  .tbgroup { display:flex; gap:6px; flex-wrap:wrap; }
-  .tbgroup.right { justify-content:flex-end; }
-  .chip { background:rgba(3,20,36,.72); border:1px solid rgba(120,210,255,.35); border-radius:12px; padding:5px 9px; font-size:13px; font-weight:bold; backdrop-filter:blur(4px); }
+  #topbar { top:8px; left:8px; right:8px; display:flex; flex-direction:column; gap:6px; }
+  .tbrow { display:flex; gap:6px; align-items:stretch; width:100%; }
+  .tbrow .chip { flex:1 1 0; min-width:0; text-align:center; padding:7px 4px; font-size:12px; overflow:hidden; }
+  .tbrow .chip small { margin-top:1px; }
+  .chip { background:rgba(3,20,36,.72); border:1px solid rgba(120,210,255,.35); border-radius:12px; padding:5px 9px; font-size:13px; font-weight:bold; backdrop-filter:blur(4px); white-space:nowrap; }
   .chip small { display:block; font-size:9px; font-weight:normal; opacity:.65; letter-spacing:.5px; }
+  #menuChip { background:rgba(63,169,245,.28); border-color:rgba(140,220,255,.6); }
+  .menuPanel { position:fixed; left:8px; right:8px; bottom:8px; z-index:60; display:none; flex-direction:column;
+    background:rgba(3,18,32,.96); border:1px solid rgba(120,210,255,.4); border-radius:16px; padding:12px; backdrop-filter:blur(8px); box-shadow:0 12px 40px rgba(0,0,0,.6); }
+  .menuPanel.show { display:flex; animation:menuIn .16s ease-out; }
+  @keyframes menuIn { from{opacity:0; transform:translateY(14px)} to{opacity:1; transform:translateY(0)} }
+  .menuHead { display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; color:#eaf6ff; font-size:15px; }
+  .menuHead button { background:rgba(255,255,255,.08); border:none; color:#eaf6ff; width:30px; height:30px; border-radius:8px; font-size:15px; cursor:pointer; }
+  .menuGrid { display:grid; grid-template-columns:1fr 1fr; gap:8px; max-height:62vh; overflow-y:auto; }
+  .mbtn { background:rgba(10,40,64,.75); border:1px solid rgba(120,210,255,.35); border-radius:12px; padding:11px 10px; font-size:13px; font-weight:bold; color:#eaf6ff; cursor:pointer; text-align:left; }
+  .mbtn small { display:block; font-size:9px; font-weight:normal; opacity:.65; letter-spacing:.5px; margin-top:2px; }
+  .mbtn:active { background:rgba(63,169,245,.35); }
   #coin { color:#ffd85e; }
   #weatherChip { color:#bfe9ff; }
-  #msg { top:64px; left:0; right:0; text-align:center; font-size:16px; font-weight:bold; min-height:22px; letter-spacing:.4px; }
-  #hint { top:114px; left:0; right:0; text-align:center; font-size:13px; opacity:.95; padding:0 16px; }
+  #msg { top:104px; left:0; right:0; text-align:center; font-size:16px; font-weight:bold; min-height:22px; letter-spacing:.4px; }
+  #hint { top:152px; left:0; right:0; text-align:center; font-size:13px; opacity:.95; padding:0 16px; }
   #gauges { display:none; }                 /* retired — you aim by tapping / dragging the water */
-  #controls { position:absolute; left:0; right:0; top:172px; display:flex; justify-content:space-between; align-items:flex-start; padding:0 12px; pointer-events:none; z-index:6; }
+  #controls { position:absolute; left:0; right:0; top:206px; display:flex; justify-content:space-between; align-items:flex-start; padding:0 12px; pointer-events:none; z-index:6; }
   .ctl { pointer-events:auto; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
     width:96px; height:88px; border-radius:22px; border:3px solid rgba(130,215,255,.6);
     background:linear-gradient(180deg,#123c5c,#0a2540); color:#eaf6ff; font-family:inherit; font-weight:bold;
@@ -138,26 +150,33 @@
   <canvas id="c"></canvas>
 
   <div class="hud" id="topbar">
-    <div class="tbgroup">
+    <div class="tbrow">
       <div class="chip" id="coin">🪙 0<small>COINS</small></div>
-      <div class="chip" id="baitChip">🪱 NO BAIT<small>TAP: BAIT</small></div>
-      <div class="chip" id="invChip">🎒 0/8<small>TAP: INVENTORY</small></div>
-      <div class="chip" id="weatherChip">☀️ Clear<small>NOON · CALM</small></div>
+      <div class="chip" id="invChip">🎒 0/8<small>CRATE</small></div>
+      <div class="chip" id="baitChip">🪱 NONE<small>BAIT</small></div>
+      <div class="chip" id="questChip">📜<small id="questChipN">0/3</small></div>
     </div>
-    <div class="tbgroup right">
-      <div class="chip" id="modeChip">🎣 FISHING<small>TAP: ROW 🚣</small></div>
-      <div class="chip" id="styleChip">🧘 STEADY<small>TAP: STYLE</small></div>
-      <div class="chip" id="adminChip" style="display:none">🛠️ ADMIN<small>TAP: CHEATS</small></div>
-      <div class="chip" id="specChip">📖 JOURNAL<small>FISH LIST</small></div>
-      <div class="chip" id="tankChip">🐠 TANK<small id="tankChipN">0</small></div>
-      <div class="chip" id="skillChip">🌟 SKILLS<small id="skillChipN">LV 1</small></div>
-      <div class="chip" id="questChip">📜 QUESTS<small id="questChipN">0/3</small></div>
-      <div class="chip" id="achChip">🏅 BADGES<small id="achChipN">0</small></div>
-      <div class="chip" id="tournChip">🎖️ EVENT<small>FISH OF THE DAY</small></div>
-      <div class="chip" id="capChip">🧑‍✈️ CAPTAIN<small>CUSTOMISE</small></div>
-      <div class="chip" id="muteChip" style="pointer-events:auto">🔊<small>SOUND</small></div>
-      <div class="chip" id="worldChip">🗺️ WORLD<small id="worldChipName">🌊 OCEAN</small></div>
+    <div class="tbrow">
       <div class="chip" id="shopChip">🛒 SHOP<small>GEAR &amp; BAIT</small></div>
+      <div class="chip" id="worldChip">🗺️ WORLD<small id="worldChipName">🌊 OCEAN</small></div>
+      <div class="chip" id="weatherChip">☀️ Clear<small>NOON · CALM</small></div>
+      <div class="chip" id="menuChip">☰ MENU<small>MORE</small></div>
+    </div>
+  </div>
+  <!-- MENU DRAWER -->
+  <div id="menuPanel" class="menuPanel">
+    <div class="menuHead"><b>☰ Menu</b><button id="menuClose">✕</button></div>
+    <div class="menuGrid">
+      <div class="mbtn" id="modeChip">🎣 FISHING<small>TAP: ROW 🚣</small></div>
+      <div class="mbtn" id="styleChip">🧘 STEADY<small>TAP: STYLE</small></div>
+      <div class="mbtn" id="specChip">📖 JOURNAL<small>FISH LIST</small></div>
+      <div class="mbtn" id="tankChip">🐠 TANK<small id="tankChipN">0</small></div>
+      <div class="mbtn" id="skillChip">🌟 SKILLS<small id="skillChipN">LV 1</small></div>
+      <div class="mbtn" id="achChip">🏅 BADGES<small id="achChipN">0/27</small></div>
+      <div class="mbtn" id="tournChip">🎖️ EVENT<small>FISH OF THE DAY</small></div>
+      <div class="mbtn" id="capChip">🧑‍✈️ CAPTAIN<small>CUSTOMISE</small></div>
+      <div class="mbtn" id="muteChip">🔊 SOUND<small>TAP: TOGGLE</small></div>
+      <div class="mbtn" id="adminChip" style="display:none">🛠️ ADMIN<small>TAP: CHEATS</small></div>
     </div>
   </div>
   <div class="hud" id="msg"></div>
@@ -2621,7 +2640,7 @@
     else { audioAmbient(); say('🔊 Sound on'); }
     updateMuteChip(); }
   function updateMuteChip(){ const m=document.getElementById('muteChip'); if(m) m.textContent=S.muted?'🔇':'🔊'; }
-  function showPanel(id){ document.querySelectorAll('.panel.show').forEach(p=>{ if(p.id!==id) p.classList.remove('show'); }); document.getElementById(id).classList.add('show'); }
+  function showPanel(id){ document.querySelectorAll('.panel.show').forEach(p=>{ if(p.id!==id) p.classList.remove('show'); }); document.getElementById(id).classList.add('show'); closeMenu(); }
   function hidePanel(id){ document.getElementById(id).classList.remove('show'); }
 
   // ---------- input ----------
@@ -2808,6 +2827,13 @@
   document.getElementById('modeChip').style.pointerEvents='auto';
   document.getElementById('styleChip').style.pointerEvents='auto';
   document.getElementById('styleChip').addEventListener('click', cycleStyle);
+  // ---- menu drawer ----
+  function openMenu(){ document.getElementById('menuPanel').classList.add('show'); }
+  function closeMenu(){ document.getElementById('menuPanel').classList.remove('show'); }
+  document.getElementById('menuChip').addEventListener('click', ()=>{ const m=document.getElementById('menuPanel'); m.classList.contains('show')?closeMenu():openMenu(); });
+  document.getElementById('menuClose').addEventListener('click', closeMenu);
+  // any click on the water closes the drawer so you can go straight back to fishing
+  document.getElementById('c').addEventListener('pointerdown', ()=>{ if(document.getElementById('menuPanel').classList.contains('show')) closeMenu(); }, true);
 
   // ---------- ADMIN PANEL (secret; only the owner knows the passcode) ----------
   let adminOn=false; try{ adminOn=localStorage.getItem('deepcast_admin')==='1'; }catch(e){}
@@ -4134,6 +4160,15 @@
   }
 
   // ---------- HUD ----------
+  // compact coin display — 160018986 → 160.0M (keeps the chip tidy at big values)
+  function fmtCoins(n){
+    n=Math.floor(n||0);
+    if(n>=1e9) return (n/1e9).toFixed(n>=1e10?0:1)+'B';
+    if(n>=1e6) return (n/1e6).toFixed(n>=1e7?0:1)+'M';
+    if(n>=1e5) return (n/1e3).toFixed(0)+'K';
+    if(n>=1e4) return (n/1e3).toFixed(1)+'K';
+    return ''+n;
+  }
   function dayLabel(){
     if(dayT<0.22||dayT>=0.82) return 'NIGHT';
     if(dayT<0.30) return 'DAWN';
@@ -4141,11 +4176,11 @@
     return 'DUSK';
   }
   function updateHUD(){
-    document.getElementById('coin').innerHTML='🪙 '+S.coins+'<small>COINS</small>';
+    document.getElementById('coin').innerHTML='🪙 '+fmtCoins(S.coins)+'<small>COINS</small>';
     document.getElementById('worldChipName').innerHTML=WORLDS[S.world].icon+' '+WORLDS[S.world].name.toUpperCase();
     const rodName=(curRod()||{}).name||'—';
     document.getElementById('shopChip').innerHTML='🛒 SHOP<small>🎣 '+rodName+'</small>';
-    document.getElementById('invChip').innerHTML='🎒 '+invUsed()+'/'+crateSize()+'<small>TAP: INVENTORY</small>';
+    document.getElementById('invChip').innerHTML='🎒 '+invUsed()+'/'+crateSize()+'<small>CRATE</small>';
     const tc=document.getElementById('tankChipN'); if(tc) tc.textContent=tankCount()+'/'+TANK_MAX;
     const sc=document.getElementById('skillChipN'); if(sc) sc.textContent='LV '+(S.lvl||1)+((S.pts||0)>0?(' · '+S.pts+'pt'):'');
     const qc=document.getElementById('questChipN');
@@ -4160,13 +4195,20 @@
     if(bc){
       bc.innerHTML = b
         ? '🪱 '+b.def.name+'<small>BAIT ×'+baitCount(b.key)+'</small>'
-        : '🪱 NO BAIT<small>TAP: BAIT</small>';
+        : '🪱 NONE<small>BAIT</small>';
       bc.style.borderColor = b ? 'rgba(125,255,168,.55)' : 'rgba(255,157,118,.55)';
     }
     updateStyleChip();
     const ac=document.getElementById('achChipN'); if(ac) ac.textContent=achCount()+'/'+ACHIEVEMENTS.length;
     const tcn=document.getElementById('tournChip');
     if(tcn){ try{ const tt=tournamentForToday(); tcn.innerHTML='🎖️ '+tt.species+'<small>FISH OF THE DAY</small>'; }catch(e){} }
+    updateMenuBadges();
+  }
+  // small hint on the ☰ MENU chip when you have unspent skill points
+  function updateMenuBadges(){
+    const m=document.getElementById('menuChip'); if(!m) return;
+    let hot=''; try{ if((S.pts||0)>0) hot='🌟 '; }catch(e){}
+    m.innerHTML='☰ MENU<small>'+hot+'MORE</small>';
   }
 
   // ---------- update ----------
