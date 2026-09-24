@@ -1567,7 +1567,7 @@
   }
 
   // paint a species portrait into a small canvas — auto-scaled so it always fits the frame
-  function paintFish(canvasEl, name, cssW, cssH, scale){
+  function paintFish(canvasEl, name, cssW, cssH, scale, mut){
     const g = canvasEl.getContext('2d');
     g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,canvasEl.width,canvasEl.height);
     g.scale(scale,scale);
@@ -1575,7 +1575,10 @@
     const bw=(b.maxx-b.minx)*1.16, bh=(b.maxy-b.miny)*1.16, s=Math.min(cssW*0.94/bw, cssH*0.94/bh);
     const cx=(b.minx+b.maxx)/2, cy=(b.miny+b.maxy)/2;
     const keep = ctx; ctx = g;
-    drawFishArt(cssW/2 - cx*s, cssH/2 - cy*s, def, s, { phase:0.8 });
+    const ox=cssW/2 - cx*s, oy=cssH/2 - cy*s;
+    // draw the mutation aura BEHIND the fish, exactly like the game does
+    if(mut){ ctx.save(); ctx.translate(ox, oy); drawMutation({mut}, 1.1, s); ctx.restore(); }
+    drawFishArt(ox, oy, def, s, { phase:0.8 });
     ctx = keep;
   }
 
@@ -1630,7 +1633,7 @@
   function showCatchPanel(f, isNew, isRecord){
     pendingCatch={f,isNew,isRecord};
     document.getElementById('cName').textContent=(isNew?'🆕 ':'')+f.n;
-    paintFish(document.getElementById('cPic'), f.n, 85, 59, 2);
+    paintFish(document.getElementById('cPic'), f.n, 85, 59, 2, f.mut);
     const rr=document.getElementById('cRar');
     rr.textContent=RARITY[f.r].name; rr.style.background=RARITY[f.r].color+'22';
     rr.style.color=RARITY[f.r].color; rr.style.border='1px solid '+RARITY[f.r].color;
@@ -2012,7 +2015,7 @@
         const row=document.createElement('div'); row.className='invrow';
         const pic=document.createElement('canvas'); pic.width=156; pic.height=108;
         pic.style.cssText='width:78px;height:54px;flex:0 0 78px;display:block';
-        paintFish(pic, f.n, 78, 54, 2);
+        paintFish(pic, f.n, 78, 54, 2, f.mut);
         const info=document.createElement('div'); info.className='info';
         info.innerHTML='<b>'+f.n+(f.mut?' <span style="color:'+MUTATIONS[f.mut].color+'">⚡'+MUTATIONS[f.mut].name+'</span>':'')+'</b>'+
           '<span class="meta" style="color:'+R.color+'">'+R.name+'</span>'+
