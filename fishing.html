@@ -1871,6 +1871,39 @@
   function adminWeather(w){ weather=w; weatherT=9999; lightning=(w==='storm'||w==='hurricane'||w==='eruption')?0.5:0; updateWeatherChip(); renderAdmin(); say('☁️ Weather: '+w); }
   function adminSpawn(n){ for(let i=0;i<(n||10);i++) spawnFish(); renderAdmin(); say('🐟 +'+(n||10)+' fish'); }
   function adminInstant(){ S.instant=!S.instant; renderAdmin(); say(S.instant?'⚡ Instant catch ON':'⚡ Instant catch OFF'); }
+  // hook a fish of a chosen rarity straight onto the line — skips the cast + nibble wait
+  function adminHookRarity(r){
+    if(travel) return say('Hold on — you\'re travelling.');
+    if(S.state==='reeling') return say('Already reeling one in!');
+    if(S.mode==='row'){ try{ setMode('fish'); }catch(e){} }
+    let def=null, bossD=null;
+    if(r==='boss'){
+      const ks=Object.keys(DISASTERS); bossD=DISASTERS[ks[Math.floor(Math.random()*ks.length)]];
+      def=bossD.boss; SPECIES[def.name]=def.art;
+    } else {
+      for(const w in FISH){ const p=FISH[w].filter(f=>f.r===r); if(p.length){ def=p[Math.floor(Math.random()*p.length)]; break; } }
+    }
+    if(!def) return say('No '+((RARITY[r]||{}).name||r)+' fish in the game yet.');
+    const t=Math.random();
+    const kg = bossD ? (def.a+Math.random()*(def.b-def.a)) : (def.a + t*(def.b-def.a));
+    const baseValue=Math.round(kg*9*RARITY[def.r].mult*(12+Math.random()*10)/9);
+    const mut = bossD ? bossD.mutation : rollMutation();
+    const value=Math.round(baseValue*((MUTATIONS[mut]||{}).mult||1));
+    const size=RARITY[def.r].rs + (bossD?30:t*8);
+    // drop the float where the fight will play out, then wire up the hook by hand
+    bob.tx = Math.max(40, Math.min(W-46, rod.x + W*(0.30+Math.random()*0.30)));
+    bob.ty = fishZoneTop() + (fishZoneBot()-fishZoneTop())*0.6;
+    bob.hookY = waterY+12; bob.flying=false;
+    lure={x:bob.tx, y:bob.hookY};
+    castAnim=-1; lineHeld=false; nibbler=null; nibbleCount=0; nibblePhase='idle';
+    const f={ id:nextId++, n:def.n, r:def.r, kg, value, quote:def.q, size, mut,
+      boss:!!bossD, bossBoost: bossD?def.boost:undefined,
+      x:bob.tx, y:bob.ty, home:bob.ty, vx:0, vy:0, speed:0, wanderT:3,
+      phase:Math.random()*6.28, dir:1, target:null };
+    reelOthers(); hooked=f; startReel(f);
+    hidePanel('adminPanel');
+    say('🛠️ Hooked a '+((RARITY[r]||{}).name||r)+' fish!');
+  }
   function adminReset(){ try{ localStorage.removeItem('deepcast_v1'); }catch(e){} location.reload(); }
   function renderAdmin(){
     const ac=document.getElementById('adminCoins'); if(ac) ac.textContent=S.coins.toLocaleString();
@@ -1888,6 +1921,8 @@
     sec('💰 COINS'); row('+1,000', ()=>adminCoins(1000)); row('+100,000', ()=>adminCoins(100000)); row('+10,000,000', ()=>adminCoins(10000000));
     sec('🔓 UNLOCKS'); row('Unlock all islands', adminUnlockAll); row('Own ALL rods (+ equip best)', adminAllRods); row('All bait ×99', adminAllBait); row('Own ALL boats (+ best boat)', adminAllBoats);
     sec('⚡ TESTING'); row((S.instant?'✓ ':'')+'Instant catch (skip the fight)', adminInstant, S.instant); row('Spawn 10 random fish', ()=>adminSpawn(10));
+    sec('🎣 HOOK A FISH NOW — PICK RARITY');
+    wrap(RARITY_ORDER.map(r=>({ label:(r==='boss'?'👑 ':'')+RARITY[r].name, color:RARITY[r].color, fn:()=>adminHookRarity(r) })));
     sec('🐟 SPAWN A SPECIFIC FISH');
     for(const w in FISH){
       sub(w);
