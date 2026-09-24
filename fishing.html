@@ -226,6 +226,7 @@
       <div class="picwrap"><canvas class="fishpic" id="cPic" width="170" height="118"></canvas></div>
       <div class="rar" id="cRar">Common</div>
       <div class="rar" id="cMut" style="display:none">Mutation</div>
+      <div class="rar" id="cTrait" style="display:none">Trait</div>
       <p id="cStats"></p>
       <p id="cQuote" style="font-style:italic;opacity:.8"></p>
       <button class="btn" id="cKeep">Keep it 🎣</button>
@@ -1283,10 +1284,11 @@
     g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,canvasEl.width,canvasEl.height);
     g.scale(scale,scale);
     const keep=ctx; ctx=g;
-    ctx.save(); ctx.translate(cssW/2, cssH/2);
-    drawBaitArt(bait.style||'worm', bait.col, Math.min(cssW,cssH)*0.32, 0.8);
-    ctx.restore();
-    ctx=keep;
+    try{
+      ctx.save(); ctx.translate(cssW/2, cssH/2);
+      drawBaitArt(bait.style||'worm', bait.col, Math.min(cssW,cssH)*0.32, 0.8);
+      ctx.restore();
+    } finally { ctx=keep; }
   }
   // a mutation aura for fish that carry one
   function drawMutation(f, t, s){
@@ -1327,6 +1329,29 @@
     } else {
       ctx.globalAlpha=.42+Math.sin(t*3)*.15; const gg=ctx.createRadialGradient(0,0,1,0,0,s*2.1); gg.addColorStop(0,M.color); gg.addColorStop(1,'rgba(0,0,0,0)');
       ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(0,0,s*2.1,0,7); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawTrait(f, t, s){
+    const k=f.trait; if(!k) return; const T=TRAITS[k]; if(!T) return;
+    ctx.save();
+    if(k==='shiny'){
+      ctx.globalAlpha=.55+Math.sin(t*7)*.35; ctx.fillStyle=T.color;
+      for(let i=0;i<5;i++){ const a=t*1.5+i*1.256, rx=Math.cos(a)*s*1.2, ry=Math.sin(a*1.3)*s*0.8;
+        ctx.save(); ctx.translate(rx,ry); ctx.rotate(a);
+        ctx.beginPath(); ctx.moveTo(0,-4); ctx.lineTo(1.4,0); ctx.lineTo(0,4); ctx.lineTo(-1.4,0); ctx.closePath(); ctx.fill(); ctx.restore(); }
+      ctx.globalAlpha=.3+.15*Math.sin(t*5); const sg=ctx.createRadialGradient(0,0,1,0,0,s*1.9);
+      sg.addColorStop(0,'rgba(255,246,200,.75)'); sg.addColorStop(1,'rgba(0,0,0,0)'); ctx.fillStyle=sg; ctx.beginPath(); ctx.arc(0,0,s*1.9,0,7); ctx.fill();
+    } else if(k==='giant'){
+      ctx.globalAlpha=.28; ctx.strokeStyle=T.color; ctx.lineWidth=s*0.16;
+      ctx.beginPath(); ctx.arc(0,0,s*1.7,0,7); ctx.stroke();
+    } else if(k==='sickly'){
+      ctx.globalAlpha=.4; ctx.strokeStyle='rgba(150,200,140,.7)'; ctx.lineWidth=1.2;
+      for(const p of [[-s*0.5,-s*0.5],[s*0.6,-s*0.3],[-s*0.2,s*0.6]]){ ctx.beginPath(); ctx.arc(p[0],p[1],2.4,0,7); ctx.stroke(); }
+    } else if(k==='aggressive'){
+      ctx.globalAlpha=.5+Math.sin(t*9)*.3; ctx.strokeStyle=T.color; ctx.lineWidth=2;
+      for(let i=0;i<3;i++){ const a=t*2+i*2.094; ctx.beginPath(); ctx.arc(0,0,s*(1.5+i*0.12),a,a+0.9); ctx.stroke(); }
     }
     ctx.restore();
   }
@@ -1462,6 +1487,50 @@
     molten:  {name:'Molten',   color:'#ff6a2a', mult:3.4},
     void:    {name:'Void',     color:'#a08aff', mult:3.6}
   };
+
+  // ---------- FISH TRAITS ----------
+  // roll on top of (independent of) weather mutations. Chance is 1-in-N per fish.
+  const TRAITS = {
+    shiny:     {name:'Shiny',      color:'#fff2b0', chance:24, valMult:1.6, fightMult:1.0, kgMult:1.0, sizeAdd:0,  sparkle:true,  desc:'Sparkles. Worth a lot more.'},
+    giant:     {name:'Giant',      color:'#ffb020', chance:34, valMult:1.9, fightMult:1.28,kgMult:1.9, sizeAdd:10, desc:'Way bigger and hits harder.'},
+    sickly:    {name:'Sickly',     color:'#9fc48f', chance:16, valMult:0.55,fightMult:0.62,kgMult:0.8, sizeAdd:-3, desc:'Weak and pale. Easy catch, low value.'},
+    aggressive:{name:'Aggressive', color:'#ff6a6a', chance:20, valMult:1.7, fightMult:1.5, kgMult:1.1, sizeAdd:2,  desc:'Fights like mad. Big payout if you land it.'}
+  };
+  function rollTrait(){
+    for(const k in TRAITS){ if(Math.random()*TRAITS[k].chance < 1) return k; }
+    return null;
+  }
+  function traitMult(k, field){
+    const t=TRAITS[k]; if(!t) return 1;
+    const v=t[field]; return (v==null)?1:v;
+  }
+  function traitName(k){ const t=TRAITS[k]; return t?t.name:''; }
+
+  // ---------- LINE STRENGTH ----------
+  // SEPARATE from the rod. The rod decides how FAST you land a fish; the line decides
+  // how BIG a fish you can survive. A too-thin line strains on its own and snaps — no
+  // matter how good the rod is. Buy once, equipped globally like rods.
+  const LINES = [
+    {name:'Basic Mono',    cost:0,      pwr:1.00, max:0.55, col:'#cfe8ff', desc:'Thin mono. Fine for the small stuff — a heavy fish will pop it.'},
+    {name:'Braid Line',    cost:3000,   pwr:1.45, max:0.95, col:'#9fd6a0', desc:'Woven braid. Holds most mid-tier fish without complaint.'},
+    {name:'Fluorocarbon',  cost:15000,  pwr:1.95, max:1.32, col:'#c9b8ff', desc:'Heavy fluoro. Cursed-tier fish become survivable on this.'},
+    {name:'Heavy Braid',   cost:60000,  pwr:2.55, max:1.75, col:'#ffb020', desc:'Serious line. Legendaries and worse stop being a dice roll.'},
+    {name:'Titanium Line', cost:250000, pwr:3.35, max:2.45, col:'#ff5ce7', desc:'Effectively indestructible. Nothing in any sea can snap this.'}
+  ];
+  function curLine(){ if(typeof S.line!=='number'||!LINES[S.line]) S.line=0; return LINES[S.line]; }
+  function ownedLines(){ if(!Array.isArray(S.lines)) S.lines=[0]; if(!S.lines.includes(0)) S.lines.unshift(0); return S.lines; }
+  function lineOwned(i){ return ownedLines().includes(i); }
+
+  // ---------- FIGHT STYLES ----------
+  // You pick HOW you reel. Each style trades progress speed against tension + how fast
+  // the fish tires. Every fish has a PREFERRED style — match it for a bonus.
+  const STYLES = {
+    steady:    {name:'Steady',    icon:'🧘', prog:0.82, tens:0.62, stam:0.90, desc:'Slow, safe grind. Low tension the whole way.'},
+    aggressive:{name:'Aggressive',icon:'🔥', prog:1.50, tens:1.72, stam:1.35, desc:'Yank hard and land fast — but the line strains badly.'},
+    burst:     {name:'Burst',     icon:'⚡', prog:1.02, tens:1.02, stam:1.15, desc:'Rhythmic taps. Hold the tension in the sweet spot to build a combo.'}
+  };
+  const STYLE_ORDER = ['steady','aggressive','burst'];
+  function fishStylePref(f){ return f.stylePref || 'steady'; }
   // each weather rolls its own mutation; clear gives none
   const WEATHERS = {
     clear:     {name:'Clear',        icon:'☀️', weight:24},
@@ -2090,12 +2159,14 @@
     if(!pool.length) pool = worldFish(S.world);
     const def = pool[Math.floor(Math.random()*pool.length)] || worldFish(S.world)[0];
     const t = Math.random();
-    const kg = def.a + t*(def.b-def.a);
+    const trait = rollTrait();
+    const kg = (def.a + t*(def.b-def.a)) * traitMult(trait,'kgMult');
     const mut = rollMutation();
     const baseValue = Math.round(kg*9*RARITY[def.r].mult*(12+Math.random()*10)/9);
-    const value = mut ? Math.round(baseValue * MUTATIONS[mut].mult) : baseValue;   // mutation baked into the price
-    const size = RARITY[def.r].rs + t*8;
-    return {n:def.n, r:def.r, kg, value, quote:def.q, size, mut};
+    const tVal = mut ? MUTATIONS[mut].mult : 1;
+    const value = Math.round(baseValue * tVal * traitMult(trait,'valMult'));
+    const size = RARITY[def.r].rs + t*8 + traitMult(trait,'sizeAdd');
+    return {n:def.n, r:def.r, kg, value, quote:def.q, size, mut, trait};
   }
 
   function spawnFish(){
@@ -2588,7 +2659,7 @@
     fishes = fishes.filter(x=>x.id!==f.id);   // it's off the free-swim list — it's on the hook now
     nibbler=null; nibblePhase='idle';
     const rodMut=rodMutation(f);                // the rod may curse/bless the fish as it hooks
-    const boost = (FIGHT_BOOST[f.n] || 1) * (f.bossBoost || 1);   // some named monsters are extra nasty; bosses more so
+    const boost = (FIGHT_BOOST[f.n] || 1) * (f.bossBoost || 1) * traitMult(f.trait,'fightMult');   // some named monsters are extra nasty; bosses more so
     const F = { pull:FIGHT[f.r].pull*boost, tension:FIGHT[f.r].tension*boost, thrash:FIGHT[f.r].thrash*boost };
     const ratio = F.pull / rodPower();   // slower ramp for a tough fish
     reel = {
@@ -2607,7 +2678,8 @@
       hint('HOLD REEL to bring it up — let go if the line strains!');
       popRarityText(M.name.toUpperCase()+'!', M.color);
     } else {
-      say('HOOKED! 🎣'); hint('HOLD the REEL button to bring it up — let go if the line strains!');
+      say('HOOKED! 🎣'+(f.trait?(' ⚔ '+TRAITS[f.trait].name+'!'):'')); hint('HOLD the REEL button to bring it up — let go if the line strains!');
+      if(f.trait) popRarityText(TRAITS[f.trait].name.toUpperCase()+'!', TRAITS[f.trait].color);
     }
   }
 
@@ -2644,7 +2716,8 @@
     const c=document.createElement('canvas'); c.width=240; c.height=240;
     const g=c.getContext('2d'); const REF=40;
     const keep=ctx; ctx=g;
-    drawFishArt(120,120,def,REF,{phase:0});
+    try{ drawFishArt(120,120,def,REF,{phase:0}); }
+    catch(e){ ctx=keep; ART_BBOX[def.t]={minx:-1,maxx:1,miny:-0.6,maxy:0.6}; return ART_BBOX[def.t]; }
     ctx=keep;
     const d=g.getImageData(0,0,240,240).data;
     let minx=1e9,maxx=-1e9,miny=1e9,maxy=-1e9;
@@ -2664,11 +2737,12 @@
     const bw=(b.maxx-b.minx)*1.16, bh=(b.maxy-b.miny)*1.16, s=Math.min(cssW*0.94/bw, cssH*0.94/bh);
     const cx=(b.minx+b.maxx)/2, cy=(b.miny+b.maxy)/2;
     const keep = ctx; ctx = g;
-    const ox=cssW/2 - cx*s, oy=cssH/2 - cy*s;
-    // draw the mutation aura BEHIND the fish, exactly like the game does
-    if(mut){ ctx.save(); ctx.translate(ox, oy); drawMutation({mut}, 1.1, s); ctx.restore(); }
-    drawFishArt(ox, oy, def, s, { phase:0.8 });
-    ctx = keep;
+    try{
+      const ox=cssW/2 - cx*s, oy=cssH/2 - cy*s;
+      // draw the mutation aura BEHIND the fish, exactly like the game does
+      if(mut){ ctx.save(); ctx.translate(ox, oy); drawMutation({mut}, 1.1, s); ctx.restore(); }
+      drawFishArt(ox, oy, def, s, { phase:0.8 });
+    } finally { ctx = keep; }
   }
 
   // paint a small world card — a mini scene (ocean = blue + palms, snow = icy + peaks)
@@ -2755,6 +2829,13 @@
         mutEl.style.background=M.color+'22'; mutEl.style.color=M.color; mutEl.style.border='1px solid '+M.color;
       } else { mutEl.style.display='none'; }
     }
+    const trEl=document.getElementById('cTrait');
+    if(trEl){
+      if(f.trait && TRAITS[f.trait]){ const T=TRAITS[f.trait];
+        trEl.style.display='inline-block'; trEl.textContent='✦ '+T.name+' TRAIT';
+        trEl.style.background=T.color+'22'; trEl.style.color=T.color; trEl.style.border='1px solid '+T.color;
+      } else { trEl.style.display='none'; }
+    }
     document.getElementById('cStats').textContent=f.kg.toFixed(2)+' kg'+(isRecord?' · ⭐ NEW RECORD':'')+(f.boss?' · 👑 BOSS':'')+' · +'+xpFor(f)+' 🌟';
     document.getElementById('cQuote').textContent='"'+f.quote+'"';
     const full=invUsed()>=crateSize();
@@ -2770,7 +2851,7 @@
     const p=pendingCatch; if(!p){ hidePanel('catchPanel'); resetToIdle(); return; }
     if(invUsed()>=crateSize()){ document.getElementById('cCoins').textContent='🎒 Crate full — SELL this one or upgrade storage!'; return; }
     const f=p.f;
-    S.inv.push({n:f.n, r:f.r, kg:+f.kg.toFixed(2), value:f.value, size:f.size, mut:f.mut||null});
+    S.inv.push({n:f.n, r:f.r, kg:+f.kg.toFixed(2), value:f.value, size:f.size, mut:f.mut||null, trait:f.trait||null});
     addStk(f); addXp(xpFor(f)); questEvent('keep'); save(); updateHUD();
     hidePanel('catchPanel');
     const f2=f; pendingCatch=null; resetToIdle();
@@ -3481,7 +3562,7 @@
         pic.style.cssText='width:78px;height:54px;flex:0 0 78px;display:block';
         paintFish(pic, f.n, 78, 54, 2, f.mut);
         const info=document.createElement('div'); info.className='info';
-        info.innerHTML='<b>'+f.n+(f.mut?' <span style="color:'+MUTATIONS[f.mut].color+'">⚡'+MUTATIONS[f.mut].name+'</span>':'')+'</b>'+
+        info.innerHTML='<b>'+f.n+(f.mut?' <span style="color:'+MUTATIONS[f.mut].color+'">⚡'+MUTATIONS[f.mut].name+'</span>':'')+(f.trait&&TRAITS[f.trait]?' <span style="color:'+TRAITS[f.trait].color+'">✦'+TRAITS[f.trait].name+'</span>':'')+'</b>'+
           '<span class="meta" style="color:'+R.color+'">'+R.name+'</span>'+
           '<span class="meta">'+f.kg.toFixed(2)+' kg</span>'+
           '<span class="meta" style="color:#ffd85e">sells for 🪙 '+f.value+'</span>';
@@ -4325,6 +4406,7 @@
       ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(0,0,s*1.9,0,7); ctx.fill(); ctx.restore();
     }
     if(f.mut) drawMutation(f, t + f.phase, s);
+    if(f.trait) drawTrait(f, t + f.phase, s);
     if(f.boss){   // bosses wear a glowing crown so you can spot them instantly
       ctx.save(); ctx.globalAlpha=.85+Math.sin(t*4)*.15;
       const cy=-s*1.15;
@@ -4453,11 +4535,12 @@
     g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,canvasEl.width,canvasEl.height);
     g.scale(scale,scale);
     const keep=ctx; ctx=g;
-    const s=Math.min(cssW/180, cssH/66);
-    ctx.save(); ctx.translate(cssW/2, cssH*0.60); ctx.scale(s,s);
-    drawBoatShape(style);
-    ctx.restore();
-    ctx=keep;
+    try{
+      const s=Math.min(cssW/180, cssH/66);
+      ctx.save(); ctx.translate(cssW/2, cssH*0.60); ctx.scale(s,s);
+      drawBoatShape(style);
+      ctx.restore();
+    } finally { ctx=keep; }
   }
 
   // rod thumbnail for the shop / inventory — draws the SAME art as the rod you hold
@@ -4466,9 +4549,10 @@
     g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,canvasEl.width,canvasEl.height);
     g.scale(scale,scale);
     const keep=ctx; ctx=g;
-    const hx=cssW*0.14, hy=cssH*0.88, tx=cssW*0.86, ty=cssH*0.16;
-    drawRodArt(hx,hy,tx,ty,style||'basic');
-    ctx=keep;
+    try{
+      const hx=cssW*0.14, hy=cssH*0.88, tx=cssW*0.86, ty=cssH*0.16;
+      drawRodArt(hx,hy,tx,ty,style||'basic', phase||0);
+    } finally { ctx=keep; }
   }
 
   function drawBoat(t){
@@ -4524,12 +4608,13 @@
     const hx=rod.x+20*turn, hy=waterY-44;
     ctx.strokeStyle='#ffd9a8'; ctx.lineWidth=5; ctx.lineCap='round';
     ctx.beginPath(); ctx.moveTo(x+4+lean,y-36); ctx.lineTo(hx,hy); ctx.stroke();
-    drawRodArt(hx, hy, tip.x, tip.y, (curRod().style)||'basic');
+    drawRodArt(hx, hy, tip.x, tip.y, (curRod().style)||'basic', t);
     ctx.restore();
   }
 
   // each rod has a unique look, matched to its name
-  function drawRodArt(hx,hy,tx,ty,style){
+  function drawRodArt(hx,hy,tx,ty,style,t){
+    t=t||0;
     const ang=Math.atan2(ty-hy, tx-hx);
     const len=Math.hypot(tx-hx,ty-hy);
     ctx.save(); ctx.translate(hx,hy); ctx.rotate(ang); ctx.lineCap='round';
@@ -4906,7 +4991,7 @@
     ctx.fillStyle=col; ctx.font='bold 15px Trebuchet MS'; ctx.textAlign='center';
     ctx.fillText(label,bx,by);
     ctx.globalAlpha=.85; ctx.fillStyle='#eaf6ff'; ctx.font='bold 12px Trebuchet MS';
-    ctx.fillText(hooked.n+(hooked.mut?' ⚡'+MUTATIONS[hooked.mut].name:'')+' · '+hooked.kg.toFixed(1)+'kg'+(reel.running?' · RUNNING!':'')+(reel.diving?' · DIVING ↓':''),bx,by+22);
+    ctx.fillText(hooked.n+(hooked.mut?' ⚡'+MUTATIONS[hooked.mut].name:'')+(hooked.trait?' ✦'+TRAITS[hooked.trait].name:'')+' · '+hooked.kg.toFixed(1)+'kg'+(reel.running?' · RUNNING!':'')+(reel.diving?' · DIVING ↓':''),bx,by+22);
     ctx.globalAlpha=1; ctx.restore();
   }
 
@@ -4914,13 +4999,19 @@
 
   // ---------- main ----------
   function frame(){
-    const now=performance.now();
-    let dt=(now-last)/1000; last=now; dt=Math.min(dt,0.05);
-    FRAME_DT=dt;
-    update(dt);
-    updateControls();
-    draw();
-    drawAqua(performance.now()/1000);
+    try{
+      const now=performance.now();
+      let dt=(now-last)/1000; last=now; dt=Math.min(dt,0.05);
+      FRAME_DT=dt;
+      update(dt);
+      updateControls();
+      draw();
+      drawAqua(performance.now()/1000);
+    }catch(e){
+      // never let one bad frame kill the loop — log once and keep going
+      if(!frame._warned){ frame._warned=true; try{ console.warn('frame error (recovered):', e); }catch(_){} }
+      try{ ctx.setTransform(1,0,0,1,0,0); ctx.globalAlpha=1; }catch(_){}
+    }
     requestAnimationFrame(frame);
   }
 
