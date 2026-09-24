@@ -184,6 +184,7 @@
       <div class="mbtn" id="achChip">🏅 BADGES<small id="achChipN">0/27</small></div>
       <div class="mbtn" id="tournChip">🎖️ EVENT<small>FISH OF THE DAY</small></div>
       <div class="mbtn" id="capChip">🧑‍✈️ CAPTAIN<small>CUSTOMISE</small></div>
+      <div class="mbtn" id="updChip">📜 UPDATES<small>WHAT'S NEW</small></div>
       <div class="mbtn" id="muteChip">🔊 SOUND<small>TAP: TOGGLE</small></div>
       <div class="mbtn" id="weatherMbtnChip">☀️ WEATHER<small id="wxMbtnTxt">CLEAR</small></div>
       <div class="mbtn" id="adminChip" style="display:none">🛠️ ADMIN<small>TAP: CHEATS</small></div>
@@ -411,6 +412,13 @@
   </div>
 
   <!-- TUTORIAL PANEL -->
+  <div class="panel" id="updPanel">
+    <div class="card">
+      <h2>📜 Update Log</h2>
+      <div id="updList"></div>
+      <button class="btn" id="updClose">Close</button>
+    </div>
+  </div>
   <div class="panel" id="howPanel">
     <div class="card">
       <h2>🎣 How To Fish</h2>
@@ -3272,6 +3280,9 @@
   document.getElementById('capChip').style.pointerEvents='auto';
   document.getElementById('capChip').addEventListener('click', openCaptain);
   document.getElementById('captainClose').addEventListener('click', ()=>hidePanel('captainPanel'));
+  document.getElementById('updChip').style.pointerEvents='auto';
+  document.getElementById('updChip').addEventListener('click', openUpdates);
+  document.getElementById('updClose').addEventListener('click', ()=>hidePanel('updPanel'));
   document.getElementById('muteChip').addEventListener('click', ()=>{ audioResume(); toggleMute(); });
   document.getElementById('qTabMain').addEventListener('click', ()=>{ questTab='main'; renderQuests(); });
   document.getElementById('qTabSide').addEventListener('click', ()=>{ questTab='side'; renderQuests(); });
@@ -4671,6 +4682,56 @@
 
   // ---------- QUESTS ----------
   let questTab='main';
+  // ---------- UPDATE LOG ----------
+  // newest first. Each entry: {date, title, tag, points:[...]}. Add a new object at the top when you ship.
+  const UPDATES = [
+    { date:'2026-09-25', title:'The Big One', tag:'🌊 MEGA', points:[
+      '🤿 Diving — get off the boat! Dive under, hunt with a spear/harpoon, sink to the sea floor.',
+      '⬇ Deeper water — reach the floor and DESCEND into the next zone of your island (3 per island, each with its own name).',
+      '🔱 Dive gear — masks, wetsuits, scuba, rebreathers + stronger spears. Better gear = deeper + more air.',
+      '🚢 2 new boats — Bathysphere and Submarine. The Sub ignores rough seas AND pressure.',
+      '🌴 New island: Jungle Delta — river monsters, mangroves, dragonflies + falling leaves.',
+      '🏛️ New island: Sunken City — drowned columns, glowing plankton, and something still guarding it.',
+      '⛵ Boat upgrades now matter — engine = faster, hold = keep more fish, lamp = better night fishing.',
+      '📦 Non-fishing loot — floating crates + pearls on the surface, relics + shells on the sea floor.',
+      '🏆 New biome events for the new islands + new quests and badges.',
+      '📜 This update log, obviously.'
+    ]},
+    { date:'2026-09-24', title:'Deep Cast grows up', tag:'🎣 BIG', points:[
+      '🐠 45+ fish, each hand-drawn — plus Legendary, Mythical and Transcendent tiers.',
+      '🌍 Islands: Ocean, Snow, Volcano, then Reef + The Abyss — travel by boat, paying a one-off fee.',
+      '🌦️ Weather + mutations — rain, storm, fog, lunar, golden rain and roaming biome DISASTERS (hurricane, blizzard, eruption) that spawn bosses.',
+      '⚡ Weather mutates fish to boost their value. Some rods curse/bless a fish as you hook it.',
+      '🧘 Fight styles + stamina — tire a fish out before you reel it in.',
+      '🪝 Deep dives, line types, rod upgrades, skill tree, aquarium, tournaments, quests, badges.',
+      '🎒 Crate (keep + sell fish), shop tabs, bait system with 15 types.',
+      '👑 Sir Fishalot the captain, day/night cycle, ambient life (birds, breaching fish, drifting boats).',
+      '🛠️ A secret admin panel for testing (7-tap the coins).'
+    ]}
+  ];
+  function openUpdates(){ renderUpdates(); showPanel('updPanel'); }
+  function renderUpdates(){
+    const el=document.getElementById('updList'); if(!el) return; el.innerHTML='';
+    UPDATES.forEach((u,i)=>{
+      const head=document.createElement('div');
+      head.style.cssText='margin:'+(i?'18px':'2px')+' 0 8px;padding:8px 12px;border-radius:12px;background:linear-gradient(180deg,rgba(30,110,160,.5),rgba(12,50,80,.5));border:1px solid rgba(125,220,255,.35)';
+      head.innerHTML='<div style="font-size:11px;opacity:.7;letter-spacing:1px">'+u.date+'  ·  '+u.tag+'</div>'+
+                     '<div style="font-size:16px;font-weight:bold;color:#9fe0ff">'+u.title+'</div>';
+      el.appendChild(head);
+      const ul=document.createElement('div'); ul.style.cssText='padding:0 4px';
+      u.points.forEach(p=>{
+        const row=document.createElement('div');
+        row.style.cssText='display:flex;gap:8px;font-size:12.5px;line-height:1.5;margin:5px 0;opacity:.92';
+        row.innerHTML='<span style="color:#7dffd8;flex:0 0 auto">•</span><span>'+p+'</span>';
+        ul.appendChild(row);
+      });
+      el.appendChild(ul);
+    });
+    const foot=document.createElement('p'); foot.style.cssText='font-size:10.5px;opacity:.55;margin-top:14px;text-align:center';
+    foot.textContent='Deep Cast — built with you, for you 🌊';
+    el.appendChild(foot);
+  }
+
   function openQuests(){ questTab='main'; renderQuests(); showPanel('questPanel'); }
   function questRow(q, prog, done, kind, tint){
     const row=document.createElement('div'); row.className='shoprow';
