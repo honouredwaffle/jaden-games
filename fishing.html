@@ -2844,7 +2844,7 @@
   function adminCoins(n){ S.coins+=n; save(); updateHUD(); renderAdmin(); say('🪙 +'+n.toLocaleString()); }
   function adminUnlockAll(){ S.unlocked={ocean:true,snow:true,volcano:true,abyss:true}; save(); updateHUD(); renderAdmin(); say('🔓 All islands unlocked'); }
   function adminAllRods(){ for(const w in RODS){ S.owned[w]=RODS[w].map((_,i)=>i); } const web=RODS.volcano? 'volcano':'ocean'; S.rodEq={w:web, i:RODS[web].length-1}; if(S.rod) S.rod[web]=RODS[web].length-1; save(); updateHUD(); renderAdmin(); say('🎣 All rods owned + best equipped'); }
-  function adminAllBait(){ for(const w in BAITS){ BAITS[w].forEach((_,i)=>{ S.baits[w+':'+i]=99; }); } const w0=BAITS.volcano?'volcano':'ocean'; if(!S.bait) S.bait=w0+':'+(BAITS[w0].length-1); save(); updateHUD(); renderAdmin(); say('🪱 All bait ×99'); }
+  function adminAllBait(){ for(const w in BAITS){ BAITS[w].forEach((_,i)=>{ S.baits[w+':'+i]=(S.baits[w+':'+i]||0)+99; }); } const w0=BAITS.volcano?'volcano':'ocean'; if(!S.bait) S.bait=w0+':'+(BAITS[w0].length-1); save(); updateHUD(); renderAdmin(); say('🪱 All bait +99 (stacked)'); }
   function adminAllBoats(){ S.boats=BOAT.map((_,i)=>i); S.boat=BOAT.length-1; save(); updateHUD(); renderAdmin(); say('⛵ Best boat equipped'); }
   function adminWeather(w){ weather=w; weatherT=9999; lightning=(w==='storm'||w==='hurricane'||w==='eruption')?0.5:0; updateWeatherChip(); renderAdmin(); say('☁️ Weather: '+w); }
   function adminSpawn(n){ for(let i=0;i<(n||10);i++) spawnFish(); renderAdmin(); say('🐟 +'+(n||10)+' fish'); }
