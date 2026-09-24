@@ -1141,7 +1141,8 @@
   }
 
   function rollMutation(){
-    // each weather rolls its own mutation. clear gives NOTHING.
+    // a mutation can ONLY be applied while its weather is active.
+    // clear (and any other weather) gives NOTHING. fish keep their mutation after the weather ends.
     const r=Math.random();
     if(weather==='storm' && r<0.55) return 'electric';
     if(weather==='snow'  && r<0.42) return 'frozen';
@@ -1151,10 +1152,7 @@
     if(weather==='heat'  && r<0.34) return 'ember';
     if(weather==='fog'   && r<0.28) return 'misty';
     if(weather==='cloudy'&& r<0.20) return 'gloom';
-    // the deep twilight mutations can rarely appear in any weather
-    if(r<0.02) return 'abyssal';
-    if(r<0.05) return 'radiant';
-    return null;
+    return null;   // no weather = no mutation (abyssal/radiant only ever come from rods)
   }
   function mutateValue(f){
     return f.mut ? Math.round(f.value * MUTATIONS[f.mut].mult) : f.value;
@@ -2104,7 +2102,7 @@
 
     // fish
     for(const f of fishes){
-      f.phase += dt*6;
+      const px=f.x, py=f.y;
       if(f.role==='near' && f.target){
         // swim in slowly toward the bait, then hold nearby
         const dx=f.target.x-f.x, dy=f.target.y-f.y, d=Math.hypot(dx,dy)||1;
@@ -2142,8 +2140,16 @@
       if(f.x>W-22){ f.x=W-22; f.vx=-Math.abs(f.vx); }
       if(f.y<top){ f.y=top; f.vy=Math.abs(f.vy); }
       if(f.y>bot){ f.y=bot; f.vy=-Math.abs(f.vy); }
+      // measure how fast it actually moved this frame — drives the swim animation
+      f.mvx = (f.x-px)/Math.max(dt,1e-3); f.mvy = (f.y-py)/Math.max(dt,1e-3);
+      f.spd = Math.hypot(f.mvx, f.mvy);
+      // tail beats faster the quicker it's swimming; idles with a lazy sway
+      f.phase += dt*(3.2 + Math.min(17, f.spd*0.5));
       if(f.target || (f.role==='near' && lure)) f.dir = (lure? lure.x:0)>=f.x?1:-1;
       else f.dir = f.vx>=0?1:-1;
+      // ease the facing so it doesn't flip instantly when it turns
+      if(f.faceT===undefined) f.faceT=f.dir;
+      f.faceT += (f.dir - f.faceT)*Math.min(1, dt*8);
     }
 
     // ---- waiting: hook sinks, recruit fish, nibble cycle ----
@@ -2517,10 +2523,16 @@
 
   function drawFish(f,t){
     const R=RARITY[f.r], s=f.size;
+    const dsign = (f.faceT===undefined? (f.dir>=0?1:-1) : (f.faceT>=0?1:-1));
+    // nose pitches up/down with the angle it's swimming at (scaled by facing)
+    const tilt = dsign * Math.max(-1, Math.min(1, (f.mvy||0)/Math.max(90, Math.abs(f.mvx||0)))) * 0.45;
+    const spd = f.spd||0;
+    // idle fish bob lazily; moving fish add a livelier tail-driven bob
+    const bob = Math.sin(f.phase*0.5)*1.5 + Math.sin(f.phase)*Math.min(1.4, spd*0.02);
     ctx.save();
-    ctx.translate(f.x, f.y + Math.sin(f.phase*0.5)*1.5);
-    if(f.r==='rare'||f.r==='epic'||f.r==='cursed'||f.r==='legendary'||f.r==='mythical'){
-      ctx.save(); ctx.globalAlpha=(f.r==='legendary'||f.r==='mythical')?0.5:0.35;
+    ctx.translate(f.x, f.y + bob);
+    if(f.r==='rare'||f.r==='epic'||f.r==='cursed'||f.r==='legendary'||f.r==='mythical'||f.r==='transcendent'){
+      ctx.save(); ctx.globalAlpha=(f.r==='legendary'||f.r==='mythical'||f.r==='transcendent')?0.5:0.35;
       const gg=ctx.createRadialGradient(0,0,2,0,0,s*1.9);
       gg.addColorStop(0,R.color); gg.addColorStop(1,'rgba(0,0,0,0)');
       ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(0,0,s*1.9,0,7); ctx.fill(); ctx.restore();
@@ -2528,7 +2540,7 @@
     if(f.mut) drawMutation(f, t + f.phase, s);
     if(f.target){ ctx.save(); ctx.globalAlpha=.7+Math.sin(t*6)*.3; ctx.strokeStyle='#ffd85e'; ctx.lineWidth=1.5;
       ctx.beginPath(); ctx.arc(0,-s-9,3,0,7); ctx.stroke(); ctx.restore(); }
-    drawFishArt(0,0, speciesArt(f.n), s, { phase:f.phase, dir:f.dir });
+    drawFishArt(0,0, speciesArt(f.n), s, { phase:f.phase, dir:dsign, tilt });
     ctx.restore();
   }
 
