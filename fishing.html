@@ -363,6 +363,15 @@
     transcendent:{name:'TRANSCENDENT', color:'#ff5ce7', mult:180.0,weight:0.10,rs:64},
     boss:     {name:'BOSS',      color:'#ffd23c', mult:300.0,weight:0,  rs:78}
   };
+  // LUCK GATE — the luck a tier needs to show up at its normal rate. Below the
+  // requirement the tier's weight is crushed per missing point (halved each), so a
+  // low-luck rod sees rare tiers very rare → very very rare → close to nothing.
+  const LUCK_REQ = { uncommon:0, rare:1, epic:4, cursed:8, legendary:14, mythical:22, transcendent:32, boss:0 };
+  function luckReqFor(r){ return (r in LUCK_REQ) ? LUCK_REQ[r] : 0; }
+  function luckGateMult(r, luck){
+    const req=luckReqFor(r); if(luck>=req) return 1;
+    return Math.pow(0.5, req-luck);      // each missing luck point halves the odds
+  }
   // order used for sorting the species tab (rarest first)
   const RARITY_ORDER = ['common','uncommon','rare','epic','cursed','legendary','mythical','transcendent','boss'];
   const rarRank = r => { const i=RARITY_ORDER.indexOf(r); return i<0?0:i; };
@@ -1850,6 +1859,9 @@
     w.legendary += luck*0.30; w.mythical += luck*0.10; w.transcendent += luck*0.03;
     w.common = Math.max(4, w.common - luck*4.5);
     w.uncommon = Math.max(4, w.uncommon - luck*2.0);
+    // LUCK GATE: a tier you don't have the luck for gets its weight crushed.
+    // (Applied AFTER the luck bonus, so gear that meets the bar keeps full odds.)
+    for(const k in w){ if(k!=='common') w[k] *= luckGateMult(k, luck); }
     let tot=0; for(const k in w) tot+=w[k];
     let r=Math.random()*tot, pick='common';
     for(const k in w){ r-=w[k]; if(r<=0){pick=k;break;} }
@@ -2927,6 +2939,19 @@
     note.textContent=got+' / '+total+' species caught in '+WORLDS[specWorld].name+' form.'+
       (specWorld!=='ocean' && !S.unlocked[specWorld] ? ' Travel to '+WORLDS[specWorld].name+' to unlock it.' : '');
     el.appendChild(note);
+    // luck ladder — what each tier needs before it shows up at a normal rate
+    const ladder=document.createElement('div');
+    ladder.style.cssText='font-size:11px;margin-top:10px;padding:8px 10px;border-radius:10px;background:rgba(10,40,64,.55);line-height:1.7';
+    const myLuck=totalLuck();
+    let lh='<b style="color:#9fe0ff">🎯 LUCK LADDER</b> — your luck: <b style="color:#ffd85e">'+myLuck+'</b><br>';
+    ['rare','epic','cursed','legendary','mythical','transcendent'].forEach(r=>{
+      const req=luckReqFor(r), R=RARITY[r];
+      const ok=myLuck>=req;
+      const odds=Math.max(1,Math.round(luckGateMult(r,myLuck)*100));
+      lh+='<span style="color:'+R.color+'">'+R.name+'</span> '+(ok?'✅':'⛔ ')+'needs luck '+req+(ok?'':' · ×'+odds+'% odds')+'<br>';
+    });
+    ladder.innerHTML=lh;
+    el.appendChild(ladder);
     renderJournalStats();
   }
   function renderJournalStats(){
