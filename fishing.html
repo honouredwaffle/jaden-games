@@ -1010,7 +1010,7 @@
   }
 
   const S = { coins:0, world:'ocean', unlocked:{ocean:true},
-              rod:{ocean:0,snow:0}, owned:{ocean:[0],snow:[0]},
+              rod:{ocean:0,snow:0}, rodEq:null, owned:{ocean:[0],snow:[0]},
               caught:{}, total:0, state:'idle', cap:8, inv:[], upg:0,
               bait:null, baits:{} };
   const INVENTORY = 8;
@@ -1032,8 +1032,17 @@
   let bubbles = [];
 
   // ---------- gear stats ----------
-  function curRodIdx(){ const v=S.rod[S.world]; return (typeof v==='number')?v:0; }
-  function curRod(){ return worldRods(S.world)[curRodIdx()] || worldRods(S.world)[0]; }
+  // the rod you're holding is GLOBAL: any rod you own (from any island) can be equipped anywhere.
+  // rodEq is null until you deliberately equip one, so default behaviour stays per-island.
+  function rodRef(){
+    const e=S.rodEq;
+    if(e && RODS[e.w] && RODS[e.w][e.i]) return e;
+    const i=(typeof S.rod[S.world]==='number')?S.rod[S.world]:0;
+    return {w:S.world, i};
+  }
+  function curRodIdx(){ return rodRef().i; }
+  function curRod(){ const e=rodRef(); return (RODS[e.w]&&RODS[e.w][e.i]) || worldRods(S.world)[0]; }
+  function isRodEquipped(w,i){ const e=rodRef(); return e.w===w && e.i===i; }
   function curOwned(){ if(!S.owned[S.world]) S.owned[S.world]=[0]; return S.owned[S.world]; }
   function baitKey(w,i){ return w+':'+i; }
   function baitCount(key){ return (S.baits && S.baits[key]) || 0; }
@@ -1059,7 +1068,7 @@
   // ---------- persistence ----------
   function save(){ try{ localStorage.setItem('deepcast_v1', JSON.stringify({
     coins:S.coins, world:S.world, unlocked:S.unlocked,
-    rod:S.rod, owned:S.owned, caught:S.caught, total:S.total,
+    rod:S.rod, rodEq:S.rodEq, owned:S.owned, caught:S.caught, total:S.total,
     inv:S.inv, upg:S.upg, rodSold:S.rodSold, bait:S.bait, baits:S.baits })); }catch(e){} }
   function load(){ try{ const d=JSON.parse(localStorage.getItem('deepcast_v1')||'null');
     if(d){
@@ -1077,6 +1086,7 @@
       if(!Array.isArray(S.owned.ocean)) S.owned.ocean=[0];
       if(!Array.isArray(S.owned.snow)) S.owned.snow=[0];
       if(!S.owned.ocean.includes(S.rod.ocean)) S.owned.ocean.push(S.rod.ocean);
+      S.rodEq=(d.rodEq && RODS[d.rodEq.w] && typeof d.rodEq.i==='number') ? {w:d.rodEq.w, i:d.rodEq.i} : null;
       // baits: migrate index-keyed {0:15} to world-keyed {'ocean:0':15}
       S.baits={};
       if(d.baits&&typeof d.baits==='object'){
@@ -1808,7 +1818,7 @@
     head.innerHTML='🎣 Rods for <b style="color:#7dffa8">'+WORLDS[S.world].icon+' '+WORLDS[S.world].name+'</b> — buy here, then equip in your 🎒 Inventory.';
     el.appendChild(head);
     rods.forEach((r,i)=>{
-      const has=owned.includes(i);
+      const has=(S.owned[S.world]||[]).includes(i);
       const row=document.createElement('div'); row.className='shoprow';
       const left=document.createElement('div'); left.style.flex='1';
       left.innerHTML='<b>🎣 '+r.name+'</b><span>'+r.desc+'</span>'+
@@ -1917,30 +1927,39 @@
     else renderInvStore(el);
   }
   function renderInvRods(el){
-    const rods=worldRods(S.world), owned=curOwned(), cur=curRodIdx();
     const head=document.createElement('div'); head.style.cssText='font-size:12px;opacity:.85;margin:2px 0 6px';
-    head.innerHTML='🎣 Your rods for <b style="color:#7dffa8">'+WORLDS[S.world].icon+' '+WORLDS[S.world].name+'</b>. Tap EQUIP to hold one.';
+    head.innerHTML='🎣 All your rods. <b>Any rod you own works on any island</b> — tap EQUIP to hold one.';
     el.appendChild(head);
-    rods.forEach((r,i)=>{
-      if(!owned.includes(i)) return;
-      const row=document.createElement('div'); row.className='shoprow';
-      const left=document.createElement('div'); left.style.flex='1';
-      left.innerHTML='<b>🎣 '+r.name+'</b><span>'+r.desc+'</span>'+
-        '<span style="color:#8fd6ff">cast ×'+r.cast.toFixed(2)+' · reel ×'+r.reel.toFixed(2)+' · pwr ×'+r.pwr.toFixed(2)+'</span>'+
-        '<span style="color:'+(r.lure>=1.5?'#7dffa8':r.lure<1?'#ff9d76':'#bfe0ff')+'">lure speed ×'+r.lure.toFixed(2)+'</span>'+
-        '<span style="color:'+(r.luck>=5?'#c07dff':'#bfe0ff')+'">luck +'+r.luck+'</span>'+
-        (r.mut?'<span style="color:'+MUTATIONS[r.mut.type].color+'">✦ '+Math.round(r.mut.chance*100)+'% chance to '+MUTATIONS[r.mut.type].name+'-mutate a fish on the hook</span>':'');
-      row.appendChild(left);
-      if(i===cur){
-        const o=document.createElement('div'); o.className='owned'; o.textContent='EQUIPPED'; row.appendChild(o);
-      } else {
-        const b=document.createElement('button'); b.className='go'; b.textContent='EQUIP';
-        b.onclick=()=>{ S.rod[S.world]=i; save(); updateHUD(); renderInventory(); say('Equipped '+r.name+'!'); };
-        row.appendChild(b);
-      }
-      el.appendChild(row);
+    let any=false;
+    WORLD_ORDER.forEach(w=>{
+      const rods=worldRods(w);
+      const owned=(S.owned && Array.isArray(S.owned[w]))?S.owned[w]:[0];
+      if(!owned.some(i=>rods[i])) return;
+      const tag=document.createElement('div');
+      tag.style.cssText='font-size:11px;letter-spacing:.5px;opacity:.6;margin:10px 4px 2px';
+      tag.textContent=WORLDS[w].icon+' '+WORLDS[w].name.toUpperCase()+(w===S.world?' — here':'');
+      el.appendChild(tag);
+      owned.forEach(i=>{
+        const r=rods[i]; if(!r) return; any=true;
+        const row=document.createElement('div'); row.className='shoprow';
+        const left=document.createElement('div'); left.style.flex='1';
+        left.innerHTML='<b>🎣 '+r.name+'</b><span>'+r.desc+'</span>'+
+          '<span style="color:#8fd6ff">cast ×'+r.cast.toFixed(2)+' · reel ×'+r.reel.toFixed(2)+' · pwr ×'+r.pwr.toFixed(2)+'</span>'+
+          '<span style="color:'+(r.lure>=1.5?'#7dffa8':r.lure<1?'#ff9d76':'#bfe0ff')+'">lure speed ×'+r.lure.toFixed(2)+'</span>'+
+          '<span style="color:'+(r.luck>=5?'#c07dff':'#bfe0ff')+'">luck +'+r.luck+'</span>'+
+          (r.mut?'<span style="color:'+MUTATIONS[r.mut.type].color+'">✦ '+Math.round(r.mut.chance*100)+'% chance to '+MUTATIONS[r.mut.type].name+'-mutate a fish on the hook</span>':'');
+        row.appendChild(left);
+        if(isRodEquipped(w,i)){
+          const o=document.createElement('div'); o.className='owned'; o.textContent='EQUIPPED'; row.appendChild(o);
+        } else {
+          const b=document.createElement('button'); b.className='go'; b.textContent='EQUIP';
+          b.onclick=()=>{ S.rodEq={w,i}; S.rod[w]=i; save(); updateHUD(); renderInventory(); say('Equipped '+r.name+'!'); };
+          row.appendChild(b);
+        }
+        el.appendChild(row);
+      });
     });
-    if(owned.length===0) el.insertAdjacentHTML('beforeend','<p style="font-size:13px;opacity:.72;margin:16px 4px">No rods yet. Buy one in the 🛒 Shop.</p>');
+    if(!any) el.insertAdjacentHTML('beforeend','<p style="font-size:13px;opacity:.72;margin:16px 4px">No rods yet. Buy one in the 🛒 Shop.</p>');
   }
   function renderInvBait(el){
     const baits=worldBaits(S.world), eq=equippedBait();
