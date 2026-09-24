@@ -322,7 +322,6 @@
     <div class="card">
       <h2>📜 Quests</h2>
       <div class="coinline" id="questHead">📜 Main · ⭐ 0 · 📅 0/3</div>
-      <div id="streakBar" style="font-size:12px;margin:2px 0 6px;color:#ffb020"></div>
       <div class="tabs">
         <button class="tab on" id="qTabMain">📜 MAIN</button>
         <button class="tab" id="qTabSide">⭐ SIDE</button>
@@ -1519,8 +1518,7 @@
               caught:{}, total:0, state:'idle', cap:8, inv:[], upg:0,
               bait:null, baits:{}, mode:'fish', boatF:0.20, instant:false,
               tank:[], xp:0, lvl:1, pts:0, skills:{}, rodLv:{},
-              stat:{}, q:{ main:0, sd:{}, d:{date:'', ids:[], prog:{}, set:{}, done:{}} },
-              streak:{ last:'', count:0 } };
+              stat:{}, q:{ main:0, sd:{}, d:{date:'', ids:[], prog:{}, set:{}, done:{}} } };
   const INVENTORY = 8;
   // each tier raises the crate capacity. cost scales steeply.
   const UPGRADES = [
@@ -1656,26 +1654,6 @@
 
   function questById(id){ return MAIN_QUESTS.find(q=>q.id===id) || SIDE_QUESTS.find(q=>q.id===id) || DAILY_QUESTS.find(q=>q.id===id); }
   function todayKey(){ return new Date().toISOString().slice(0,10); }
-
-  // ---------- DAILY LOGIN STREAK ----------
-  // come back on consecutive days: streak climbs, day 7 pays big, then resets to a
-  // repeating weekly curve. Miss a day and it drops back to 1.
-  const STREAK_REWARDS=[100,200,350,550,800,1200,2500];  // day 1..7
-  function dayDiff(a,b){ const A=new Date(a+'T00:00:00Z'), B=new Date(b+'T00:00:00Z'); return Math.round((B-A)/86400000); }
-  function checkStreak(){
-    const t=todayKey(); S.streak=S.streak||{last:'',count:0};
-    if(S.streak.last===t) return;                       // already greeted today
-    const d = S.streak.last ? dayDiff(S.streak.last, t) : 999;
-    S.streak.count = (d===1) ? (S.streak.count%7)+1 : 1;
-    S.streak.last = t;
-    const coins = STREAK_REWARDS[S.streak.count-1]||100;
-    S.coins += coins; addXp(60+S.streak.count*20);
-    save();
-    popRarityText('🔥 DAY '+S.streak.count+' STREAK! +🪙'+coins, '#ffb020');
-    say('🔥 Daily streak — day '+S.streak.count+'! +🪙'+coins+(S.streak.count===7?' — full week, nice.':''));
-    setTimeout(()=>{ if(S.state==='idle') say(''); }, 3200);
-  }
-  function streakInfo(){ return S.streak||{last:'',count:0}; }
   function seededShuffle(arr, seed){ const a=arr.slice(); let s=seed>>>0;
     for(let i=a.length-1;i>0;i--){ s=(s*1664525+1013904223)>>>0; const j=s%(i+1); const t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
   function syncDailies(){
@@ -1873,7 +1851,7 @@
     inv:S.inv, upg:S.upg, rodSold:S.rodSold, bait:S.bait, baits:S.baits,
     mode:S.mode, boatF:S.boatF,
     tank:S.tank, xp:S.xp, lvl:S.lvl, pts:S.pts, skills:S.skills, rodLv:S.rodLv,
-    stat:S.stat, q:S.q, streak:S.streak })); }catch(e){} }
+    stat:S.stat, q:S.q })); }catch(e){} }
   function load(){ try{ const d=JSON.parse(localStorage.getItem('deepcast_v1')||'null');
     if(d){
       S.coins=d.coins||0; S.caught=d.caught||{}; S.total=d.total||0;
@@ -1890,7 +1868,6 @@
             prog:(dqd.prog&&typeof dqd.prog==='object')?dqd.prog:{},
             set:(dqd.set&&typeof dqd.set==='object')?dqd.set:{},
             done:(dqd.done&&typeof dqd.done==='object')?dqd.done:{} } };
-      const ds=d.streak||{}; S.streak={ last:(typeof ds.last==='string')?ds.last:'', count:(typeof ds.count==='number')?ds.count:0 };
       S.world=(d.world && WORLDS[d.world])?d.world:'ocean';
       S.mode=(d.mode==='row')?'row':'fish';
       S.boatF=(typeof d.boatF==='number')?Math.max(0.08,Math.min(0.58,d.boatF)):0.20;
@@ -3286,9 +3263,6 @@
   }
   function renderQuests(){
     syncDailies();
-    const sb=document.getElementById('streakBar');
-    if(sb){ const s=streakInfo(); const nx=STREAK_REWARDS[Math.min(6,s.count)]||100;
-      sb.innerHTML='🔥 Login streak: <b>day '+s.count+'</b>'+(s.count<7?(' · next day pays 🪙'+nx):' · full week! r&nbsp;esets tomorrow'); }
     const head=document.getElementById('questHead');
     if(head){ const dn=S.q.d.ids.filter(id=>S.q.d.done[id]).length;
       head.textContent='📜 Main '+S.q.main+'/'+MAIN_QUESTS.length+' · ⭐ '+SIDE_QUESTS.length+' · 📅 '+dn+'/'+S.q.d.ids.length; }
@@ -4952,7 +4926,7 @@
 
   // ---------- start ----------
   resize(); load(); updateHUD(); fillWater();
-  syncDailies(); sideInitOnce(); checkQuests(); checkStreak();
+  syncDailies(); sideInitOnce(); checkQuests();
   bubbles = [];
   for(let i=0;i<12;i++) bubbles.push({x:Math.random()*1000, y:waterY+Math.random()*(H-waterY), r:1+Math.random()*2.5, spd:16+Math.random()*26, life:1});
   resetToIdle();
@@ -4970,7 +4944,7 @@
     setMode, openAdminPanel:openAdmin, get mode(){return S.mode;}, get adminOn(){return adminOn;},
     openAqua, openSkills, renderAqua, renderSkills, renderSpecies, openSpecies, openInventory, openShop, openWorlds,
     openQuests, renderQuests, questEvent, checkQuests, syncDailies, MAIN_QUESTS, SIDE_QUESTS, DAILY_QUESTS, questProg, dailyProg,
-    sideProg, checkStreak, streakInfo, STREAK_REWARDS,
+    sideProg,
     get skills(){return S.skills;}, get tank(){return S.tank;}, get lvl(){return S.lvl;}, get xp(){return S.xp;}, get pts(){return S.pts;},
     addXp, xpFor, tankCount, TANK_MAX, rodLevel, upgradeRod, boostRod, condOK,
     get rowing(){ return isRowingPose(); }, get rowV(){ return travel?travel.v:ROW.v; }, get boatF(){ return S.boatF; },
