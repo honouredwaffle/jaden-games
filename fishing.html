@@ -195,11 +195,20 @@
       <h2>🛒 Shop</h2>
       <div class="coinline">🪙 <span id="shopCoins">0</span> · 🎒 <span id="shopInv">0/8</span></div>
       <div class="tabs">
-        <button class="tab" id="tabWorlds">🌍 WORLDS</button>
         <button class="tab" id="tabRods">🎣 RODS</button>
         <button class="tab" id="tabBait">🪱 BAIT</button>
       </div>
       <div class="scroll" id="shopList"></div>
+    </div>
+  </div>
+
+  <!-- WORLDS PANEL -->
+  <div class="panel" id="worldPanel">
+    <button class="closebtn" id="worldClose">✕</button>
+    <div class="card">
+      <h2>🗺️ Worlds</h2>
+      <div class="coinline">🪙 <span id="worldCoins">0</span></div>
+      <div class="scroll" id="worldList"></div>
     </div>
   </div>
 
@@ -924,9 +933,9 @@
   document.getElementById('cKeep').addEventListener('click', keepCatch);
   document.getElementById('cSell').addEventListener('click', sellCatch);
   document.getElementById('shopClose').addEventListener('click', ()=>hidePanel('shopPanel'));
-  document.getElementById('tabWorlds').addEventListener('click', ()=>{ shopTab='worlds'; renderShop(); });
   document.getElementById('tabRods').addEventListener('click', ()=>{ shopTab='rods'; renderShop(); });
   document.getElementById('tabBait').addEventListener('click', ()=>{ shopTab='bait'; renderShop(); });
+  document.getElementById('worldClose').addEventListener('click', ()=>hidePanel('worldPanel'));
   document.getElementById('invClose').addEventListener('click', ()=>hidePanel('invPanel'));
   document.getElementById('invTabRods').addEventListener('click', ()=>{ invTab='rods'; renderInventory(); });
   document.getElementById('invTabBait').addEventListener('click', ()=>{ invTab='bait'; renderInventory(); });
@@ -936,13 +945,13 @@
   document.getElementById('specTabSnow').addEventListener('click', ()=>{ specWorld='snow'; renderSpecies(); });
   document.getElementById('howClose').addEventListener('click', ()=>{ hidePanel('howPanel'); try{localStorage.setItem('deepcast_tut','1');}catch(e){} resetToIdle(); });
   document.getElementById('shopChip').style.pointerEvents='auto';
-  document.getElementById('shopChip').addEventListener('click', ()=>openShop('worlds'));
+  document.getElementById('shopChip').addEventListener('click', ()=>openShop('rods'));
   document.getElementById('invChip').style.pointerEvents='auto';
   document.getElementById('invChip').addEventListener('click', openInventory);
   document.getElementById('specChip').style.pointerEvents='auto';
   document.getElementById('specChip').addEventListener('click', ()=>openSpecies());
   document.getElementById('worldChip').style.pointerEvents='auto';
-  document.getElementById('worldChip').addEventListener('click', ()=>openShop('worlds'));
+  document.getElementById('worldChip').addEventListener('click', openWorlds);
   document.getElementById('baitChip').style.pointerEvents='auto';
   document.getElementById('baitChip').addEventListener('click', ()=>{ invTab='bait'; openInventory(); });
 
@@ -1270,6 +1279,7 @@
       S.coins -= w.cost; save(); updateHUD();
     }
     hidePanel('shopPanel');
+    hidePanel('worldPanel');
     resetToIdle();
     travel={ to, phase:'out', t:0, boatX:0 };
     say('Sailing to '+w.icon+' '+w.name+'…'); hint('');
@@ -1333,17 +1343,21 @@
   function floatText(x,y,txt,col){ FLOATERS[floatId++]={x,y,txt,col,t:0}; }
 
   // ---------- shop ----------
-  function openShop(tab){ shopTab=tab||'worlds'; renderShop(); showPanel('shopPanel'); }
+  function openShop(tab){ shopTab=tab||'rods'; renderShop(); showPanel('shopPanel'); }
+  function openWorlds(){ renderWorlds(); showPanel('worldPanel'); }
   function renderShop(){
     document.getElementById('shopCoins').textContent=S.coins;
     document.getElementById('shopInv').textContent=invUsed()+'/'+crateSize();
-    document.getElementById('tabWorlds').classList.toggle('on', shopTab==='worlds');
     document.getElementById('tabRods').classList.toggle('on', shopTab==='rods');
     document.getElementById('tabBait').classList.toggle('on', shopTab==='bait');
     const el=document.getElementById('shopList'); el.innerHTML='';
-    if(shopTab==='rods') renderRodsList(el);
-    else if(shopTab==='bait') renderBaitList(el);
-    else renderWorldsList(el);
+    if(shopTab==='bait') renderBaitList(el);
+    else renderRodsList(el);
+  }
+  function renderWorlds(){
+    document.getElementById('worldCoins').textContent=S.coins;
+    const el=document.getElementById('worldList'); el.innerHTML='';
+    renderWorldsList(el);
   }
   function renderWorldsList(el){
     WORLD_ORDER.forEach(w=>{
@@ -2307,7 +2321,7 @@
   if(!seenTut){ setTimeout(()=>{ if(S.state==='idle') showPanel('howPanel'); },700); }
   frame();
 
-  window.DEEPCast={ S, openShop, openSpecies, openInventory, startTravel, get fishes(){return fishes;} };
+  window.DEEPCast={ S, openShop, openWorlds, openSpecies, openInventory, startTravel, get fishes(){return fishes;} };
 })();
 </script>
 </body>
