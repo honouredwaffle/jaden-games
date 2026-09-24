@@ -441,11 +441,18 @@
   let ctx = ctx0;                          // swapped briefly when drawing into small canvases
   let W=0,H=0,DPR=1,waterY=0;
   const rod = { x:0, y:0 };
+  // Put the main context back into a known-good state (correct DPR scale + no leaked
+  // alpha/composite). Called at the top of every frame so a mid-frame error can never
+  // leave the scene drawing at 1x into the corner of a hi-DPI canvas.
+  function resetCtx(){
+    try{ ctx.setTransform(DPR,0,0,DPR,0,0); }catch(_){ }
+    try{ ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over'; }catch(_){ }
+  }
   function resize(){
     DPR = Math.min(window.devicePixelRatio||1, 2);
     W = window.innerWidth; H = window.innerHeight;
     cv.width = W*DPR; cv.height = H*DPR;
-    ctx.setTransform(DPR,0,0,DPR,0,0);
+    resetCtx();
     waterY = H*0.38;                 // lower horizon → lots more open sky
     rod.x = Math.max(W*0.08, Math.min(W*0.58, (S.boatF||0.20)*W)); rod.y = waterY - 14;
     target.x = Math.min(W-46, rod.x + W*0.38); target.y = waterY + (fishZoneBot()-waterY)*0.55;
@@ -5743,7 +5750,8 @@
 
   function draw(){
     const t=performance.now()/1000;
-    if(S.mode==='dive' && !travel && !areaSail){ try{ drawDive(t); }catch(e){ if(!draw._dw){ draw._dw=true; try{console.warn('dive draw (recovered):',e);}catch(_){} } try{ ctx.setTransform(1,0,0,1,0,0); ctx.globalAlpha=1; }catch(_){} } return; }
+    resetCtx();   // always start each frame from a known-good, DPR-scaled context
+    if(S.mode==='dive' && !travel && !areaSail){ try{ drawDive(t); }catch(e){ if(!draw._dw){ draw._dw=true; try{console.warn('dive draw (recovered):',e);}catch(_){} } try{ resetCtx(); }catch(_){} } return; }
     const TH=sceneTheme(), snow=(TH==='snow'), volc=(TH==='volcano'), abis=(TH==='abyss'), reef=(TH==='reef');
     // thunder/eruption rumble — a brief whole-scene shake
     if(thunderShake>0){ const k=thunderShake*9; ctx.save(); ctx.translate((Math.random()-.5)*k,(Math.random()-.5)*k); }
@@ -6744,7 +6752,7 @@
     }catch(e){
       // never let one bad frame kill the loop — log once and keep going
       if(!frame._warned){ frame._warned=true; try{ console.warn('frame error (recovered):', e); }catch(_){} }
-      try{ ctx.setTransform(1,0,0,1,0,0); ctx.globalAlpha=1; }catch(_){}
+      try{ resetCtx(); }catch(_){}
     }
     requestAnimationFrame(frame);
   }
