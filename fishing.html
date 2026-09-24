@@ -967,12 +967,14 @@
   // rod tip — moves with the throw swing and dips when a fish pulls
   function rodTurn(){ return target.x < rod.x ? -1 : 1; }   // angler faces the way you're aiming
   function rodTip(){
-    const tn=rodTurn();
-    const hx=rod.x+20*tn, hy=waterY-44;
-    const base=Math.atan2((rod.y-96)-hy, (rod.x+40)-hx);
-    const ang=base*tn + rodAnimAngle()*tn + feelDip*0.5;
+    const tn=rodTurn();                       // +1 face right, -1 face left
+    const hx=rod.x+20*tn, hy=waterY-44;       // the hands holding the rod
+    // rest angle as if facing right (tip up & out), then mirror the X by facing so the
+    // rod points the way you're aiming and always angles UP (never dips into the water)
+    const base=Math.atan2((rod.y-96)-hy, 20);
+    const ang=base + rodAnimAngle() + feelDip*0.5;
     const len=118;
-    return { x: hx+Math.cos(ang)*len, y: hy+Math.sin(ang)*len };
+    return { x: hx + Math.cos(ang)*len*tn, y: hy + Math.sin(ang)*len };
   }
   function rodPower(){ return curRod().pwr; }
   // depth in the water for a given catch progress (higher progress = closer to the surface)
