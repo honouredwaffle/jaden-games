@@ -1352,7 +1352,7 @@
     // clear (and any other weather) gives NOTHING. fish keep their mutation after the weather ends.
     const r=Math.random();
     // biome disaster trumps everything while it's running
-    if(disaster && r<0.8) return disaster.mutation;
+    if(disaster && r<0.30) return disaster.mutation;
     if(weather==='storm' && r<0.55) return 'electric';
     if(weather==='snow'  && r<0.42) return 'frozen';
     if(weather==='lunar' && r<0.45) return 'lunar';
@@ -1402,7 +1402,7 @@
     disaster={ key:D.key, name:D.name, icon:D.icon, mutation:D.mutation, t:0, dur:30+Math.random()*22, strikeCd:0.9+Math.random()*1.2 };
     weather=D.key; weatherT=disaster.dur+3;
     lightning=0.45; thunderShake=0.4;
-    for(const f of fishes) if(!f.mut && Math.random()<0.72){ f.mut=D.mutation; f.value=Math.round(f.value*MUTATIONS[D.mutation].mult); }
+    for(const f of fishes) if(!f.mut && Math.random()<0.30){ f.mut=D.mutation; f.value=Math.round(f.value*MUTATIONS[D.mutation].mult); }
     fishes = fishes.filter(f=>!f.boss);   // clear any boss from a previous biome
     spawnBoss(D);
     popRarityText(D.icon+' '+D.name.toUpperCase()+'!', '#ff6a2a');
