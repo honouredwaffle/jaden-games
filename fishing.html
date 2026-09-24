@@ -285,7 +285,7 @@
     uncommon: {name:'Uncommon',  color:'#6dff9b', mult:1.8, weight:26, rs:16},
     rare:     {name:'Rare',      color:'#4fa8ff', mult:3.2, weight:14, rs:18},
     epic:     {name:'Epic',      color:'#c07dff', mult:6.0, weight:6,  rs:22},
-    cursed:   {name:'CURSED',    color:'#ff4d6d', mult:14.0,weight:5,  rs:26},
+    cursed:   {name:'CURSED',    color:'#ff4d6d', mult:14.0,weight:2,  rs:26},
     legendary:{name:'LEGENDARY', color:'#ffb020', mult:30.0,weight:1.2,rs:34},
     mythical: {name:'MYTHICAL',  color:'#7dffd8', mult:72.0,weight:0.4,rs:46},
     transcendent:{name:'TRANSCENDENT', color:'#ff5ce7', mult:180.0,weight:0.10,rs:64}
@@ -1190,7 +1190,7 @@
     const w = {};
     for(const k in RARITY) w[k]=RARITY[k].weight;
     // luck pushes odds hard toward rare+: each point of luck adds a lot
-    w.rare += luck*4.0; w.epic += luck*2.0; w.cursed += luck*1.6;
+    w.rare += luck*4.0; w.epic += luck*2.0; w.cursed += luck*0.6;
     w.legendary += luck*0.30; w.mythical += luck*0.10; w.transcendent += luck*0.03;
     w.common = Math.max(4, w.common - luck*4.5);
     w.uncommon = Math.max(4, w.uncommon - luck*2.0);
@@ -1212,7 +1212,7 @@
   function spawnFish(){
     const def = rollFishDef();
     const top = fishZoneTop(), bot = fishZoneBot();
-    const spd = (34 - def.size*0.5) + Math.random()*20;
+    const spd = 18 - def.size*0.3 + Math.random()*12;
     // pick the emptiest spot in the water column so fish spread out everywhere
     let bx = 40 + Math.random()*(W-80), by = top + Math.random()*(bot-top), best = -1;
     for(let k=0;k<12;k++){
@@ -1227,11 +1227,11 @@
     fishes.push({
       id: nextId++, ...def, x:bx, y:by, home:by,
       vx:(Math.random()<.5?-1:1)*spd, vy:(Math.random()<.5?-1:1)*spd*0.7,
-      speed:spd, wanderT:1+Math.random()*3,
+      speed:spd, wanderT:2.5+Math.random()*4.5,
       phase:Math.random()*6.28, dir:1, target:null
     });
   }
-  function fillWater(){ while(fishes.length<16) spawnFish(); }
+  function fillWater(){ while(fishes.length<11) spawnFish(); }
 
   // ---------- ui ----------
   const msgEl=document.getElementById('msg'), hintEl=document.getElementById('hint');
@@ -2123,7 +2123,7 @@
         // 2D wander — swim left/right AND up/down
         f.wanderT = (f.wanderT||0) - dt;
         if(f.wanderT<=0){
-          f.wanderT = 1.4 + Math.random()*3;
+          f.wanderT = 2.6 + Math.random()*4.5;
           const ang = Math.random()*Math.PI*2;
           f.vx = Math.cos(ang)*f.speed;
           f.vy = Math.sin(ang)*f.speed*0.75;
