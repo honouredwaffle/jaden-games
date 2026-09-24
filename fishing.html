@@ -105,6 +105,13 @@
   .rowsub { color:#cfe9ff; font-size:12px; opacity:.88; text-shadow:0 1px 6px rgba(0,0,0,.6); }
   .rowsub b { color:#ffd85e; }
   #throwBtn.rowing { background:linear-gradient(180deg,#8fe3ff,#39d98a); box-shadow:0 5px 0 #1f7d49; }
+  /* fishing <-> rowing: paddle controls + mode button */
+  #throwBtn{order:1} #paddleL{order:1} #modeBtn{order:2} #reelBtn{order:3} #paddleR{order:3}
+  .ctl.paddle { border-color:rgba(125,255,168,.6); background:linear-gradient(180deg,#13492f,#0a2a1c); }
+  .ctl.paddle.hot { background:linear-gradient(180deg,#8fe3ff,#39d98a); box-shadow:0 5px 0 #1f7d49; }
+  .ctl.mode { width:78px; border-color:rgba(255,216,94,.55); }
+  .ctl.mode.rowmode { background:linear-gradient(180deg,#1f7d49,#12503a); }
+  #adminChip { border-color:rgba(255,120,120,.6); }
   #rarityPop { position:absolute; top:36%; left:0; right:0; text-align:center; font-size:34px; font-weight:bold; opacity:0; pointer-events:none; transition:opacity .25s; }
   #arriveBanner { position:absolute; top:30%; left:0; right:0; text-align:center; pointer-events:none; opacity:0; z-index:9; }
   #arriveBanner.show { animation:arriveIn 2.8s ease-out; }
@@ -136,6 +143,7 @@
       <div class="chip" id="weatherChip">☀️ Clear<small>NOON · CALM</small></div>
     </div>
     <div class="tbgroup right">
+      <div class="chip" id="adminChip" style="display:none">🛠️ ADMIN<small>TAP: CHEATS</small></div>
       <div class="chip" id="specChip">📖 SPECIES<small>FISH LIST</small></div>
       <div class="chip" id="worldChip">🗺️ WORLD<small id="worldChipName">🌊 OCEAN</small></div>
       <div class="chip" id="shopChip">🛒 SHOP<small>GEAR &amp; BAIT</small></div>
@@ -169,6 +177,8 @@
 
   <div id="controls">
     <button class="ctl" id="throwBtn"><span class="ic">🎣</span><span id="throwLabel">THROW</span></button>
+    <button class="ctl mode" id="modeBtn"><span class="ic" id="modeIcon">🎣</span><span id="modeLabel">FISHING</span></button>
+    <button class="ctl paddle" id="paddleL" style="display:none"><span class="ic">⬅️</span><span>ROW</span></button>
     <button class="ctl" id="reelBtn">
       <svg viewBox="0 0 72 72" width="56" height="56">
         <circle cx="36" cy="36" r="26" fill="#0b2e49" stroke="#4aa8e0" stroke-width="3"/>
@@ -183,6 +193,7 @@
       </svg>
       <span id="reelLabel">REEL</span>
     </button>
+    <button class="ctl paddle" id="paddleR" style="display:none"><span class="ic">➡️</span><span>ROW</span></button>
   </div>
 
   <!-- TRAVEL OVERLAY -->
@@ -191,6 +202,16 @@
     <div class="tvtext">TRAVELING…</div>
     <div class="tvbar"><div id="tvFill"></div></div>
     <div class="tvsub" id="tvSub">Heading somewhere new</div>
+  </div>
+
+  <!-- ADMIN PANEL (unlocked by a secret code — keep it private!) -->
+  <div class="panel" id="adminPanel">
+    <button class="closebtn" id="adminClose">✕</button>
+    <div class="card">
+      <h2>🛠️ Admin / Test Panel</h2>
+      <div class="coinline">🪙 <span id="adminCoins">0</span> · 🎣 <span id="adminRod">—</span></div>
+      <div class="scroll" id="adminList"></div>
+    </div>
   </div>
 
   <!-- CATCH PANEL -->
@@ -292,7 +313,7 @@
     cv.width = W*DPR; cv.height = H*DPR;
     ctx.setTransform(DPR,0,0,DPR,0,0);
     waterY = H*0.38;                 // lower horizon → lots more open sky
-    rod.x = W*0.20; rod.y = waterY - 14;
+    rod.x = Math.max(W*0.08, Math.min(W*0.58, (S.boatF||0.20)*W)); rod.y = waterY - 14;
     target.x = Math.min(W-46, rod.x + W*0.38); target.y = waterY + (fishZoneBot()-waterY)*0.55;
     BUCKET.x = rod.x + 56; BUCKET.y = waterY - 12;
     clampFish();
@@ -1208,7 +1229,7 @@
               rod:{ocean:0,snow:0}, rodEq:null, owned:{ocean:[0],snow:[0]},
               boat:0, boats:[0],
               caught:{}, total:0, state:'idle', cap:8, inv:[], upg:0,
-              bait:null, baits:{} };
+              bait:null, baits:{}, mode:'fish', boatF:0.20, instant:false };
   const INVENTORY = 8;
   // each tier raises the crate capacity. cost scales steeply.
   const UPGRADES = [
@@ -1277,12 +1298,15 @@
     coins:S.coins, world:S.world, unlocked:S.unlocked,
     rod:S.rod, rodEq:S.rodEq, owned:S.owned, caught:S.caught, total:S.total,
     boat:S.boat, boats:S.boats,
-    inv:S.inv, upg:S.upg, rodSold:S.rodSold, bait:S.bait, baits:S.baits })); }catch(e){} }
+    inv:S.inv, upg:S.upg, rodSold:S.rodSold, bait:S.bait, baits:S.baits,
+    mode:S.mode, boatF:S.boatF })); }catch(e){} }
   function load(){ try{ const d=JSON.parse(localStorage.getItem('deepcast_v1')||'null');
     if(d){
       S.coins=d.coins||0; S.caught=d.caught||{}; S.total=d.total||0;
       S.cap=d.cap||8; S.inv=Array.isArray(d.inv)?d.inv:[]; S.upg=d.upg||0; S.rodSold=d.rodSold||0;
       S.world=(d.world && WORLDS[d.world])?d.world:'ocean';
+      S.mode=(d.mode==='row')?'row':'fish';
+      S.boatF=(typeof d.boatF==='number')?Math.max(0.08,Math.min(0.58,d.boatF)):0.20;
       S.unlocked=(d.unlocked&&typeof d.unlocked==='object')?d.unlocked:{ocean:true};
       if(!S.unlocked.ocean) S.unlocked.ocean=true;
       // rods: new shape is {world:[idx]}; migrate the old flat number/array
@@ -1341,6 +1365,7 @@
   let specWorld='ocean';
   // world travel — the boat sails off-screen then arrives at the new spot
   let travel=null;                  // {phase,t,to,boatX}
+  const ROW={v:0,dir:0,phase:0};   // free-rowing momentum
   // ---- day/night cycle + weather ----
   let dayT = 0.30;                  // 0..1 through the day (0=midnight, .5=noon, 1=midnight again)
   const DAY_LEN = 240;              // seconds for a full day→night→day cycle
@@ -1520,7 +1545,7 @@
       phase:Math.random()*6.28, dir:1, target:null
     });
   }
-  function fillWater(){ while(fishes.length<11) spawnFish(); }
+  function fillWater(){ const tgt=Math.max(18, Math.min(30, Math.round(W/32))); while(fishes.length<tgt) spawnFish(); }
 
   // ---------- ui ----------
   const msgEl=document.getElementById('msg'), hintEl=document.getElementById('hint');
@@ -1540,6 +1565,7 @@
   }
   function pointerDown(e){
     if(travel){ if(travel.phase==='row'){ travel.rowing=true; } return; }
+    if(S.mode==='row'){ return; }
     if(e){ const p=canvasPos(e); target.x=p.x; target.y=p.y; }
     if(S.state==='idle'){ dragging=true; clampTarget(); }      // aim by tapping the water
     else if(S.state==='bite'){ hookIt(); }                     // tap anywhere to strike
@@ -1562,7 +1588,7 @@
   cv.addEventListener('pointerup', ()=>{ dragging=false; });
   cv.addEventListener('pointercancel', ()=>{ dragging=false; });
   window.addEventListener('pointerup', ()=>{ dragging=false; if(travel) travel.rowing=false; });
-  window.addEventListener('keydown', e=>{ if(e.code==='Space'&&!e.repeat){ e.preventDefault(); if(S.state==='idle') doCast(); else if(S.state==='bite') hookIt(); } });
+  window.addEventListener('keydown', e=>{ if(e.code==='Space'&&!e.repeat){ e.preventDefault(); if(S.mode==='row') return; if(S.state==='idle') doCast(); else if(S.state==='bite') hookIt(); } });
 
   // ---- on-screen THROW + REEL buttons ----
   const throwBtn=document.getElementById('throwBtn'), reelBtn=document.getElementById('reelBtn');
@@ -1581,14 +1607,42 @@
   reelBtn.addEventListener('pointercancel', ()=>reelRelease());
   reelBtn.addEventListener('lostpointercapture', ()=>reelRelease());
 
+  // ---- fishing <-> rowing mode toggle + paddle controls ----
+  const modeBtn=document.getElementById('modeBtn');
+  const paddleL=document.getElementById('paddleL'), paddleR=document.getElementById('paddleR');
+  modeBtn.addEventListener('click', ()=>setMode(S.mode==='row'?'fish':'row'));
+  bindDown(paddleL, ()=>rowHold(-1));
+  bindDown(paddleR, ()=>rowHold(1));
+  for(const el of [paddleL,paddleR]){
+    el.addEventListener('pointerup', ()=>rowRelease());
+    el.addEventListener('pointercancel', ()=>rowRelease());
+    el.addEventListener('lostpointercapture', ()=>rowRelease());
+  }
+
   function updateControls(){
     if(travel){
       const rowing = travel.phase==='row';
+      modeBtn.style.display='none';
+      throwBtn.style.display=''; reelBtn.style.display='none';
+      paddleL.style.display='none'; paddleR.style.display='none';
       throwBtn.classList.toggle('dim', !rowing);
       throwBtn.classList.toggle('hot', rowing);
       throwBtn.classList.toggle('rowing', rowing);
       throwLabel.textContent = rowing ? 'ROW ➡️' : '…';
-      reelBtn.classList.add('dim'); reelLabel.textContent='REEL';
+      return;
+    }
+    const rowMode = S.mode==='row';
+    modeBtn.style.display='';
+    throwBtn.style.display = rowMode?'none':'';
+    reelBtn.style.display  = rowMode?'none':'';
+    paddleL.style.display  = rowMode?'':'none';
+    paddleR.style.display  = rowMode?'':'none';
+    modeBtn.classList.toggle('rowmode', rowMode);
+    document.getElementById('modeIcon').textContent = rowMode?'🚣':'🎣';
+    document.getElementById('modeLabel').textContent = rowMode?'ROWING':'FISHING';
+    if(rowMode){
+      paddleL.classList.toggle('hot', ROW.dir===-1);
+      paddleR.classList.toggle('hot', ROW.dir===1);
       return;
     }
     throwBtn.classList.remove('rowing');
@@ -1636,6 +1690,51 @@
   document.getElementById('baitChip').style.pointerEvents='auto';
   document.getElementById('baitChip').addEventListener('click', ()=>{ invTab='bait'; openInventory(); });
 
+  // ---------- ADMIN PANEL (secret; only the owner knows the passcode) ----------
+  let adminOn=false; try{ adminOn=localStorage.getItem('deepcast_admin')==='1'; }catch(e){}
+  const ADMIN_B64='Q1VSU0VES0lORzE0';   // passcode (kept encoded)
+  function adminChipEl(){ return document.getElementById('adminChip'); }
+  function showAdminChip(){ const el=adminChipEl(); if(el) el.style.display=adminOn?'':'none'; }
+  function openAdmin(){ if(!adminOn) return; renderAdmin(); showPanel('adminPanel'); }
+  function adminCoins(n){ S.coins+=n; save(); updateHUD(); renderAdmin(); say('🪙 +'+n.toLocaleString()); }
+  function adminUnlockAll(){ S.unlocked={ocean:true,snow:true,volcano:true}; save(); updateHUD(); renderAdmin(); say('🔓 All islands unlocked'); }
+  function adminAllRods(){ for(const w in RODS){ S.owned[w]=RODS[w].map((_,i)=>i); } const web=RODS.volcano? 'volcano':'ocean'; S.rodEq={w:web, i:RODS[web].length-1}; if(S.rod) S.rod[web]=RODS[web].length-1; save(); updateHUD(); renderAdmin(); say('🎣 All rods owned + best equipped'); }
+  function adminAllBait(){ for(const w in BAITS){ BAITS[w].forEach((_,i)=>{ S.baits[w+':'+i]=99; }); } const w0=BAITS.volcano?'volcano':'ocean'; if(!S.bait) S.bait=w0+':'+(BAITS[w0].length-1); save(); updateHUD(); renderAdmin(); say('🪱 All bait ×99'); }
+  function adminAllBoats(){ S.boats=BOAT.map((_,i)=>i); S.boat=BOAT.length-1; save(); updateHUD(); renderAdmin(); say('⛵ Best boat equipped'); }
+  function adminWeather(w){ weather=w; weatherT=9999; lightning=(w==='storm'||w==='hurricane'||w==='eruption')?0.5:0; updateWeatherChip(); renderAdmin(); say('☁️ Weather: '+w); }
+  function adminSpawn(n){ for(let i=0;i<(n||10);i++) spawnFish(); renderAdmin(); say('🐟 +'+(n||10)+' fish'); }
+  function adminInstant(){ S.instant=!S.instant; renderAdmin(); say(S.instant?'⚡ Instant catch ON':'⚡ Instant catch OFF'); }
+  function adminReset(){ try{ localStorage.removeItem('deepcast_v1'); }catch(e){} location.reload(); }
+  function renderAdmin(){
+    const ac=document.getElementById('adminCoins'); if(ac) ac.textContent=S.coins.toLocaleString();
+    const ar=document.getElementById('adminRod'); if(ar) ar.textContent=(curRod()||{}).name||'—';
+    const el=document.getElementById('adminList'); if(!el) return; el.innerHTML='';
+    const sec=(t)=>{ const d=document.createElement('div'); d.style.cssText='font-size:11px;letter-spacing:.5px;opacity:.65;margin:14px 4px 4px'; d.textContent=t; el.appendChild(d); };
+    const row=(label, fn, danger)=>{ const b=document.createElement('button'); b.className='btn'+(danger?' sell':''); b.textContent=label;
+      b.style.cssText='margin:5px 4px;width:calc(100% - 8px)'; b.onclick=fn; el.appendChild(b); };
+    const note=document.createElement('p'); note.style.cssText='font-size:12px;opacity:.7;margin:2px 4px 6px'; note.textContent='Only your device has this. Keep the passcode secret.'; el.appendChild(note);
+    sec('💰 COINS'); row('+1,000', ()=>adminCoins(1000)); row('+100,000', ()=>adminCoins(100000)); row('+10,000,000', ()=>adminCoins(10000000));
+    sec('🔓 UNLOCKS'); row('Unlock all islands', adminUnlockAll); row('Own ALL rods (+ equip best)', adminAllRods); row('All bait ×99', adminAllBait); row('Own ALL boats (+ best boat)', adminAllBoats);
+    sec('⚡ TESTING'); row((S.instant?'✓ ':'')+'Instant catch (skip the fight)', adminInstant, S.instant); row('Spawn 10 fish now', ()=>adminSpawn(10));
+    sec('☁️ WEATHER'); row('Clear', ()=>adminWeather('clear')); row('Rain', ()=>adminWeather('rain')); row('Storm', ()=>adminWeather('storm')); row('Fog', ()=>adminWeather('fog')); row('Heatwave', ()=>adminWeather('heat'));
+    sec('⚠️ DANGER'); row('Reset save (wipe + reload)', adminReset, true);
+  }
+  showAdminChip();
+  let coinTaps=0, coinTapT=0;
+  document.getElementById('coin').style.pointerEvents='auto';
+  document.getElementById('coin').addEventListener('click', ()=>{
+    const now=Date.now(); if(now-coinTapT>1600) coinTaps=0; coinTapT=now; coinTaps++;
+    if(coinTaps>=7){ coinTaps=0;
+      if(!adminOn){ const c=prompt('🛠️ Enter admin passcode:'); if(c==null) return;
+        if(btoa(c.trim().toUpperCase())===ADMIN_B64){ adminOn=true; try{localStorage.setItem('deepcast_admin','1');}catch(e){} showAdminChip(); openAdmin(); say('Admin unlocked 🛠️'); }
+        else { say('Nope — wrong code.'); }
+      } else { openAdmin(); }
+    }
+  });
+  adminChipEl().style.pointerEvents='auto';
+  adminChipEl().addEventListener('click', ()=>{ if(adminOn) openAdmin(); });
+  document.getElementById('adminClose').addEventListener('click', ()=>hidePanel('adminPanel'));
+
   // ---------- mechanics ----------
   // rod throw swing: wind up = pull back, then whip forward
   function rodAnimAngle(){
@@ -1662,7 +1761,7 @@
   function fishDepth(prog){ const top=waterY+34; return top + (bob.ty-top)*(1-Math.max(0,Math.min(1,prog))); }
 
   function doCast(){
-    if(travel) return;
+    if(travel || S.mode==='row') return;
     const tip=rodTip();
     const maxDist=(W*0.70)*curRod().cast;
     target.x=Math.max(30,Math.min(W-46,target.x)); target.y=Math.max(fishZoneTop()+6,Math.min(fishZoneBot()-6,target.y));
@@ -1990,6 +2089,31 @@
 
   // ---------- travel between worlds ----------
   function boatDX(){ return travel ? travel.boatX : 0; }
+
+  // ---------- free rowing (Fishing <-> Rowing mode) ----------
+  function isRowingPose(){ return (travel && travel.phase==='row') || (!travel && S.mode==='row'); }
+  function rowHold(d){ if(travel || S.mode!=='row' || S.state==='reeling') return; ROW.dir=d; }
+  function rowRelease(){ ROW.dir=0; }
+  function setMode(m){
+    const nm=(m==='row')?'row':'fish';
+    if(nm===S.mode) return;
+    if(travel || S.state==='reeling') return;
+    S.mode=nm; ROW.dir=0; ROW.v*=0.25;
+    if(S.mode==='row'){ say('🚣 Rowing mode — steer with ⬅️ ➡️'); hint('Row left or right, then tap 🎣 to fish from wherever you stop.'); }
+    else { say('🎣 Fishing mode'); hint('Tap the water to aim, then THROW to cast'); }
+    save(); updateHUD();
+  }
+  function updateRowing(dt){
+    if(travel) return;
+    if(S.mode==='row' && ROW.dir!==0){ ROW.v += ROW.dir*dt*300; }
+    else { ROW.v *= Math.pow(0.18, dt); }
+    ROW.v=Math.max(-320,Math.min(320,ROW.v));
+    if(Math.abs(ROW.v)>0.6){
+      S.boatF=Math.max(0.08,Math.min(0.58,(S.boatF||0.20)+ROW.v*dt/W));
+      rod.x=S.boatF*W; BUCKET.x=rod.x+56;
+    }
+    ROW.phase += dt*(2.2 + Math.min(9, Math.abs(ROW.v)*0.03));
+  }
   function startTravel(to){
     if(to===S.world){ say("You're already here! 📍"); hint('You can\'t GO to the place you\'re already at.'); return; }
     const w=WORLDS[to];
@@ -2520,6 +2644,7 @@
   let last=performance.now();
   function update(dt){
     if(travel){ updateTravel(dt); }
+    updateRowing(dt);
     // ---- day/night + weather cycle ----
     dayT += dt/DAY_LEN; if(dayT>=1) dayT-=1;
     // ---- biome disaster has priority over normal weather ----
@@ -2682,6 +2807,7 @@
       reel.prog += dProg;
       reel.tension=Math.max(0,reel.tension);
       reel.prog=Math.max(0,Math.min(1,reel.prog));
+      if(S.instant) reel.prog=1;   // admin: instant catch
 
       // ---- move the fish: holistically toward the surface, thrashing side to side ----
       const targetY = fishDepth(reel.prog);
@@ -3411,7 +3537,8 @@
 
   function drawBoat(t){
     const x=rod.x, y=waterY;      // y = waterline, water meets the base of the hull
-    const rowing = travel && travel.phase==='row';
+    const rowing = isRowingPose();
+    const rowSpd = travel ? (travel.v||0) : Math.abs(ROW.v);
     const bobY = travel ? Math.sin(t*7)*3.4 : Math.sin(t*1.4)*2;   // bob harder while sailing
     const throwLean = castAnim>=0 ? Math.sin(Math.max(0,(castAnim-0.25)/0.75)*Math.PI)*7 : 0;  // lean into the cast
     // hookset: a fast upward YANK when the fish commits
@@ -3420,9 +3547,11 @@
     ctx.save();
     ctx.translate(throwLean + hookLean, bobY - hs*4);
     // wake behind the hull while rowing hard
-    if(rowing && travel.v>30){
-      ctx.save(); ctx.globalAlpha=Math.min(.5, travel.v/900); ctx.strokeStyle='#eafcff'; ctx.lineWidth=2; ctx.lineCap='round';
-      for(let i=0;i<5;i++){ const wx=x-42-i*11, wy=y+6+Math.sin(t*9+i)*1.6; ctx.beginPath(); ctx.moveTo(wx,wy-3); ctx.lineTo(wx-16,wy+3); ctx.stroke(); }
+    // wake trailing behind the hull (opposite the direction of travel)
+    const rowDir = travel ? 1 : (ROW.v>=0?1:-1);
+    if(rowing && rowSpd>30){
+      ctx.save(); ctx.globalAlpha=Math.min(.65, rowSpd/700); ctx.strokeStyle='#eafcff'; ctx.lineWidth=2.4; ctx.lineCap='round';
+      for(let i=0;i<7;i++){ const wx=x-rowDir*(40+i*10), wy=y+6+Math.sin(t*9+i)*1.8; ctx.beginPath(); ctx.moveTo(wx,wy-3.5); ctx.lineTo(wx-rowDir*17,wy+3.5); ctx.stroke(); }
       ctx.restore();
     }
     // hull — the equipped boat's shape
@@ -3430,12 +3559,18 @@
     ctx.fillStyle='#2d4354'; ctx.fillRect(x-56,y+12,112,8);   // waterline stripe (under surface)
     // oars sweep when rowing
     if(rowing){
-      const sw=Math.sin(travel.rowPhase||t*2)*1.0;
-      ctx.save(); ctx.strokeStyle='#8fb2c8'; ctx.lineWidth=3; ctx.lineCap='round';
+      const rp = travel ? (travel.rowPhase||t*2) : (ROW.phase||t*2);
+      const sw=Math.sin(rp)*1.0;
+      ctx.save(); ctx.strokeStyle='#dcebf7'; ctx.lineWidth=3.4; ctx.lineCap='round';
       for(const s of [-1,1]){
-        const ay=y-6, ax=x+6*s;
-        ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(ax+16*s, ay+(10+sw*5)); ctx.stroke();
-        ctx.lineWidth=5; ctx.beginPath(); ctx.moveTo(ax+16*s, ay+(10+sw*5)); ctx.lineTo(ax+22*s, ay+(22+sw*9)); ctx.stroke(); ctx.lineWidth=3;
+        const ay=y-7, ax=x+7*s;
+        const mx=ax+17*s, my=ay+(11+sw*6);
+        const bx=mx+7*s, by=ay+(24+sw*11);
+        ctx.beginPath(); ctx.moveTo(ax,ay); ctx.lineTo(mx,my); ctx.stroke();
+        ctx.save(); ctx.translate(bx,by); ctx.rotate(sw*0.5);
+        ctx.fillStyle='#cfe3f2'; ctx.beginPath(); ctx.ellipse(0,0,4.2,7.5,0,0,7); ctx.fill();
+        ctx.restore();
+        if(by>y-3){ ctx.globalAlpha=.5; ctx.fillStyle='#eafcff'; ctx.beginPath(); ctx.arc(bx,by+2,3.6,0,7); ctx.fill(); ctx.globalAlpha=1; }
       }
       ctx.restore();
     }
@@ -3818,6 +3953,8 @@
     get embers(){return embers;}, get ash(){return ash;}, get iceFloes(){return iceFloes;},
     startDisaster, endDisaster, doLightningStrike, biomeDisaster,
     rodPower, curRod, rodRef, totalLure, totalLuck, equippedBait,
+    setMode, openAdminPanel:openAdmin, get mode(){return S.mode;}, get adminOn(){return adminOn;},
+    get rowing(){ return isRowingPose(); }, get rowV(){ return travel?travel.v:ROW.v; }, get boatF(){ return S.boatF; },
     forceWeather:(w)=>{ weather=w; weatherT=9999; lightning=(w==='storm'||w==='hurricane'||w==='eruption')?0.5:0; updateWeatherChip(); },
     get disaster(){return disaster;}, get weather(){return weather;}, get MUTATIONS(){return MUTATIONS;} };
 })();
