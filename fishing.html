@@ -106,11 +106,13 @@
   .rowsub b { color:#ffd85e; }
   #throwBtn.rowing { background:linear-gradient(180deg,#8fe3ff,#39d98a); box-shadow:0 5px 0 #1f7d49; }
   /* fishing <-> rowing: paddle controls + mode button */
-  #throwBtn{order:1} #paddleL{order:1} #modeBtn{order:2} #reelBtn{order:3} #paddleR{order:3}
+  #throwBtn{order:1} #paddleL{order:1} #reelBtn{order:3} #paddleR{order:3}
   .ctl.paddle { border-color:rgba(125,255,168,.6); background:linear-gradient(180deg,#13492f,#0a2a1c); }
   .ctl.paddle.hot { background:linear-gradient(180deg,#8fe3ff,#39d98a); box-shadow:0 5px 0 #1f7d49; }
   .ctl.mode { width:78px; border-color:rgba(255,216,94,.55); }
   .ctl.mode.rowmode { background:linear-gradient(180deg,#1f7d49,#12503a); }
+  #modeChip { cursor:pointer; border-color:rgba(255,216,94,.55); }
+  #modeChip.rowmode { background:linear-gradient(180deg,#1f7d49,#12503a); border-color:rgba(125,255,168,.7); }
   #adminChip { border-color:rgba(255,120,120,.6); }
   #rarityPop { position:absolute; top:36%; left:0; right:0; text-align:center; font-size:34px; font-weight:bold; opacity:0; pointer-events:none; transition:opacity .25s; }
   #arriveBanner { position:absolute; top:30%; left:0; right:0; text-align:center; pointer-events:none; opacity:0; z-index:9; }
@@ -143,6 +145,7 @@
       <div class="chip" id="weatherChip">☀️ Clear<small>NOON · CALM</small></div>
     </div>
     <div class="tbgroup right">
+      <div class="chip" id="modeChip">🎣 FISHING<small>TAP: ROW 🚣</small></div>
       <div class="chip" id="adminChip" style="display:none">🛠️ ADMIN<small>TAP: CHEATS</small></div>
       <div class="chip" id="specChip">📖 SPECIES<small>FISH LIST</small></div>
       <div class="chip" id="worldChip">🗺️ WORLD<small id="worldChipName">🌊 OCEAN</small></div>
@@ -177,7 +180,6 @@
 
   <div id="controls">
     <button class="ctl" id="throwBtn"><span class="ic">🎣</span><span id="throwLabel">THROW</span></button>
-    <button class="ctl mode" id="modeBtn"><span class="ic" id="modeIcon">🎣</span><span id="modeLabel">FISHING</span></button>
     <button class="ctl paddle" id="paddleL" style="display:none"><span class="ic">⬅️</span><span>ROW</span></button>
     <button class="ctl" id="reelBtn">
       <svg viewBox="0 0 72 72" width="56" height="56">
@@ -329,10 +331,11 @@
     cursed:   {name:'CURSED',    color:'#ff4d6d', mult:14.0,weight:2,  rs:26},
     legendary:{name:'LEGENDARY', color:'#ffb020', mult:30.0,weight:1.2,rs:34},
     mythical: {name:'MYTHICAL',  color:'#7dffd8', mult:72.0,weight:0.4,rs:46},
-    transcendent:{name:'TRANSCENDENT', color:'#ff5ce7', mult:180.0,weight:0.10,rs:64}
+    transcendent:{name:'TRANSCENDENT', color:'#ff5ce7', mult:180.0,weight:0.10,rs:64},
+    boss:     {name:'BOSS',      color:'#ffd23c', mult:300.0,weight:0,  rs:78}
   };
   // order used for sorting the species tab (rarest first)
-  const RARITY_ORDER = ['common','uncommon','rare','epic','cursed','legendary','mythical','transcendent'];
+  const RARITY_ORDER = ['common','uncommon','rare','epic','cursed','legendary','mythical','transcendent','boss'];
   const rarRank = r => { const i=RARITY_ORDER.indexOf(r); return i<0?0:i; };
   const FISH = {
     ocean: [
@@ -450,29 +453,60 @@
     ctx.translate(ox, oy);
     ctx.rotate(opt.tilt||0);
     ctx.scale(s*dir, s);          // s already includes the face direction
-    const bodyG = () => { const g = ctx.createLinearGradient(0,-0.72,0,0.72);
-      g.addColorStop(0,'#ffffff'); g.addColorStop(.22,c1); g.addColorStop(.75,c2); g.addColorStop(1,'#04202f'); return g; };
-    const eye = (ex,ey,er) => { ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(ex,ey,er,0,7); ctx.fill();
-      ctx.fillStyle='#04121f'; ctx.beginPath(); ctx.arc(ex+er*0.22,ey,er*0.5,0,7); ctx.fill();
-      ctx.fillStyle='rgba(255,255,255,.9)'; ctx.beginPath(); ctx.arc(ex-er*0.3,ey-er*0.35,er*0.22,0,7); ctx.fill(); };
-    const fin = (x,y,w,h,a) => { ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(x,y);
-      ctx.quadraticCurveTo(x+w*0.5, y+h-0.3, x+w, y); ctx.closePath(); ctx.fill(); };
+    const bodyG = () => { const g = ctx.createLinearGradient(0,-0.74,0,0.74);
+      g.addColorStop(0,'#ffffff'); g.addColorStop(.15,c1); g.addColorStop(.5,c1);
+      g.addColorStop(.72,c2); g.addColorStop(.92,'#0a2c3c'); g.addColorStop(1,'#04202f'); return g; };
+    const eye = (ex,ey,er) => { ctx.fillStyle='#04121f'; ctx.beginPath(); ctx.arc(ex,ey,er*1.08,0,7); ctx.fill();
+      ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(ex,ey,er,0,7); ctx.fill();
+      ctx.fillStyle='#0b2a44'; ctx.beginPath(); ctx.arc(ex+er*0.16,ey,er*0.62,0,7); ctx.fill();
+      ctx.fillStyle='#04121f'; ctx.beginPath(); ctx.arc(ex+er*0.2,ey,er*0.4,0,7); ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,.96)'; ctx.beginPath(); ctx.arc(ex-er*0.32,ey-er*0.34,er*0.27,0,7); ctx.fill();
+      ctx.fillStyle='rgba(255,255,255,.5)'; ctx.beginPath(); ctx.arc(ex+er*0.26,ey+er*0.3,er*0.13,0,7); ctx.fill(); };
+    const fin = (x,y,w,h,a) => { ctx.save();
+      const gg=ctx.createLinearGradient(x,y,x+w*0.5,y+h); gg.addColorStop(0,c1); gg.addColorStop(1,c2);
+      ctx.fillStyle=gg; ctx.beginPath(); ctx.moveTo(x,y);
+      ctx.quadraticCurveTo(x+w*0.5, y+h-0.3, x+w, y); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='rgba(0,0,0,.16)'; ctx.lineWidth=0.028;
+      for(let i=1;i<4;i++){ ctx.beginPath(); ctx.moveTo(x+w*i/4,y); ctx.lineTo(x+w*(i/4+0.05), y+h*0.66); ctx.stroke(); }
+      ctx.restore(); };
     const tailFin = (spread) => { const sf=spread||1;
-      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(-0.78,0);
-      ctx.lineTo(-1.42,-0.55*sf+wob*0.4); ctx.lineTo(-1.04,0); ctx.lineTo(-1.42,0.55*sf+wob*0.4); ctx.closePath(); ctx.fill(); };
+      ctx.save(); const gg=ctx.createLinearGradient(-0.78,0,-1.4,0); gg.addColorStop(0,c1); gg.addColorStop(1,c2);
+      ctx.fillStyle=gg; ctx.beginPath(); ctx.moveTo(-0.78,0);
+      ctx.lineTo(-1.42,-0.55*sf+wob*0.4); ctx.lineTo(-1.04,0); ctx.lineTo(-1.42,0.55*sf+wob*0.4); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='rgba(0,0,0,.2)'; ctx.lineWidth=0.028;
+      for(const s of [-1,1]){ for(let i=1;i<3;i++){ const t=i/3; ctx.beginPath(); ctx.moveTo(-0.8,0); ctx.lineTo(-1.42, s*0.55*sf*t+wob*0.4); ctx.stroke(); } }
+      ctx.restore(); };
     // tail anchored further back for the longer / taller bodies
     const tailFinAt = (x0, spread, sf) => {
-      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(x0,0);
-      ctx.lineTo(x0-0.62,-0.62*sf+wob*0.4); ctx.lineTo(x0-0.30,0); ctx.lineTo(x0-0.62,0.62*sf+wob*0.4); ctx.closePath(); ctx.fill(); };
+      ctx.save(); ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(x0,0);
+      ctx.lineTo(x0-0.62,-0.62*sf+wob*0.4); ctx.lineTo(x0-0.30,0); ctx.lineTo(x0-0.62,0.62*sf+wob*0.4); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='rgba(0,0,0,.2)'; ctx.lineWidth=0.026;
+      for(const s of [-1,1]){ ctx.beginPath(); ctx.moveTo(x0,0); ctx.lineTo(x0-0.6, s*0.5*sf+wob*0.4); ctx.stroke(); }
+      ctx.restore(); };
     const forks = (spread) => { const sf=spread||1;
-      ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(-0.78,0);
+      ctx.save(); ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(-0.78,0);
       ctx.lineTo(-1.45,-0.62*sf+wob*0.4); ctx.lineTo(-1.22,-0.08); ctx.lineTo(-1.22,0.08);
-      ctx.lineTo(-1.45,0.62*sf+wob*0.4); ctx.closePath(); ctx.fill(); };
-    const stripes = (n,w) => { ctx.save(); ctx.globalAlpha=.42; ctx.fillStyle=c2; ctx.fillRect(-0.4,-0.68,w,1.36);
-      for(let i=1;i<n;i++){ ctx.fillRect(-0.4+i*0.26,-0.68,w,1.36); } ctx.restore(); };
-    const spots = () => { ctx.save(); ctx.globalAlpha=.42; ctx.fillStyle=c2;
+      ctx.lineTo(-1.45,0.62*sf+wob*0.4); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='rgba(0,0,0,.18)'; ctx.lineWidth=0.026;
+      for(const s of [-1,1]){ ctx.beginPath(); ctx.moveTo(-0.82,0); ctx.lineTo(-1.42, s*0.55*sf+wob*0.4); ctx.stroke(); }
+      ctx.restore(); };
+    const stripes = (n,w) => { ctx.save(); ctx.globalAlpha=.46;
+      for(let i=0;i<n;i++){ const x=-0.4+i*0.26;
+        const g2=ctx.createLinearGradient(x,0,x+w,0); g2.addColorStop(0,c1); g2.addColorStop(.5,c2); g2.addColorStop(1,c1);
+        ctx.fillStyle=g2; ctx.fillRect(x,-0.68,w,1.36); }
+      ctx.restore(); };
+    const spots = () => { ctx.save(); ctx.globalAlpha=.55;
       const pts=[[-0.25,-0.22],[0.05,-0.3],[0.3,-0.14],[-0.05,0.24],[0.28,0.26],[0.55,-0.02],[-0.5,-0.05]];
-      for(const p of pts){ ctx.beginPath(); ctx.arc(p[0],p[1],0.075,0,7); ctx.fill(); } ctx.restore(); };
+      for(const p of pts){ const rg=ctx.createRadialGradient(p[0],p[1],0.01,p[0],p[1],0.13);
+        rg.addColorStop(0,'#04121f'); rg.addColorStop(.45,c2); rg.addColorStop(1,'rgba(0,0,0,0)');
+        ctx.fillStyle=rg; ctx.beginPath(); ctx.arc(p[0],p[1],0.13,0,7); ctx.fill(); }
+      ctx.restore(); };
+    // glossy specular band + gill line — shared polish for round-bodied fish
+    const sheen = (w,y0,y1) => { ctx.save(); ctx.globalAlpha=.5; ctx.fillStyle='rgba(255,255,255,.85)';
+      ctx.beginPath(); ctx.ellipse(-0.1,(y0||-0.3),w||0.75,0.075,0,0,7); ctx.fill();
+      ctx.globalAlpha=.22; ctx.beginPath(); ctx.ellipse(0.15,(y1||-0.12),w*0.7||0.5,0.05,0,0,7); ctx.fill(); ctx.restore(); };
+    const gill = (x,y,r) => { ctx.save(); ctx.globalAlpha=.5; ctx.strokeStyle=c2; ctx.lineWidth=0.045;
+      ctx.beginPath(); ctx.arc(x,y,r||0.32, -1.15, 1.15); ctx.stroke(); ctx.restore(); };
 
     if(t==='sardine'){
       tailFin(1.05);
@@ -480,6 +514,7 @@
       fin(-0.05,-0.36,0.46,0.34); stripes(3,0.055);
       ctx.save(); ctx.globalAlpha=.5; ctx.fillStyle='#eaffff'; ctx.beginPath(); ctx.ellipse(0.1,0.22,0.75,0.10,0,0,7); ctx.fill(); ctx.restore();
       ctx.fillStyle=c2; ctx.fillRect(-0.12,0.28,0.6,0.09);
+      sheen(0.7,-0.06); gill(0.36,0.02,0.28);
       eye(0.7,-0.13,0.17);
     } else if(t==='bream'){
       tailFin(0.85);
@@ -493,6 +528,7 @@
       ctx.globalAlpha=.4; ctx.fillStyle=c2;
       for(const p of [[0.2,-0.36],[-0.2,0.28],[0.5,0.18],[-0.5,-0.12]]){ ctx.beginPath(); ctx.arc(p[0],p[1],0.07,0,7); ctx.fill(); }
       ctx.restore();
+      sheen(0.72,-0.14); gill(0.34,0.02,0.32);
       eye(0.66,-0.14,0.18);
     } else if(t==='flathead'){
       // long tapered body with a real tail and a fan pectoral fin
@@ -522,6 +558,7 @@
       ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0,0,1.16,0.4,0,0,7); ctx.fill();
       fin(-0.1,-0.34,0.5,0.36); stripes(4,0.05);
       ctx.fillStyle='#fff3d6'; ctx.beginPath(); ctx.arc(0.62,-0.1,0.09,0,7); ctx.fill();
+      sheen(0.8,-0.06); gill(0.4,0.02,0.26);
       eye(0.72,-0.12,0.15);
     } else if(t==='snapper'){
       tailFin(0.95);
@@ -529,12 +566,14 @@
       ctx.fillStyle=c2; ctx.beginPath(); ctx.moveTo(-0.15,-0.66); ctx.lineTo(0.2,-1.3); ctx.lineTo(0.6,-0.56); ctx.closePath(); ctx.fill();
       fin(-0.05,0.56,0.55,0.34); spots();
       ctx.fillStyle=c1; ctx.beginPath(); ctx.arc(0.6,-0.2,0.14,0,7); ctx.fill();
+      sheen(0.7,-0.16); gill(0.32,0.02,0.34);
       eye(0.64,-0.16,0.17);
     } else if(t==='tailor'){
       forks(1.0);
       ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0,0,1.12,0.48,0,0,7); ctx.fill();
       fin(-0.05,-0.4,0.5,0.36); stripes(5,0.045);
       ctx.fillStyle='#eaf6ff'; ctx.beginPath(); ctx.moveTo(0.5,0.05); ctx.lineTo(0.95,0.02); ctx.lineTo(0.55,0.2); ctx.closePath(); ctx.fill();
+      sheen(0.75,-0.08); gill(0.38,0.02,0.28);
       eye(0.72,-0.14,0.16);
     } else if(t==='jewfish'){
       tailFin(0.8);
@@ -547,6 +586,7 @@
       ctx.globalAlpha=.55; ctx.strokeStyle=c2; ctx.lineWidth=0.045;
       ctx.beginPath(); ctx.moveTo(0.9,-0.05); ctx.lineTo(-0.55,-0.05); ctx.stroke();
       ctx.restore();
+      sheen(0.9,-0.1); gill(0.5,0.02,0.32);
       eye(0.82,-0.16,0.17);
     } else if(t==='barra'){
       tailFinAt(-1.15, 1.25, 0.9);
@@ -562,6 +602,7 @@
       ctx.save(); ctx.globalAlpha=.5; ctx.fillStyle=c2;
       ctx.beginPath(); ctx.ellipse(-0.55,-0.4,0.2,0.09,0.5,0,7); ctx.fill();
       ctx.beginPath(); ctx.ellipse(-0.1,-0.5,0.18,0.08,0.35,0,7); ctx.fill(); ctx.restore();
+      sheen(0.9,-0.1); gill(0.44,0.02,0.32);
       eye(0.8,-0.14,0.17);
     } else if(t==='jack'){
       tailFin(0.95);
@@ -574,6 +615,7 @@
         const sx=i*0.32 + (r%2?0.16:0), sy=-0.36+r*0.34;
         ctx.beginPath(); ctx.arc(sx,sy,0.19,-2.5,-0.64); ctx.stroke(); } }
       ctx.restore();
+      sheen(0.75,-0.12); gill(0.38,0.02,0.34);
       eye(0.68,-0.16,0.18);
     } else if(t==='marlin'){
       forks(1.25);
@@ -921,9 +963,61 @@
       eye(1.05,-0.06,0.18);
       ctx.save(); ctx.globalAlpha=.45+Math.sin(phase)*.25; ctx.strokeStyle='#ffe08a'; ctx.lineWidth=0.08;
       for(let i=0;i<8;i++){ const a=i*0.785+phase*0.4; ctx.beginPath(); ctx.moveTo(Math.cos(a)*0.7,Math.sin(a)*0.7); ctx.lineTo(Math.cos(a)*1.35,Math.sin(a)*1.35); ctx.stroke(); } ctx.restore();
+    } else if(t==='bossmaelstrom'){
+      // the storm given form: a sea-serpent coiled into a whirling eye, wind bands around it
+      ctx.lineCap='round'; ctx.lineJoin='round';
+      ctx.save(); ctx.globalAlpha=.5; ctx.strokeStyle='#bfe9ff'; ctx.lineWidth=0.09;
+      for(let i=0;i<3;i++){ ctx.beginPath(); ctx.arc(0,0,0.95+i*0.34, i*1.2+phase*0.6, i*1.2+phase*0.6+4.4); ctx.stroke(); } ctx.restore();
+      ctx.strokeStyle=c2; ctx.lineWidth=0.34; ctx.beginPath();
+      for(let a=0;a<=Math.PI*4.4;a+=0.2){ const r=0.18+a*0.115, x=Math.cos(a)*r, y=Math.sin(a)*r*0.9; if(a===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); } ctx.stroke();
+      ctx.strokeStyle=c1; ctx.lineWidth=0.12; ctx.beginPath();
+      for(let a=0;a<=Math.PI*4.4;a+=0.2){ const r=0.18+a*0.115, x=Math.cos(a)*r, y=Math.sin(a)*r*0.9; if(a===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); } ctx.stroke();
+      const ha=Math.PI*4.4, hr=0.18+ha*0.115, hx=Math.cos(ha)*hr, hy=Math.sin(ha)*hr*0.9;
+      ctx.save(); ctx.translate(hx,hy); ctx.rotate(ha-Math.PI/2);
+      ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0,0,0.34,0.52,0,0,7); ctx.fill();
+      ctx.fillStyle='#2a0820'; ctx.beginPath(); ctx.moveTo(0,0.3); ctx.lineTo(0.16,0.6); ctx.lineTo(0,0.9); ctx.lineTo(-0.16,0.6); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#eaf6ff'; for(const sx of [-0.14,0.14]){ ctx.beginPath(); ctx.moveTo(sx,0.36); ctx.lineTo(sx+0.03,0.64); ctx.lineTo(sx+0.07,0.36); ctx.closePath(); ctx.fill(); }
+      eye(-0.12,-0.06,0.09); eye(0.12,-0.06,0.09); ctx.restore();
+      ctx.save(); const eg=ctx.createRadialGradient(0,0,1,0,0,0.42); eg.addColorStop(0,'#eaffff'); eg.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.globalAlpha=.7+Math.sin(phase)*.25; ctx.fillStyle=eg; ctx.beginPath(); ctx.arc(0,0,0.42,0,7); ctx.fill(); ctx.restore();
+      ctx.fillStyle='#eaffff'; ctx.beginPath(); ctx.arc(0,0,0.13,0,7); ctx.fill();
+    } else if(t==='bosswhiteout'){
+      // an ice-beast rising out of the whiteout: shaggy mane, frost horns, cold glowing eyes
+      ctx.fillStyle='#eaf6ff'; ctx.beginPath(); ctx.moveTo(-1.5,0.95);
+      for(let i=0;i<=12;i++){ const x=-1.5+i*0.25, up=(i%2?0:0.32)+Math.sin(i)*0.06; ctx.lineTo(x,-0.2-up); }
+      ctx.lineTo(1.5,0.95); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#cfe3f2'; ctx.beginPath(); ctx.ellipse(0,-0.05,1.12,0.88,0,0,7); ctx.fill();
+      ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0,-0.28,0.7,0.64,0,0,7); ctx.fill();
+      ctx.fillStyle='#dffaff'; for(const sx of [-0.5,0.5]){ ctx.beginPath(); ctx.moveTo(sx,-0.6); ctx.lineTo(sx*1.5,-1.3); ctx.lineTo(sx*0.55,-0.5); ctx.closePath(); ctx.fill(); }
+      ctx.fillStyle=c2; ctx.beginPath(); ctx.ellipse(0,-0.42,0.54,0.2,0,0,7); ctx.fill();
+      ctx.save(); const eg=ctx.createRadialGradient(0,-0.2,1,0,-0.2,0.6); eg.addColorStop(0,'#7fe8ff'); eg.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.globalAlpha=.6+Math.sin(phase)*.25; ctx.fillStyle=eg; ctx.beginPath(); ctx.arc(0,-0.2,0.6,0,7); ctx.fill(); ctx.restore();
+      eye(-0.26,-0.2,0.12); eye(0.26,-0.2,0.12);
+      ctx.fillStyle='#12303f'; ctx.beginPath(); ctx.moveTo(-0.34,0.1); ctx.quadraticCurveTo(0,0.44,0.34,0.1); ctx.quadraticCurveTo(0,0.2,-0.34,0.1); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#eaf6ff'; for(let i=0;i<5;i++){ const tx=-0.26+i*0.13; ctx.beginPath(); ctx.moveTo(tx,0.15); ctx.lineTo(tx+0.03,0.0); ctx.lineTo(tx+0.06,0.15); ctx.closePath(); ctx.fill(); }
+      ctx.save(); ctx.globalAlpha=.7; ctx.fillStyle='#ffffff';
+      for(let i=0;i<11;i++){ const a=i*0.62, rr=0.9+(i%3)*0.35; ctx.beginPath(); ctx.arc(Math.cos(a)*rr, Math.sin(a)*rr*0.72, 0.032,0,7); ctx.fill(); } ctx.restore();
+    } else if(t==='bosseruption'){
+      // the mountain that stood up: craggy lava-rock titan wreathed in fire
+      ctx.fillStyle='#2a140e'; ctx.beginPath(); ctx.moveTo(-1.3,0.95);
+      for(let i=0;i<=14;i++){ const x=-1.3+i*0.185, up=(i%3?0:0.16); ctx.lineTo(x,-0.1-up); }
+      ctx.lineTo(1.3,0.95); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#3a1a12'; ctx.beginPath(); ctx.ellipse(0,0,1.18,0.9,0,0,7); ctx.fill();
+      ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.strokeStyle='#ff7a1a'; ctx.lineWidth=0.1;
+      for(let i=0;i<5;i++){ const x=-0.9+i*0.45; ctx.beginPath(); ctx.moveTo(x,-0.7); ctx.lineTo(x+0.1,0); ctx.lineTo(x-0.08,0.7); ctx.stroke(); } ctx.restore();
+      ctx.fillStyle='#3a1a12'; ctx.beginPath(); ctx.ellipse(0,-0.3,0.64,0.58,0,0,7); ctx.fill();
+      ctx.fillStyle='#ffb000'; ctx.beginPath(); ctx.ellipse(0,-0.72,0.4,0.16,0,0,7); ctx.fill();
+      ctx.fillStyle='#ff5a1a'; ctx.beginPath(); ctx.ellipse(0,-0.74,0.26,0.1,0,0,7); ctx.fill();
+      ctx.fillStyle='#5a2a16'; for(const sx of [-0.55,0.55]){ ctx.beginPath(); ctx.moveTo(sx,-0.5); ctx.lineTo(sx*1.5,-1.28); ctx.lineTo(sx*0.6,-0.4); ctx.closePath(); ctx.fill(); }
+      ctx.save(); const eg=ctx.createRadialGradient(0,-0.26,1,0,-0.26,0.6); eg.addColorStop(0,'#ffd24a'); eg.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.globalAlpha=.6+Math.sin(phase)*.25; ctx.fillStyle=eg; ctx.beginPath(); ctx.arc(0,-0.26,0.6,0,7); ctx.fill(); ctx.restore();
+      eye(-0.24,-0.26,0.12); eye(0.24,-0.26,0.12);
+      ctx.fillStyle='#ff5a1a'; ctx.beginPath(); ctx.moveTo(-0.3,0.02); ctx.quadraticCurveTo(0,0.32,0.3,0.02); ctx.quadraticCurveTo(0,0.14,-0.3,0.02); ctx.closePath(); ctx.fill();
+      ctx.save(); ctx.globalAlpha=.5+Math.sin(phase)*.2; ctx.strokeStyle='#ffb05c'; ctx.lineWidth=0.09;
+      for(let i=0;i<9;i++){ const a=i*0.698+phase*0.3; ctx.beginPath(); ctx.moveTo(Math.cos(a)*0.8,Math.sin(a)*0.8); ctx.lineTo(Math.cos(a)*1.5,Math.sin(a)*1.5); ctx.stroke(); } ctx.restore();
     } else {
       tailFin(0.9); ctx.fillStyle=bodyG(); ctx.beginPath(); ctx.ellipse(0,0,1.06,0.6,0,0,7); ctx.fill();
-      fin(-0.1,-0.5,0.5,0.4); spots(); eye(0.68,-0.14,0.17);
+      fin(-0.1,-0.5,0.5,0.4); spots(); sheen(0.72,-0.12); gill(0.36,0.02,0.3); eye(0.68,-0.14,0.17);
     }
     ctx.restore();
   }
@@ -1158,7 +1252,8 @@
     cursed:  {pull:1.02, tension:1.14, thrash:2.05},
     legendary:{pull:1.16,tension:1.30, thrash:2.45},
     mythical:{pull:1.32, tension:1.46, thrash:2.85},
-    transcendent:{pull:1.48, tension:1.62, thrash:3.50}
+    transcendent:{pull:1.48, tension:1.62, thrash:3.50},
+    boss:    {pull:1.85, tension:1.98, thrash:4.00}
   };
   // a few named fish are extra nasty to land (multiplies their fight stats)
   const FIGHT_BOOST = { 'Cursed King':1.22, 'Kraken':1.15, 'Tide Sovereign':1.24,
@@ -1202,19 +1297,21 @@
   // biome disasters: rare, exclusive, each mutates the water and can surface a boss
   const DISASTERS = {
     ocean:   { key:'hurricane', name:'Hurricane',  icon:'🌀', mutation:'tempest',
-               boss:{name:'The Maelstrom', r:'legendary', a:500, b:1600, boost:1.35,
+               boss:{name:'The Maelstrom', r:'boss', a:500, b:1600, boost:1.45,
                      q:'The hurricane has an eye — and something huge is staring back from inside it.',
-                     art:{t:'kraken', c1:'#8fe6ff', c2:'#1f5f8f', p:'stripe'}} },
+                     art:{t:'bossmaelstrom', c1:'#bfe9ff', c2:'#1f5f8f', p:'stripe'}} },
     snow:    { key:'blizzard',  name:'Blizzard',   icon:'❄️', mutation:'glacial',
-               boss:{name:'Whiteout Colossus', r:'legendary', a:500, b:1600, boost:1.35,
+               boss:{name:'Whiteout Colossus', r:'boss', a:500, b:1600, boost:1.45,
                      q:'It walked out of the whiteout. You never saw the whole of it at once.',
-                     art:{t:'colossus', c1:'#ffffff', c2:'#6f9fc8', p:'stripe'}} },
+                     art:{t:'bosswhiteout', c1:'#eaf6ff', c2:'#6f9fc8', p:'stripe'}} },
     volcano: { key:'eruption',  name:'Eruption',   icon:'🌋', mutation:'molten',
-               boss:{name:'The Eruption', r:'mythical', a:700, b:2200, boost:1.35,
+               boss:{name:'The Eruption', r:'boss', a:700, b:2200, boost:1.45,
                      q:'The mountain stood up. The mountain has a face.',
-                     art:{t:'titan', c1:'#ffbe5c', c2:'#8f1f0a', p:'scale'}} }
+                     art:{t:'bosseruption', c1:'#ffb05c', c2:'#8f1f0a', p:'scale'}} }
   };
   function biomeDisaster(){ return DISASTERS[sceneTheme()] || DISASTERS.ocean; }
+  // register boss looks up-front so their portraits/species entries always render (not only after a disaster)
+  for(const k in DISASTERS){ const bb=DISASTERS[k].boss; if(bb) SPECIES[bb.name]=bb.art; }
   function weatherWeights(){
     const w={};
     for(const k in WEATHERS) w[k]=WEATHERS[k].weight;
@@ -1454,10 +1551,16 @@
     lightning=0.45; thunderShake=0.4;
     for(const f of fishes) if(!f.mut && Math.random()<0.30){ f.mut=D.mutation; f.value=Math.round(f.value*MUTATIONS[D.mutation].mult); }
     fishes = fishes.filter(f=>!f.boss);   // clear any boss from a previous biome
-    spawnBoss(D);
+    const hasBoss = Math.random()<0.55;   // not every disaster drags up a boss — they're a rare prize
+    if(hasBoss){
+      spawnBoss(D);
+      say(D.icon+' A '+D.name+' rolls in — and something huge just surfaced…');
+      hint('Ride it out! The water is turning '+MUTATIONS[D.mutation].name+' — and a BOSS is out there. It won\'t bite easily.');
+    } else {
+      say(D.icon+' A '+D.name+' rolls in — the whole water is turning '+MUTATIONS[D.mutation].name+'…');
+      hint('No boss this time — just ride it out and land some mutated fish.');
+    }
     popRarityText(D.icon+' '+D.name.toUpperCase()+'!', '#ff6a2a');
-    say(D.icon+' A '+D.name+' rolls in — and something huge just surfaced…');
-    hint('Ride it out! Every fish in the water is turning '+MUTATIONS[D.mutation].name+' — and there\'s a boss out there.');
     updateWeatherChip();
   }
   function endDisaster(){
@@ -1608,7 +1711,7 @@
   reelBtn.addEventListener('lostpointercapture', ()=>reelRelease());
 
   // ---- fishing <-> rowing mode toggle + paddle controls ----
-  const modeBtn=document.getElementById('modeBtn');
+  const modeBtn=document.getElementById('modeChip');
   const paddleL=document.getElementById('paddleL'), paddleR=document.getElementById('paddleR');
   modeBtn.addEventListener('click', ()=>setMode(S.mode==='row'?'fish':'row'));
   bindDown(paddleL, ()=>rowHold(-1));
@@ -1638,8 +1741,9 @@
     paddleL.style.display  = rowMode?'':'none';
     paddleR.style.display  = rowMode?'':'none';
     modeBtn.classList.toggle('rowmode', rowMode);
-    document.getElementById('modeIcon').textContent = rowMode?'🚣':'🎣';
-    document.getElementById('modeLabel').textContent = rowMode?'ROWING':'FISHING';
+    modeBtn.innerHTML = rowMode
+      ? '🚣 ROWING<small>TAP: FISH 🎣</small>'
+      : '🎣 FISHING<small>TAP: ROW 🚣</small>';
     if(rowMode){
       paddleL.classList.toggle('hot', ROW.dir===-1);
       paddleR.classList.toggle('hot', ROW.dir===1);
@@ -1689,6 +1793,7 @@
   document.getElementById('worldChip').addEventListener('click', openWorlds);
   document.getElementById('baitChip').style.pointerEvents='auto';
   document.getElementById('baitChip').addEventListener('click', ()=>{ invTab='bait'; openInventory(); });
+  document.getElementById('modeChip').style.pointerEvents='auto';
 
   // ---------- ADMIN PANEL (secret; only the owner knows the passcode) ----------
   let adminOn=false; try{ adminOn=localStorage.getItem('deepcast_admin')==='1'; }catch(e){}
@@ -1808,21 +1913,26 @@
     // only one fish can nibble at a time
     const ready = fishes.filter(f=>f.role==='near' && !f.target);
     if(!nibbler){
-      if(ready.length){ nibbler=ready[0]; nibbleCount=0; nibblePhase='circle'; nibbleTimer=1.3+Math.random()*2.0; }
+      if(ready.length){ nibbler=ready[0]; nibbleCount=0; nibblePhase='circle'; nibbleTimer=(nibbler.boss?2.2:1.3)+Math.random()*(nibbler.boss?2.8:2.0); }
       return;
     }
     if(nibbler.role!=='near' || nibbler.target){ nibbler=null; nibblePhase='idle'; return; }
+    const isB = !!nibbler.boss;
     nibbleTimer-=dt;
     if(nibbleTimer>0) return;
     if(nibblePhase==='circle'){
-      nibblePhase='dip'; nibbleTimer=0.6;
+      nibblePhase='dip'; nibbleTimer=isB?0.5:0.6;
       splashAt(lure.x, lure.y);
-      hint("It's nibbling… DON'T pull yet!");
+      hint(isB ? 'The BOSS is eyeing your bait… hold your nerve!' : "It's nibbling… DON'T pull yet!");
     } else if(nibblePhase==='dip'){
       nibbleCount++;
-      nibblePhase='rest'; nibbleTimer=0.8+Math.random()*1.0;
+      nibblePhase='rest'; nibbleTimer=(isB?1.1:0.8)+Math.random()*(isB?1.4:1.0);
       feelDip = 0.42;                              // character feels the tug
-      if(nibbleCount>=3){
+      if(isB){
+        // a boss is fussy — it probes and circles, and usually loses interest
+        if(nibbleCount>=4){ if(Math.random()<0.30) commitBite(); else giveUp(); }
+        else if(Math.random()<0.20) giveUp();
+      } else if(nibbleCount>=3){
         if(Math.random()<0.7) commitBite(); else giveUp();
       } else if(nibbleCount>=2 && Math.random()<0.3){
         commitBite();
@@ -1830,8 +1940,8 @@
         giveUp();
       }
     } else if(nibblePhase==='rest'){
-      nibblePhase='circle'; nibbleTimer=1.0+Math.random()*2.0;
-      hint('Wait for the big bite…');
+      nibblePhase='circle'; nibbleTimer=(isB?1.8:1.0)+Math.random()*(isB?2.2:2.0);
+      hint(isB ? 'Wait for the real bite — a boss won\'t commit twice.' : 'Wait for the big bite…');
     }
   }
 
@@ -1876,8 +1986,11 @@
   function beginBite(f){
     hooked=f; f.target=null; f.role=null;
     const distF = Math.abs(bob.tx-(rod.x)) / (W*0.62);   // how far out the fish took it
-    S.state='bite'; biteWindow = 1.5 + distF*0.5;          // longer to react on a long cast
-    say('❗ BITE — TAP NOW!'); hint('TAP to set the hook!');
+    S.state='bite';
+    // a boss gives you a much tighter window to set the hook — miss it and it's gone
+    biteWindow = f.boss ? Math.max(0.6, (1.5 + distF*0.5) * 0.45) : 1.5 + distF*0.5;
+    if(f.boss){ say('👑 BOSS BITE — TAP FAST!'); hint('Strike NOW — you only get one shot at a boss!'); }
+    else { say('❗ BITE — TAP NOW!'); hint('TAP to set the hook!'); }
     shakeT=0.25; feelDip=0.7; hooksetT=0; splashAt(bob.tx, waterY);   // character sets the hook
   }
   function reelOthers(){ for(const f of fishes) if(f.role==='near') fleeFish(f); }
@@ -3393,8 +3506,8 @@
     const bob = Math.sin(f.phase*0.5)*1.5 + Math.sin(f.phase)*Math.min(1.4, spd*0.02);
     ctx.save();
     ctx.translate(f.x, f.y + bob);
-    if(f.r==='rare'||f.r==='epic'||f.r==='cursed'||f.r==='legendary'||f.r==='mythical'||f.r==='transcendent'){
-      ctx.save(); ctx.globalAlpha=(f.r==='legendary'||f.r==='mythical'||f.r==='transcendent')?0.5:0.35;
+    if(f.r==='rare'||f.r==='epic'||f.r==='cursed'||f.r==='legendary'||f.r==='mythical'||f.r==='transcendent'||f.r==='boss'){
+      ctx.save(); ctx.globalAlpha=(f.r==='legendary'||f.r==='mythical'||f.r==='transcendent'||f.r==='boss')?0.5:0.35;
       const gg=ctx.createRadialGradient(0,0,2,0,0,s*1.9);
       gg.addColorStop(0,R.color); gg.addColorStop(1,'rgba(0,0,0,0)');
       ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(0,0,s*1.9,0,7); ctx.fill(); ctx.restore();
@@ -3956,7 +4069,7 @@
     setMode, openAdminPanel:openAdmin, get mode(){return S.mode;}, get adminOn(){return adminOn;},
     get rowing(){ return isRowingPose(); }, get rowV(){ return travel?travel.v:ROW.v; }, get boatF(){ return S.boatF; },
     forceWeather:(w)=>{ weather=w; weatherT=9999; lightning=(w==='storm'||w==='hurricane'||w==='eruption')?0.5:0; updateWeatherChip(); },
-    get disaster(){return disaster;}, get weather(){return weather;}, get MUTATIONS(){return MUTATIONS;} };
+    get disaster(){return disaster;}, get weather(){return weather;}, get MUTATIONS(){return MUTATIONS;}, get RARITY(){return RARITY;}, paintFish };
 })();
 </script>
 </body>
