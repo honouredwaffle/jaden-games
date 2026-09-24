@@ -1139,7 +1139,11 @@
     electric:{name:'Electric', color:'#ffe94a', mult:2.5},
     frozen:  {name:'Frozen',   color:'#bff4ff', mult:2.1},
     radiant: {name:'Radiant',  color:'#fff2b0', mult:3.0},
-    abyssal: {name:'Abyssal',  color:'#7a5cff', mult:4.0}
+    abyssal: {name:'Abyssal',  color:'#7a5cff', mult:4.0},
+    // ---- disaster-exclusive mutations (only ever come from a biome event) ----
+    tempest: {name:'Tempest',  color:'#7fe3ff', mult:3.2},
+    glacial: {name:'Glacial',  color:'#dcf6ff', mult:3.0},
+    molten:  {name:'Molten',   color:'#ff6a2a', mult:3.4}
   };
   // each weather rolls its own mutation; clear gives none
   const WEATHERS = {
@@ -1151,8 +1155,28 @@
     heat:      {name:'Heatwave',     icon:'🔥', weight:8},
     lunar:     {name:'Lunar',        icon:'🌙', weight:6},
     goldenrain:{name:'Golden Rain',  icon:'✨', weight:1},
-    snow:      {name:'Snowfall',     icon:'🌨️', weight:0}    // only on the snow island
+    snow:      {name:'Snowfall',     icon:'🌨️', weight:0},   // only on the snow island
+    // ---- biome-exclusive DISASTER weather (never rolled normally — triggered by the event system) ----
+    hurricane: {name:'Hurricane',    icon:'🌀', weight:0},
+    blizzard:  {name:'Blizzard',     icon:'❄️', weight:0},
+    eruption:  {name:'Eruption',     icon:'🌋', weight:0}
   };
+  // biome disasters: rare, exclusive, each mutates the water and can surface a boss
+  const DISASTERS = {
+    ocean:   { key:'hurricane', name:'Hurricane',  icon:'🌀', mutation:'tempest',
+               boss:{name:'The Maelstrom', r:'legendary', a:500, b:1600, boost:1.4,
+                     q:'The hurricane has an eye — and something huge is staring back from inside it.',
+                     art:{t:'kraken', c1:'#8fe6ff', c2:'#1f5f8f', p:'stripe'}} },
+    snow:    { key:'blizzard',  name:'Blizzard',   icon:'❄️', mutation:'glacial',
+               boss:{name:'Whiteout Colossus', r:'legendary', a:500, b:1600, boost:1.4,
+                     q:'It walked out of the whiteout. You never saw the whole of it at once.',
+                     art:{t:'colossus', c1:'#ffffff', c2:'#6f9fc8', p:'stripe'}} },
+    volcano: { key:'eruption',  name:'Eruption',   icon:'🌋', mutation:'molten',
+               boss:{name:'The Eruption', r:'mythical', a:700, b:2200, boost:1.45,
+                     q:'The mountain stood up. The mountain has a face.',
+                     art:{t:'titan', c1:'#ffbe5c', c2:'#8f1f0a', p:'scale'}} }
+  };
+  function biomeDisaster(){ return DISASTERS[sceneTheme()] || DISASTERS.ocean; }
   function weatherWeights(){
     const w={};
     for(const k in WEATHERS) w[k]=WEATHERS[k].weight;
@@ -1297,6 +1321,9 @@
   const DAY_LEN = 240;              // seconds for a full day→night→day cycle
   let weather='clear', weatherT=30+Math.random()*40, lightning=0, lightningCd=6+Math.random()*8;
   let rainDrops=[], snowFlakes=[];
+  // ---- biome disaster events (rare, exclusive, can surface a boss) ----
+  let disaster=null, disasterCd=90+Math.random()*140, bossId=null;
+  let strikeX=0, thunderShake=0;
   // ambient background life (always animating, independent of weather)
   let ambient=[], birds=[], embers=[], ash=[], jumps=[], iceFloes=[], horizonBoats=[];
   function spawnBirds(){
@@ -1324,6 +1351,8 @@
     // a mutation can ONLY be applied while its weather is active.
     // clear (and any other weather) gives NOTHING. fish keep their mutation after the weather ends.
     const r=Math.random();
+    // biome disaster trumps everything while it's running
+    if(disaster && r<0.8) return disaster.mutation;
     if(weather==='storm' && r<0.55) return 'electric';
     if(weather==='snow'  && r<0.42) return 'frozen';
     if(weather==='lunar' && r<0.45) return 'lunar';
@@ -1361,8 +1390,63 @@
     const wc=document.getElementById('weatherChip'); if(!wc) return;
     const Wd=WEATHERS[weather]||WEATHERS.clear;
     wc.innerHTML=Wd.icon+' '+Wd.name+'<small>'+dayLabel()+'</small>';
-    const col={storm:'#ffd85e',snow:'#dff6ff',rain:'#9fd6ff',fog:'#cfe3ee',heat:'#ff9d5c',cloudy:'#bfd4e0',lunar:'#c9b6ff',goldenrain:'#ffe27a'}[weather]||'#bfe9ff';
+    const col={storm:'#ffd85e',snow:'#dff6ff',rain:'#9fd6ff',fog:'#cfe3ee',heat:'#ff9d5c',cloudy:'#bfd4e0',lunar:'#c9b6ff',goldenrain:'#ffe27a',hurricane:'#7fe3ff',blizzard:'#ffffff',eruption:'#ff8a3c'}[weather]||'#bfe9ff';
     wc.style.color=col;
+  }
+
+  // ---------- biome disaster events ----------
+  // Rare, exclusive to each island. They mutate the whole water, darken the sky,
+  // and can surface a one-off BOSS fish worth chasing.
+  function startDisaster(){
+    const D=biomeDisaster();
+    disaster={ key:D.key, name:D.name, icon:D.icon, mutation:D.mutation, t:0, dur:30+Math.random()*22, strikeCd:0.9+Math.random()*1.2 };
+    weather=D.key; weatherT=disaster.dur+3;
+    lightning=0.45; thunderShake=0.4;
+    for(const f of fishes) if(!f.mut && Math.random()<0.72){ f.mut=D.mutation; f.value=Math.round(f.value*MUTATIONS[D.mutation].mult); }
+    fishes = fishes.filter(f=>!f.boss);   // clear any boss from a previous biome
+    spawnBoss(D);
+    popRarityText(D.icon+' '+D.name.toUpperCase()+'!', '#ff6a2a');
+    say(D.icon+' A '+D.name+' rolls in — and something huge just surfaced…');
+    hint('Ride it out! Every fish in the water is turning '+MUTATIONS[D.mutation].name+' — and there\'s a boss out there.');
+    updateWeatherChip();
+  }
+  function endDisaster(){
+    if(!disaster) return;
+    const nm=disaster.name;
+    disaster=null;
+    weather='clear'; weatherT=22+Math.random()*22;
+    say('The '+nm+' has passed. 🌤️');
+    setTimeout(()=>{ if(S.state==='idle') say(''); },2400);
+    updateWeatherChip();
+  }
+  // register a boss species into SPECIES so its portrait renders everywhere
+  function spawnBoss(D){
+    const b=D.boss; if(!b) return null;
+    const kg = b.a + Math.random()*(b.b-b.a);
+    const baseValue = Math.round(kg*9*RARITY[b.r].mult*(12+Math.random()*10)/9);
+    const value = Math.round(baseValue * MUTATIONS[D.mutation].mult);
+    SPECIES[b.name] = b.art;                        // teach the game what it looks like
+    const top=fishZoneTop(), bot=fishZoneBot();
+    const by = top + (bot-top)*(0.35+Math.random()*0.3);
+    const f = { id:nextId++, n:b.name, r:b.r, kg, value, quote:b.q,
+                size:RARITY[b.r].rs+30, mut:D.mutation,
+                boss:true, bossBoost:b.boost,
+                x:W*(0.25+Math.random()*0.5), y:by, home:by,
+                vx:(Math.random()<.5?-1:1)*16, vy:7, speed:16,
+                wanderT:3+Math.random()*3, phase:Math.random()*6.28, dir:1, target:null };
+    fishes.push(f);
+    return f;
+  }
+  function isBoss(f){ return !!(f && f.boss); }
+  // a random thunder strike: dark flash, screen shake, and it electrifies any fish it lands on
+  function doLightningStrike(){
+    strikeX = W*(0.10+Math.random()*0.80);
+    lightning=0.6; thunderShake=0.4;
+    for(const f of fishes){
+      if(f.mut) continue;
+      if(Math.abs(f.x-strikeX) < 64){ f.mut='electric'; f.value=Math.round(f.value*MUTATIONS.electric.mult);
+        floatText(f.x, f.y-14, '⚡', '#ffe94a'); }
+    }
   }
 
   function rollFishDef(){
@@ -1673,7 +1757,7 @@
     fishes = fishes.filter(x=>x.id!==f.id);   // it's off the free-swim list — it's on the hook now
     nibbler=null; nibblePhase='idle';
     const rodMut=rodMutation(f);                // the rod may curse/bless the fish as it hooks
-    const boost = FIGHT_BOOST[f.n] || 1;      // some named monsters are extra nasty
+    const boost = (FIGHT_BOOST[f.n] || 1) * (f.bossBoost || 1);   // some named monsters are extra nasty; bosses more so
     const F = { pull:FIGHT[f.r].pull*boost, tension:FIGHT[f.r].tension*boost, thrash:FIGHT[f.r].thrash*boost };
     const ratio = F.pull / rodPower();   // slower ramp for a tough fish
     reel = {
@@ -1816,7 +1900,7 @@
 
   function showCatchPanel(f, isNew, isRecord){
     pendingCatch={f,isNew,isRecord};
-    document.getElementById('cName').textContent=(isNew?'🆕 ':'')+f.n;
+    document.getElementById('cName').textContent=(isNew?'🆕 ':'')+(f.boss?'👑 ':'')+f.n;
     paintFish(document.getElementById('cPic'), f.n, 85, 59, 2, f.mut);
     const rr=document.getElementById('cRar');
     rr.textContent=RARITY[f.r].name; rr.style.background=RARITY[f.r].color+'22';
@@ -1828,7 +1912,7 @@
         mutEl.style.background=M.color+'22'; mutEl.style.color=M.color; mutEl.style.border='1px solid '+M.color;
       } else { mutEl.style.display='none'; }
     }
-    document.getElementById('cStats').textContent=f.kg.toFixed(2)+' kg'+(isRecord?' · ⭐ NEW RECORD':'');
+    document.getElementById('cStats').textContent=f.kg.toFixed(2)+' kg'+(isRecord?' · ⭐ NEW RECORD':'')+(f.boss?' · 👑 BOSS':'');
     document.getElementById('cQuote').textContent='"'+f.quote+'"';
     const full=invUsed()>=crateSize();
     document.getElementById('cCoins').textContent='Sells for '+f.value+' 🪙  ·  🎒 '+invUsed()+'/'+crateSize()+(full?' (FULL!)':'');
@@ -1915,6 +1999,7 @@
       if(travel.t>=2.4){
         S.world=travel.to; S.unlocked[travel.to]=true;
         save(); updateHUD();
+        disaster=null; bossId=null; weather='clear'; weatherT=24+Math.random()*24; lightning=0; thunderShake=0;   // a fresh island = fresh skies
         fishes=[]; fillWater();
         travel.phase='in'; travel.t=0; travel.boatX=-(W+220);
         showTravelVeil(false);
@@ -2359,17 +2444,28 @@
     if(travel){ updateTravel(dt); }
     // ---- day/night + weather cycle ----
     dayT += dt/DAY_LEN; if(dayT>=1) dayT-=1;
-    weatherT -= dt;
-    if(weatherT<=0) spinWeather();
-    if(weather==='storm'){ lightningCd-=dt; if(lightningCd<=0){ lightning=0.55; lightningCd=3+Math.random()*7; } }
+    // ---- biome disaster has priority over normal weather ----
+    if(disaster){
+      disaster.t += dt; disaster.strikeCd -= dt;
+      if(disaster.strikeCd<=0){ doLightningStrike(); disaster.strikeCd = 1.0+Math.random()*1.8; }
+      if(disaster.t >= disaster.dur) endDisaster();
+      weatherT = Math.max(weatherT, 3);
+    } else {
+      weatherT -= dt;
+      if(weatherT<=0) spinWeather();
+      if(weather==='storm'){ lightningCd-=dt; if(lightningCd<=0){ doLightningStrike(); lightningCd=2.6+Math.random()*6; } }
+      disasterCd -= dt;
+      if(disasterCd<=0 && S.state!=='reeling' && !travel && !catchAnim){ startDisaster(); disasterCd=150+Math.random()*200; }
+    }
     if(lightning>0) lightning=Math.max(0, lightning-dt*1.6);
+    thunderShake=Math.max(0, thunderShake-dt*1.7);
     hudWxT -= dt; if(hudWxT<=0){ hudWxT=1.0; updateWeatherChip(); }
     // weather particles
-    const wantRain = (weather==='rain'||weather==='storm'||weather==='goldenrain');
-    const wantSnow = (weather==='snow');
-    if(wantRain && rainDrops.length<120){ for(let i=0;i<3;i++) rainDrops.push({x:Math.random()*W, y:-20-Math.random()*H, v:520+Math.random()*380, len:12+Math.random()*16}); }
+    const wantRain = (weather==='rain'||weather==='storm'||weather==='goldenrain'||weather==='hurricane');
+    const wantSnow = (weather==='snow'||weather==='blizzard');
+    if(wantRain && rainDrops.length<200){ for(let i=0;i<4;i++) rainDrops.push({x:Math.random()*W, y:-20-Math.random()*H, v:520+Math.random()*380, len:12+Math.random()*16}); }
     if(wantSnow && snowFlakes.length<90){ for(let i=0;i<2;i++) snowFlakes.push({x:Math.random()*W, y:-20-Math.random()*H, r:1+Math.random()*2.4, sp:30+Math.random()*50, ph:Math.random()*6.28}); }
-    for(const d of rainDrops){ d.y += d.v*dt; d.x += d.v*dt*0.14; }
+    for(const d of rainDrops){ d.y += d.v*dt; d.x += d.v*dt*(weather==='hurricane'?3.2:0.14); }
     rainDrops = rainDrops.filter(d=> d.y < H+30 && d.x < W+40);
     for(const s of snowFlakes){ s.y += s.sp*dt; s.ph += dt*1.6; s.x += Math.sin(s.ph)*14*dt*6; }
     snowFlakes = snowFlakes.filter(s=> s.y < H+20);
@@ -2582,10 +2678,12 @@
     ambientCd-=dt;
     if(ambientCd<=0){
       ambientCd=2.2+Math.random()*3.6;
-      const r=Math.random();
-      if(TH!=='volcano' && r<0.45) spawnBirds();
-      else if(r<0.78) spawnJump();
-      else spawnHorizonBoat();
+      if(!disaster){   // no calm ambient life while a disaster is raging
+        const r=Math.random();
+        if(TH!=='volcano' && r<0.45) spawnBirds();
+        else if(r<0.78) spawnJump();
+        else spawnHorizonBoat();
+      }
     }
     // birds
     for(const b of birds){ b.x+=b.dir*b.sp*dt; b.ph+=dt*b.flap; }
@@ -2639,6 +2737,145 @@
       for(const a of ash){ ctx.globalAlpha=0.4+Math.sin(t*3+a.y*0.1)*0.2; ctx.beginPath(); ctx.arc(a.x,a.y,a.r,0,7); ctx.fill(); } ctx.restore(); }
   }
 
+  // ---- per-weather visuals: EVERY weather gets a distinct look ----
+  function drawWeatherFX(t){
+    const w=weather;
+    // shared overcast cloud deck
+    const heavy=(w==='storm'||w==='hurricane');
+    const deckA={cloudy:.42,rain:.5,storm:.62,hurricane:.66,blizzard:.6,eruption:.5,snow:.34,fog:.22}[w]||0;
+    if(deckA>0){
+      ctx.save(); ctx.globalAlpha=deckA;
+      ctx.fillStyle=heavy?'#1b2733':(w==='eruption'?'#2a1712':(w==='blizzard'?'#c3d4de':'#3a4956'));
+      const spd=heavy?9:5;
+      for(let i=0;i<5;i++){ const cx=((t*spd + i*W*0.26)%(W+320))-160, cy=waterY*(0.10+i*0.07);
+        ctx.beginPath(); ctx.ellipse(cx,cy,100,24,0,0,7); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(cx+56,cy+7,70,19,0,0,7); ctx.fill(); }
+      ctx.restore();
+    }
+    if(w==='clear'){
+      // warm sun + rotating rays + a couple of lazy puffy clouds
+      const sx=W*0.72, sy=waterY*0.30;
+      ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.5;
+      const sg=ctx.createRadialGradient(sx,sy,4,sx,sy,H*0.34); sg.addColorStop(0,'rgba(255,244,200,.95)'); sg.addColorStop(1,'rgba(255,244,200,0)');
+      ctx.fillStyle=sg; ctx.beginPath(); ctx.arc(sx,sy,H*0.34,0,7); ctx.fill();
+      ctx.globalAlpha=.16; ctx.strokeStyle='#fff3c4'; ctx.lineWidth=2;
+      for(let i=0;i<10;i++){ const a=i*0.628+t*0.15; ctx.beginPath();
+        ctx.moveTo(sx+Math.cos(a)*40,sy+Math.sin(a)*40); ctx.lineTo(sx+Math.cos(a)*120,sy+Math.sin(a)*120); ctx.stroke(); }
+      ctx.restore();
+      ctx.fillStyle='#fffaf0'; ctx.beginPath(); ctx.arc(sx,sy,17,0,7); ctx.fill();
+      ctx.save(); ctx.globalAlpha=.16; ctx.fillStyle='#ffffff';
+      for(let i=0;i<3;i++){ const cx=((t*8+i*W*0.4)%(W+260))-130, cy=waterY*0.22+i*20;
+        ctx.beginPath(); ctx.ellipse(cx,cy,74,17,0,0,7); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(cx+42,cy-8,50,13,0,0,7); ctx.fill(); }
+      ctx.restore();
+    }
+    if(w==='goldenrain'){
+      // falling gold sparkles (4-point stars)
+      ctx.save(); ctx.globalCompositeOperation='lighter';
+      for(let i=0;i<34;i++){ const gx=((i*137+t*40)%W), gy=((i*89+t*190)%waterY);
+        const tw=0.5+0.5*Math.sin(t*5+i); ctx.globalAlpha=.55*tw; ctx.fillStyle='rgba(255,225,140,.95)';
+        ctx.beginPath(); ctx.moveTo(gx,gy-4.5); ctx.lineTo(gx+1.5,gy); ctx.lineTo(gx,gy+4.5); ctx.lineTo(gx-1.5,gy); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(gx-4.5,gy); ctx.lineTo(gx,gy-1.5); ctx.lineTo(gx+4.5,gy); ctx.lineTo(gx,gy+1.5); ctx.closePath(); ctx.fill(); }
+      ctx.restore();
+    }
+    if(w==='fog'){
+      ctx.save(); ctx.globalAlpha=.34; ctx.fillStyle='#cdd7de'; ctx.fillRect(0,0,W,waterY);
+      ctx.fillStyle='rgba(240,246,250,.22)';
+      for(let i=0;i<6;i++){ const cy=waterY*0.10+i*20, cx=((t*8+i*W*0.5)%(W+400))-200;
+        ctx.beginPath(); ctx.ellipse(cx,cy,150,18,0,0,7); ctx.fill();
+        ctx.beginPath(); ctx.ellipse(cx+100,cy+6,110,13,0,0,7); ctx.fill(); }
+      ctx.restore();
+    }
+    if(w==='heat'){
+      // blazing sun + rising heat shimmer
+      const hx=W*0.74, hy=waterY*0.30;
+      ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.5;
+      const hg=ctx.createRadialGradient(hx,hy,4,hx,hy,H*0.4); hg.addColorStop(0,'rgba(255,200,90,.95)'); hg.addColorStop(1,'rgba(255,200,90,0)');
+      ctx.fillStyle=hg; ctx.beginPath(); ctx.arc(hx,hy,H*0.4,0,7); ctx.fill(); ctx.restore();
+      ctx.fillStyle='#ffe6a8'; ctx.beginPath(); ctx.arc(hx,hy,20,0,7); ctx.fill();
+      ctx.save(); ctx.globalAlpha=.16; ctx.strokeStyle='#ffe0a0'; ctx.lineWidth=2;
+      for(let i=0;i<8;i++){ const yy=waterY*0.12+i*13; ctx.beginPath();
+        for(let x=0;x<=W;x+=18){ ctx.lineTo(x, yy+Math.sin(x*0.05+t*3+i)*2.6); } ctx.stroke(); }
+      ctx.restore();
+    }
+    if(w==='lunar'){
+      const mx=W*0.7, my=waterY*0.32;
+      ctx.save(); ctx.globalAlpha=.6;
+      const mg=ctx.createRadialGradient(mx,my,4,mx,my,H*0.34); mg.addColorStop(0,'rgba(214,196,255,.95)'); mg.addColorStop(1,'rgba(214,196,255,0)');
+      ctx.fillStyle=mg; ctx.beginPath(); ctx.arc(mx,my,H*0.34,0,7); ctx.fill(); ctx.restore();
+      ctx.fillStyle='#e6dcff'; ctx.beginPath(); ctx.arc(mx,my,26,0,7); ctx.fill();
+      ctx.fillStyle='rgba(180,166,220,.55)'; ctx.beginPath(); ctx.arc(mx-7,my-4,5,0,7); ctx.fill();
+      ctx.beginPath(); ctx.arc(mx+8,my+6,3.5,0,7); ctx.fill(); ctx.beginPath(); ctx.arc(mx+2,my-10,2.5,0,7); ctx.fill();
+      ctx.save(); ctx.fillStyle='#eaf0ff';
+      for(let i=0;i<44;i++){ const sx=((i*137.5)%1)*W, sy=((i*79.3)%1)*waterY*0.85;
+        ctx.globalAlpha=.5+.5*Math.sin(t*2+i); ctx.fillRect(sx,sy,2,2); }
+      ctx.restore();
+    }
+    if(w==='hurricane') drawHurricane(t);
+    if(w==='blizzard') drawBlizzard(t);
+    if(w==='eruption') drawEruption(t);
+  }
+
+  // ---- biome disaster visuals ----
+  // HURRICANE: spinning rain bands + a giant spiral over the water + flying spray
+  function drawHurricane(t){
+    ctx.save();
+    // spiral bands in the sky
+    ctx.globalAlpha=.30; ctx.strokeStyle='#bcdff2'; ctx.lineWidth=10; ctx.lineCap='round';
+    const cx=W*0.5, cy=waterY*0.34;
+    for(let b=0;b<4;b++){
+      ctx.beginPath();
+      for(let a=0;a<Math.PI*3.2;a+=0.18){
+        const rr=18+a*20;
+        const x=cx+Math.cos(a+b*1.1+t*1.6)*rr, y=cy+Math.sin(a+b*1.1+t*1.6)*rr*0.45;
+        if(a===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+    }
+    // bright eye
+    ctx.globalAlpha=.5; const eg=ctx.createRadialGradient(cx,cy,2,cx,cy,26); eg.addColorStop(0,'rgba(230,250,255,.9)'); eg.addColorStop(1,'rgba(230,250,255,0)');
+    ctx.fillStyle=eg; ctx.beginPath(); ctx.arc(cx,cy,26,0,7); ctx.fill();
+    // flying spray across the surface
+    ctx.globalAlpha=.5; ctx.strokeStyle='rgba(220,240,255,.7)'; ctx.lineWidth=1.6;
+    for(let i=0;i<26;i++){ const sx=((i*137+t*520)%(W+200))-100, sy=waterY-4-((i*53)%40);
+      ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx-10,sy+3); ctx.stroke(); }
+    ctx.restore();
+  }
+  // BLIZZARD: whiteout wash + fast driving snow + wind streaks
+  function drawBlizzard(t){
+    ctx.save();
+    ctx.globalAlpha=.34; ctx.fillStyle='#eef7ff'; ctx.fillRect(0,0,W,waterY);
+    ctx.globalAlpha=.5; ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=1.6; ctx.lineCap='round';
+    for(let i=0;i<34;i++){ const sx=((i*89-t*700)%(W+240))-120, sy=((i*61+t*40)%waterY);
+      ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx+26,sy+2); ctx.stroke(); }
+    ctx.globalAlpha=.8; ctx.fillStyle='rgba(255,255,255,.9)';
+    for(let i=0;i<50;i++){ const sx=((i*151-t*420)%(W+200))-100, sy=((i*97+t*260)%waterY);
+      ctx.beginPath(); ctx.arc(sx,sy,1+((i*7)%3),0,7); ctx.fill(); }
+    ctx.restore();
+  }
+  // ERUPTION: dark sky, a lava bomb arc, falling embers, and a red glow over the water
+  function drawEruption(t){
+    ctx.save();
+    ctx.globalAlpha=.30; const rg=ctx.createRadialGradient(W*0.5,waterY*0.5,10,W*0.5,waterY*0.5,H*0.6);
+    rg.addColorStop(0,'rgba(255,120,40,.8)'); rg.addColorStop(1,'rgba(255,60,20,0)');
+    ctx.fillStyle=rg; ctx.fillRect(0,0,W,waterY);
+    // glowing lava bombs arcing up from the horizon
+    ctx.globalCompositeOperation='lighter';
+    for(let i=0;i<7;i++){
+      const p=((t*0.35+i*0.19)%1);
+      const bx=W*0.30+Math.sin(i*2.1)*W*0.34;
+      const by=waterY - Math.sin(p*Math.PI)*(waterY*0.75);
+      ctx.globalAlpha=.9*(1-p);
+      const bg=ctx.createRadialGradient(bx,by,0,bx,by,7); bg.addColorStop(0,'rgba(255,220,140,.95)'); bg.addColorStop(1,'rgba(255,90,30,0)');
+      ctx.fillStyle=bg; ctx.beginPath(); ctx.arc(bx,by,7,0,7); ctx.fill();
+    }
+    // rising embers
+    ctx.globalAlpha=.7;
+    for(let i=0;i<30;i++){ const ex=((i*173+t*30)%W), ey=waterY-((i*71+t*90)%(waterY*0.8));
+      const eg=ctx.createRadialGradient(ex,ey,0,ex,ey,3); eg.addColorStop(0,'rgba(255,180,90,.9)'); eg.addColorStop(1,'rgba(255,80,20,0)');
+      ctx.fillStyle=eg; ctx.beginPath(); ctx.arc(ex,ey,3,0,7); ctx.fill(); }
+    ctx.restore();
+  }
   function drawWaterAmbient(t){
     const TH=sceneTheme(), snow=(TH==='snow'), volc=(TH==='volcano');
     // distant sailboats on the horizon — tiny triangular sails
@@ -2693,6 +2930,8 @@
   function draw(){
     const t=performance.now()/1000;
     const TH=sceneTheme(), snow=(TH==='snow'), volc=(TH==='volcano');
+    // thunder/eruption rumble — a brief whole-scene shake
+    if(thunderShake>0){ const k=thunderShake*9; ctx.save(); ctx.translate((Math.random()-.5)*k,(Math.random()-.5)*k); }
     // sun/moon angle from the time of day (0=midnight .5=noon)
     const sunAng = (dayT-0.25)*Math.PI*2;      // -pi/2 at midnight
     const sunUp = Math.sin(sunAng) > -0.15;
@@ -2745,52 +2984,17 @@
     ctx.restore();
     // ambient sky life (birds, volcano embers/ash, snow drift)
     drawSkyAmbient(t);
-    // weather sky tint + storm clouds
+    // weather sky tint + per-weather visuals
     if(weather!=='clear'){
       ctx.save();
-      const WX={storm:{a:.42,c:'#0a1420'},rain:{a:.30,c:'#26343f'},cloudy:{a:.22,c:'#26343f'},snow:{a:.20,c:'#26343f'},fog:{a:.40,c:'#93a9b8'},heat:{a:.22,c:'#ffab52'},lunar:{a:.50,c:'#241a52'},goldenrain:{a:.26,c:'#ffcf5e'}};
+      const WX={storm:{a:.44,c:'#0a1420'},rain:{a:.34,c:'#26343f'},cloudy:{a:.22,c:'#26343f'},snow:{a:.20,c:'#26343f'},fog:{a:.52,c:'#a9c0cd'},heat:{a:.24,c:'#ffab52'},lunar:{a:.55,c:'#241a52'},goldenrain:{a:.30,c:'#ffcf5e'},hurricane:{a:.58,c:'#0c2230'},blizzard:{a:.62,c:'#9fb6c4'},eruption:{a:.52,c:'#2a0f0a'}};
       const wx=WX[weather]||{a:.22,c:'#26343f'};
       ctx.globalAlpha=wx.a; ctx.fillStyle=wx.c; ctx.fillRect(0,0,W,waterY);
       ctx.restore();
-      if(weather==='lunar'){
-        // a big pale moon low in a starless purple sky
-        ctx.save(); ctx.globalAlpha=.6;
-        const mx=W*0.7, my=waterY*0.32; const mg=ctx.createRadialGradient(mx,my,4,mx,my,H*0.34);
-        mg.addColorStop(0,'rgba(214,196,255,.95)'); mg.addColorStop(1,'rgba(214,196,255,0)');
-        ctx.fillStyle=mg; ctx.beginPath(); ctx.arc(mx,my,H*0.34,0,7); ctx.fill(); ctx.restore();
-        ctx.fillStyle='#e6dcff'; ctx.beginPath(); ctx.arc(mx,my,26,0,7); ctx.fill();
-        ctx.fillStyle='rgba(180,166,220,.55)'; ctx.beginPath(); ctx.arc(mx-7,my-4,5,0,7); ctx.fill();
-        ctx.beginPath(); ctx.arc(mx+8,my+6,3.5,0,7); ctx.fill(); ctx.beginPath(); ctx.arc(mx+2,my-10,2.5,0,7); ctx.fill();
-      }
-      if(WX[weather] && (weather==='storm'||weather==='rain'||weather==='snow'||weather==='cloudy'||weather==='lunar')){
-        ctx.save(); ctx.globalAlpha=weather==='storm'?.55:(weather==='cloudy'?.3:.35); ctx.fillStyle=weather==='storm'?'#1b2733':'#3a4956';
-        for(let i=0;i<4;i++){ const cx=((t*6 + i*W*0.3)%(W+300))-150, cy=waterY*0.16+i*10;
-          ctx.beginPath(); ctx.ellipse(cx,cy,90,22,0,0,7); ctx.fill();
-          ctx.beginPath(); ctx.ellipse(cx+50,cy+6,64,18,0,0,7); ctx.fill(); }
-        ctx.restore();
-      }
-      if(weather==='fog'){
-        // drifting bands of mist across the sky
-        ctx.save(); ctx.fillStyle='rgba(230,240,246,.16)';
-        for(let i=0;i<5;i++){ const cy=waterY*0.18+i*22, cx=((t*8+i*W*0.5)%(W+400))-200;
-          ctx.beginPath(); ctx.ellipse(cx,cy,140,16,0,0,7); ctx.fill();
-          ctx.beginPath(); ctx.ellipse(cx+90,cy+6,100,12,0,0,7); ctx.fill(); }
-        ctx.restore();
-      }
-      if(weather==='heat'){
-        // shimmering warm haze + a molten sun glow
-        ctx.save(); ctx.globalAlpha=.35;
-        const hx=W*0.74, hy=waterY*0.34; const hg=ctx.createRadialGradient(hx,hy,4,hx,hy,H*0.35);
-        hg.addColorStop(0,'rgba(255,190,90,.9)'); hg.addColorStop(1,'rgba(255,190,90,0)');
-        ctx.fillStyle=hg; ctx.beginPath(); ctx.arc(hx,hy,H*0.35,0,7); ctx.fill();
-        ctx.globalAlpha=.14; ctx.strokeStyle='#ffe0a0'; ctx.lineWidth=2;
-        for(let i=0;i<7;i++){ const yy=waterY*0.14+i*13; ctx.beginPath();
-          for(let x=0;x<=W;x+=18){ ctx.lineTo(x, yy+Math.sin(x*0.05+t*3+i)*2.5); } ctx.stroke(); }
-        ctx.restore();
-      }
     }
+    drawWeatherFX(t);
     // lightning flash over the whole sky
-    if(lightning>0){ ctx.save(); ctx.globalAlpha=lightning*0.9; ctx.fillStyle='#eaf6ff'; ctx.fillRect(0,0,W,waterY); ctx.restore(); }
+    if(lightning>0){ ctx.save(); ctx.globalAlpha=lightning*0.9; ctx.fillStyle=weather==='eruption'?'#ffd9b0':(weather==='hurricane'?'#dff4ff':'#eaf6ff'); ctx.fillRect(0,0,W,waterY); ctx.restore(); }
 
     // ---- UNDERWATER (base of the boat down) ----
     g=ctx.createLinearGradient(0,waterY,0,H);
@@ -2798,6 +3002,9 @@
     else if(volc){ g.addColorStop(0,'#3f1a1e'); g.addColorStop(.35,'#5a2018'); g.addColorStop(.72,'#2a0f14'); g.addColorStop(1,'#140508'); }
     else { g.addColorStop(0,'#1e7fb4'); g.addColorStop(.35,'#0d5680'); g.addColorStop(.72,'#08375a'); g.addColorStop(1,'#03203a'); }
     ctx.fillStyle=g; ctx.fillRect(0,waterY,W,H-waterY);
+    // weather tint on the water itself
+    const WX2={rain:'rgba(60,90,110,.22)',storm:'rgba(15,25,36,.34)',cloudy:'rgba(70,90,105,.14)',snow:'rgba(180,215,235,.16)',fog:'rgba(190,205,215,.30)',heat:'rgba(255,170,90,.16)',lunar:'rgba(60,45,120,.32)',goldenrain:'rgba(255,205,90,.18)',hurricane:'rgba(20,45,60,.32)',blizzard:'rgba(205,225,235,.34)',eruption:'rgba(120,35,10,.34)'}[weather];
+    if(WX2){ ctx.fillStyle=WX2; ctx.fillRect(0,waterY,W,H-waterY); }
 
     // light rays
     ctx.save(); ctx.globalCompositeOperation='lighter';
@@ -2865,11 +3072,19 @@
       ctx.restore();
     }
     if(lightning>0.25){
-      const lx=W*(0.2+((t*13)%1)*0.6);
-      ctx.save(); ctx.globalAlpha=Math.min(1,(lightning-0.25)*2.5); ctx.strokeStyle='#eaf6ff'; ctx.lineWidth=3; ctx.lineCap='round';
+      const lx=strikeX||W*(0.2+((t*13)%1)*0.6);
+      const isErupt=(weather==='eruption');
+      ctx.save(); ctx.globalAlpha=Math.min(1,(lightning-0.25)*2.5);
+      ctx.strokeStyle=isErupt?'#ffcf8a':'#eaf6ff'; ctx.shadowColor=isErupt?'#ff8a3c':'#bfe9ff'; ctx.shadowBlur=12; ctx.lineWidth=3; ctx.lineCap='round';
+      // main bolt
       ctx.beginPath(); let x=lx, y=0; ctx.moveTo(x,y);
       while(y<waterY*0.8){ x+=(Math.random()-.5)*40; y+=18+Math.random()*22; ctx.lineTo(x,y); }
-      ctx.stroke(); ctx.restore();
+      ctx.stroke();
+      // a couple of forks
+      ctx.lineWidth=1.6;
+      for(let fk=0;fk<2;fk++){ let fx=lx, fy=waterY*(0.15+Math.random()*0.4); ctx.beginPath(); ctx.moveTo(fx,fy);
+        for(let k=0;k<3;k++){ fx+=(Math.random()-.5)*56; fy+=14+Math.random()*18; ctx.lineTo(fx,fy); } ctx.stroke(); }
+      ctx.restore();
     }
 
     // bubbles
@@ -2901,6 +3116,17 @@
       ctx.globalAlpha=(1-p)*0.7; ctx.strokeStyle='#e6faff'; ctx.lineWidth=2;
       ctx.beginPath(); ctx.ellipse(r.x, r.y, 8+p*52, (8+p*52)*0.32, 0, 0, 7); ctx.stroke(); }
     ctx.restore();
+
+    // rain impact ripples on the surface (rain / storm / hurricane)
+    if(weather==='rain'||weather==='storm'||weather==='hurricane'){
+      ctx.save(); ctx.strokeStyle=weather==='hurricane'?'rgba(210,240,255,.5)':'rgba(200,230,255,.42)'; ctx.lineWidth=1.6;
+      const n=weather==='hurricane'?16:10;
+      for(let i=0;i<n;i++){ const p=((t*1.4+i*0.37)%1);
+        const rx=((i*151+t*90)%W), ry=waterY+2+((i*53)%18);
+        ctx.globalAlpha=(1-p)*0.55;
+        ctx.beginPath(); ctx.ellipse(rx, ry, 2+p*12, (2+p*12)*0.3, 0, 0, 7); ctx.stroke(); }
+      ctx.restore();
+    }
 
     // splash
     if(splashT>0){ const p=1-splashT/0.45;
@@ -2942,6 +3168,8 @@
     ctx.restore();
 
     if(S.state==='reeling'&&reel) drawReelUI();
+
+    if(thunderShake>0) ctx.restore();   // close the thunder-shake translate
   }
 
   // each species draws itself — colours, silhouette and markings
@@ -2967,6 +3195,15 @@
       ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(0,0,s*1.9,0,7); ctx.fill(); ctx.restore();
     }
     if(f.mut) drawMutation(f, t + f.phase, s);
+    if(f.boss){   // bosses wear a glowing crown so you can spot them instantly
+      ctx.save(); ctx.globalAlpha=.85+Math.sin(t*4)*.15;
+      const cy=-s*1.15;
+      ctx.fillStyle='#ffd85e'; ctx.strokeStyle='#fff6cf'; ctx.lineWidth=1.2;
+      ctx.beginPath(); ctx.moveTo(-s*0.6,cy); ctx.lineTo(-s*0.6,cy-s*0.42); ctx.lineTo(-s*0.28,cy-s*0.16); ctx.lineTo(0,cy-s*0.5); ctx.lineTo(s*0.28,cy-s*0.16); ctx.lineTo(s*0.6,cy-s*0.42); ctx.lineTo(s*0.6,cy); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle='#fff'; ctx.beginPath(); ctx.arc(0,cy-s*0.5,s*0.09,0,7); ctx.fill();
+      ctx.restore();
+    }
     if(f.target){ ctx.save(); ctx.globalAlpha=.7+Math.sin(t*6)*.3; ctx.strokeStyle='#ffd85e'; ctx.lineWidth=1.5;
       ctx.beginPath(); ctx.arc(0,-s-9,3,0,7); ctx.stroke(); ctx.restore(); }
     drawFishArt(0,0, speciesArt(f.n), s, { phase:f.phase, dir:dsign, tilt });
@@ -3430,7 +3667,10 @@
 
   window.DEEPCast={ S, openShop, openWorlds, openSpecies, openInventory, startTravel, get fishes(){return fishes;},
     get birds(){return birds;}, get jumps(){return jumps;}, get horizonBoats(){return horizonBoats;},
-    get embers(){return embers;}, get ash(){return ash;}, get iceFloes(){return iceFloes;} };
+    get embers(){return embers;}, get ash(){return ash;}, get iceFloes(){return iceFloes;},
+    startDisaster, endDisaster, doLightningStrike, biomeDisaster,
+    forceWeather:(w)=>{ weather=w; weatherT=9999; lightning=(w==='storm'||w==='hurricane'||w==='eruption')?0.5:0; updateWeatherChip(); },
+    get disaster(){return disaster;}, get weather(){return weather;}, get MUTATIONS(){return MUTATIONS;} };
 })();
 </script>
 </body>
