@@ -147,7 +147,9 @@
     <div class="tbgroup right">
       <div class="chip" id="modeChip">🎣 FISHING<small>TAP: ROW 🚣</small></div>
       <div class="chip" id="adminChip" style="display:none">🛠️ ADMIN<small>TAP: CHEATS</small></div>
-      <div class="chip" id="specChip">📖 SPECIES<small>FISH LIST</small></div>
+      <div class="chip" id="specChip">📖 JOURNAL<small>FISH LIST</small></div>
+      <div class="chip" id="tankChip">🐠 TANK<small id="tankChipN">0</small></div>
+      <div class="chip" id="skillChip">🌟 SKILLS<small id="skillChipN">LV 1</small></div>
       <div class="chip" id="worldChip">🗺️ WORLD<small id="worldChipName">🌊 OCEAN</small></div>
       <div class="chip" id="shopChip">🛒 SHOP<small>GEAR &amp; BAIT</small></div>
     </div>
@@ -227,6 +229,7 @@
       <p id="cQuote" style="font-style:italic;opacity:.8"></p>
       <button class="btn" id="cKeep">Keep it 🎣</button>
       <button class="btn sell" id="cSell">Sell it 🪙</button>
+      <button class="btn" id="cTrophy" style="background:linear-gradient(180deg,#1f6f8f,#0f4a66)">Trophy it 🐠</button>
       <p id="cCoins" style="font-size:12px;opacity:.78;margin-top:8px"></p>
     </div>
   </div>
@@ -272,17 +275,43 @@
     </div>
   </div>
 
-  <!-- SPECIES PANEL -->
+  <!-- SPECIES / JOURNAL PANEL -->
   <div class="panel" id="specPanel">
     <button class="closebtn" id="specClose">✕</button>
     <div class="card">
-      <h2>📖 Species</h2>
+      <h2>📖 Journal</h2>
+      <div id="journalStats" style="font-size:12px;opacity:.85;margin:2px 0 8px;line-height:1.5"></div>
       <div class="tabs">
         <button class="tab" id="specTabOcean">🌊 OCEAN</button>
-        <button class="tab" id="specTabSnow">🧊 SNOW ISLAND</button>
+        <button class="tab" id="specTabSnow">🧊 SNOW</button>
         <button class="tab" id="specTabVolcano">🌋 VOLCANO</button>
+        <button class="tab" id="specTabAbyss">🕳️ ABYSS</button>
       </div>
       <div class="scroll" id="specList"></div>
+    </div>
+  </div>
+
+  <!-- AQUARIUM PANEL -->
+  <div class="panel" id="aquaPanel">
+    <button class="closebtn" id="aquaClose">✕</button>
+    <div class="card">
+      <h2>🐠 Trophy Tank</h2>
+      <div class="coinline">🐠 <span id="aquaCap">0 / 12</span> trophies</div>
+      <canvas id="aquaCanvas" width="600" height="230" style="width:100%;border-radius:12px;background:#062033;margin:6px 0"></canvas>
+      <p style="font-size:11px;opacity:.7;margin:0 4px 8px">Your special catches, swimming in their tank. Trophy a fish from the catch panel instead of selling it. Tap one below to release it back to the water.</p>
+      <div class="scroll" id="aquaList"></div>
+    </div>
+  </div>
+
+  <!-- SKILLS PANEL -->
+  <div class="panel" id="skillPanel">
+    <button class="closebtn" id="skillClose">✕</button>
+    <div class="card">
+      <h2>🌟 Skills</h2>
+      <div class="coinline">🌟 Level <span id="skillLvl">1</span> · <span id="skillXp">0</span> XP · <span id="skillPts">0</span> pts</div>
+      <div style="height:8px;border-radius:6px;background:#0b2e49;overflow:hidden;margin:4px 0 8px"><div id="skillXpBar" style="height:100%;width:0%;background:linear-gradient(90deg,#7dffd8,#4fa8ff)"></div></div>
+      <p style="font-size:11px;opacity:.7;margin:0 4px 8px">Every fish you land gives XP. Level up to earn points, then spend them here.</p>
+      <div class="scroll" id="skillList"></div>
     </div>
   </div>
 
@@ -353,7 +382,11 @@
       {n:'Cursed King',    r:'cursed',   a:60.0,b:400.0,q:'Something ancient took the hook. It took the boat too.'},
       {n:'Kraken',         r:'legendary',a:120.0,b:600.0,q:'The whole reef went silent. Then the arms came up.'},
       {n:'Tide Sovereign', r:'mythical', a:300.0,b:1400.0,q:'It has ruled these waters since before there were names for them.'},
-      {n:'Primordial',     r:'transcendent', a:600.0,b:3200.0,q:'Older than the ocean. It was here when the water was fire.'}
+      {n:'Primordial',     r:'transcendent', a:600.0,b:3200.0,q:'Older than the ocean. It was here when the water was fire.'},
+      // ---- conditional spawns: only appear at night or in certain weather ----
+      {n:'Moon Snapper',   r:'uncommon', a:1.5, b:6.0,  q:'Only shows itself under the moon. Pink scales, silver light.', cond:{night:true}},
+      {n:'Storm Trevally', r:'rare',     a:12.0,b:40.0, q:'Rides the swell of a thunderstorm. Never still in calm water.', cond:{wx:'storm'}},
+      {n:'Lunar Marlin',   r:'epic',     a:60.0,b:220.0,q:'It hunts by moonlight, and only by moonlight.', cond:{night:true}}
     ],
     snow: [
       {n:'Ice Sprat',       r:'common',   a:0.05,b:0.3,  q:'Tiny, fast, freezing cold.'},
@@ -370,7 +403,11 @@
       {n:'Aurora Leviathan',r:'cursed',   a:120.0,b:600.0,q:'The sky lit green and something enormous stirred.'},
       {n:'Polar Colossus',  r:'legendary',a:200.0,b:900.0,q:'It shrugged off the sea ice like it was nothing. Because to it, it was.'},
       {n:'Frost Wyrm',      r:'mythical', a:400.0,b:1800.0,q:'A serpent of living ice. The aurora bends around it.'},
-      {n:'The Eternal',     r:'transcendent', a:800.0,b:4000.0,q:'It has slept beneath the ice since the world was young. It just woke up.'}
+      {n:'The Eternal',     r:'transcendent', a:800.0,b:4000.0,q:'It has slept beneath the ice since the world was young. It just woke up.'},
+      // ---- conditional spawns ----
+      {n:'Moonlight Cod',   r:'uncommon', a:2.0, b:8.0,  q:'Rises toward the moon on clear frozen nights.', cond:{night:true}},
+      {n:'Blizzard Pike',   r:'rare',     a:4.0, b:18.0, q:'Only hunts inside a whiteout blizzard.', cond:{wx:'blizzard'}},
+      {n:'Aurora Wyrm',     r:'mythical', a:400.0,b:1800.0,q:'The aurora bends and it rises — but only after dark.', cond:{night:true}}
     ],
     volcano: [
       {n:'Magma Minnow',    r:'common',   a:0.1, b:0.5,  q:'A tiny fish that swims in water it has no right to survive.'},
@@ -387,10 +424,38 @@
       {n:'Infernal Serpent',r:'cursed',   a:150.0,b:700.0,q:'Fire that learned to swim, and to hate.'},
       {n:'Volcano Titan',   r:'legendary',a:250.0,b:1100.0,q:'It rose out of the caldera and the sea turned to steam.'},
       {n:'Ember Leviathan', r:'mythical', a:500.0,b:2200.0,q:'A living current of lava beneath the waves.'},
-      {n:'The Inferno',     r:'transcendent', a:1000.0,b:5000.0,q:'The first fire, the last fire. It was here before the water.'}
+      {n:'The Inferno',     r:'transcendent', a:1000.0,b:5000.0,q:'The first fire, the last fire. It was here before the water.'},
+      // ---- conditional spawns ----
+      {n:'Nightfall Eel',   r:'uncommon', a:1.8, b:7.5,  q:'Glows brighter after dark, and only then comes up.', cond:{night:true}},
+      {n:'Eruption Goby',   r:'epic',     a:4.0, b:20.0, q:'Only surfaces while the mountain is erupting.', cond:{wx:'eruption'}},
+      {n:'Emberbat Ray',    r:'rare',     a:50.0,b:200.0,q:'Wings of coal. Hunts in the dark over the vents.', cond:{night:true}}
+    ],
+    abyss: [
+      {n:'Lantern Sprat',  r:'common',   a:0.05,b:0.3,  q:'A pinprick of blue light in the black. The trench is full of them.'},
+      {n:'Trench Goby',    r:'common',   a:0.3, b:1.4,  q:'Pale, blind-ish, patient. Waits in the silt.'},
+      {n:'Bone Whiting',   r:'common',   a:0.4, b:1.6,  q:'White as bone, drifting in water that never saw the sun.'},
+      {n:'Gulper Eel',     r:'uncommon', a:2.0, b:9.0,  q:'A mouth that opens wider than the rest of it.'},
+      {n:'Angler Cod',     r:'uncommon', a:3.0, b:12.0, q:'It dangles a little light and waits for something to believe it.'},
+      {n:'Ghost Pike',     r:'rare',     a:5.0, b:22.0, q:'Half there. You can see the water through it.'},
+      {n:'Wraith Eel',     r:'rare',     a:4.0, b:18.0, q:'Slips out of the dark after midnight, thin as smoke.', cond:{night:true}},
+      {n:'Abyss Shark',    r:'epic',     a:80.0,b:340.0,q:'The black water moved, and then it was beside the boat.'},
+      {n:'Phantom Ray',    r:'epic',     a:60.0,b:260.0,q:'It glides through the trench like a rumour.'},
+      {n:'Spectre Ray',    r:'epic',     a:70.0,b:300.0,q:'Only at night does it drift up from the deep.', cond:{night:true}},
+      {n:'Hadal Serpent',  r:'cursed',   a:180.0,b:900.0,q:'A current with teeth and a spine. It lives where the map stops.'},
+      {n:'Sunken Colossus',r:'legendary',a:320.0,b:1500.0,q:'A mountain of fish that sank here long ago, and never really died.'},
+      {n:'Void Leviathan', r:'mythical', a:600.0,b:2600.0,q:'It does not swim through the water. The water gets out of its way.'},
+      {n:'The Deep One',   r:'transcendent', a:1200.0,b:6000.0,q:'It was here before the light, and it will be here after. This is its house.'}
     ]
   };
   function worldFish(w){ return FISH[w] || FISH.ocean; }
+  // a fish with a `cond` only shows up when that condition holds (night / specific weather)
+  function condOK(def){
+    const c=def && def.cond; if(!c) return true;
+    if(c.night && dayLabel()==='NIGHT') return true;
+    if(c.wx && weather===c.wx) return true;
+    return false;
+  }
+  function isSpecialFish(def){ return !!(def && def.cond); }
   // per-species look: silhouette type + two-tone body colours (+ optional pattern stripes)
   const SPECIES = {
     'Sardine':       { t:'sardine',  c1:'#cfe8ff', c2:'#7aa7c8', p:'stripe' },
@@ -439,7 +504,32 @@
     'Infernal Serpent':{ t:'serpent',c1:'#ff7a3c', c2:'#7a1f0a', p:'scale'  },
     'Volcano Titan':  { t:'titan',   c1:'#ffab5c', c2:'#6f1f0a', p:'scale'  },
     'Ember Leviathan':{ t:'leviathan',c1:'#ffc27a',c2:'#8f2a12', p:'stripe' },
-    'The Inferno':    { t:'inferno', c1:'#ffe08a', c2:'#c2331a', p:'scale'  }
+    'The Inferno':    { t:'inferno', c1:'#ffe08a', c2:'#c2331a', p:'scale'  },
+    // ---- condition-only spawns (night / weather) ----
+    'Moon Snapper':   { t:'snapper', c1:'#ffd6ee', c2:'#7a5fbf', p:'spot'   },
+    'Storm Trevally': { t:'trevally',c1:'#cfe4ff', c2:'#3a5f9f', p:'spot'   },
+    'Lunar Marlin':   { t:'marlin',  c1:'#d8e6ff', c2:'#3a4fbf', p:'stripe' },
+    'Moonlight Cod':  { t:'cod',     c1:'#e6eeff', c2:'#6f7fc0', p:'spot'   },
+    'Blizzard Pike':  { t:'pike',    c1:'#e0f0ff', c2:'#5a7fa8', p:'bar'    },
+    'Aurora Wyrm':    { t:'wyrm',    c1:'#d8fff2', c2:'#3f7fc0', p:'scale'  },
+    'Nightfall Eel':  { t:'eel',     c1:'#c08aff', c2:'#3a1f7a', p:'stripe' },
+    'Eruption Goby':  { t:'goby',    c1:'#ff9a5c', c2:'#6f1f0a', p:'spot'   },
+    'Emberbat Ray':   { t:'ray',     c1:'#ff9a5c', c2:'#5f1f0a', p:'spot'   },
+    // ---- ABYSS (deep-sea trench) ----
+    'Lantern Sprat':  { t:'sprat',   c1:'#9fe8ff', c2:'#2f4f8f', p:'stripe' },
+    'Trench Goby':    { t:'goby',    c1:'#9fb0c8', c2:'#2a3548', p:'spot'   },
+    'Bone Whiting':   { t:'whiting', c1:'#f0f4f8', c2:'#9aa8b8', p:'stripe' },
+    'Gulper Eel':     { t:'eel',     c1:'#7f9fbf', c2:'#20304a', p:'stripe' },
+    'Angler Cod':     { t:'cod',     c1:'#6f8fa8', c2:'#1f3048', p:'spot'   },
+    'Ghost Pike':     { t:'pike',    c1:'#dff0ff', c2:'#7f9fc0', p:'bar'    },
+    'Wraith Eel':     { t:'eel',     c1:'#bfe0ff', c2:'#405f8f', p:'stripe' },
+    'Abyss Shark':    { t:'shark',   c1:'#7f9fc0', c2:'#1a2438', p:'stripe' },
+    'Phantom Ray':    { t:'ray',     c1:'#b0c8e0', c2:'#3a4f7a', p:'spot'   },
+    'Spectre Ray':    { t:'ray',     c1:'#c0d8f0', c2:'#405f9f', p:'spot'   },
+    'Hadal Serpent':  { t:'serpent', c1:'#7a9fff', c2:'#1f1f6f', p:'scale'  },
+    'Sunken Colossus':{ t:'colossus',c1:'#8fa8c0', c2:'#2a3f5f', p:'stripe' },
+    'Void Leviathan': { t:'leviathan',c1:'#a08aff',c2:'#2a0f5f', p:'stripe' },
+    'The Deep One':   { t:'primordial',c1:'#9fd8ff',c2:'#1f1050', p:'scale'  }
   };
   const DEFAULT_ART = { t:'bream', c1:'#cfe0ee', c2:'#5f7f96', p:'spot' };
   // colour helper: amt>0 lightens toward white, amt<0 darkens toward black
@@ -1123,6 +1213,41 @@
       ctx.strokeStyle='#fff1c8'; ctx.lineWidth=0.12;
       for(let i=0;i<6;i++){ const a=i*1.047+t*1.6; ctx.beginPath(); ctx.moveTo(Math.cos(a)*0.32,Math.sin(a)*0.32); ctx.lineTo(Math.cos(a)*1.0,Math.sin(a)*1.0); ctx.stroke(); }
       ctx.fillStyle='#fff6d0'; ctx.beginPath(); ctx.arc(0,0,0.3+Math.sin(t*6)*0.05,0,7); ctx.fill();
+    } else if(style==='glowshrimp'){
+      ctx.fillStyle=col;
+      for(const p of [[-0.45,-0.15],[0.4,-0.28],[0.05,0.34],[-0.28,0.28],[0.5,0.18]]){
+        ctx.save(); ctx.translate(p[0],p[1]+Math.sin(t*6+p[0])*0.06);
+        ctx.beginPath(); ctx.ellipse(0,0,0.3,0.16,0,0,7); ctx.fill();
+        ctx.strokeStyle=col; ctx.lineWidth=0.07; ctx.beginPath(); ctx.moveTo(-0.28,0); ctx.lineTo(-0.58,-0.2); ctx.stroke();
+        ctx.restore();
+      }
+      ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.5+Math.sin(t*5)*.25;
+      const gg=ctx.createRadialGradient(0,0,0.1,0,0,1.2); gg.addColorStop(0,'rgba(160,235,255,.8)'); gg.addColorStop(1,'rgba(160,235,255,0)');
+      ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(0,0,1.2,0,7); ctx.fill(); ctx.restore();
+    } else if(style==='carrion'){
+      ctx.fillStyle=col; ctx.beginPath(); ctx.moveTo(-0.85,0.25); ctx.quadraticCurveTo(-0.3,-0.6,0.3,-0.35); ctx.quadraticCurveTo(0.9,-0.1,0.5,0.55); ctx.quadraticCurveTo(-0.1,0.85,-0.85,0.25); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='rgba(180,60,60,.45)'; ctx.beginPath(); ctx.arc(0.1,0.05,0.22,0,7); ctx.fill();
+      ctx.strokeStyle='rgba(30,40,35,.5)'; ctx.lineWidth=0.08;
+      for(let i=-1;i<=1;i++){ ctx.beginPath(); ctx.moveTo(i*0.4,0.6); ctx.lineTo(i*0.5+wob*0.1,1.15); ctx.stroke(); }
+    } else if(style==='ghostfish'){
+      const g=ctx.createLinearGradient(0,-0.5,0,0.5); g.addColorStop(0,'#ffffff'); g.addColorStop(.4,col); g.addColorStop(1,'#8fa8c0');
+      ctx.globalAlpha=.75; ctx.fillStyle=g; ctx.beginPath(); ctx.ellipse(0,0,1.0,0.4,0,0,7); ctx.fill();
+      ctx.fillStyle='#8fa8c0'; ctx.beginPath(); ctx.moveTo(-0.9,0); ctx.lineTo(-1.42,-0.42+wob*0.3); ctx.lineTo(-1.15,0); ctx.lineTo(-1.42,0.42+wob*0.3); ctx.closePath(); ctx.fill();
+      ctx.globalAlpha=1; ctx.fillStyle='#1a2438'; ctx.beginPath(); ctx.arc(0.62,-0.08,0.1,0,7); ctx.fill();
+      ctx.save(); ctx.globalAlpha=.4+Math.sin(t*4)*.2; ctx.strokeStyle='#eafcff'; ctx.lineWidth=0.1; ctx.beginPath(); ctx.arc(0,0,1.3,0,7); ctx.stroke(); ctx.restore();
+    } else if(style==='inksac'){
+      ctx.fillStyle=col; ctx.beginPath(); ctx.ellipse(0,0.05,0.7,0.85,0,0,7); ctx.fill();
+      ctx.fillStyle='rgba(120,90,180,.6)'; ctx.beginPath(); ctx.ellipse(-0.2,-0.25,0.24,0.3,0,0,7); ctx.fill();
+      ctx.fillStyle='#2a1040'; ctx.beginPath(); ctx.moveTo(0,-0.8); ctx.lineTo(0.22,-0.5); ctx.lineTo(-0.22,-0.5); ctx.closePath(); ctx.fill();
+      ctx.save(); ctx.globalAlpha=.35+Math.sin(t*3)*.15; ctx.fillStyle='#000'; 
+      for(let i=0;i<5;i++){ const a=t*0.8+i*1.26; ctx.beginPath(); ctx.arc(Math.cos(a)*0.9,Math.sin(a)*0.9+0.2,0.2,0,7); ctx.fill(); } ctx.restore();
+    } else if(style==='abysscore'){
+      const g=ctx.createRadialGradient(0,0,0.1,0,0,1.15); g.addColorStop(0,'#ffffff'); g.addColorStop(.4,'#a08aff'); g.addColorStop(1,'rgba(160,138,255,0)');
+      ctx.fillStyle=g; ctx.beginPath(); ctx.arc(0,0,1.15,0,7); ctx.fill();
+      ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.6;
+      ctx.strokeStyle='#e0d0ff'; ctx.lineWidth=0.12;
+      for(let i=0;i<6;i++){ const a=i*1.047+t*1.4; ctx.beginPath(); ctx.moveTo(Math.cos(a)*0.3,Math.sin(a)*0.3); ctx.lineTo(Math.cos(a)*0.95,Math.sin(a)*0.95); ctx.stroke(); }
+      ctx.fillStyle='#f6f0ff'; ctx.beginPath(); ctx.arc(0,0,0.28+Math.sin(t*6)*0.05,0,7); ctx.fill(); ctx.restore();
     } else {
       ctx.fillStyle=col; ctx.beginPath(); ctx.ellipse(0,0,0.8,0.6,0.3,0,7); ctx.fill();
     }
@@ -1202,6 +1327,13 @@
       {name:'Magma Caster',  cost:26000,cast:1.65, reel:1.95, pwr:2.25, lure:2.30, luck:1, style:'magma',    desc:'SPEED rig — a firestorm of bites, mostly small fry.', mut:{chance:0.14, type:'ember'}},
       {name:'Obsidian Rod',  cost:52000,cast:1.85, reel:2.30, pwr:2.95, lure:0.95, luck:13,style:'obsidian', desc:'LUCK rig — slow, but the fire-deep horrors answer it.', mut:{chance:0.18, type:'ember'}},
       {name:'Infernal Rod',  cost:110000,cast:2.10, reel:2.90, pwr:4.00, lure:1.90, luck:17,style:'infernal',desc:'The apex rod of the burning deep. Fast bites AND the titans.', mut:{chance:0.27, type:'ember'}}
+    ],
+    abyss: [
+      {name:'Glow Rod',      cost:0,    cast:1.30, reel:1.20, pwr:1.50, lure:1.20, luck:3, style:'glow',     desc:'A dim bioluminescent starter. Something down here answers its light.', mut:{chance:0.09, type:'abyssal'}},
+      {name:'Sonar Rig',     cost:40000,cast:1.55, reel:1.70, pwr:1.95, lure:1.50, luck:6, style:'sonar',    desc:'Pings the dark. Quick bites in the black.', mut:{chance:0.13, type:'abyssal'}},
+      {name:'Void Caster',   cost:90000,cast:1.75, reel:2.10, pwr:2.40, lure:2.40, luck:2, style:'void',     desc:'SPEED rig — a flood of ghost-fish, mostly small ones.', mut:{chance:0.15, type:'abyssal'}},
+      {name:'Hadal Rod',     cost:170000,cast:1.95,reel:2.50, pwr:3.10, lure:1.00, luck:16,style:'hadal',    desc:'LUCK rig — slow, patient, and the trench things come.', mut:{chance:0.20, type:'abyssal'}},
+      {name:'Deepest Throne',cost:340000,cast:2.25,reel:3.10, pwr:4.30, lure:2.00, luck:21,style:'deepest',  desc:'The apex rod of the trench. Fast bites AND The Deep One.', mut:{chance:0.30, type:'abyssal'}}
     ]
   };
 
@@ -1227,6 +1359,13 @@
       {name:'Firefish',     cost:3200, lure:-0.05,luck:4, col:'#ff7a3c', style:'firefish',   desc:'Blazing smelt. The big ones hunt it.'},
       {name:'Magma Squid',  cost:8000, lure:-0.15,luck:6, col:'#ff5c9c', style:'magmasquid', desc:'Iridescent and hot to the touch. Serious bait.'},
       {name:'Inferno Bait', cost:20000,lure:0.55, luck:12,col:'#ffd23c', style:'inferno',    desc:'A ball of bottled firelight. Fast bites AND titans.'}
+    ],
+    abyss: [
+      {name:'Glow Shrimp',  cost:1500, lure:0.25, luck:1, col:'#9fe8ff', style:'glowshrimp', desc:'Faintly luminous. The dark notices it.'},
+      {name:'Carrion Chunks',cost:4000,lure:0.05, luck:5, col:'#8fa89f', style:'carrion',  desc:'Smells like something died. Down here, that is a feast.'},
+      {name:'Ghostfish',    cost:9000, lure:0.10, luck:7, col:'#dff0ff', style:'ghostfish', desc:'Pale and translucent. Hunted by everything in the trench.'},
+      {name:'Kraken Ink Sac',cost:18000,lure:0.40,luck:10,col:'#4a2f6f',style:'inksac',   desc:'Draws the monsters of the deep out of the black.'},
+      {name:'Abyss Core',   cost:45000,lure:0.60, luck:16,col:'#a08aff', style:'abysscore', desc:'A pulsing mote of trench-light. Fast bites AND The Deep One.'}
     ]
   };
   function worldRods(w){ return RODS[w] || RODS.ocean; }
@@ -1243,9 +1382,12 @@
              theme:'snow' },
     volcano:{ name:'Volcano Island', icon:'🌋', locked:true, cost:60000, order:2,
              blurb:'Boiling water and black rock. The deadliest fish in the game live here.',
-             theme:'volcano' }
+             theme:'volcano' },
+    abyss:  { name:'The Abyss',      icon:'🕳️', locked:true, cost:150000, order:3,
+             blurb:'A lightless deep-sea trench. Ghost-fish and things with no name down here.',
+             theme:'abyss' }
   };
-  const WORLD_ORDER = ['ocean','snow','volcano'];
+  const WORLD_ORDER = ['ocean','snow','volcano','abyss'];
 
   // ---------- BOATS ----------
   // Your boat decides where you can sail. Each island has a `roughness` — the sea
@@ -1255,10 +1397,11 @@
     {name:'Fishing Dinghy', cost:2500, dur:3,  speed:1.10, style:'dinghy',   desc:'A proper little tub. Handles the run to Snow Island.'},
     {name:'Skipper',      cost:15000, dur:5,  speed:1.20, style:'skipper',  desc:'Sturdy cabin boat. Rides out rough water and open sea.'},
     {name:'Trawler',      cost:40000, dur:8,  speed:1.30, style:'trawler',  desc:'Heavy steel hull. Nothing in these waters worries it.'},
-    {name:'Icebreaker',   cost:120000,dur:12, speed:1.40, style:'icebreaker',desc:'Military-grade deep-water vessel. It goes wherever it wants, even into volcanic seas.'}
+    {name:'Icebreaker',   cost:120000,dur:12, speed:1.40, style:'icebreaker',desc:'Military-grade deep-water vessel. It goes wherever it wants, even into volcanic seas.'},
+    {name:'Bathysphere',  cost:300000,dur:16, speed:1.55, style:'bathysphere',desc:'A reinforced diving bell built for the trench. Pressure-proof. Almost.'}
   ];
   // sea roughness per destination — the boat must have >= this durability to reach it
-  const SEA_ROUGHNESS = { ocean:0, snow:3, volcano:8 };
+  const SEA_ROUGHNESS = { ocean:0, snow:3, volcano:8, abyss:16 };
   const FIGHT = {
     common:  {pull:0.22, tension:0.30, thrash:0.55},
     uncommon:{pull:0.30, tension:0.40, thrash:0.75},
@@ -1291,7 +1434,8 @@
     // ---- disaster-exclusive mutations (only ever come from a biome event) ----
     tempest: {name:'Tempest',  color:'#7fe3ff', mult:3.2},
     glacial: {name:'Glacial',  color:'#dcf6ff', mult:3.0},
-    molten:  {name:'Molten',   color:'#ff6a2a', mult:3.4}
+    molten:  {name:'Molten',   color:'#ff6a2a', mult:3.4},
+    void:    {name:'Void',     color:'#a08aff', mult:3.6}
   };
   // each weather rolls its own mutation; clear gives none
   const WEATHERS = {
@@ -1307,7 +1451,8 @@
     // ---- biome-exclusive DISASTER weather (never rolled normally — triggered by the event system) ----
     hurricane: {name:'Hurricane',    icon:'🌀', weight:0},
     blizzard:  {name:'Blizzard',     icon:'❄️', weight:0},
-    eruption:  {name:'Eruption',     icon:'🌋', weight:0}
+    eruption:  {name:'Eruption',     icon:'🌋', weight:0},
+    voidstorm: {name:'Voidstorm',    icon:'🌑', weight:0}
   };
   // biome disasters: rare, exclusive, each mutates the water and can surface a boss
   const DISASTERS = {
@@ -1322,7 +1467,11 @@
     volcano: { key:'eruption',  name:'Eruption',   icon:'🌋', mutation:'molten',
                boss:{name:'The Eruption', r:'boss', a:700, b:2200, boost:1.45,
                      q:'The mountain stood up. The mountain has a face.',
-                     art:{t:'bosseruption', c1:'#ffb05c', c2:'#8f1f0a', p:'scale'}} }
+                     art:{t:'bosseruption', c1:'#ffb05c', c2:'#8f1f0a', p:'scale'}} },
+    abyss:   { key:'voidstorm', name:'Voidstorm',  icon:'🌑', mutation:'void',
+               boss:{name:'The Void Sovereign', r:'boss', a:900, b:2800, boost:1.5,
+                     q:'The trench opened, and something that had always been down there finally looked up.',
+                     art:{t:'primordial', c1:'#b0a0ff', c2:'#150a3a', p:'scale'}} }
   };
   function biomeDisaster(){ return DISASTERS[sceneTheme()] || DISASTERS.ocean; }
   // register boss looks up-front so their portraits/species entries always render (not only after a disaster)
@@ -1333,6 +1482,7 @@
     const TH=sceneTheme();
     if(TH==='snow'){ w.snow=24; w.rain*=0.5; w.storm*=0.6; w.heat=0; w.fog*=0.7; }
     else if(TH==='volcano'){ w.heat=22; w.ember=0; w.snow=0; w.rain*=0.5; w.storm*=0.8; w.fog*=0.6; w.goldenrain*=0.5; }
+    else if(TH==='abyss'){ w.snow=0; w.heat=0; w.goldenrain=0; w.clear*=0.4; w.fog*=1.6; w.storm*=1.2; w.lunar*=1.5; w.voidstorm=0; }
     else { w.snow=0; w.goldenrain=1; }
     return w;
   }
@@ -1341,7 +1491,8 @@
               rod:{ocean:0,snow:0}, rodEq:null, owned:{ocean:[0],snow:[0]},
               boat:0, boats:[0],
               caught:{}, total:0, state:'idle', cap:8, inv:[], upg:0,
-              bait:null, baits:{}, mode:'fish', boatF:0.20, instant:false };
+              bait:null, baits:{}, mode:'fish', boatF:0.20, instant:false,
+              tank:[], xp:0, lvl:1, pts:0, skills:{}, rodLv:{} };
   const INVENTORY = 8;
   // each tier raises the crate capacity. cost scales steeply.
   const UPGRADES = [
@@ -1351,10 +1502,74 @@
     {name:'Fish Wharf',   desc:'Practically endless.',   add:40, base:18000 }
   ];
   function invUpgradesBought(){ return S.upg||0; }
-  function crateSize(){ let c=INVENTORY; for(let i=0;i<invUpgradesBought()&&i<UPGRADES.length;i++) c+=UPGRADES[i].add; return c; }
+  function crateSize(){ let c=INVENTORY; for(let i=0;i<invUpgradesBought()&&i<UPGRADES.length;i++) c+=UPGRADES[i].add; return c + skillVal('cargo'); }
   function invUsed(){ return S.inv ? S.inv.length : 0; }
   function nextUpgrade(){ return UPGRADES[invUpgradesBought()] || null; }
   function nextUpgradeCost(){ const u=nextUpgrade(); return u ? Math.round(u.base*Math.pow(2.6, invUpgradesBought())) : null; }
+
+  // ---------- SKILL TREE ----------
+  // earn XP by landing fish; level up to bank points; spend points on permanent perks
+  const SKILLS = {
+    luck:  {name:'🍀 Lucky',        max:12, desc:'+1 luck per point — rarer fish, more often.'},
+    reel:  {name:'💪 Reel Power',   max:12, desc:'+6% reel power per point — win fights faster.'},
+    lure:  {name:'🌀 Lure Master',  max:10, desc:'+4% bite speed per point — fish come sooner.'},
+    bait:  {name:'🪱 Bait Saver',   max:6,  desc:'Chance to not use up bait on a cast.'},
+    cargo: {name:'🎒 Bigger Crate', max:8,  desc:'+1 crate slot per point.'},
+    greed: {name:'💰 Silver Tongue',max:8,  desc:'+5% coins when you sell a fish.'}
+  };
+  function xpNeeded(lvl){ return Math.round(110*Math.pow(1.32, Math.max(0,lvl-1))); }
+  function skillVal(k){ return (S.skills && S.skills[k]) || 0; }
+  function skillPtsSpent(){ let n=0; for(const k in S.skills) n+=S.skills[k]||0; return n; }
+  function addXp(n){
+    if(!n) return; S.xp=(S.xp||0)+n;
+    let leveled=false;
+    while(S.xp >= xpNeeded(S.lvl)){ S.xp -= xpNeeded(S.lvl); S.lvl=(S.lvl||1)+1; S.pts=(S.pts||0)+1; leveled=true; }
+    if(leveled){ popRarityText('🌟 LEVEL '+S.lvl+'!', '#7dffd8'); floatText(rod.x, waterY-70, '+1 SKILL POINT', '#7dffd8'); }
+    return leveled;
+  }
+  function xpFor(f){ return 8*(rarRank(f.r)+1) + Math.round((f.kg||0)/2) + (f.boss?40:0); }
+  function spendSkill(k){
+    const sk=SKILLS[k]; if(!sk) return;
+    if((S.pts||0) < 1) return say('No skill points — level up first! 🌟');
+    if(skillVal(k) >= sk.max) return say(sk.name+' is maxed out.');
+    S.skills[k]=skillVal(k)+1; S.pts-=1; save(); renderSkills(); updateHUD(); say(sk.name+' upgraded! 🌟');
+  }
+  function respecSkills(){ S.pts=(S.pts||0)+skillPtsSpent(); S.skills={}; save(); renderSkills(); say('Skills reset — points refunded 🌟'); }
+
+  // ---------- ROD UPGRADES (per-rod levels) ----------
+  function rodLvKey(w,i){ return w+':'+i; }
+  function rodLevel(w,i){ return (S.rodLv && S.rodLv[rodLvKey(w,i)]) || 0; }
+  function rodLevMult(w,i){ return 1 + rodLevel(w,i)*0.08; }        // +8% stats per rod level
+  function rodLevelCost(w,i){ const r=RODS[w] && RODS[w][i]; if(!r) return 0; const lv=rodLevel(w,i); return Math.round(500*Math.pow(2.1, lv) + (r.cost||0)*0.35); }
+  function rodLevelMax(){ return 10; }
+  function upgradeRod(w,i){
+    const r=RODS[w] && RODS[w][i]; if(!r) return;
+    if(rodLevel(w,i) >= rodLevelMax()) return say(r.name+' is already fully upgraded.');
+    const cost=rodLevelCost(w,i);
+    if(S.coins < cost) return say('Need 🪙 '+cost+' to upgrade '+r.name+'!');
+    S.coins-=cost; S.rodLv[rodLvKey(w,i)]=rodLevel(w,i)+1; save(); updateHUD(); renderInventory(); renderShop();
+    say('⬆ '+r.name+' → Lv '+rodLevel(w,i)+'!');
+  }
+  // wrap a rod definition with its level bonus (used everywhere stats are read)
+  function boostRod(base, w, i){
+    if(!base || !w) return base;
+    const m=rodLevMult(w,i); if(m===1) return base;
+    return Object.assign({}, base, { cast:+(base.cast*m).toFixed(3), reel:+(base.reel*m).toFixed(3), pwr:+(base.pwr*m).toFixed(3), lure:+(base.lure*m).toFixed(3), luck:Math.round(base.luck*m) });
+  }
+
+  // ---------- TROPHY TANK ----------
+  const TANK_MAX = 12;
+  function tankCount(){ return S.tank ? S.tank.length : 0; }
+  function addTank(f){
+    if(tankCount() >= TANK_MAX) return false;
+    S.tank.push({n:f.n, r:f.r, kg:+f.kg.toFixed(2), value:f.value, size:f.size, mut:f.mut||null});
+    save(); updateHUD(); return true;
+  }
+  function releaseTank(i){
+    const f=S.tank[i]; if(!f) return; S.tank.splice(i,1);
+    S.coins += f.value; save(); updateHUD(); renderAqua();
+    say('Released '+f.n+' for 🪙 '+f.value);
+  }
   let fishes = [], nextId = 1;
   const RIPPLE = {}; let rippleId=0;
   const FLOATERS = {}; let floatId=0;
@@ -1378,7 +1593,7 @@
     return {w:S.world, i};
   }
   function curRodIdx(){ return rodRef().i; }
-  function curRod(){ const e=rodRef(); return (RODS[e.w]&&RODS[e.w][e.i]) || worldRods(S.world)[0]; }
+  function curRod(){ const e=rodRef(); const r=(RODS[e.w]&&RODS[e.w][e.i]) || worldRods(S.world)[0]; return boostRod(r, e.w, e.i); }
   function isRodEquipped(w,i){ const e=rodRef(); return e.w===w && e.i===i; }
   function curOwned(){ if(!S.owned[S.world]) S.owned[S.world]=[0]; return S.owned[S.world]; }
   // boats — owned list + equipped index
@@ -1394,12 +1609,16 @@
     const def=worldBaits(w)[i]; return def ? {def, world:w, idx:i, key:k} : null;
   }
   // rod + bait stack together
-  function totalLure(){ const b=equippedBait(); return Math.max(0.35, curRod().lure + (b?b.def.lure:0)); }
-  function totalLuck(){ const b=equippedBait(); return curRod().luck + (b?b.def.luck:0); }
+  function totalLure(){ const b=equippedBait(); return Math.max(0.35, (curRod().lure + (b?b.def.lure:0)) * (1 + skillVal('lure')*0.04) + skillVal('lure')*0.02); }
+  function totalLuck(){ const b=equippedBait(); return curRod().luck + (b?b.def.luck:0) + skillVal('luck'); }
   // how long a bite takes at the current lure speed (higher lure = shorter)
   function arrive(base){ return base / totalLure(); }
   function consumeBait(){
     const k=equippedBaitKey(); if(!k) return;
+    // Bait Saver skill: chance to keep the bait
+    if(skillVal('bait')>0 && Math.random() < Math.min(0.6, skillVal('bait')*0.10)){
+      floatText(bob.tx, waterY+40, 'BAIT SAVED', '#7dffd8'); updateHUD(); return;
+    }
     S.baits[k]=Math.max(0, baitCount(k)-1);
     if(S.baits[k]<=0){ S.bait=null; floatText(bob.tx, waterY+40, 'BAIT GONE', '#ff9d76'); }
     save(); updateHUD();
@@ -1411,11 +1630,16 @@
     rod:S.rod, rodEq:S.rodEq, owned:S.owned, caught:S.caught, total:S.total,
     boat:S.boat, boats:S.boats,
     inv:S.inv, upg:S.upg, rodSold:S.rodSold, bait:S.bait, baits:S.baits,
-    mode:S.mode, boatF:S.boatF })); }catch(e){} }
+    mode:S.mode, boatF:S.boatF,
+    tank:S.tank, xp:S.xp, lvl:S.lvl, pts:S.pts, skills:S.skills, rodLv:S.rodLv })); }catch(e){} }
   function load(){ try{ const d=JSON.parse(localStorage.getItem('deepcast_v1')||'null');
     if(d){
       S.coins=d.coins||0; S.caught=d.caught||{}; S.total=d.total||0;
       S.cap=d.cap||8; S.inv=Array.isArray(d.inv)?d.inv:[]; S.upg=d.upg||0; S.rodSold=d.rodSold||0;
+      S.tank=Array.isArray(d.tank)?d.tank:[]; S.xp=typeof d.xp==='number'?d.xp:0;
+      S.lvl=typeof d.lvl==='number'?d.lvl:1; S.pts=typeof d.pts==='number'?d.pts:0;
+      S.skills=(d.skills&&typeof d.skills==='object')?d.skills:{};
+      S.rodLv=(d.rodLv&&typeof d.rodLv==='object')?d.rodLv:{};
       S.world=(d.world && WORLDS[d.world])?d.world:'ocean';
       S.mode=(d.mode==='row')?'row':'fish';
       S.boatF=(typeof d.boatF==='number')?Math.max(0.08,Math.min(0.58,d.boatF)):0.20;
@@ -1629,7 +1853,9 @@
     let tot=0; for(const k in w) tot+=w[k];
     let r=Math.random()*tot, pick='common';
     for(const k in w){ r-=w[k]; if(r<=0){pick=k;break;} }
-    let pool = worldFish(S.world).filter(f=>f.r===pick);
+    let pool = worldFish(S.world).filter(f=>f.r===pick && condOK(f));
+    if(!pool.length) pool = worldFish(S.world).filter(f=>f.r===pick && !isSpecialFish(f));
+    if(!pool.length) pool = worldFish(S.world).filter(f=>!isSpecialFish(f));
     if(!pool.length) pool = worldFish(S.world);
     const def = pool[Math.floor(Math.random()*pool.length)] || worldFish(S.world)[0];
     const t = Math.random();
@@ -1830,6 +2056,7 @@
 
   document.getElementById('cKeep').addEventListener('click', keepCatch);
   document.getElementById('cSell').addEventListener('click', sellCatch);
+  document.getElementById('cTrophy').addEventListener('click', trophyCatch);
   document.getElementById('shopClose').addEventListener('click', ()=>hidePanel('shopPanel'));
   document.getElementById('tabRods').addEventListener('click', ()=>{ shopTab='rods'; renderShop(); });
   document.getElementById('tabBait').addEventListener('click', ()=>{ shopTab='bait'; renderShop(); });
@@ -1844,6 +2071,9 @@
   document.getElementById('specTabOcean').addEventListener('click', ()=>{ specWorld='ocean'; renderSpecies(); });
   document.getElementById('specTabSnow').addEventListener('click', ()=>{ specWorld='snow'; renderSpecies(); });
   document.getElementById('specTabVolcano').addEventListener('click', ()=>{ specWorld='volcano'; renderSpecies(); });
+  document.getElementById('specTabAbyss').addEventListener('click', ()=>{ specWorld='abyss'; renderSpecies(); });
+  document.getElementById('aquaClose').addEventListener('click', ()=>hidePanel('aquaPanel'));
+  document.getElementById('skillClose').addEventListener('click', ()=>hidePanel('skillPanel'));
   document.getElementById('howClose').addEventListener('click', ()=>{ hidePanel('howPanel'); try{localStorage.setItem('deepcast_tut','1');}catch(e){} resetToIdle(); });
   document.getElementById('shopChip').style.pointerEvents='auto';
   document.getElementById('shopChip').addEventListener('click', ()=>openShop('rods'));
@@ -1851,6 +2081,10 @@
   document.getElementById('invChip').addEventListener('click', openInventory);
   document.getElementById('specChip').style.pointerEvents='auto';
   document.getElementById('specChip').addEventListener('click', ()=>openSpecies());
+  document.getElementById('tankChip').style.pointerEvents='auto';
+  document.getElementById('tankChip').addEventListener('click', openAqua);
+  document.getElementById('skillChip').style.pointerEvents='auto';
+  document.getElementById('skillChip').addEventListener('click', openSkills);
   document.getElementById('worldChip').style.pointerEvents='auto';
   document.getElementById('worldChip').addEventListener('click', openWorlds);
   document.getElementById('baitChip').style.pointerEvents='auto';
@@ -1864,7 +2098,7 @@
   function showAdminChip(){ const el=adminChipEl(); if(el) el.style.display=adminOn?'':'none'; }
   function openAdmin(){ if(!adminOn) return; renderAdmin(); showPanel('adminPanel'); }
   function adminCoins(n){ S.coins+=n; save(); updateHUD(); renderAdmin(); say('🪙 +'+n.toLocaleString()); }
-  function adminUnlockAll(){ S.unlocked={ocean:true,snow:true,volcano:true}; save(); updateHUD(); renderAdmin(); say('🔓 All islands unlocked'); }
+  function adminUnlockAll(){ S.unlocked={ocean:true,snow:true,volcano:true,abyss:true}; save(); updateHUD(); renderAdmin(); say('🔓 All islands unlocked'); }
   function adminAllRods(){ for(const w in RODS){ S.owned[w]=RODS[w].map((_,i)=>i); } const web=RODS.volcano? 'volcano':'ocean'; S.rodEq={w:web, i:RODS[web].length-1}; if(S.rod) S.rod[web]=RODS[web].length-1; save(); updateHUD(); renderAdmin(); say('🎣 All rods owned + best equipped'); }
   function adminAllBait(){ for(const w in BAITS){ BAITS[w].forEach((_,i)=>{ S.baits[w+':'+i]=99; }); } const w0=BAITS.volcano?'volcano':'ocean'; if(!S.bait) S.bait=w0+':'+(BAITS[w0].length-1); save(); updateHUD(); renderAdmin(); say('🪱 All bait ×99'); }
   function adminAllBoats(){ S.boats=BOAT.map((_,i)=>i); S.boat=BOAT.length-1; save(); updateHUD(); renderAdmin(); say('⛵ Best boat equipped'); }
@@ -1970,7 +2204,7 @@
     const len=118;
     return { x: hx + Math.cos(ang)*len*tn, y: hy + Math.sin(ang)*len };
   }
-  function rodPower(){ return curRod().pwr; }
+  function rodPower(){ return curRod().pwr * (1 + skillVal('reel')*0.06); }
   // depth in the water for a given catch progress (higher progress = closer to the surface)
   function fishDepth(prog){ const top=waterY+34; return top + (bob.ty-top)*(1-Math.max(0,Math.min(1,prog))); }
 
@@ -2203,14 +2437,24 @@
   function paintScene(g, cssW, cssH, scale, theme){
     g.setTransform(1,0,0,1,0,0); g.clearRect(0,0,g.canvas.width,g.canvas.height);
     g.scale(scale,scale);
-    const snow = theme==='snow', volc = theme==='volcano';
+    const snow = theme==='snow', volc = theme==='volcano', abis = theme==='abyss';
     const sky=g.createLinearGradient(0,0,0,cssH);
-    if(snow){ sky.addColorStop(0,'#0b2b45'); sky.addColorStop(.55,'#1c6a86'); sky.addColorStop(1,'#2f8ba6'); }
+    if(abis){ sky.addColorStop(0,'#01030a'); sky.addColorStop(.55,'#061024'); sky.addColorStop(1,'#0f2440'); }
+    else if(snow){ sky.addColorStop(0,'#0b2b45'); sky.addColorStop(.55,'#1c6a86'); sky.addColorStop(1,'#2f8ba6'); }
     else if(volc){ sky.addColorStop(0,'#1a0b12'); sky.addColorStop(.55,'#5a2018'); sky.addColorStop(1,'#a8481f'); }
     else { sky.addColorStop(0,'#124a74'); sky.addColorStop(.55,'#3a90c2'); sky.addColorStop(1,'#6fc0e6'); }
     g.fillStyle=sky; g.fillRect(0,0,cssW,cssH);
     const hz=cssH*0.56;
-    if(snow){
+    if(abis){
+      // dark trench mouth with faint bioluminescent glow on the horizon
+      g.fillStyle='#0a1830';
+      g.beginPath(); g.moveTo(cssW*0.12,hz); g.lineTo(cssW*0.34,hz-cssH*0.14); g.lineTo(cssW*0.5,hz-cssH*0.05); g.lineTo(cssW*0.68,hz-cssH*0.18); g.lineTo(cssW*0.88,hz); g.closePath(); g.fill();
+      g.save(); g.globalCompositeOperation='lighter';
+      for(let i=0;i<4;i++){ const gx=cssW*(0.2+i*0.2), gy=hz-4-Math.sin(i*1.3)*6;
+        const gg=g.createRadialGradient(gx,gy,1,gx,gy,18); gg.addColorStop(0,'rgba(120,180,255,.6)'); gg.addColorStop(1,'rgba(120,180,255,0)');
+        g.fillStyle=gg; g.beginPath(); g.arc(gx,gy,18,0,7); g.fill(); }
+      g.restore();
+    } else if(snow){
       g.save(); g.globalCompositeOperation='lighter';
       const ag=g.createLinearGradient(0,hz*0.2,0,hz*0.7);
       ag.addColorStop(0,'rgba(120,255,200,0)'); ag.addColorStop(.6,'rgba(150,255,220,.3)'); ag.addColorStop(1,'rgba(120,255,200,0)');
@@ -2247,7 +2491,8 @@
     }
     // water
     const wg=g.createLinearGradient(0,hz,0,cssH);
-    if(snow){ wg.addColorStop(0,'#2f8ba6'); wg.addColorStop(1,'#0a3046'); }
+    if(abis){ wg.addColorStop(0,'#0f2440'); wg.addColorStop(1,'#01030a'); }
+    else if(snow){ wg.addColorStop(0,'#2f8ba6'); wg.addColorStop(1,'#0a3046'); }
     else if(volc){ wg.addColorStop(0,'#5a2018'); wg.addColorStop(1,'#22080c'); }
     else { wg.addColorStop(0,'#3a90c2'); wg.addColorStop(1,'#0d5680'); }
     g.fillStyle=wg; g.fillRect(0,hz,cssW,cssH-hz);
@@ -2272,12 +2517,15 @@
         mutEl.style.background=M.color+'22'; mutEl.style.color=M.color; mutEl.style.border='1px solid '+M.color;
       } else { mutEl.style.display='none'; }
     }
-    document.getElementById('cStats').textContent=f.kg.toFixed(2)+' kg'+(isRecord?' · ⭐ NEW RECORD':'')+(f.boss?' · 👑 BOSS':'');
+    document.getElementById('cStats').textContent=f.kg.toFixed(2)+' kg'+(isRecord?' · ⭐ NEW RECORD':'')+(f.boss?' · 👑 BOSS':'')+' · +'+xpFor(f)+' 🌟';
     document.getElementById('cQuote').textContent='"'+f.quote+'"';
     const full=invUsed()>=crateSize();
-    document.getElementById('cCoins').textContent='Sells for '+f.value+' 🪙  ·  🎒 '+invUsed()+'/'+crateSize()+(full?' (FULL!)':'');
+    const tankFull=tankCount()>=TANK_MAX;
+    document.getElementById('cCoins').textContent='Sells for '+f.value+' 🪙  ·  🎒 '+invUsed()+'/'+crateSize()+(full?' (FULL!)':'')+'  ·  🐠 '+tankCount()+'/'+TANK_MAX+(tankFull?' (FULL!)':'');
     const kb=document.getElementById('cKeep');
     kb.classList.toggle('dim', full);
+    const tb=document.getElementById('cTrophy');
+    if(tb) tb.classList.toggle('dim', tankFull);
     showPanel('catchPanel');
   }
   function keepCatch(){
@@ -2285,20 +2533,31 @@
     if(invUsed()>=crateSize()){ document.getElementById('cCoins').textContent='🎒 Crate full — SELL this one or upgrade storage!'; return; }
     const f=p.f;
     S.inv.push({n:f.n, r:f.r, kg:+f.kg.toFixed(2), value:f.value, size:f.size, mut:f.mut||null});
-    addStk(f); save(); updateHUD();
+    addStk(f); addXp(xpFor(f)); save(); updateHUD();
     hidePanel('catchPanel');
     const f2=f; pendingCatch=null; resetToIdle();
     floatText(BUCKET.x, BUCKET.y-24, 'Kept!', '#7dffa8');
     say('Kept '+f2.n+' 🎣'); setTimeout(()=>say(''),1600);
   }
-  function sellCatch(){
+  function trophyCatch(){
     const p=pendingCatch; if(!p){ hidePanel('catchPanel'); resetToIdle(); return; }
     const f=p.f;
-    S.coins+=f.value; save(); updateHUD();
+    if(!addTank(f)){ document.getElementById('cCoins').textContent='🐠 Tank full ('+TANK_MAX+') — release one in 🐠 TANK first.'; return; }
+    addXp(xpFor(f)); save(); updateHUD();
     hidePanel('catchPanel');
     const f2=f; pendingCatch=null; resetToIdle();
-    floatText(BUCKET.x, BUCKET.y-24, '+'+f2.value+' 🪙', '#ffd85e');
-    say('Sold '+f2.n+' for '+f2.value+' 🪙'); setTimeout(()=>say(''),1600);
+    floatText(BUCKET.x, BUCKET.y-24, 'Trophied! 🐠', '#7dffd8');
+    say('Trophied '+f2.n+' 🐠'); setTimeout(()=>say(''),1600);
+  }
+  function sellCatch(){
+    const p=pendingCatch; if(!p){ hidePanel('catchPanel'); resetToIdle(); return; }
+    const f=p.f; addXp(xpFor(f));
+    const coins=Math.round(f.value*(1+skillVal('greed')*0.05));
+    S.coins+=coins; save(); updateHUD();
+    hidePanel('catchPanel');
+    const f2=f; pendingCatch=null; resetToIdle();
+    floatText(BUCKET.x, BUCKET.y-24, '+'+coins+' 🪙', '#ffd85e');
+    say('Sold '+f2.n+' for '+coins+' 🪙'); setTimeout(()=>say(''),1600);
   }
 
   function resetToIdle(){
@@ -2518,7 +2777,7 @@
       el.appendChild(row);
     });
     const note=document.createElement('p'); note.style.cssText='font-size:11px;opacity:.6;margin-top:8px';
-    note.textContent='Ocean is free. New islands cost a one-off fee the first time you sail there — after that you can go back and forth freely. Rough islands need a sturdier boat: Snow needs durability 3+, Volcano needs 8+. You can\'t GO to a place you\'re already at.';
+    note.textContent='Ocean is free. New islands cost a one-off fee the first time you sail there — after that you can go back and forth freely. Rough islands need a sturdier boat: Snow needs durability 3+, Volcano needs 8+, The Abyss needs 16+. You can\'t GO to a place you\'re already at.';
     el.appendChild(note);
   }
 
@@ -2634,13 +2893,22 @@
       if(!c){
         const g=pic.getContext('2d');
         g.globalCompositeOperation='source-atop';
-        g.fillStyle='rgba(2,16,28,.82)'; g.fillRect(0,0,pic.width,pic.height);
+        g.fillStyle='rgba(2,16,28,.9)'; g.fillRect(0,0,pic.width,pic.height);
         g.globalCompositeOperation='source-over';
       }
       row.appendChild(pic);
       const info=document.createElement('div'); info.className='info';
-      info.innerHTML=`<b style="color:${c?rc:'#7f9db5'}">${f.n}</b>
-        <span style="color:${rc}">${RARITY[f.r].name}${c?' · best '+c.kg.toFixed(2)+'kg':' · not caught yet'}</span>`;
+      const cond=f.cond?('<span style="color:#ffd85e">'+(f.cond.night?'🌙 night only':('🌦️ '+(WEATHERS[f.cond.wx]||{}).name+' only'))+'</span>'):'';
+      if(c){
+        info.innerHTML=`<b style="color:${rc}">${f.n}</b>
+          <span style="color:${rc}">${RARITY[f.r].name}</span>
+          <span class="meta">🏆 best ${c.kg.toFixed(2)} kg</span>
+          <span class="meta">🪙 best value ${c.value}</span>${cond}`;
+      } else {
+        info.innerHTML=`<b style="color:#7f9db5">??? </b>
+          <span style="color:${rc}">${RARITY[f.r].name}</span>
+          <span class="meta">— not caught yet</span>${cond}`;
+      }
       row.appendChild(info);
       el.appendChild(row);
     });
@@ -2650,6 +2918,7 @@
     document.getElementById('specTabOcean').classList.toggle('on', specWorld==='ocean');
     document.getElementById('specTabSnow').classList.toggle('on', specWorld==='snow');
     document.getElementById('specTabVolcano').classList.toggle('on', specWorld==='volcano');
+    document.getElementById('specTabAbyss').classList.toggle('on', specWorld==='abyss');
     const el=document.getElementById('specList'); el.innerHTML='';
     speciesRows(el);
     const total=worldFish(specWorld).length;
@@ -2657,6 +2926,101 @@
     const note=document.createElement('p'); note.style.cssText='font-size:11px;opacity:.6;margin-top:8px';
     note.textContent=got+' / '+total+' species caught in '+WORLDS[specWorld].name+' form.'+
       (specWorld!=='ocean' && !S.unlocked[specWorld] ? ' Travel to '+WORLDS[specWorld].name+' to unlock it.' : '');
+    el.appendChild(note);
+    renderJournalStats();
+  }
+  function renderJournalStats(){
+    const el=document.getElementById('journalStats'); if(!el) return;
+    let total=0, got=0, best=null;
+    for(const w in FISH){ for(const f of FISH[w]){ total++; if(S.caught[f.n]){ got++; if(!best||S.caught[f.n].kg>best.kg) best={n:f.n,kg:S.caught[f.n].kg,color:RARITY[f.r].color}; } } }
+    const pct=total?Math.round(got/total*100):0;
+    el.innerHTML='📖 <b>'+got+' / '+total+'</b> species discovered ('+pct+'%)'+
+      (best?(' · 🏆 biggest: <b style="color:'+best.color+'">'+best.n+' '+best.kg.toFixed(2)+'kg</b>'):'')+
+      ' · 🌟 Lv '+S.lvl+' · 🐠 '+tankCount()+'/'+TANK_MAX;
+  }
+
+  // ---------- TROPHY TANK (aquarium) ----------
+  function openAqua(){ renderAqua(); showPanel('aquaPanel'); }
+  function renderAqua(){
+    document.getElementById('aquaCap').textContent=tankCount()+' / '+TANK_MAX;
+    const el=document.getElementById('aquaList'); if(!el) return; el.innerHTML='';
+    if(!S.tank.length){
+      el.insertAdjacentHTML('beforeend','<p style="font-size:13px;opacity:.72;margin:12px 4px">Your tank is empty. When you catch something special, tap <b>Trophy it 🐠</b> on the catch panel to add it here.</p>');
+      return;
+    }
+    S.tank.forEach((f,i)=>{
+      const R=RARITY[f.r];
+      const row=document.createElement('div'); row.className='invrow';
+      const pic=document.createElement('canvas'); pic.width=156; pic.height=108;
+      pic.style.cssText='width:78px;height:54px;flex:0 0 78px;display:block';
+      paintFish(pic, f.n, 78, 54, 2, f.mut);
+      const info=document.createElement('div'); info.className='info';
+      info.innerHTML='<b>'+f.n+(f.mut?' <span style="color:'+MUTATIONS[f.mut].color+'">⚡'+MUTATIONS[f.mut].name+'</span>':'')+'</b>'+
+        '<span class="meta" style="color:'+R.color+'">'+R.name+'</span>'+
+        '<span class="meta">'+f.kg.toFixed(2)+' kg</span>'+
+        '<span class="meta" style="color:#ffd85e">worth 🪙 '+f.value+'</span>';
+      const b=document.createElement('button'); b.className='sell'; b.textContent='Release 🪙'+f.value;
+      b.onclick=()=>releaseTank(i);
+      row.appendChild(pic); row.appendChild(info); row.appendChild(b);
+      el.appendChild(row);
+    });
+  }
+  // animate the trophy tank — swim the kept fish around inside the aquarium canvas
+  function drawAqua(t){
+    const cv=document.getElementById('aquaCanvas'); if(!cv || !document.getElementById('aquaPanel').classList.contains('show')) return;
+    const g=cv.getContext('2d'); const W2=cv.width, H2=cv.height;
+    g.clearRect(0,0,W2,H2);
+    const bg=g.createLinearGradient(0,0,0,H2); bg.addColorStop(0,'#0b3550'); bg.addColorStop(1,'#04141f');
+    g.fillStyle=bg; g.fillRect(0,0,W2,H2);
+    // sandy floor + weeds
+    g.fillStyle='#0e2a1e'; g.beginPath(); g.moveTo(0,H2); g.lineTo(0,H2-14);
+    for(let x=0;x<=W2;x+=24){ g.lineTo(x,H2-14-Math.sin(x*0.05)*4); } g.lineTo(W2,H2); g.closePath(); g.fill();
+    g.strokeStyle='rgba(60,180,130,.5)'; g.lineWidth=4;
+    for(let i=0;i<6;i++){ const sx=30+i*(W2/6);
+      g.beginPath(); g.moveTo(sx,H2-12); for(let k=0;k<3;k++){ g.lineTo(sx+Math.sin(t+i+k)*8, H2-12-k*22); } g.stroke(); }
+    if(!S.tank.length){ g.fillStyle='rgba(200,230,255,.5)'; g.font='bold 16px Trebuchet MS'; g.textAlign='center'; g.fillText('Catch something rare and trophy it 🐠', W2/2, H2/2); return; }
+    const n=S.tank.length;
+    S.tank.forEach((f,i)=>{
+      const lane=Math.floor(i/2)%3, col=i%2;
+      const x = col? (W2*(0.2+ ((t*0.06+ i*0.13)%0.6))) : (W2*(0.8 - ((t*0.05+ i*0.17)%0.6)));
+      const y = 48 + lane*58 + Math.sin(t*1.3+i)*8;
+      const dir = col? 1 : -1;
+      g.save(); g.translate(x,y); g.scale(dir,1);
+      try{ const keep=ctx; ctx=g; drawFishArt(0,0, speciesArt(f.n), 0.62, {phase:t*1.6+i, dir:1, face:1}); ctx=keep; }catch(e){}
+      g.restore();
+    });
+  }
+
+  // ---------- SKILLS ----------
+  function openSkills(){ renderSkills(); showPanel('skillPanel'); }
+  function renderSkills(){
+    document.getElementById('skillLvl').textContent=S.lvl||1;
+    document.getElementById('skillXp').textContent=Math.floor(S.xp||0);
+    document.getElementById('skillPts').textContent=S.pts||0;
+    const need=xpNeeded(S.lvl||1);
+    document.getElementById('skillXpBar').style.width=Math.min(100, Math.round((S.xp||0)/need*100))+'%';
+    const el=document.getElementById('skillList'); if(!el) return; el.innerHTML='';
+    for(const k in SKILLS){
+      const sk=SKILLS[k], lv=skillVal(k);
+      const row=document.createElement('div'); row.className='shoprow';
+      const left=document.createElement('div'); left.style.flex='1';
+      left.innerHTML='<b>'+sk.name+'</b><span>'+sk.desc+'</span>'+
+        '<span style="color:#8fd6ff">level '+lv+' / '+sk.max+'</span>';
+      row.appendChild(left);
+      if(lv>=sk.max){ const o=document.createElement('div'); o.className='owned'; o.textContent='MAX'; row.appendChild(o); }
+      else {
+        const b=document.createElement('button'); b.className='buy'; b.textContent='+1 · 🌟1';
+        b.disabled=(S.pts||0)<1; b.onclick=()=>spendSkill(k);
+        row.appendChild(b);
+      }
+      el.appendChild(row);
+    }
+    if(skillPtsSpent()>0){
+      const rb=document.createElement('button'); rb.className='btn sell'; rb.textContent='Reset skills (refund '+skillPtsSpent()+' pts)';
+      rb.onclick=respecSkills; el.appendChild(rb);
+    }
+    const note=document.createElement('p'); note.style.cssText='font-size:11px;opacity:.6;margin-top:8px';
+    note.textContent='Level '+S.lvl+' → next at '+xpNeeded(S.lvl)+' XP. Land fish to earn XP — rarer fish, bosses and big weights give far more.';
     el.appendChild(note);
   }
 
@@ -2697,19 +3061,27 @@
         paintRod(pic, r.style, 60, 36, 2);
         row.appendChild(pic);
         const left=document.createElement('div'); left.style.flex='1';
-        left.innerHTML='<b>🎣 '+r.name+'</b><span>'+r.desc+'</span>'+
+        const lv=rodLevel(w,i);
+        left.innerHTML='<b>🎣 '+r.name+(lv>0?' <span style="color:#7dffd8">Lv'+lv+'</span>':'')+'</b><span>'+r.desc+'</span>'+
           '<span style="color:#8fd6ff">cast ×'+r.cast.toFixed(2)+' · reel ×'+r.reel.toFixed(2)+' · pwr ×'+r.pwr.toFixed(2)+'</span>'+
           '<span style="color:'+(r.lure>=1.5?'#7dffa8':r.lure<1?'#ff9d76':'#bfe0ff')+'">lure speed ×'+r.lure.toFixed(2)+'</span>'+
           '<span style="color:'+(r.luck>=5?'#c07dff':'#bfe0ff')+'">luck +'+r.luck+'</span>'+
+          (lv>0?'<span style="color:#7dffd8">⬆ +'+Math.round(lv*8)+'% to all stats from upgrades</span>':'')+
           (r.mut?'<span style="color:'+MUTATIONS[r.mut.type].color+'">✦ '+Math.round(r.mut.chance*100)+'% chance to '+MUTATIONS[r.mut.type].name+'-mutate a fish on the hook</span>':'');
         row.appendChild(left);
+        const btns=document.createElement('div'); btns.style.cssText='display:flex;flex-direction:column;gap:4px;flex:0 0 auto';
         if(isRodEquipped(w,i)){
-          const o=document.createElement('div'); o.className='owned'; o.textContent='EQUIPPED'; row.appendChild(o);
+          const o=document.createElement('div'); o.className='owned'; o.textContent='EQUIPPED'; btns.appendChild(o);
         } else {
           const b=document.createElement('button'); b.className='go'; b.textContent='EQUIP';
           b.onclick=()=>{ S.rodEq={w,i}; S.rod[w]=i; save(); updateHUD(); renderInventory(); say('Equipped '+r.name+'!'); };
-          row.appendChild(b);
+          btns.appendChild(b);
         }
+        const lvEl=document.createElement('button'); lvEl.className='buy';
+        if(lv>=rodLevelMax()){ lvEl.textContent='MAX Lv'; lvEl.disabled=true; }
+        else { const cost=rodLevelCost(w,i); lvEl.innerHTML='⬆ Lv'+lv+'→'+(lv+1)+'<br>🪙'+cost; lvEl.disabled=S.coins<cost; lvEl.onclick=()=>upgradeRod(w,i); }
+        btns.appendChild(lvEl);
+        row.appendChild(btns);
         el.appendChild(row);
       });
     });
@@ -2855,6 +3227,8 @@
     const rodName=(curRod()||{}).name||'—';
     document.getElementById('shopChip').innerHTML='🛒 SHOP<small>🎣 '+rodName+'</small>';
     document.getElementById('invChip').innerHTML='🎒 '+invUsed()+'/'+crateSize()+'<small>TAP: INVENTORY</small>';
+    const tc=document.getElementById('tankChipN'); if(tc) tc.textContent=tankCount()+'/'+TANK_MAX;
+    const sc=document.getElementById('skillChipN'); if(sc) sc.textContent='LV '+(S.lvl||1)+((S.pts||0)>0?(' · '+S.pts+'pt'):'');
     const wc=document.getElementById('weatherChip');
     if(wc){ const Wd=WEATHERS[weather]||WEATHERS.clear;
       wc.innerHTML=Wd.icon+' '+Wd.name+'<small>'+dayLabel()+'</small>';
@@ -3364,7 +3738,7 @@
 
   function draw(){
     const t=performance.now()/1000;
-    const TH=sceneTheme(), snow=(TH==='snow'), volc=(TH==='volcano');
+    const TH=sceneTheme(), snow=(TH==='snow'), volc=(TH==='volcano'), abis=(TH==='abyss');
     // thunder/eruption rumble — a brief whole-scene shake
     if(thunderShake>0){ const k=thunderShake*9; ctx.save(); ctx.translate((Math.random()-.5)*k,(Math.random()-.5)*k); }
     // sun/moon angle from the time of day (0=midnight .5=noon)
@@ -3374,13 +3748,14 @@
 
     // SKY
     let g=ctx.createLinearGradient(0,0,0,waterY);
-    if(snow){ g.addColorStop(0,'#04121f'); g.addColorStop(.45,'#0d3350'); g.addColorStop(.8,'#1c6a86'); g.addColorStop(1,'#3f9fae'); }
+    if(abis){ g.addColorStop(0,'#01030a'); g.addColorStop(.5,'#040a18'); g.addColorStop(1,'#0a1730'); }
+    else if(snow){ g.addColorStop(0,'#04121f'); g.addColorStop(.45,'#0d3350'); g.addColorStop(.8,'#1c6a86'); g.addColorStop(1,'#3f9fae'); }
     else if(volc){ g.addColorStop(0,'#1a0b12'); g.addColorStop(.5,'#3a1620'); g.addColorStop(.82,'#6e2a1e'); g.addColorStop(1,'#a8481f'); }
     else { g.addColorStop(0,'#0a2540'); g.addColorStop(.6,'#15507e'); g.addColorStop(1,'#3a90c2'); }
     ctx.fillStyle=g; ctx.fillRect(0,0,W,waterY);
     // day/night: darken toward night (a deep navy wash), brighten at noon
-    if(dayAmt<1){ ctx.save(); ctx.globalAlpha=(1-dayAmt)*0.6; ctx.fillStyle=snow?'#020a18':(volc?'#120409':'#03101f'); ctx.fillRect(0,0,W,waterY); ctx.restore(); }
-    if(dayAmt>0.75){ ctx.save(); ctx.globalAlpha=(dayAmt-0.75)*(volc?0.35:0.5); ctx.fillStyle=volc?'#ffd0a0':'#ffe9c0'; ctx.fillRect(0,0,W,waterY); ctx.restore(); }
+    if(dayAmt<1){ ctx.save(); ctx.globalAlpha=(1-dayAmt)*0.6; ctx.fillStyle=abis?'#01030a':(snow?'#020a18':(volc?'#120409':'#03101f')); ctx.fillRect(0,0,W,waterY); ctx.restore(); }
+    if(dayAmt>0.75 && !abis){ ctx.save(); ctx.globalAlpha=(dayAmt-0.75)*(volc?0.35:0.5); ctx.fillStyle=volc?'#ffd0a0':'#ffe9c0'; ctx.fillRect(0,0,W,waterY); ctx.restore(); }
 
     if(snow){
       // aurora ribbons brighten at night + a pale sun/moon
@@ -3422,7 +3797,7 @@
     // weather sky tint + per-weather visuals
     if(weather!=='clear'){
       ctx.save();
-      const WX={storm:{a:.44,c:'#0a1420'},rain:{a:.34,c:'#26343f'},cloudy:{a:.22,c:'#26343f'},snow:{a:.20,c:'#26343f'},fog:{a:.52,c:'#a9c0cd'},heat:{a:.24,c:'#ffab52'},lunar:{a:.55,c:'#241a52'},goldenrain:{a:.30,c:'#ffcf5e'},hurricane:{a:.58,c:'#0c2230'},blizzard:{a:.62,c:'#9fb6c4'},eruption:{a:.52,c:'#2a0f0a'}};
+      const WX={storm:{a:.44,c:'#0a1420'},rain:{a:.34,c:'#26343f'},cloudy:{a:.22,c:'#26343f'},snow:{a:.20,c:'#26343f'},fog:{a:.52,c:'#a9c0cd'},heat:{a:.24,c:'#ffab52'},lunar:{a:.55,c:'#241a52'},goldenrain:{a:.30,c:'#ffcf5e'},hurricane:{a:.58,c:'#0c2230'},blizzard:{a:.62,c:'#9fb6c4'},eruption:{a:.52,c:'#2a0f0a'},voidstorm:{a:.60,c:'#0a0418'}};
       const wx=WX[weather]||{a:.22,c:'#26343f'};
       ctx.globalAlpha=wx.a; ctx.fillStyle=wx.c; ctx.fillRect(0,0,W,waterY);
       ctx.restore();
@@ -3433,12 +3808,13 @@
 
     // ---- UNDERWATER (base of the boat down) ----
     g=ctx.createLinearGradient(0,waterY,0,H);
-    if(snow){ g.addColorStop(0,'#2f8ba6'); g.addColorStop(.35,'#16566f'); g.addColorStop(.72,'#0a3046'); g.addColorStop(1,'#04182a'); }
+    if(abis){ g.addColorStop(0,'#0a1730'); g.addColorStop(.35,'#061024'); g.addColorStop(.72,'#030918'); g.addColorStop(1,'#01030a'); }
+    else if(snow){ g.addColorStop(0,'#2f8ba6'); g.addColorStop(.35,'#16566f'); g.addColorStop(.72,'#0a3046'); g.addColorStop(1,'#04182a'); }
     else if(volc){ g.addColorStop(0,'#3f1a1e'); g.addColorStop(.35,'#5a2018'); g.addColorStop(.72,'#2a0f14'); g.addColorStop(1,'#140508'); }
     else { g.addColorStop(0,'#1e7fb4'); g.addColorStop(.35,'#0d5680'); g.addColorStop(.72,'#08375a'); g.addColorStop(1,'#03203a'); }
     ctx.fillStyle=g; ctx.fillRect(0,waterY,W,H-waterY);
     // weather tint on the water itself
-    const WX2={rain:'rgba(60,90,110,.22)',storm:'rgba(15,25,36,.34)',cloudy:'rgba(70,90,105,.14)',snow:'rgba(180,215,235,.16)',fog:'rgba(190,205,215,.30)',heat:'rgba(255,170,90,.16)',lunar:'rgba(60,45,120,.32)',goldenrain:'rgba(255,205,90,.18)',hurricane:'rgba(20,45,60,.32)',blizzard:'rgba(205,225,235,.34)',eruption:'rgba(120,35,10,.34)'}[weather];
+    const WX2={rain:'rgba(60,90,110,.22)',storm:'rgba(15,25,36,.34)',cloudy:'rgba(70,90,105,.14)',snow:'rgba(180,215,235,.16)',fog:'rgba(190,205,215,.30)',heat:'rgba(255,170,90,.16)',lunar:'rgba(60,45,120,.32)',goldenrain:'rgba(255,205,90,.18)',hurricane:'rgba(20,45,60,.32)',blizzard:'rgba(205,225,235,.34)',eruption:'rgba(120,35,10,.34)',voidstorm:'rgba(40,15,80,.40)'}[weather];
     if(WX2){ ctx.fillStyle=WX2; ctx.fillRect(0,waterY,W,H-waterY); }
 
     // light rays
@@ -3446,23 +3822,29 @@
     for(let i=0;i<6;i++){
       const rx=(i*W/6)+Math.sin(t*0.3+i)*20;
       const rg=ctx.createLinearGradient(rx,waterY,rx+80,H);
-      rg.addColorStop(0,snow?'rgba(210,245,255,.18)':(volc?'rgba(255,170,110,.16)':'rgba(190,235,255,.16)')); rg.addColorStop(1,'rgba(190,235,255,0)');
+      rg.addColorStop(0,abis?'rgba(90,150,220,.10)':(snow?'rgba(210,245,255,.18)':(volc?'rgba(255,170,110,.16)':'rgba(190,235,255,.16)'))); rg.addColorStop(1,'rgba(190,235,255,0)');
       ctx.fillStyle=rg;
       ctx.beginPath(); ctx.moveTo(rx-30,waterY); ctx.lineTo(rx+30,waterY); ctx.lineTo(rx+120,H); ctx.lineTo(rx-90,H); ctx.closePath(); ctx.fill();
     }
     ctx.restore();
 
     // sea floor
-    ctx.fillStyle=snow?'#0a2d40':(volc?'#150a0c':'#062a44');
+    ctx.fillStyle=abis?'#03060f':(snow?'#0a2d40':(volc?'#150a0c':'#062a44'));
     ctx.beginPath(); ctx.moveTo(0,H); ctx.lineTo(0,H-32);
     for(let x=0;x<=W;x+=30){ ctx.lineTo(x, H-32 - 10*Math.sin(x*0.02+2) - 6*Math.sin(x*0.05)); }
     ctx.lineTo(W,H); ctx.closePath(); ctx.fill();
-    ctx.fillStyle=snow?'#123f52':(volc?'#2a1418':'#083a56');
+    ctx.fillStyle=abis?'#081020':(snow?'#123f52':(volc?'#2a1418':'#083a56'));
     ctx.beginPath(); ctx.moveTo(0,H-30);
     for(let x=0;x<=W;x+=30){ ctx.lineTo(x, H-30 - 10*Math.sin(x*0.02+2) - 6*Math.sin(x*0.05)); }
     ctx.lineTo(W,H); ctx.lineTo(0,H); ctx.closePath(); ctx.fill();
-    // weeds (ocean) / ice shards (snow) / glowing vents (volcano)
-    if(snow){
+    // weeds (ocean) / ice shards (snow) / glowing vents (volcano) / bioluminescent coral (abyss)
+    if(abis){
+      ctx.save(); ctx.globalCompositeOperation='lighter';
+      for(let i=0;i<9;i++){ const sx=40+i*(W/9)+Math.sin(i*1.7)*24, base=H-30; const hue=(i*47)%360;
+        const cg=ctx.createRadialGradient(sx,base,1,sx,base,30); cg.addColorStop(0,'hsla('+hue+',80%,70%,'+(0.35+0.2*Math.sin(t*1.4+i))+')'); cg.addColorStop(1,'hsla('+hue+',80%,60%,0)');
+        ctx.fillStyle=cg; ctx.beginPath(); ctx.arc(sx,base,30,0,7); ctx.fill(); }
+      ctx.restore();
+    } else if(snow){
       ctx.fillStyle='rgba(200,240,255,.28)';
       for(let i=0;i<7;i++){ const sx=50+i*(W/7)+Math.sin(i)*18, base=H-34, h=26+((i*13)%30);
         ctx.beginPath(); ctx.moveTo(sx-8,base); ctx.lineTo(sx,base-h); ctx.lineTo(sx+8,base); ctx.closePath(); ctx.fill(); }
@@ -3928,19 +4310,69 @@
       ctx.fillStyle='#fff4c0'; ctx.beginPath(); ctx.moveTo(len-2,-3.2); ctx.lineTo(len+7,0); ctx.lineTo(len-2,3.2); ctx.closePath(); ctx.fill();
       ctx.fillStyle='#7a1a06'; ctx.fillRect(-10,-3.6,10,7.2);
       ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.5; ctx.fillStyle='#ff6a1a'; ctx.beginPath(); ctx.arc(len,0,9,0,7); ctx.fill(); ctx.restore();
+    } else if(style==='glow'){             // abyss starter — dark shaft with a soft blue bioluminescent glow
+      shaft(3.2,'#16223a'); ctx.fillStyle='#0e1a2e'; ctx.fillRect(-9,-3,9,6);
+      ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.6;
+      const gg=ctx.createLinearGradient(0,0,len,0); gg.addColorStop(0,'#1f6ab0'); gg.addColorStop(1,'#8fe8ff');
+      ctx.strokeStyle=gg; ctx.lineWidth=2.0; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(len,0); ctx.stroke();
+      ctx.globalAlpha=.4; ctx.strokeStyle='#9fe8ff'; ctx.lineWidth=7; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(len,0); ctx.stroke(); ctx.restore();
+      ctx.fillStyle='#bff0ff'; ctx.beginPath(); ctx.arc(len,0,2.4,0,7); ctx.fill();
+    } else if(style==='sonar'){             // dark blue rod with pinging sonar rings down the shaft
+      shaft(3.3,'#1c3050'); ctx.fillStyle='#0f2138'; ctx.fillRect(-10,-3.2,10,6.4);
+      ctx.strokeStyle='#5fe0c8'; ctx.lineWidth=1.5;
+      for(const f of [0.34,0.56,0.78]){ ctx.beginPath(); ctx.arc(len*f,0,3.2,0,7); ctx.stroke(); }
+      ctx.fillStyle='#8ff0ff'; ctx.beginPath(); ctx.arc(len,0,2.6,0,7); ctx.fill();
+      ctx.save(); ctx.globalAlpha=.5; ctx.strokeStyle='#5fe0c8'; ctx.lineWidth=1.2;
+      for(let i=0;i<3;i++){ const p=((t||0)*0.6+i*0.33)%1; ctx.globalAlpha=(1-p)*0.5; ctx.beginPath(); ctx.arc(len*0.5,0,4+p*16,0,7); ctx.stroke(); } ctx.restore();
+    } else if(style==='void'){              // SPEED rig — a streak of poured violet void down the shaft
+      shaft(2.8,'#160f2e');
+      const vg=ctx.createLinearGradient(0,0,len,0); vg.addColorStop(0,'#4a1f9f'); vg.addColorStop(.55,'#9f6aff'); vg.addColorStop(1,'#e0d0ff');
+      ctx.strokeStyle=vg; ctx.lineWidth=2.6; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(len,0); ctx.stroke();
+      ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.5; ctx.strokeStyle='#b08aff'; ctx.lineWidth=8; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(len,0); ctx.stroke(); ctx.restore();
+      ctx.fillStyle='#f0e8ff'; ctx.beginPath(); ctx.moveTo(len-2,-3.4); ctx.lineTo(len+8,0); ctx.lineTo(len-2,3.4); ctx.closePath(); ctx.fill();
+    } else if(style==='hadal'){             // LUCK rig — matte black pressure rod with faint glowing depth-marks
+      shaft(4.2,'#080a12');
+      ctx.strokeStyle='rgba(120,160,220,.6)'; ctx.lineWidth=1.1; ctx.beginPath(); ctx.moveTo(6,-2.2); ctx.lineTo(len-6,-2.2); ctx.stroke();
+      ctx.save(); ctx.globalCompositeOperation='lighter';
+      for(let i=0;i<5;i++){ const f=0.24+i*0.15; ctx.globalAlpha=.35+0.25*Math.sin((t||0)*2+i);
+        ctx.fillStyle='#7fb0ff'; ctx.fillRect(len*f,-3.2,2.4,6.4); } ctx.restore();
+      ctx.fillStyle='#0a0d16'; ctx.fillRect(-11,-4.2,11,8.4);
+      ctx.fillStyle='rgba(150,180,230,.7)'; ctx.fillRect(-11,-4.2,11,1.4);
+      ctx.fillStyle='#7fb0ff'; ctx.beginPath(); ctx.arc(len,0,2.8,0,7); ctx.fill();
+    } else if(style==='deepest'){          // APEX — abyssal throne rod: black bone wrapped in violet trench-light, crown of void
+      shaft(3.6,'#0b0a1a');
+      const dg=ctx.createLinearGradient(0,0,len,0); dg.addColorStop(0,'#2a1060'); dg.addColorStop(.6,'#8f5aff'); dg.addColorStop(1,'#e0d0ff');
+      ctx.strokeStyle=dg; ctx.lineWidth=3.0; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(len,0); ctx.stroke();
+      ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.5; ctx.strokeStyle='#a07aff'; ctx.lineWidth=9; ctx.beginPath(); ctx.moveTo(0,0); ctx.lineTo(len,0); ctx.stroke(); ctx.restore();
+      ctx.fillStyle='#e0d0ff';
+      for(const dy of [-4,0,4]){ ctx.beginPath(); ctx.moveTo(len-3,dy-2.4); ctx.lineTo(len+9,dy); ctx.lineTo(len-3,dy+2.4); ctx.closePath(); ctx.fill(); }
+      ctx.fillStyle='#f6f0ff'; ctx.beginPath(); ctx.moveTo(len-2,-3.2); ctx.lineTo(len+7,0); ctx.lineTo(len-2,3.2); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#0b0a1a'; ctx.fillRect(-10,-3.6,10,7.2);
+      ctx.save(); ctx.globalCompositeOperation='lighter'; ctx.globalAlpha=.55; ctx.fillStyle='#8f5aff'; ctx.beginPath(); ctx.arc(len,0,9,0,7); ctx.fill(); ctx.restore();
     } else { shaft(3,'#b9854e'); }
     ctx.restore();
   }
 
   // scenic island on the horizon — different look per world
   function drawIsland(t){
-    const TH=sceneTheme(), snow=(TH==='snow'), volc=(TH==='volcano');
+    const TH=sceneTheme(), snow=(TH==='snow'), volc=(TH==='volcano'), abis=(TH==='abyss');
     const x=W*0.74, base=waterY+2, s=Math.min(1, W/900);
     ctx.save();
     // far haze
-    ctx.globalAlpha=.4; ctx.fillStyle=snow?'#8fc7e0':(volc?'#e08a5a':'#7fc2ea');
+    ctx.globalAlpha=.4; ctx.fillStyle=abis?'#2a4a7a':(snow?'#8fc7e0':(volc?'#e08a5a':'#7fc2ea'));
     ctx.beginPath(); ctx.ellipse(x,base, 150*s, 26*s,0,0,7); ctx.fill(); ctx.globalAlpha=1;
-    if(snow){
+    if(abis){
+      // a dark trench-mouth on the horizon with a faint upward glow
+      ctx.fillStyle='#050a16';
+      ctx.beginPath(); ctx.ellipse(x,base, 110*s, 12*s,0,0,7); ctx.fill();
+      ctx.fillStyle='#0a1830';
+      ctx.beginPath(); ctx.moveTo(x-110*s,base); ctx.lineTo(x-30*s,base-4*s); ctx.lineTo(x+30*s,base-4*s); ctx.lineTo(x+110*s,base); ctx.closePath(); ctx.fill();
+      ctx.save(); ctx.globalCompositeOperation='lighter';
+      for(let i=0;i<3;i++){ const gx=x+(i-1)*40*s;
+        const gg=ctx.createRadialGradient(gx,base,1,gx,base,44*s); gg.addColorStop(0,'rgba(120,180,255,'+(0.28+0.16*Math.sin(t*1.5+i))+')'); gg.addColorStop(1,'rgba(120,180,255,0)');
+        ctx.fillStyle=gg; ctx.beginPath(); ctx.arc(gx,base,44*s,0,7); ctx.fill(); }
+      ctx.restore();
+    } else if(snow){
       // jagged snow peaks with white caps
       ctx.fillStyle='#5f86a8';
       ctx.beginPath(); ctx.moveTo(x-120*s,base);
@@ -4175,6 +4607,7 @@
     update(dt);
     updateControls();
     draw();
+    drawAqua(performance.now()/1000);
     requestAnimationFrame(frame);
   }
 
@@ -4195,6 +4628,9 @@
     startDisaster, endDisaster, doLightningStrike, biomeDisaster,
     rodPower, curRod, rodRef, totalLure, totalLuck, equippedBait,
     setMode, openAdminPanel:openAdmin, get mode(){return S.mode;}, get adminOn(){return adminOn;},
+    openAqua, openSkills, renderAqua, renderSkills, renderSpecies, openSpecies, openInventory, openShop, openWorlds,
+    get skills(){return S.skills;}, get tank(){return S.tank;}, get lvl(){return S.lvl;}, get xp(){return S.xp;}, get pts(){return S.pts;},
+    addXp, xpFor, tankCount, TANK_MAX, rodLevel, upgradeRod, boostRod, condOK,
     get rowing(){ return isRowingPose(); }, get rowV(){ return travel?travel.v:ROW.v; }, get boatF(){ return S.boatF; },
     forceWeather:(w)=>{ weather=w; weatherT=9999; lightning=(w==='storm'||w==='hurricane'||w==='eruption')?0.5:0; updateWeatherChip(); },
     get disaster(){return disaster;}, get weather(){return weather;}, get MUTATIONS(){return MUTATIONS;}, get RARITY(){return RARITY;}, paintFish };
