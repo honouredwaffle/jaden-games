@@ -150,6 +150,7 @@
       <div class="chip" id="specChip">📖 JOURNAL<small>FISH LIST</small></div>
       <div class="chip" id="tankChip">🐠 TANK<small id="tankChipN">0</small></div>
       <div class="chip" id="skillChip">🌟 SKILLS<small id="skillChipN">LV 1</small></div>
+      <div class="chip" id="questChip">📜 QUESTS<small id="questChipN">0/3</small></div>
       <div class="chip" id="worldChip">🗺️ WORLD<small id="worldChipName">🌊 OCEAN</small></div>
       <div class="chip" id="shopChip">🛒 SHOP<small>GEAR &amp; BAIT</small></div>
     </div>
@@ -312,6 +313,22 @@
       <div style="height:8px;border-radius:6px;background:#0b2e49;overflow:hidden;margin:4px 0 8px"><div id="skillXpBar" style="height:100%;width:0%;background:linear-gradient(90deg,#7dffd8,#4fa8ff)"></div></div>
       <p style="font-size:11px;opacity:.7;margin:0 4px 8px">Every fish you land gives XP. Level up to earn points, then spend them here.</p>
       <div class="scroll" id="skillList"></div>
+    </div>
+  </div>
+
+  <!-- QUESTS PANEL -->
+  <div class="panel" id="questPanel">
+    <button class="closebtn" id="questClose">✕</button>
+    <div class="card">
+      <h2>📜 Quests</h2>
+      <div class="coinline" id="questHead">📜 Main · ⭐ 0 · 📅 0/3</div>
+      <div id="streakBar" style="font-size:12px;margin:2px 0 6px;color:#ffb020"></div>
+      <div class="tabs">
+        <button class="tab on" id="qTabMain">📜 MAIN</button>
+        <button class="tab" id="qTabSide">⭐ SIDE</button>
+        <button class="tab" id="qTabDaily">📅 DAILY</button>
+      </div>
+      <div class="scroll" id="questList"></div>
     </div>
   </div>
 
@@ -1501,7 +1518,9 @@
               boat:0, boats:[0],
               caught:{}, total:0, state:'idle', cap:8, inv:[], upg:0,
               bait:null, baits:{}, mode:'fish', boatF:0.20, instant:false,
-              tank:[], xp:0, lvl:1, pts:0, skills:{}, rodLv:{} };
+              tank:[], xp:0, lvl:1, pts:0, skills:{}, rodLv:{},
+              stat:{}, q:{ main:0, sd:{}, d:{date:'', ids:[], prog:{}, set:{}, done:{}} },
+              streak:{ last:'', count:0 } };
   const INVENTORY = 8;
   // each tier raises the crate capacity. cost scales steeply.
   const UPGRADES = [
@@ -1541,7 +1560,7 @@
     const sk=SKILLS[k]; if(!sk) return;
     if((S.pts||0) < 1) return say('No skill points — level up first! 🌟');
     if(skillVal(k) >= sk.max) return say(sk.name+' is maxed out.');
-    S.skills[k]=skillVal(k)+1; S.pts-=1; save(); renderSkills(); updateHUD(); say(sk.name+' upgraded! 🌟');
+    S.skills[k]=skillVal(k)+1; S.pts-=1; save(); renderSkills(); updateHUD(); questEvent('skill',{n:1}); say(sk.name+' upgraded! 🌟');
   }
   function respecSkills(){ S.pts=(S.pts||0)+skillPtsSpent(); S.skills={}; save(); renderSkills(); say('Skills reset — points refunded 🌟'); }
 
@@ -1556,7 +1575,7 @@
     if(rodLevel(w,i) >= rodLevelMax()) return say(r.name+' is already fully upgraded.');
     const cost=rodLevelCost(w,i);
     if(S.coins < cost) return say('Need 🪙 '+cost+' to upgrade '+r.name+'!');
-    S.coins-=cost; S.rodLv[rodLvKey(w,i)]=rodLevel(w,i)+1; save(); updateHUD(); renderInventory(); renderShop();
+    S.coins-=cost; S.rodLv[rodLvKey(w,i)]=rodLevel(w,i)+1; save(); updateHUD(); renderInventory(); renderShop(); questEvent('rod');
     say('⬆ '+r.name+' → Lv '+rodLevel(w,i)+'!');
   }
   // wrap a rod definition with its level bonus (used everywhere stats are read)
@@ -1576,8 +1595,221 @@
   }
   function releaseTank(i){
     const f=S.tank[i]; if(!f) return; S.tank.splice(i,1);
-    S.coins += f.value; save(); updateHUD(); renderAqua();
+    S.coins += f.value; S.stat.trophies=(S.stat.trophies||0)+1;
+    questEvent('trophy'); save(); updateHUD(); renderAqua();
     say('Released '+f.n+' for 🪙 '+f.value);
+  }
+
+  // ================= QUESTS =================
+  // Three kinds: a MAIN chain (always progressing), repeatable SIDE quests, and
+  // DAILY quests that re-roll every day from a seeded shuffle. Every action the
+  // player takes funnels through questEvent() which bumps counters and checks goals.
+  function statAdd(k, n){ S.stat[k]=(S.stat[k]||0)+(n==null?1:n); }
+  function statGet(k){ return S.stat[k]||0; }
+
+  const QUEST_REWARD = (tier)=>({ coins: Math.round(tier*120*(1+ (S.lvl||1)*0.05)), xp: Math.round(tier*40), bait: tier>=3?2:(tier>=2?1:0) });
+
+  // goal types:
+  //  count  {stat, n}          — reach a lifetime/tracked stat total
+  //  single {stat}             — reach n (default 1) occurrences of a stat
+  //  species {name}            — catch a specific fish
+  //  rarity {rar, n}           — land n fish of a rarity (tracked via caughtRarity)
+  const MAIN_QUESTS = [
+    { id:'m1', title:'First Cast',       desc:'Land your first fish.',              goal:{type:'count', stat:'catches', n:1},      reward:{coins:150, xp:60, bait:0} },
+    { id:'m2', title:'Getting the Hang', desc:'Land 10 fish total.',                goal:{type:'count', stat:'catches', n:10},     reward:{coins:600, xp:180, bait:1} },
+    { id:'m3', title:'Pick of the Litter',desc:'Land a fish of Rare or better.',     goal:{type:'rarityAtLeast', rar:'rare', n:1}, reward:{coins:900, xp:220, bait:1} },
+    { id:'m4', title:'Into the Deep',    desc:'Catch a fish that only bites at night.', goal:{type:'stat', stat:'nightCatches', n:1}, reward:{coins:1400, xp:300, bait:2} },
+    { id:'m5', title:'Storm Chaser',     desc:'Catch a fish during a storm or disaster.', goal:{type:'stat', stat:'stormCatches', n:1}, reward:{coins:2200, xp:420, bait:2} },
+    { id:'m6', title:'Deep Cuts',        desc:'Land a CURSED fish.',                goal:{type:'rarityAtLeast', rar:'cursed', n:1}, reward:{coins:4000, xp:700, bait:2} },
+    { id:'m7', title:'Heavyweight',      desc:'Land a fish weighing 100 kg or more.', goal:{type:'stat', stat:'bigCatches', n:1},  reward:{coins:5500, xp:900, bait:1} },
+    { id:'m8', title:'Traveller',        desc:'Sail to another island.',            goal:{type:'count', stat:'travels', n:1},      reward:{coins:3000, xp:500, bait:2} },
+    { id:'m9', title:'Trophy Wall',      desc:'Put 3 fish in your trophy tank.',    goal:{type:'count', stat:'trophies', n:3},     reward:{coins:6000, xp:900, bait:2} },
+    { id:'m10',title:'The Big One',      desc:'Land a LEGENDARY fish.',             goal:{type:'rarityAtLeast', rar:'legendary', n:1}, reward:{coins:16000, xp:2000, bait:3} },
+    { id:'m11',title:'Collector',        desc:'Discover 25 species in your journal.',goal:{type:'stat', stat:'species', n:25},     reward:{coins:24000, xp:2600, bait:3} },
+    { id:'m12',title:'Deepest Throne',   desc:'Land a MYTHICAL — or better.',       goal:{type:'rarityAtLeast', rar:'mythical', n:1}, reward:{coins:45000, xp:4500, bait:4} },
+    { id:'m13',title:'Boss Slayer',      desc:'Land a BOSS fish.',                  goal:{type:'stat', stat:'bossCatches', n:1},   reward:{coins:90000, xp:6000, bait:5} },
+    { id:'m14',title:'The Primordial',   desc:'Land a TRANSCENDENT fish.',          goal:{type:'rarityAtLeast', rar:'transcendent', n:1}, reward:{coins:220000, xp:14000, bait:6} },
+    { id:'m15',title:'Master of the Deep',desc:'Catch every species in every sea.',  goal:{type:'stat', stat:'species', n:68},     reward:{coins:600000, xp:40000, bait:10} }
+  ];
+
+  const SIDE_QUESTS = [
+    { id:'s_coins', title:'Market Day',   desc:'Sell 20 fish.',                      goal:{type:'count', stat:'sold', n:20},        reward:{coins:1200, xp:260} },
+    { id:'s_keep',  title:'Stockpile',    desc:'Keep 30 fish in your crate over time.',goal:{type:'count', stat:'keptTotal', n:30}, reward:{coins:1500, xp:320} },
+    { id:'s_mut',   title:'Mutation Hunter',desc:'Land 3 mutated fish.',             goal:{type:'count', stat:'mutations', n:3},  reward:{coins:2500, xp:450} },
+    { id:'s_rods',  title:'Gearhead',     desc:'Upgrade any rod 3 times.',          goal:{type:'count', stat:'rodUpgrades', n:3}, reward:{coins:2000, xp:400} },
+    { id:'s_skill', title:'Specialist',   desc:'Spend 5 skill points.',             goal:{type:'count', stat:'skillSpent', n:5}, reward:{coins:2600, xp:480} },
+    { id:'s_baits', title:'Tackle Box',   desc:'Buy 20 bait.',                      goal:{type:'count', stat:'baitBought', n:20}, reward:{coins:1800, xp:340} },
+    { id:'s_release',title:'Catch & Release',desc:'Release 3 fish from your tank.', goal:{type:'count', stat:'trophies', n:3},    reward:{coins:2200, xp:420} },
+    { id:'s_islands',title:'Globetrotter',desc:'Travel to an island 3 times.',      goal:{type:'count', stat:'travels', n:3},    reward:{coins:3400, xp:560} }
+  ];
+
+  const DAILY_QUESTS = [
+    { id:'d_catch5',  title:'Daily Haul',      desc:'Land 5 fish today.',            goal:{type:'daily', stat:'catches', n:5},  reward:{coins:900, xp:220} },
+    { id:'d_rare3',   title:'Rare Find',       desc:'Land 3 Rare+ fish today.',      goal:{type:'daily', stat:'rarePlus', n:3}, reward:{coins:1400, xp:340} },
+    { id:'d_keep3',   title:'Fill the Crate',  desc:'Keep 3 fish today.',            goal:{type:'daily', stat:'kept', n:3},     reward:{coins:1000, xp:260} },
+    { id:'d_sell3',   title:'Cash Flow',       desc:'Sell 3 fish today.',            goal:{type:'daily', stat:'sold', n:3},     reward:{coins:1000, xp:260} },
+    { id:'d_big',     title:'Big Catch',       desc:'Land a 50kg+ fish today.',      goal:{type:'daily', stat:'bigCatches', n:1},reward:{coins:1600, xp:400} },
+    { id:'d_mut',     title:'Strange Waters',  desc:'Land a mutated fish today.',    goal:{type:'daily', stat:'mutations', n:1},reward:{coins:1800, xp:440} },
+    { id:'d_cast',    title:'Warming Up',      desc:'Catch 2 fish at NIGHT today.',  goal:{type:'daily', stat:'nightCatches', n:2}, reward:{coins:1500, xp:380} },
+    { id:'d_bait2',   title:'Restock',         desc:'Buy 5 bait today.',            goal:{type:'daily', stat:'baitBought', n:5},reward:{coins:800, xp:200} }
+  ];
+
+  function questById(id){ return MAIN_QUESTS.find(q=>q.id===id) || SIDE_QUESTS.find(q=>q.id===id) || DAILY_QUESTS.find(q=>q.id===id); }
+  function todayKey(){ return new Date().toISOString().slice(0,10); }
+
+  // ---------- DAILY LOGIN STREAK ----------
+  // come back on consecutive days: streak climbs, day 7 pays big, then resets to a
+  // repeating weekly curve. Miss a day and it drops back to 1.
+  const STREAK_REWARDS=[100,200,350,550,800,1200,2500];  // day 1..7
+  function dayDiff(a,b){ const A=new Date(a+'T00:00:00Z'), B=new Date(b+'T00:00:00Z'); return Math.round((B-A)/86400000); }
+  function checkStreak(){
+    const t=todayKey(); S.streak=S.streak||{last:'',count:0};
+    if(S.streak.last===t) return;                       // already greeted today
+    const d = S.streak.last ? dayDiff(S.streak.last, t) : 999;
+    S.streak.count = (d===1) ? (S.streak.count%7)+1 : 1;
+    S.streak.last = t;
+    const coins = STREAK_REWARDS[S.streak.count-1]||100;
+    S.coins += coins; addXp(60+S.streak.count*20);
+    save();
+    popRarityText('🔥 DAY '+S.streak.count+' STREAK! +🪙'+coins, '#ffb020');
+    say('🔥 Daily streak — day '+S.streak.count+'! +🪙'+coins+(S.streak.count===7?' — full week, nice.':''));
+    setTimeout(()=>{ if(S.state==='idle') say(''); }, 3200);
+  }
+  function streakInfo(){ return S.streak||{last:'',count:0}; }
+  function seededShuffle(arr, seed){ const a=arr.slice(); let s=seed>>>0;
+    for(let i=a.length-1;i>0;i--){ s=(s*1664525+1013904223)>>>0; const j=s%(i+1); const t=a[i]; a[i]=a[j]; a[j]=t; } return a; }
+  function syncDailies(){
+    const d=todayKey();
+    if(S.q.d.date===d && S.q.d.ids.length) return;
+    let seed=0; for(const c of d) seed=(seed*31+c.charCodeAt(0))>>>0;
+    const ids=seededShuffle(DAILY_QUESTS.map(q=>q.id), seed).slice(0,3);
+    // snapshot today's baseline for each tracked stat so dailies reset to 0 progress
+    const set={};
+    for(const id of ids){ const q=questById(id); if(q && q.goal && q.goal.stat){ const s=q.goal.stat;
+      set[s]=(s==='species')?Object.keys(S.caught).length:(S.stat[s]||0); } }
+    S.q.d={ date:d, ids:ids, prog:{}, set:set, done:{} };
+    save();
+  }
+  // progress readout for a quest (works for stat-count and daily-snapshot goals)
+  function questProg(id, store){
+    const q=questById(id); if(!q) return [0,1];
+    const g=q.goal, st=store||S.stat;
+    if(g.type==='count'||g.type==='stat'||g.type==='daily'){
+      const cur = (g.stat==='species') ? Object.keys(S.caught).length : (st[g.stat]||0);
+      return [Math.min(cur, g.n), g.n];
+    }
+    if(g.type==='rarityAtLeast'){
+      const cur = st['rarity_'+g.rar]||0;      // lifetime count of fish landed at-or-above this rarity
+      return [Math.min(cur, g.n||1), g.n||1];
+    }
+    return [0,1];
+  }
+  function questDone(id, store){ const [a,b]=questProg(id,store); return a>=b; }
+
+  function ensureDailyBase(){
+    syncDailies();
+  }
+  // begin tracking a daily stat: snapshot today's baseline from lifetime stats
+  function dailyBase(stat){
+    const d=S.q.d; d.set=d.set||{};
+    if(!(stat in d.set)){ d.set[stat]=statGet(stat); save(); }
+    return d.set[stat];
+  }
+  function dailyVal(stat){
+    const base=(S.q.d.set&&S.q.d.set[stat]!=null)?S.q.d.set[stat]:(stat==='species'?Object.keys(S.caught).length:(S.stat[stat]||0));
+    const cur=(stat==='species')?Object.keys(S.caught).length:(statGet(stat));
+    return cur-base;
+  }
+  function dailyProg(id){
+    const q=questById(id); if(!q) return [0,1];
+    const stat=q.goal.stat, cur=Math.max(0, dailyVal(stat)), n=q.goal.n;
+    return [Math.min(cur,n), n];
+  }
+
+  // side quests are repeatable: we store a per-quest baseline and require the work
+  // AGAIN each time, so you can't farm one by sitting on a lifetime total.
+  function sideBase(id){ return (S.q.sd && S.q.sd[id]) || 0; }  function sideCur(q){ const s=q.goal.stat; return (s==='species')?Object.keys(S.caught).length:(S.stat[s]||0); }
+  // first load: freeze each side quest's baseline at current progress so an existing
+  // save doesn't instantly cash in every side quest; new players start at 0 and climb.
+  function sideInitOnce(){
+    if(S.q.sd && S.q.sd.__init) return;
+    S.q.sd=S.q.sd||{};
+    for(const q of SIDE_QUESTS){ if(S.q.sd[q.id]==null) S.q.sd[q.id]=sideCur(q); }
+    S.q.sd.__init=1; save();
+  }
+  function sideProg(id){ const q=questById(id); if(!q) return [0,1];
+    const have=Math.max(0, sideCur(q)-sideBase(id));
+    return [Math.min(have, q.goal.n), q.goal.n]; }
+
+  // one funnel for every gameplay action that a quest might care about
+  const RARITY_ORDER_Q = ['common','uncommon','rare','epic','cursed','legendary','mythical','transcendent','boss'];
+  function questEvent(kind, data){
+    data=data||{};
+    switch(kind){
+      case 'catch': {
+        statAdd('catches',1);
+        const rk=RARITY_ORDER_Q.indexOf(data.rar);
+        // bump every at-or-below bucket: a Mythical satisfies Legendary/Cursed/etc goals too
+        RARITY_ORDER_Q.forEach((r,i)=>{ if(i<=rk) statAdd('rarity_'+r,1); });
+        if(rk>=RARITY_ORDER_Q.indexOf('rare')) statAdd('rarePlus',1);   // 'Rare or better' counter
+        if(data.rar==='boss') statAdd('bossCatches',1);
+        if(data.kg>=100) statAdd('bigCatches',1);
+        if(data.mut) statAdd('mutations',1);
+        if(data.night) statAdd('nightCatches',1);
+        if(data.storm) statAdd('stormCatches',1);
+        break;
+      }
+      case 'keep':    statAdd('keptTotal',1); statAdd('kept',1); break;
+      case 'sell':    statAdd('sold', data.n||1); break;
+      case 'trophy':  break;                                   // trophies counted in releaseTank
+      case 'travel':  statAdd('travels',1); break;
+      case 'rod':     statAdd('rodUpgrades',1); break;
+      case 'skill':   statAdd('skillSpent', data.n||1); break;
+      case 'bait':    statAdd('baitBought', data.n||1); break;
+      case 'coins':   statAdd('earned', data.n||0); break;
+    }
+    save(); checkQuests();
+  }
+
+  // roll up: complete any quest whose goal is met, pay out, and toast
+  function checkQuests(){
+    syncDailies(); sideInitOnce();
+    let changed=false;
+    // main chain — advance through every chapter whose goal is already met
+    let guard=0;
+    while(S.q.main < MAIN_QUESTS.length && guard++<50){
+      const mq=MAIN_QUESTS[S.q.main];
+      if(!mq || !questDone(mq.id, S.stat)) break;
+      grantQuest(mq, 'MAIN'); S.q.main++; changed=true;
+    }
+    // side quests — repeatable; each one re-arms once you do the work again
+    for(const q of SIDE_QUESTS){
+      const [a,b]=sideProg(q.id);
+      if(a>=b){ S.q.sd[q.id]=sideCur(q); grantQuest(q,'SIDE'); changed=true; }
+    }
+    // dailies
+    for(const id of S.q.d.ids){
+      if(S.q.d.done[id]) continue;
+      const [a,b]=dailyProg(id);
+      if(a>=b){ S.q.d.done[id]=1; grantQuest(questById(id),'DAILY'); changed=true; }
+    }
+    if(changed){ save(); renderQuests(); updateHUD(); }
+  }
+  function grantQuest(q, kind){
+    if(!q) return;
+    const r=q.reward||{};
+    const coins = kind==='DAILY' ? Math.round((r.coins||0)*0.6) : (r.coins||0);   // dailies pay a bit less
+    if(coins) S.coins+=coins;
+    if(r.xp) addXp(r.xp);
+    if(r.bait){
+      const w0=(BAITS[S.world])?S.world:'ocean';
+      const k=w0+':'+(BAITS[w0].length-1);
+      S.baits[k]=(S.baits[k]||0)+r.bait;
+    }
+    popRarityText((kind==='MAIN'?'📜 ':(kind==='DAILY'?'📅 ':'⭐ '))+q.title+' COMPLETE!', kind==='MAIN'?'#ffd85e':'#7dffd8');
+    floatText(rod.x, waterY-80, 'QUEST COMPLETE', '#ffd85e');
+    say((kind==='MAIN'?'📜 Main quest':kind==='DAILY'?'📅 Daily':'⭐ Side quest')+' done: '+q.title+'! '+(coins?'+🪙'+coins+' ':''));
+    setTimeout(()=>{ if(S.state==='idle') say(''); }, 2600);
   }
   let fishes = [], nextId = 1;
   const RIPPLE = {}; let rippleId=0;
@@ -1640,7 +1872,8 @@
     boat:S.boat, boats:S.boats,
     inv:S.inv, upg:S.upg, rodSold:S.rodSold, bait:S.bait, baits:S.baits,
     mode:S.mode, boatF:S.boatF,
-    tank:S.tank, xp:S.xp, lvl:S.lvl, pts:S.pts, skills:S.skills, rodLv:S.rodLv })); }catch(e){} }
+    tank:S.tank, xp:S.xp, lvl:S.lvl, pts:S.pts, skills:S.skills, rodLv:S.rodLv,
+    stat:S.stat, q:S.q, streak:S.streak })); }catch(e){} }
   function load(){ try{ const d=JSON.parse(localStorage.getItem('deepcast_v1')||'null');
     if(d){
       S.coins=d.coins||0; S.caught=d.caught||{}; S.total=d.total||0;
@@ -1649,6 +1882,15 @@
       S.lvl=typeof d.lvl==='number'?d.lvl:1; S.pts=typeof d.pts==='number'?d.pts:0;
       S.skills=(d.skills&&typeof d.skills==='object')?d.skills:{};
       S.rodLv=(d.rodLv&&typeof d.rodLv==='object')?d.rodLv:{};
+      S.stat=(d.stat&&typeof d.stat==='object')?d.stat:{};
+      const dq=d.q||{}; const dqd=(dq.d&&typeof dq.d==='object')?dq.d:{};
+      S.q={ main:typeof dq.main==='number'?dq.main:0,
+        sd:(dq.sd&&typeof dq.sd==='object')?dq.sd:{},
+        d:{ date:dqd.date||'', ids:Array.isArray(dqd.ids)?dqd.ids:[],
+            prog:(dqd.prog&&typeof dqd.prog==='object')?dqd.prog:{},
+            set:(dqd.set&&typeof dqd.set==='object')?dqd.set:{},
+            done:(dqd.done&&typeof dqd.done==='object')?dqd.done:{} } };
+      const ds=d.streak||{}; S.streak={ last:(typeof ds.last==='string')?ds.last:'', count:(typeof ds.count==='number')?ds.count:0 };
       S.world=(d.world && WORLDS[d.world])?d.world:'ocean';
       S.mode=(d.mode==='row')?'row':'fish';
       S.boatF=(typeof d.boatF==='number')?Math.max(0.08,Math.min(0.58,d.boatF)):0.20;
@@ -2097,6 +2339,12 @@
   document.getElementById('tankChip').addEventListener('click', openAqua);
   document.getElementById('skillChip').style.pointerEvents='auto';
   document.getElementById('skillChip').addEventListener('click', openSkills);
+  document.getElementById('questChip').style.pointerEvents='auto';
+  document.getElementById('questChip').addEventListener('click', openQuests);
+  document.getElementById('questClose').addEventListener('click', ()=>hidePanel('questPanel'));
+  document.getElementById('qTabMain').addEventListener('click', ()=>{ questTab='main'; renderQuests(); });
+  document.getElementById('qTabSide').addEventListener('click', ()=>{ questTab='side'; renderQuests(); });
+  document.getElementById('qTabDaily').addEventListener('click', ()=>{ questTab='daily'; renderQuests(); });
   document.getElementById('worldChip').style.pointerEvents='auto';
   document.getElementById('worldChip').addEventListener('click', openWorlds);
   document.getElementById('baitChip').style.pointerEvents='auto';
@@ -2393,6 +2641,7 @@
       const isNew=!prev, isRecord=!prev||f.kg>prev.kg;
       if(isRecord) S.caught[f.n]={kg:f.kg,value:f.value};
       S.total++; save();
+      questEvent('catch',{ rar:f.r, kg:f.kg, mut:!!f.mut, night:dayLabel()==='NIGHT', storm:(weather==='storm'||!!disaster) });
       popRarity(f.r);
       // launch the fish up and over into the bucket, then ask keep / sell
       catchAnim={ t:0, dur:0.95, f, isNew, isRecord };
@@ -2545,7 +2794,7 @@
     if(invUsed()>=crateSize()){ document.getElementById('cCoins').textContent='🎒 Crate full — SELL this one or upgrade storage!'; return; }
     const f=p.f;
     S.inv.push({n:f.n, r:f.r, kg:+f.kg.toFixed(2), value:f.value, size:f.size, mut:f.mut||null});
-    addStk(f); addXp(xpFor(f)); save(); updateHUD();
+    addStk(f); addXp(xpFor(f)); questEvent('keep'); save(); updateHUD();
     hidePanel('catchPanel');
     const f2=f; pendingCatch=null; resetToIdle();
     floatText(BUCKET.x, BUCKET.y-24, 'Kept!', '#7dffa8');
@@ -2555,7 +2804,8 @@
     const p=pendingCatch; if(!p){ hidePanel('catchPanel'); resetToIdle(); return; }
     const f=p.f;
     if(!addTank(f)){ document.getElementById('cCoins').textContent='🐠 Tank full ('+TANK_MAX+') — release one in 🐠 TANK first.'; return; }
-    addXp(xpFor(f)); save(); updateHUD();
+    S.stat.trophies=(S.stat.trophies||0)+1;
+    addXp(xpFor(f)); save(); updateHUD(); checkQuests();
     hidePanel('catchPanel');
     const f2=f; pendingCatch=null; resetToIdle();
     floatText(BUCKET.x, BUCKET.y-24, 'Trophied! 🐠', '#7dffd8');
@@ -2565,7 +2815,7 @@
     const p=pendingCatch; if(!p){ hidePanel('catchPanel'); resetToIdle(); return; }
     const f=p.f; addXp(xpFor(f));
     const coins=Math.round(f.value*(1+skillVal('greed')*0.05));
-    S.coins+=coins; save(); updateHUD();
+    S.coins+=coins; questEvent('sell',{n:1}); save(); updateHUD();
     hidePanel('catchPanel');
     const f2=f; pendingCatch=null; resetToIdle();
     floatText(BUCKET.x, BUCKET.y-24, '+'+coins+' 🪙', '#ffd85e');
@@ -2705,6 +2955,7 @@
       if(travel.t>=1.1){
         const w=travel.to; travel=null;
         resetToIdle();
+        questEvent('travel');
         say('Arrived! '+WORLDS[w].icon+' '+WORLDS[w].name);
         showArrival(w);
         hint('New waters — try the cast here 🎣');
@@ -2883,7 +3134,7 @@
         const cost=b.cost*q;
         const btn=document.createElement('button'); btn.className='qtybtn'; btn.textContent='BUY '+q+' · 🪙'+cost;
         btn.disabled=S.coins<cost;
-        btn.onclick=()=>{ if(S.coins>=cost){ S.coins-=cost; S.baits[key]=baitCount(key)+q; save(); updateHUD(); renderShop(); say('Bought '+q+'× '+b.name+'! 🪱'); } };
+        btn.onclick=()=>{ if(S.coins>=cost){ S.coins-=cost; S.baits[key]=baitCount(key)+q; save(); updateHUD(); renderShop(); questEvent('bait',{n:q}); say('Bought '+q+'× '+b.name+'! 🪱'); } };
         btns.appendChild(btn);
       });
       row.appendChild(btns);
@@ -3014,6 +3265,67 @@
       try{ const keep=ctx; ctx=g; drawFishArt(0,0, speciesArt(f.n), 0.62, {phase:t*1.6+i, dir:1, face:1}); ctx=keep; }catch(e){}
       g.restore();
     });
+  }
+
+  // ---------- QUESTS ----------
+  let questTab='main';
+  function openQuests(){ questTab='main'; renderQuests(); showPanel('questPanel'); }
+  function questRow(q, prog, done, kind, tint){
+    const row=document.createElement('div'); row.className='shoprow';
+    const info=document.createElement('div'); info.className='info'; info.style.flex='1';
+    const [a,b]=prog||[0,1];
+    const pct=Math.min(100, Math.round(a/b*100));
+    const barColor=done?'#7dffd8':(tint||'#4fa8ff');
+    info.innerHTML='<b>'+(done?'✅ ':'')+q.title+'</b>'+
+      '<span>'+q.desc+'</span>'+
+      '<span style="color:'+(done?'#7dffd8':'#bfe0ff')+'">'+a+' / '+b+'</span>'+
+      '<span style="color:#ffd85e">reward: 🪙'+((q.reward&&q.reward.coins)||0)+(q.reward&&q.reward.xp?' · '+q.reward.xp+' 🌟':'')+(q.reward&&q.reward.bait?' · 🪱×'+q.reward.bait:'')+'</span>'+
+      '<div style="height:6px;border-radius:4px;background:rgba(255,255,255,.12);margin-top:5px;overflow:hidden"><div style="height:100%;width:'+pct+'%;background:'+barColor+'"></div></div>';
+    row.appendChild(info);
+    return row;
+  }
+  function renderQuests(){
+    syncDailies();
+    const sb=document.getElementById('streakBar');
+    if(sb){ const s=streakInfo(); const nx=STREAK_REWARDS[Math.min(6,s.count)]||100;
+      sb.innerHTML='🔥 Login streak: <b>day '+s.count+'</b>'+(s.count<7?(' · next day pays 🪙'+nx):' · full week! r&nbsp;esets tomorrow'); }
+    const head=document.getElementById('questHead');
+    if(head){ const dn=S.q.d.ids.filter(id=>S.q.d.done[id]).length;
+      head.textContent='📜 Main '+S.q.main+'/'+MAIN_QUESTS.length+' · ⭐ '+SIDE_QUESTS.length+' · 📅 '+dn+'/'+S.q.d.ids.length; }
+    document.getElementById('qTabMain').classList.toggle('on', questTab==='main');
+    document.getElementById('qTabSide').classList.toggle('on', questTab==='side');
+    document.getElementById('qTabDaily').classList.toggle('on', questTab==='daily');
+    const el=document.getElementById('questList'); if(!el) return; el.innerHTML='';
+    if(questTab==='main'){
+      const doneCount=S.q.main, total=MAIN_QUESTS.length;
+      el.appendChild(Object.assign(document.createElement('div'),{style:'font-size:12px;opacity:.85;margin:2px 4px 6px',innerHTML:'📜 Main story — <b style="color:#ffd85e">'+doneCount+' / '+total+'</b> chapters complete.'}));
+      if(S.q.main>=MAIN_QUESTS.length){
+        el.insertAdjacentHTML('beforeend','<p style="font-size:13px;opacity:.8;margin:14px 4px">🏆 You finished every main quest. The deep has no more secrets… for now.</p>');
+      } else {
+        for(let i=S.q.main;i<Math.min(S.q.main+4, MAIN_QUESTS.length);i++){
+          const q=MAIN_QUESTS[i];
+          el.appendChild(questRow(q, questProg(q.id, S.stat), questDone(q.id,S.stat), 'main', i===S.q.main?'#ffd85e':'#4fa8ff'));
+          if(i===S.q.main) el.lastChild.style.border='1px solid rgba(255,216,94,.6)';
+        }
+      }
+      if(S.q.main>0){ const l=document.createElement('div'); l.style.cssText='font-size:11px;opacity:.6;margin:10px 4px 2px'; l.textContent='Completed: '+MAIN_QUESTS.slice(0,S.q.main).map(q=>q.title).join(' · '); el.appendChild(l); }
+    } else if(questTab==='side'){
+      el.appendChild(Object.assign(document.createElement('div'),{style:'font-size:12px;opacity:.85;margin:2px 4px 6px',innerHTML:'⭐ Side quests — <b style="color:#7dffd8">repeatable</b>. Finish one and it comes back around.'}));
+      SIDE_QUESTS.forEach(q=>{
+        const row=questRow(q, sideProg(q.id), false, 'side');
+        el.appendChild(row);
+      });
+    } else {
+      const doneN=S.q.d.ids.filter(id=>S.q.d.done[id]).length;
+      el.appendChild(Object.assign(document.createElement('div'),{style:'font-size:12px;opacity:.85;margin:2px 4px 6px',innerHTML:'📅 Daily quests — <b style="color:#ffd85e">'+doneN+' / '+S.q.d.ids.length+'</b> done today. Fresh set tomorrow.'}));
+      S.q.d.ids.forEach(id=>{
+        const q=questById(id); if(!q) return;
+        const done=!!S.q.d.done[id];
+        const row=questRow(q, dailyProg(id), done, 'daily', '#ffb020');
+        if(done){ const o=document.createElement('div'); o.className='owned'; o.textContent='✓'; row.appendChild(o); }
+        el.appendChild(row);
+      });
+    }
   }
 
   // ---------- SKILLS ----------
@@ -3227,7 +3539,7 @@
   function sellFromInv(i){
     const f=S.inv[i]; if(!f) return;
     S.coins+=f.value; S.inv.splice(i,1); dropFromBucket(f.n);
-    save(); updateHUD(); renderInventory();
+    save(); updateHUD(); renderInventory(); questEvent('sell',{n:1});
     say('Sold '+f.n+' for '+f.value+' 🪙'); setTimeout(()=>{ if(S.state==='idle') say(''); },1500);
   }
   function sellAllInv(){
@@ -3235,7 +3547,7 @@
     let total=0;
     for(const f of S.inv){ total+=f.value; dropFromBucket(f.n); }
     const n=S.inv.length; S.inv.length=0; S.coins+=total;
-    save(); updateHUD(); renderInventory();
+    save(); updateHUD(); renderInventory(); questEvent('sell',{n:n});
     say('Sold '+n+' fish for '+total+' 🪙'); setTimeout(()=>{ if(S.state==='idle') say(''); },2000);
   }
 
@@ -3254,6 +3566,8 @@
     document.getElementById('invChip').innerHTML='🎒 '+invUsed()+'/'+crateSize()+'<small>TAP: INVENTORY</small>';
     const tc=document.getElementById('tankChipN'); if(tc) tc.textContent=tankCount()+'/'+TANK_MAX;
     const sc=document.getElementById('skillChipN'); if(sc) sc.textContent='LV '+(S.lvl||1)+((S.pts||0)>0?(' · '+S.pts+'pt'):'');
+    const qc=document.getElementById('questChipN');
+    if(qc){ syncDailies(); const dn=S.q.d.ids.filter(id=>S.q.d.done[id]).length; qc.textContent='📅 '+dn+'/'+S.q.d.ids.length; }
     const wc=document.getElementById('weatherChip');
     if(wc){ const Wd=WEATHERS[weather]||WEATHERS.clear;
       wc.innerHTML=Wd.icon+' '+Wd.name+'<small>'+dayLabel()+'</small>';
@@ -4638,6 +4952,7 @@
 
   // ---------- start ----------
   resize(); load(); updateHUD(); fillWater();
+  syncDailies(); sideInitOnce(); checkQuests(); checkStreak();
   bubbles = [];
   for(let i=0;i<12;i++) bubbles.push({x:Math.random()*1000, y:waterY+Math.random()*(H-waterY), r:1+Math.random()*2.5, spd:16+Math.random()*26, life:1});
   resetToIdle();
@@ -4654,6 +4969,8 @@
     rodPower, curRod, rodRef, totalLure, totalLuck, equippedBait,
     setMode, openAdminPanel:openAdmin, get mode(){return S.mode;}, get adminOn(){return adminOn;},
     openAqua, openSkills, renderAqua, renderSkills, renderSpecies, openSpecies, openInventory, openShop, openWorlds,
+    openQuests, renderQuests, questEvent, checkQuests, syncDailies, MAIN_QUESTS, SIDE_QUESTS, DAILY_QUESTS, questProg, dailyProg,
+    sideProg, checkStreak, streakInfo, STREAK_REWARDS,
     get skills(){return S.skills;}, get tank(){return S.tank;}, get lvl(){return S.lvl;}, get xp(){return S.xp;}, get pts(){return S.pts;},
     addXp, xpFor, tankCount, TANK_MAX, rodLevel, upgradeRod, boostRod, condOK,
     get rowing(){ return isRowingPose(); }, get rowV(){ return travel?travel.v:ROW.v; }, get boatF(){ return S.boatF; },
