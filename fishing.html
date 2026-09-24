@@ -1297,6 +1297,15 @@
   const DAY_LEN = 240;              // seconds for a full day→night→day cycle
   let weather='clear', weatherT=30+Math.random()*40, lightning=0, lightningCd=6+Math.random()*8;
   let rainDrops=[], snowFlakes=[];
+  // ambient background life (always animating, independent of weather)
+  let ambient=[], birds=[], embers=[], ash=[], jumps=[], iceFloes=[], horizonBoats=[];
+  function spawnBirds(){
+    const n=1+Math.floor(Math.random()*3), dir=Math.random()<.5?1:-1;
+    const y0=waterY*(0.10+Math.random()*0.20);
+    for(let i=0;i<n;i++) birds.push({x: dir>0? -40-i*26 : W+40+i*26, y:y0+Math.random()*16, dir, sp:34+Math.random()*22, ph:Math.random()*6.28, flap:5+Math.random()*3});
+  }
+  function spawnJump(){ jumps.push({x:W*(0.15+Math.random()*0.7), dir:Math.random()<.5?1:-1, t:0, dur:0.9+Math.random()*0.4, s:6+Math.random()*7, arc:26+Math.random()*22, sp:120+Math.random()*90}); }
+  function spawnHorizonBoat(){ const dir=Math.random()<.5?1:-1; horizonBoats.push({x: dir>0?-60:W+60, dir, sp:9+Math.random()*9, y:waterY+1+Math.random()*3, s:0.5+Math.random()*0.45, ph:Math.random()*6.28}); }
   const STK=[];                       // fish shown stacked in the bucket
   const BUCKET={x:0,y:0};
   let recastT=0;                      // reserved (no-op)
@@ -2366,6 +2375,7 @@
     snowFlakes = snowFlakes.filter(s=> s.y < H+20);
     if(!wantRain) rainDrops.length=0;
     if(!wantSnow) snowFlakes.length=0;
+    updateAmbient(dt);
     if(bob.flying){ bob.t+=dt/bob.land; if(bob.t>=1){ bob.t=1; bob.flying=false; beginWait(); } }
     // float boing physics — a little spring wobble on the surface
     bob.boingV += (-bob.boing*95 - bob.boingV*6.5)*dt;
@@ -2565,6 +2575,121 @@
       ctx.fillStyle=snow?'#eaf7ff':'#ffedbe'; ctx.beginPath(); ctx.arc(cx,cy,15,0,7); ctx.fill();
     }
   }
+  // ---------- ambient background life ----------
+  let ambientCd=0;
+  function updateAmbient(dt){
+    const TH=sceneTheme();
+    ambientCd-=dt;
+    if(ambientCd<=0){
+      ambientCd=2.2+Math.random()*3.6;
+      const r=Math.random();
+      if(TH!=='volcano' && r<0.45) spawnBirds();
+      else if(r<0.78) spawnJump();
+      else spawnHorizonBoat();
+    }
+    // birds
+    for(const b of birds){ b.x+=b.dir*b.sp*dt; b.ph+=dt*b.flap; }
+    birds=birds.filter(b=> b.x>-70 && b.x<W+70);
+    // breaching fish
+    for(const j of jumps) j.t+=dt/j.dur;
+    jumps=jumps.filter(j=> j.t<1);
+    // distant sailboats
+    for(const hb of horizonBoats){ hb.x+=hb.dir*hb.sp*dt; hb.ph+=dt*1.6; }
+    horizonBoats=horizonBoats.filter(hb=> hb.x>-90 && hb.x<W+90);
+    // volcano embers + ash
+    if(TH==='volcano'){
+      if(embers.length<60){ for(let i=0;i<2;i++) embers.push({x:W*0.74+(Math.random()-.5)*70, y:waterY*0.28+(Math.random()-.5)*20, vx:(Math.random()-.5)*12, vy:-(18+Math.random()*34), r:1+Math.random()*2.2, life:1, max:1.6+Math.random()*1.8}); }
+      if(ash.length<50){ for(let i=0;i<2;i++) ash.push({x:Math.random()*W, y:-10-Math.random()*40, vx:(Math.random()-.5)*10, vy:26+Math.random()*30, r:1+Math.random()*1.8}); }
+    }
+    for(const e of embers){ e.life-=dt/e.max; e.x+=e.vx*dt+Math.sin(e.life*9)*6*dt; e.y+=e.vy*dt; e.vy*=(1-dt*0.15); }
+    embers=embers.filter(e=> e.life>0);
+    for(const a of ash){ a.x+=a.vx*dt+Math.sin(a.y*0.03)*10*dt; a.y+=a.vy*dt; }
+    ash=ash.filter(a=> a.y<waterY+4);
+    // snow: drifting ice floes on the surface
+    if(TH==='snow'){
+      if(iceFloes.length<7 && Math.random()<dt*0.55) iceFloes.push({x:-60, y:waterY+4+Math.random()*10, w:26+Math.random()*40, h:5+Math.random()*4, v:8+Math.random()*10, s:0.5+Math.random()*0.6});
+    } else if(iceFloes.length){ /* let them sail off then clear */ }
+    for(const f of iceFloes) f.x+=f.v*dt;
+    iceFloes=iceFloes.filter(f=> f.x<W+80);
+    ambientCd=Math.max(ambientCd,0);
+  }
+
+  function drawSkyAmbient(t){
+    const TH=sceneTheme();
+    // birds — a few W-shaped silhouettes gliding across
+    for(const b of birds){
+      const fl=Math.sin(b.ph);
+      ctx.save(); ctx.translate(b.x,b.y); ctx.scale(b.dir,1);
+      ctx.globalAlpha=0.5; ctx.strokeStyle='#1b2b38'; ctx.lineWidth=1.8; ctx.lineCap='round';
+      ctx.beginPath();
+      ctx.moveTo(-7,0); ctx.quadraticCurveTo(-3.5,-4-fl*3, 0,0);
+      ctx.quadraticCurveTo(3.5,-4-fl*3, 7,0); ctx.stroke();
+      ctx.restore();
+    }
+    // volcano embers rising from the caldera
+    if(embers.length){
+      ctx.save(); ctx.globalCompositeOperation='lighter';
+      for(const e of embers){ ctx.globalAlpha=Math.max(0,e.life)*0.9;
+        const eg=ctx.createRadialGradient(e.x,e.y,0,e.x,e.y,e.r*3); eg.addColorStop(0,'rgba(255,200,120,.95)'); eg.addColorStop(.5,'rgba(255,120,40,.5)'); eg.addColorStop(1,'rgba(255,80,20,0)');
+        ctx.fillStyle=eg; ctx.beginPath(); ctx.arc(e.x,e.y,e.r*3,0,7); ctx.fill(); }
+      ctx.restore();
+    }
+    // volcano ash drifting down
+    if(ash.length){ ctx.save(); ctx.fillStyle='rgba(70,58,54,.5)';
+      for(const a of ash){ ctx.globalAlpha=0.4+Math.sin(t*3+a.y*0.1)*0.2; ctx.beginPath(); ctx.arc(a.x,a.y,a.r,0,7); ctx.fill(); } ctx.restore(); }
+  }
+
+  function drawWaterAmbient(t){
+    const TH=sceneTheme(), snow=(TH==='snow'), volc=(TH==='volcano');
+    // distant sailboats on the horizon — tiny triangular sails
+    for(const hb of horizonBoats){
+      const bob=Math.sin(t*2.2+hb.ph)*1.4;
+      ctx.save(); ctx.translate(hb.x, waterY+hb.y*0+1.5+bob);
+      ctx.globalAlpha=0.55;
+      ctx.fillStyle='#e9f3fa'; ctx.beginPath(); ctx.moveTo(0,-16*hb.s); ctx.lineTo(7*hb.s,0); ctx.lineTo(0,0); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='#cfdde8'; ctx.beginPath(); ctx.moveTo(-1*hb.s,-13*hb.s); ctx.lineTo(-7*hb.s,0); ctx.lineTo(-1*hb.s,0); ctx.closePath(); ctx.fill();
+      ctx.strokeStyle='#3a4a58'; ctx.lineWidth=1.2*hb.s; ctx.beginPath(); ctx.moveTo(0,-17*hb.s); ctx.lineTo(0,2); ctx.stroke();
+      ctx.fillStyle='#2d3d4a'; ctx.fillRect(-8*hb.s,-1,16*hb.s,3);
+      ctx.restore();
+    }
+    // snow: drifting ice floes
+    for(const f of iceFloes){
+      ctx.save(); ctx.translate(f.x,f.y);
+      ctx.fillStyle='rgba(228,246,255,.85)';
+      ctx.beginPath(); ctx.moveTo(-f.w/2,0); ctx.lineTo(-f.w*0.3,-f.h); ctx.lineTo(f.w*0.28,-f.h*0.8); ctx.lineTo(f.w/2,0); ctx.closePath(); ctx.fill();
+      ctx.fillStyle='rgba(160,205,230,.7)'; ctx.fillRect(-f.w/2,1.5,f.w,2.5);
+      ctx.restore();
+    }
+    // breaching fish — leap out of the water and dive back in
+    for(const j of jumps){
+      const p=j.t, hop=Math.sin(p*Math.PI);
+      const x=j.x + j.dir*j.sp*(p-0.5)*0.6;
+      const y=waterY - hop*j.arc;
+      ctx.save(); ctx.translate(x,y); ctx.scale(j.dir,1); ctx.rotate(-Math.cos(p*Math.PI)*0.5);
+      const fc = volc?['#ff9a4a','#8a2a10']:(snow?['#bfe6f2','#5a92a8']:['#9fd4ee','#4a86a8']);
+      ctx.fillStyle=fc[0]; ctx.beginPath(); ctx.ellipse(0,0,j.s*1.4,j.s*0.6,0,0,7); ctx.fill();
+      ctx.fillStyle=fc[1]; ctx.beginPath(); ctx.moveTo(-j.s*1.3,0); ctx.lineTo(-j.s*2.2,-j.s*0.6); ctx.lineTo(-j.s*2.2,j.s*0.6); ctx.closePath(); ctx.fill();
+      ctx.restore();
+      // splash rings at entry/exit
+      const splash=Math.max(0,1-Math.abs(p-0.5)*4);
+      if(splash>0){ ctx.save(); ctx.globalAlpha=splash*0.6; ctx.strokeStyle='#eafcff'; ctx.lineWidth=1.6;
+        for(const sx of [j.x-j.dir*j.sp*0.3, j.x+j.dir*j.sp*0.3]){ ctx.beginPath(); ctx.ellipse(sx,waterY,4+(1-splash)*16,2+(1-splash)*6,0,0,7); ctx.stroke(); } ctx.restore(); }
+    }
+    // sun glitter on the surface (daytime only, clearish water)
+    const dayAmt = Math.max(0, Math.min(1, (Math.sin((dayT-0.25)*Math.PI*2)+0.2)/1.1));
+    if(dayAmt>0.4 && weather!=='storm' && weather!=='lunar'){
+      ctx.save(); ctx.globalCompositeOperation='lighter';
+      const gcol = volc?'rgba(255,180,90,':'rgba(255,240,190,';
+      for(let i=0;i<26;i++){
+        const gx=((i*97)%W), gy=waterY+3+((i*53)%14);
+        const tw=0.5+0.5*Math.sin(t*3+i*1.7);
+        ctx.globalAlpha=(0.10+0.22*tw)*(dayAmt-0.4);
+        ctx.fillStyle=gcol+'0.9)'; ctx.fillRect(gx,gy,5+tw*4,1.4);
+      }
+      ctx.restore();
+    }
+  }
+
   function draw(){
     const t=performance.now()/1000;
     const TH=sceneTheme(), snow=(TH==='snow'), volc=(TH==='volcano');
@@ -2618,6 +2743,8 @@
       ctx.beginPath(); ctx.ellipse(cx,cy,70,16,0,0,7); ctx.fill();
       ctx.beginPath(); ctx.ellipse(cx+40,cy-8,48,13,0,0,7); ctx.fill(); }
     ctx.restore();
+    // ambient sky life (birds, volcano embers/ash, snow drift)
+    drawSkyAmbient(t);
     // weather sky tint + storm clouds
     if(weather!=='clear'){
       ctx.save();
@@ -2783,6 +2910,8 @@
       ctx.restore();
     }
 
+    // ambient water life (distant boats, ice floes, breaching fish, sun glitter)
+    drawWaterAmbient(t);
     // scenic island on the horizon (varies by world)
     drawIsland(t);
 
@@ -3299,7 +3428,9 @@
   if(!seenTut){ setTimeout(()=>{ if(S.state==='idle') showPanel('howPanel'); },700); }
   frame();
 
-  window.DEEPCast={ S, openShop, openWorlds, openSpecies, openInventory, startTravel, get fishes(){return fishes;} };
+  window.DEEPCast={ S, openShop, openWorlds, openSpecies, openInventory, startTravel, get fishes(){return fishes;},
+    get birds(){return birds;}, get jumps(){return jumps;}, get horizonBoats(){return horizonBoats;},
+    get embers(){return embers;}, get ash(){return ash;}, get iceFloes(){return iceFloes;} };
 })();
 </script>
 </body>
