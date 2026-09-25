@@ -33,6 +33,21 @@
   #hint { top:140px; left:0; right:0; text-align:center; font-size:13px; opacity:.95; padding:0 16px; }
   #gauges { display:none; }                 /* retired — you aim by tapping / dragging the water */
   #controls { position:absolute; left:0; right:0; top:166px; display:flex; justify-content:space-between; align-items:flex-start; padding:0 12px; pointer-events:none; z-index:6; }
+  /* ---- SWIM JOYSTICK (dive mode) ---- */
+  #joyPad { position:absolute; left:20px; bottom:30px; display:none; flex-direction:column; align-items:center; gap:7px; z-index:7; touch-action:none; -webkit-tap-highlight-color:transparent; }
+  #joyPad.show { display:flex; }
+  #joyBase { position:relative; width:154px; height:154px; border-radius:50%; touch-action:none;
+    background:radial-gradient(circle at 50% 42%, rgba(24,86,120,.55), rgba(3,16,28,.66));
+    border:3px solid rgba(125,255,214,.55);
+    box-shadow:0 0 26px rgba(80,220,210,.28), inset 0 0 26px rgba(0,0,0,.5); }
+  #joyBase::after { content:''; position:absolute; inset:24px; border-radius:50%; border:2px dashed rgba(125,255,214,.26); pointer-events:none; }
+  #joyKnob { position:absolute; left:50%; top:50%; width:66px; height:66px; margin:-33px 0 0 -33px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center; font-size:26px; line-height:1; touch-action:none; will-change:transform;
+    background:radial-gradient(circle at 38% 32%, #c9ffee, #2fb0c8 68%, #0e6f96);
+    border:3px solid rgba(230,255,250,.9);
+    box-shadow:0 6px 0 rgba(0,0,0,.38), 0 0 22px rgba(125,255,214,.6); }
+  #joyPad:active #joyKnob, #joyKnob:active { box-shadow:0 3px 0 rgba(0,0,0,.38), 0 0 26px rgba(125,255,214,.8); }
+  #joyLabel { color:#8fe3ff; font-size:11px; font-weight:bold; letter-spacing:3px; text-shadow:0 1px 6px rgba(0,0,0,.7); }
   .ctl { pointer-events:auto; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
     width:96px; height:88px; border-radius:22px; border:3px solid rgba(130,215,255,.6);
     background:linear-gradient(180deg,#123c5c,#0a2540); color:#eaf6ff; font-family:inherit; font-weight:bold;
@@ -196,7 +211,7 @@
     <div class="drow"><span id="diveZone">🌊 OPEN WATER</span></div>
     <div class="drow">🫧 AIR <span class="dbar"><i id="airFill"></i></span> <span id="airTxt">50s</span></div>
     <div class="drow">⬇ DEPTH <span class="dbar"><i id="depFill"></i></span> <span id="depTxt">0m</span></div>
-    <div class="drow dtip" id="diveTip">Drag the water to SWIM · 🔱 SPEAR to fire · let go to float up</div>
+    <div class="drow dtip" id="diveTip">Use the 🕹️ joystick to SWIM · 🔱 SPEAR to fire · 🫧 SINK to dive · float up when you let go</div>
   </div>
   <div id="rarityPop"></div>
   <div id="arriveBanner"></div>
@@ -240,6 +255,12 @@
       <span id="reelLabel">REEL</span>
     </button>
     <button class="ctl paddle" id="paddleR" style="display:none"><span class="ic">➡️</span><span id="paddleRLabel">ROW</span></button>
+  </div>
+
+  <!-- SWIM JOYSTICK (dive mode) — grab the base and drag the stick to steer the diver -->
+  <div id="joyPad">
+    <div id="joyBase"><div id="joyKnob">🔱</div></div>
+    <div id="joyLabel">SWIM</div>
   </div>
 
   <!-- TRAVEL OVERLAY -->
@@ -3085,14 +3106,14 @@
     if(areaSail) return;
     if(travel){ if(travel.phase==='row'){ travel.rowing=true; } return; }
     if(S.mode==='row'){ return; }
-    if(S.mode==='dive'){ if(e){ const p=canvasPos(e); joyStart(p.x,p.y,e.pointerId); dragging=true; } return; }
+    if(S.mode==='dive'){ return; }   // steer with the on-screen joystick, not the water
     if(e){ const p=canvasPos(e); target.x=p.x; target.y=p.y; }
     if(S.state==='idle'){ dragging=true; clampTarget(); }      // aim by tapping the water
     else if(S.state==='bite'){ hookIt(); }                     // tap anywhere to strike
   }
   function pointerMove(e){
     if(travel || areaSail) return;
-    if(S.mode==='dive'){ if(e && JOY.active){ const p=canvasPos(e); joyMove(p.x,p.y); } return; }
+    if(S.mode==='dive'){ return; }   // steer with the on-screen joystick
     if(!dragging || S.state!=='idle') return;
     const p=canvasPos(e); target.x=p.x; target.y=p.y; clampTarget();
   }
@@ -3168,6 +3189,7 @@
       modeBtn.style.display='none';
       throwBtn.style.display=''; reelBtn.style.display='none';
       paddleL.style.display='none'; paddleR.style.display='none';
+      if(joyPad) joyPad.classList.remove('show');
       throwBtn.classList.toggle('dim', !rowing);
       throwBtn.classList.toggle('hot', rowing);
       throwBtn.classList.toggle('rowing', rowing);
@@ -3183,6 +3205,7 @@
       paddleL.style.display='none'; paddleR.style.display='none';
       throwBtn.style.order=''; reelBtn.style.order='';
       modeBtn.classList.add('divemode');
+      if(joyPad) joyPad.classList.add('show');
       const atFloor = DIVER.y >= diveFloorY()-8;
       const more = (S.area+1)<islandAreas(S.world).length;
       throwBtn.querySelector('.ic').textContent = (atFloor&&more)?'⬇':'🔱';
@@ -3197,6 +3220,7 @@
       return;
     }
     setDiveHud(false);
+    if(joyPad) joyPad.classList.remove('show');
     modeBtn.classList.remove('divemode');
     throwBtn.style.order=''; paddleL.style.order=''; reelBtn.style.order=''; paddleR.style.order='';
     throwBtn.querySelector('.ic').textContent='🎣';
@@ -3902,20 +3926,44 @@
   const DIVER={x:0,y:0,vx:0,vy:0,phase:0};
   let diveAir=0, diveSink=false, diveShot=null, diveBubbles=[], divePops=[];
   // floating swim joystick — drag anywhere in the water to steer the diver
-  const JOY={active:false, ox:0, oy:0, x:0, y:0, r:62, pointerId:null};
+  const JOY={active:false, ox:0, oy:0, x:0, y:0, r:62, pointerId:null, fromPad:false};
   function joyVec(){
     if(!JOY.active) return {x:0,y:0,m:0};
     let jx=(JOY.x-JOY.ox)/JOY.r, jy=(JOY.y-JOY.oy)/JOY.r;
     let m=Math.hypot(jx,jy); if(m>1){ jx/=m; jy/=m; m=1; }
     return {x:jx,y:jy,m};
   }
-  function joyStart(px,py,id){ JOY.active=true; JOY.ox=JOY.x=px; JOY.oy=JOY.y=py; JOY.pointerId=(id==null?null:id); }
+  function joyStart(px,py,id,fromPad){ JOY.active=true; JOY.ox=JOY.x=px; JOY.oy=JOY.y=py; JOY.pointerId=(id==null?null:id); JOY.fromPad=!!fromPad; moveJoyKnob(); }
   function joyMove(px,py){
     const dx=px-JOY.ox, dy=py-JOY.oy, d=Math.hypot(dx,dy)||1;
     const k=Math.min(1, JOY.r/d);
-    JOY.x=JOY.ox+dx*k; JOY.y=JOY.oy+dy*k;
+    JOY.x=JOY.ox+dx*k; JOY.y=JOY.oy+dy*k; moveJoyKnob();
   }
-  function joyEnd(){ JOY.active=false; JOY.pointerId=null; }
+  function joyEnd(){ JOY.active=false; JOY.pointerId=null; moveJoyKnob(); }
+  const joyPad=document.getElementById('joyPad');
+  const joyBase=document.getElementById('joyBase');
+  const joyKnob=document.getElementById('joyKnob');
+  function moveJoyKnob(){
+    if(!joyKnob) return;
+    if(!JOY.active || !JOY.fromPad){ joyKnob.style.transform='translate(0,0)'; return; }
+    joyKnob.style.transform='translate('+(JOY.x-JOY.ox)+'px,'+(JOY.y-JOY.oy)+'px)';
+  }
+  // the real, grabbable stick (bottom-left): pointer relative to the base centre
+  if(joyBase){
+    const jpDown=e=>{ if(S.mode!=='dive') return; e.preventDefault();
+      try{ joyBase.setPointerCapture(e.pointerId);}catch(_){}
+      const r=joyBase.getBoundingClientRect();
+      JOY.active=true; JOY.fromPad=true; JOY.pointerId=e.pointerId;
+      JOY.ox=r.left+r.width/2; JOY.oy=r.top+r.height/2; JOY.r=Math.max(30,r.width/2-34);
+      joyMove(e.clientX,e.clientY); };
+    const jpMove=e=>{ if(!JOY.active||!JOY.fromPad) return; e.preventDefault(); joyMove(e.clientX,e.clientY); };
+    const jpUp=e=>{ if(JOY.fromPad && (JOY.pointerId==null||e.pointerId===JOY.pointerId)) joyEnd(); };
+    joyBase.addEventListener('pointerdown', jpDown);
+    joyBase.addEventListener('pointermove', jpMove);
+    joyBase.addEventListener('pointerup', jpUp);
+    joyBase.addEventListener('pointercancel', jpUp);
+    joyBase.addEventListener('lostpointercapture', jpUp);
+  }
   function diveFloorY(){ return fishZoneBot()+34; }
   function curZone(){ return curArea(); }
   function enterDive(){
@@ -3927,6 +3975,7 @@
     DIVER.y=waterY+80; DIVER.vx=0; DIVER.vy=0;
     diveAir=(curKit().air||50);
     diveShot=null; diveBubbles=[];
+    if(typeof joyEnd==='function') joyEnd();
     save(); updateHUD();
     say('🤿 Diving — drag the water to SWIM, tap 🔱 SPEAR to fire');
     hint('Drag anywhere to steer the diver. Let go and you float up. Watch your air!');
@@ -4133,7 +4182,7 @@
     for(const b of diveBubbles){ ctx.globalAlpha=.5*b.life; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,7); ctx.stroke(); }
     ctx.restore();
     // swim joystick (cursor pad) — drag anywhere in the water to steer
-    if(JOY.active){
+    if(JOY.active && !JOY.fromPad){
       ctx.save();
       ctx.globalAlpha=.32; ctx.fillStyle='#04121c';
       ctx.beginPath(); ctx.arc(JOY.ox,JOY.oy,JOY.r,0,7); ctx.fill();
