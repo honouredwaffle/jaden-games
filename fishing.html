@@ -6238,7 +6238,8 @@
     // boat LAMP — lights the water. Brighter lamp = a bigger glow + better night fishing.
     { const lamp=(curBoat().lamp||0);
       if(lamp>0.05){
-        const night=(dayAmt!==undefined)?(1-dayAmt):0.5;
+        const dAmt=Math.max(0, Math.min(1, (Math.sin((dayT-0.25)*Math.PI*2)+0.2)/1.1));
+        const night=1-dAmt;
         ctx.save(); ctx.globalCompositeOperation='lighter';
         const lg=ctx.createRadialGradient(x,y-6,2,x,y-6,40+lamp*46);
         const a=0.12+0.09*lamp+0.10*night;
