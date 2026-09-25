@@ -318,7 +318,7 @@ function buildCar(col, x, z, yaw=0, isPlayer=false){
   g.traverse(o=>{o.castShadow=true;});
   g.position.set(x,0,z); g.rotation.y=yaw;
   scene.add(g);
-  const car={ group:g, pos:new THREE.Vector3(x,0,z), yaw, speed:0, isPlayer };
+  const car={ group:g, pos:new THREE.Vector3(x,0,z), yaw, speed:0, isPlayer:false };
   return car;
 }
 // parked cars along roads near spawn
@@ -331,6 +331,72 @@ function spawnParked(){
   }
 }
 spawnParked();
+
+/* ============================================================
+   TRAFFIC (NPC cars driving the road grid)
+   ============================================================ */
+const ROAD=[-96,-48,0,48,96];
+const TRAFFIC=[];
+function nextRoadAhead(v,dir){
+  if(dir>0){ for(const r of ROAD) if(r>v+0.5) return r; return null; }
+  for(let i=ROAD.length-1;i>=0;i--) if(ROAD[i]<v-0.5) return ROAD[i];
+  return null;
+}
+function spawnTraffic(n){
+  for(let k=0;k<n;k++){
+    const alongZ=Math.random()<0.5;
+    const dir=Math.random()<0.5?1:-1;
+    const line=ROAD[Math.floor(Math.random()*ROAD.length)];
+    const col=CARCOLS[Math.floor(Math.random()*CARCOLS.length)];
+    const car=buildCar(col,0,0,0);
+    const start=ROAD[Math.floor(Math.random()*ROAD.length)]+rnd(-20,20);
+    const t={ car, alongZ, dir, line, base:rnd(7,13), speed:rnd(6,11), axial:start, next:null };
+    t.next=nextRoadAhead(start,dir);
+    if(t.next===null){ t.axial = dir>0? ROAD[0]-3 : ROAD[ROAD.length-1]+3; t.next=nextRoadAhead(t.axial,dir); }
+    placeTraffic(t);
+    TRAFFIC.push(t);
+  }
+}
+function placeTraffic(t){
+  const c=t.car;
+  c.moving = true;
+  if(t.alongZ){ c.pos.set(t.line + 4.6*t.dir, 0, t.axial); c.yaw = t.dir>0?0:Math.PI; }
+  else { c.pos.set(t.axial, 0, t.line - 4.6*t.dir); c.yaw = t.dir>0?Math.PI/2:-Math.PI/2; }
+  c.group.position.copy(c.pos); c.group.rotation.y=c.yaw;
+}
+function updateTraffic(dt){
+  const p=player.pos;
+  for(const t of TRAFFIC){
+    if(t.stolen) continue;
+    const c=t.car;
+    // ease speed; pause if the player on foot is directly in front
+    let target=t.base;
+    if(player.onFoot){
+      const dx=p.x-c.pos.x, dz=p.z-c.pos.z, d=Math.hypot(dx,dz);
+      if(d<10){ const fx=Math.sin(c.yaw), fz=Math.cos(c.yaw); if((dx*fx+dz*fz)/(d||1) > 0.55) target=0; }
+    }
+    t.speed += (target-t.speed)*Math.min(1,4*dt);
+    c.moving = t.speed>1.5;
+    t.axial += t.dir*t.speed*dt;
+    if(t.next!==null){
+      const crossed = t.dir>0 ? t.axial>=t.next-0.01 : t.axial<=t.next+0.01;
+      if(crossed){
+        t.axial = t.next;                        // snap onto the intersection
+        const inter = t.next, oldLine = t.line;
+        if(Math.random()<0.45){                  // maybe turn onto the crossing road
+          t.alongZ = !t.alongZ;
+          t.line = inter;
+          t.dir = Math.random()<0.5?1:-1;
+          t.axial = oldLine;                     // start along the new direction from where we were
+        }
+        t.next = nextRoadAhead(t.axial, t.dir);
+        if(t.next===null){ t.axial = t.dir>0? ROAD[0]-3 : ROAD[ROAD.length-1]+3; t.next=nextRoadAhead(t.axial,t.dir); }
+      }
+    }
+    placeTraffic(t);
+  }
+}
+spawnTraffic(12);
 
 /* ============================================================
    PEDESTRIANS (robbable NPCs)
@@ -356,7 +422,7 @@ function spawnPeds(n){
     peds.push(buildPed(i,j));
   }
 }
-spawnPeds(14);
+spawnPeds(24);
 function pickPedTarget(p){
   const near = (Math.round(p.pos.x/CITY.step)*CITY.step);
   p.target.set(p.pos.x + rnd(-16,16), 0, p.pos.z + rnd(-16,16));
@@ -435,9 +501,12 @@ let look={ dragging:false, id:null, lastX:0, lastY:0, moved:0 };
 const cam={ yaw:Math.PI, pitch:0.42, dist:9 };
 const cv=renderer.domElement;
 cv.addEventListener('pointerdown',e=>{
-  if(e.clientX < innerWidth*0.42 && innerWidth<900){ return; } // left side reserved for joystick on mobile
-  look.dragging=true; look.id=e.pointerId; look.lastX=e.clientX; look.lastY=e.clientY; look.moved=0;
-  cv.setPointerCapture(e.pointerId);
+  const isMouse = e.pointerType==='mouse';
+  if(isMouse && e.button!==2) return;                         // desktop: RIGHT mouse button turns the camera
+  if(!isMouse && e.clientX < innerWidth*0.42 && innerWidth<900){ return; } // touch: left side reserved for joystick
+  if(isMouse) e.preventDefault();
+  look.dragging=true; look.id=e.pointerId; look.lastX=e.clientX; look.lastY=e.clientY; look.moved=e.button===2?1:0;
+  try{ cv.setPointerCapture(e.pointerId); }catch(_){}
 });
 cv.addEventListener('pointermove',e=>{
   if(!look.dragging||e.pointerId!==look.id) return;
@@ -464,7 +533,7 @@ function joyVec(){
   const nx=clamp(dx/max,-1,1), ny=clamp(-dy/max,-1,1);
   joy.vx=nx; joy.vy=ny;
 }
-joyEl.addEventListener('pointerdown',e=>{ joy.active=true; joy.id=e.pointerId; joy.x=e.clientX; joy.y=e.clientY; joyVec(); joyEl.setPointerCapture(e.pointerId); });
+joyEl.addEventListener('pointerdown',e=>{ joy.active=true; joy.id=e.pointerId; joy.x=e.clientX; joy.y=e.clientY; joyVec(); try{ joyEl.setPointerCapture(e.pointerId); }catch(_){} });
 joyEl.addEventListener('pointermove',e=>{ if(!joy.active||e.pointerId!==joy.id) return; joy.x=e.clientX; joy.y=e.clientY; joyVec(); });
 function joyEnd(e){ if(e.pointerId===joy.id){ joy.active=false; joy.id=null; knob.style.transform='translate(0,0)'; joy.vx=0; joy.vy=0; } }
 joyEl.addEventListener('pointerup',joyEnd);
@@ -486,6 +555,7 @@ function nearestTarget(){
   // cars (enter) — only on foot
   if(player.onFoot){
     for(const c of cars){ const d=Math.hypot(c.pos.x-p.x,c.pos.z-p.z); if(d<bd){ bd=d; best={type:'car',car:c}; } }
+    for(const t of TRAFFIC){ if(t.stolen) continue; const c=t.car; const d=Math.hypot(c.pos.x-p.x,c.pos.z-p.z); if(d<bd){ bd=d; best={type:'car',car:c}; } }
     // buildings — measured from the wall edge, not the centre
     for(const [k,pl] of Object.entries(PLACES)){
       const d=distToRect(p.x,p.z,pl);
@@ -497,6 +567,8 @@ function nearestTarget(){
   }
   return best;
 }
+
+/* traffic cars can be carjacked too (stealing a moving car = GTA vibes) */
 
 function doAction(){
   if(MG.active){ scanTap(); return; }
@@ -522,6 +594,7 @@ function usePlace(k){
 /* car enter/exit */
 function enterCar(car){
   player.onFoot=false; player.group.visible=false; S.car=car; car.isPlayer=true;
+  for(const t of TRAFFIC){ if(t.car===car){ t.stolen=true; } }   // carjacked — stop simming it
   toast('🚗 Driving — press E to get out');
 }
 function exitCar(){
@@ -846,6 +919,7 @@ function frame(){
     updatePlayer(dt); updateCar(dt); updateCops(dt);
   }
   updatePeds(dt);
+  updateTraffic(dt);
   updateHeat(dt);
   updateCamera(dt);
   updateBeam(t);
@@ -873,7 +947,7 @@ function frame(){
   nearTarget=nearestTarget();
   if(nearTarget){
     let txt='';
-    if(nearTarget.type==='car') txt='<b>E</b> — Get in car';
+    if(nearTarget.type==='car') txt='<b>E</b> — '+(nearTarget.car.moving?'Carjack':'Get in car');
     else if(nearTarget.type==='exit') txt='<b>E</b> — Get out';
     else if(nearTarget.type==='ped') txt='<b>E</b> — Mug (⚠ crime)';
     else if(nearTarget.type==='place'){
@@ -903,7 +977,7 @@ addEventListener('resize',()=>{
 if('ontouchstart' in window || innerWidth<900) joyEl.classList.add('show');
 
 /* expose for debugging/testing */
-window.GRIND = { S, PLACES, player, cars, peds, cops, startShift, applyJob, buy, addHeat, doAction, enterCar, exitCar, MG, openPhone, selectTab, nearestTarget, usePlace, mug, get nearTarget(){return nearTarget;} };
+window.GRIND = { S, PLACES, player, cars, peds, cops, traffic:TRAFFIC, startShift, applyJob, buy, addHeat, doAction, enterCar, exitCar, MG, openPhone, selectTab, nearestTarget, usePlace, mug, get nearTarget(){return nearTarget;} };
 </script>
 </body>
 </html>
