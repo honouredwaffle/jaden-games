@@ -288,18 +288,41 @@ for(let i=-2;i<=2;i++) for(let j=-2;j<=2;j++){
    PLAYER
    ============================================================ */
 const player = { pos:new THREE.Vector3(24,0,40), yaw:0, vel:new THREE.Vector3(), onFoot:true, group:null, speed:0, phase:0 };
-function buildPlayer(){
+/* ---------- shared low-poly humanoid ----------
+   Limbs are parented to pivot Groups at the hip/shoulder so they swing naturally. */
+function swingLimb(px,py,pz,w,h,d,col){
+  const p=new THREE.Group(); p.position.set(px,py,pz);
+  p.add(box(w,h,d,col,0,-h/2,0));
+  return p;
+}
+function buildHumanoid({shirt=0xe3644f, pants=0x2b3a55, skin=0xe9b98c, hair=0x2a201a, cap=null, hands=true, scale=1}={}){
   const g=new THREE.Group();
-  const legL=box(0.42,0.95,0.42,0x2b3a55,-0.22,0.48,0);
-  const legR=box(0.42,0.95,0.42,0x2b3a55, 0.22,0.48,0);
-  const torso=box(0.78,0.9,0.5,0xe3644f,0,1.42,0);
-  const head=box(0.52,0.52,0.5,0xe9b98c,0,2.16,0);
-  const hair=box(0.56,0.24,0.54,0x2a201a,0,2.4,0);
-  const armL=box(0.24,0.85,0.3,0xe3644f,-0.52,1.42,0);
-  const armR=box(0.24,0.85,0.3,0xe3644f, 0.52,1.42,0);
-  g.add(legL,legR,torso,head,hair,armL,armR);
+  const LEG_H=0.95, ARM_H=0.8;
+  const legL=swingLimb(-0.19, LEG_H, 0, 0.4, LEG_H, 0.42, pants);
+  const legR=swingLimb( 0.19, LEG_H, 0, 0.4, LEG_H, 0.42, pants);
+  const armL=swingLimb(-0.56, 1.76, 0, 0.26, ARM_H, 0.3, shirt);
+  const armR=swingLimb( 0.56, 1.76, 0, 0.26, ARM_H, 0.3, shirt);
+  if(hands){
+    armL.add(box(0.28,0.24,0.32,skin,0,-ARM_H-0.09,0));
+    armR.add(box(0.28,0.24,0.32,skin,0,-ARM_H-0.09,0));
+  }
+  g.add(legL,legR,armL,armR,
+    box(0.78,0.92,0.5,shirt,0,1.42,0),           // torso
+    box(0.5,0.5,0.5,skin,0,2.15,0),              // head
+    box(0.56,0.26,0.56, cap||hair, 0,2.42,0));   // hair / cap
   g.traverse(o=>{o.castShadow=true;});
   g.userData.limbs={legL,legR,armL,armR};
+  if(scale!==1) g.scale.setScalar(scale);
+  return g;
+}
+function animateWalk(g, phase, amt){
+  const L=g.userData.limbs; if(!L) return;
+  const sw=Math.sin(phase)*0.62*amt;
+  L.legL.rotation.x=sw;        L.legR.rotation.x=-sw;
+  L.armL.rotation.x=-sw*0.85;  L.armR.rotation.x=sw*0.85;
+}
+function buildPlayer(){
+  const g=buildHumanoid({ shirt:0xe3644f, pants:0x2b3a55, hands:true });
   scene.add(g); return g;
 }
 player.group=buildPlayer();
@@ -346,6 +369,88 @@ spawnParked();
    ============================================================ */
 /* road CENTRE-lines = the GAPS between 32-wide blocks centred on multiples of 48 → ±24, ±72 */
 const ROAD=[-72,-24,24,72];
+const HALF_ROAD=8;                 // road half-width (blocks are 32 wide, gaps are 16)
+
+/* ============================================================
+   TRAFFIC LIGHTS + CROSSWALKS
+   ============================================================ */
+const LIGHT_PERIOD=13;             // seconds for a full cycle
+const INTERSECTIONS=[];            // {x,z,off,zLamps,xLamps}
+const INTER_MAP=new Map();         // "x,z" -> intersection
+const CROSSWALKS=[];               // {x0,x1,z0,z1,axis}
+
+const SIG={
+  r_on:new THREE.MeshStandardMaterial({color:0xff3344,emissive:0xff3344,emissiveIntensity:1.4}),
+  r_off:new THREE.MeshStandardMaterial({color:0x361317,emissive:0x180a0c,emissiveIntensity:0.15}),
+  a_on:new THREE.MeshStandardMaterial({color:0xffc23d,emissive:0xffc23d,emissiveIntensity:1.4}),
+  a_off:new THREE.MeshStandardMaterial({color:0x362c10,emissive:0x181306,emissiveIntensity:0.15}),
+  g_on:new THREE.MeshStandardMaterial({color:0x3dff8a,emissive:0x3dff8a,emissiveIntensity:1.4}),
+  g_off:new THREE.MeshStandardMaterial({color:0x0e3620,emissive:0x06180e,emissiveIntensity:0.15}),
+};
+function buildSignal(x,z,rot){
+  const g=new THREE.Group();
+  g.add(box(0.28,5,0.28,0x2a2f36,0,2.5,0));
+  g.add(box(0.52,1.55,0.5,0x14181d,0,5.62,0));
+  const lamps=[];
+  for(let i=0;i<3;i++){ const l=box(0.34,0.32,0.34,0x000000,0,6.12-i*0.46,0.2); g.add(l); lamps.push(l); }
+  g.position.set(x,0,z); g.rotation.y=rot; scene.add(g);
+  return { r:lamps[0], a:lamps[1], g:lamps[2] };
+}
+function stripeTexture(vertical){
+  const c=document.createElement('canvas'); c.width=256; c.height=64;
+  const g=c.getContext('2d'); g.clearRect(0,0,256,64);
+  g.fillStyle='rgba(238,243,248,0.92)';
+  const n=9;
+  if(vertical){ const w=256/n; for(let i=0;i<n;i+=2) g.fillRect(i*w+w*0.18,0,w*0.64,64); }
+  else{ const h=64/n; for(let i=0;i<n;i+=2) g.fillRect(0,i*h+h*0.18,256,h*0.64); }
+  const t=new THREE.CanvasTexture(c); t.anisotropy=4; return t;
+}
+function buildRoadFurniture(){
+  const texV=stripeTexture(true), texH=stripeTexture(false);
+  // shared geometries + materials (keep draw overhead low: 64 crosswalks, 2 of each)
+  const geoH=new THREE.PlaneGeometry(16,4), geoV=new THREE.PlaneGeometry(4,16);
+  const matH=new THREE.MeshBasicMaterial({map:texV, transparent:true, depthWrite:false});
+  const matV=new THREE.MeshBasicMaterial({map:texH, transparent:true, depthWrite:false});
+  // axis 'x' = a crosswalk ACROSS a north-south road (spans x, thin in z)
+  // axis 'z' = a crosswalk ACROSS an east-west road  (spans z, thin in x)
+  const mkCross=(cx,cz,axis)=>{
+    const horiz = axis==='x';
+    const m=new THREE.Mesh(horiz?geoH:geoV, horiz?matH:matV);
+    m.rotation.x=-Math.PI/2; m.position.set(cx,0.06,cz); m.renderOrder=1; scene.add(m);
+    if(horiz) CROSSWALKS.push({x0:cx-8,x1:cx+8,z0:cz-2,z1:cz+2,axis:'x',cx,cz});
+    else      CROSSWALKS.push({x0:cx-2,x1:cx+2,z0:cz-8,z1:cz+8,axis:'z',cx,cz});
+  };
+  for(const rx of ROAD) for(const rz of ROAD){
+    // crosswalks on the four approaches
+    mkCross(rx, rz-11, 'x');
+    mkCross(rx, rz+11, 'x');
+    mkCross(rx-11, rz, 'z');
+    mkCross(rx+11, rz, 'z');
+    // traffic lights: one pole shows the Z-road signal, the other the X-road signal
+    const off = ((rx*3 + rz*7) % LIGHT_PERIOD + LIGHT_PERIOD) % LIGHT_PERIOD;
+    const it = { x:rx, z:rz, off, zLamps:buildSignal(rx-8.7, rz-8.7, 0), xLamps:buildSignal(rx+8.7, rz+8.7, Math.PI/2) };
+    INTERSECTIONS.push(it); INTER_MAP.set(rx+','+rz, it);
+  }
+}
+buildRoadFurniture();
+function lightState(it, t){
+  const ph=(((t + it.off) % LIGHT_PERIOD) + LIGHT_PERIOD) % LIGHT_PERIOD;
+  let z='red', x='red';
+  if(ph<5) z='green'; else if(ph<6) z='amber';
+  else if(ph<11) x='green'; else if(ph<12) x='amber';
+  return { z, x };                      // ph 12..13 = all-red gap
+}
+function setSignal(lamps, state){
+  lamps.r.material = state==='red'  ? SIG.r_on : SIG.r_off;
+  lamps.a.material = state==='amber'? SIG.a_on : SIG.a_off;
+  lamps.g.material = state==='green'? SIG.g_on : SIG.g_off;
+}
+function updateLights(t){
+  for(const it of INTERSECTIONS){
+    const st=lightState(it,t);
+    setSignal(it.zLamps, st.z); setSignal(it.xLamps, st.x);
+  }
+}
 const TRAFFIC=[];
 function nextRoadAhead(v,dir){
   if(dir>0){ for(const r of ROAD) if(r>v+0.5) return r; return null; }
@@ -376,36 +481,46 @@ function placeTraffic(t){
   const [rx,rz]=resolveXZ(c.pos.x,c.pos.z,1.6); c.pos.x=rx; c.pos.z=rz;
   c.group.position.copy(c.pos); c.group.rotation.y=c.yaw;
 }
-function updateTraffic(dt){
+function updateTraffic(dt, t){
   const p=player.pos;
-  for(const t of TRAFFIC){
-    if(t.stolen) continue;
-    const c=t.car;
+  for(const t2 of TRAFFIC){
+    if(t2.stolen) continue;
+    const c=t2.car;
     // ease speed; pause if the player on foot is directly in front
-    let target=t.base;
+    let target=t2.base;
     if(player.onFoot){
       const dx=p.x-c.pos.x, dz=p.z-c.pos.z, d=Math.hypot(dx,dz);
       if(d<10){ const fx=Math.sin(c.yaw), fz=Math.cos(c.yaw); if((dx*fx+dz*fz)/(d||1) > 0.55) target=0; }
     }
-    t.speed += (target-t.speed)*Math.min(1,4*dt);
-    c.moving = t.speed>1.5;
-    t.axial += t.dir*t.speed*dt;
-    if(t.next!==null){
-      const crossed = t.dir>0 ? t.axial>=t.next-0.01 : t.axial<=t.next+0.01;
-      if(crossed){
-        t.axial = t.next;                        // snap onto the intersection
-        const inter = t.next, oldLine = t.line;
-        if(Math.random()<0.45){                  // maybe turn onto the crossing road
-          t.alongZ = !t.alongZ;
-          t.line = inter;
-          t.dir = Math.random()<0.5?1:-1;
-          t.axial = oldLine;                     // start along the new direction from where we were
-        }
-        t.next = nextRoadAhead(t.axial, t.dir);
-        if(t.next===null){ t.axial = t.dir>0? ROAD[0]-3 : ROAD[ROAD.length-1]+3; t.next=nextRoadAhead(t.axial,t.dir); }
+    // obey the traffic lights on the intersection ahead
+    if(t2.next!==null){
+      const inter = INTER_MAP.get(t2.alongZ ? (t2.line+','+t2.next) : (t2.next+','+t2.line));
+      if(inter){
+        const st=lightState(inter, t);
+        const sig = t2.alongZ ? st.z : st.x;
+        const dist=(t2.next - t2.axial)*t2.dir;      // >0 = still approaching
+        if(dist>0 && dist<9 && (sig==='red' || (sig==='amber' && dist<4))) target=0;
       }
     }
-    placeTraffic(t);
+    t2.speed += (target-t2.speed)*Math.min(1,4*dt);
+    c.moving = t2.speed>1.5;
+    t2.axial += t2.dir*t2.speed*dt;
+    if(t2.next!==null){
+      const crossed = t2.dir>0 ? t2.axial>=t2.next-0.01 : t2.axial<=t2.next+0.01;
+      if(crossed){
+        t2.axial = t2.next;                        // snap onto the intersection
+        const inter = t2.next, oldLine = t2.line;
+        if(Math.random()<0.45){                  // maybe turn onto the crossing road
+          t2.alongZ = !t2.alongZ;
+          t2.line = inter;
+          t2.dir = Math.random()<0.5?1:-1;
+          t2.axial = oldLine;                     // start along the new direction from where we were
+        }
+        t2.next = nextRoadAhead(t2.axial, t2.dir);
+        if(t2.next===null){ t2.axial = t2.dir>0? ROAD[0]-3 : ROAD[ROAD.length-1]+3; t2.next=nextRoadAhead(t2.axial,t2.dir); }
+      }
+    }
+    placeTraffic(t2);
   }
 }
 spawnTraffic(12);
@@ -415,16 +530,15 @@ spawnTraffic(12);
    ============================================================ */
 const peds=[];
 const SHIRT=[0x3fa9f5,0xffd85e,0x7dffd6,0xc07dff,0xff9d3d,0x9fd6ff,0xff5d6d];
+const PANTS=[0x2b2b33,0x39445a,0x4a3b2f,0x23303f,0x5a2f3a];
+const SKIN_TONES=[0xe9b98c,0xd8a878,0xb07d52,0x8a5a34,0xf0c9a0];
 function buildPed(x,z){
-  const g=new THREE.Group();
   const shirt=SHIRT[Math.floor(Math.random()*SHIRT.length)];
-  g.add(box(0.4,0.85,0.4,0x2b2b33,-0.2,0.42,0));
-  g.add(box(0.4,0.85,0.4,0x2b2b33, 0.2,0.42,0));
-  g.add(box(0.7,0.8,0.45,shirt,0,1.25,0));
-  g.add(box(0.48,0.48,0.46,0xd8a878,0,1.88,0));
-  g.traverse(o=>{o.castShadow=true;});
+  const pants=PANTS[Math.floor(Math.random()*PANTS.length)];
+  const skin=SKIN_TONES[Math.floor(Math.random()*SKIN_TONES.length)];
+  const g=buildHumanoid({ shirt, pants, skin, hands:false, scale:rnd(0.88,1.0) });
   scene.add(g);
-  const ped={ group:g, pos:new THREE.Vector3(x,0,z), yaw:rnd(0,6.28), t:0, target:new THREE.Vector3(x,0,z), speed:rnd(1.6,2.9), bob:rnd(0,6.28) };
+  const ped={ group:g, pos:new THREE.Vector3(x,0,z), yaw:rnd(0,6.28), t:0, target:new THREE.Vector3(x,0,z), speed:rnd(1.6,2.9), phase:rnd(0,6.28) };
   return ped;
 }
 function insideSolid(x,z,pad){
@@ -433,10 +547,23 @@ function insideSolid(x,z,pad){
   }
   return false;
 }
+function onRoad(x,z){
+  for(const r of ROAD){ if(Math.abs(x-r)<HALF_ROAD) return true; if(Math.abs(z-r)<HALF_ROAD) return true; }
+  return false;
+}
+function inCrosswalk(x,z){
+  for(const c of CROSSWALKS){ if(x>c.x0 && x<c.x1 && z>c.z0 && z<c.z1) return true; }
+  return false;
+}
+function walkable(x,z){
+  if(insideSolid(x,z,0.6)) return false;
+  if(onRoad(x,z) && !inCrosswalk(x,z)) return false;   // sidewalks + crossings only
+  return true;
+}
 function freeSpot(){
-  for(let k=0;k<50;k++){
+  for(let k=0;k<80;k++){
     const x=rnd(-CITY.half+8, CITY.half-8), z=rnd(-CITY.half+8, CITY.half-8);
-    if(!insideSolid(x,z,0.7)) return {x,z};
+    if(walkable(x,z)) return {x,z};
   }
   return {x:24,z:24};
 }
@@ -448,13 +575,20 @@ function spawnPeds(n){
 }
 spawnPeds(72);
 function pickPedTarget(p){
-  // pick a walkable spot nearby so they wander the streets instead of piling into walls
-  for(let k=0;k<10;k++){
+  // prefer a nearby walkable spot (sidewalk / crossing) so they don't wander into traffic
+  for(let k=0;k<14;k++){
     const x=clamp(p.pos.x+rnd(-16,16),-CITY.half+6,CITY.half-6);
     const z=clamp(p.pos.z+rnd(-16,16),-CITY.half+6,CITY.half-6);
-    if(!insideSolid(x,z,0.7)){ p.target.set(x,0,z); return; }
+    if(walkable(x,z)){ p.target.set(x,0,z); return; }
   }
-  p.target.set(clamp(p.pos.x+rnd(-8,8),-CITY.half+6,CITY.half-6),0,clamp(p.pos.z+rnd(-8,8),-CITY.half+6,CITY.half-6));
+  // fallback: a short hop in any walkable direction, else stay put
+  for(let a=0;a<14;a++){
+    const ang=rnd(0,6.28);
+    const x=clamp(p.pos.x+Math.cos(ang)*7,-CITY.half+6,CITY.half-6);
+    const z=clamp(p.pos.z+Math.sin(ang)*7,-CITY.half+6,CITY.half-6);
+    if(walkable(x,z)){ p.target.set(x,0,z); return; }
+  }
+  p.target.copy(p.pos);
 }
 
 /* ============================================================
@@ -462,21 +596,14 @@ function pickPedTarget(p){
    ============================================================ */
 const cops=[];
 function buildCop(x,z){
-  const g=new THREE.Group();
-  g.add(box(0.42,0.9,0.42,0x18213a,-0.2,0.45,0));
-  g.add(box(0.42,0.9,0.42,0x18213a, 0.2,0.45,0));
-  g.add(box(0.74,0.85,0.48,0x24407a,0,1.3,0));
-  g.add(box(0.5,0.5,0.48,0xd8a878,0,1.95,0));
-  g.add(box(0.56,0.2,0.52,0x0f1830,0,2.2,0));
-  const cap=new THREE.MeshStandardMaterial({color:0x2a5db0});
-  const badge=new THREE.Mesh(new THREE.BoxGeometry(0.12,0.12,0.02), new THREE.MeshStandardMaterial({color:0xffd85e,emissive:0xffd85e,emissiveIntensity:0.6}));
-  badge.position.set(0.22,1.4,0.25); g.add(badge);
-  // light bar on head
-  const lb=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.12,0.14), new THREE.MeshStandardMaterial({color:0xff3355,emissive:0xff3355,emissiveIntensity:1}));
-  lb.position.set(0,2.42,0); g.add(lb);
-  g.traverse(o=>{o.castShadow=true;});
+  const g=buildHumanoid({ shirt:0x24407a, pants:0x18213a, cap:0x2a5db0, hands:false });
+  const badge=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.03), new THREE.MeshStandardMaterial({color:0xffd85e,emissive:0xffd85e,emissiveIntensity:0.6}));
+  badge.position.set(0.22,1.52,0.26); g.add(badge);
+  // light bar on the hat
+  const lb=new THREE.Mesh(new THREE.BoxGeometry(0.5,0.13,0.16), new THREE.MeshStandardMaterial({color:0xff3355,emissive:0xff3355,emissiveIntensity:1}));
+  lb.position.set(0,2.62,0); g.add(lb);
   g.position.set(x,0,z); scene.add(g);
-  return { group:g, pos:new THREE.Vector3(x,0,z), yaw:0, cool:0 };
+  return { group:g, pos:new THREE.Vector3(x,0,z), yaw:0, cool:0, phase:rnd(0,6.28) };
 }
 function spawnCop(){
   const a=rnd(0,6.28), r=rnd(40,70);
@@ -853,8 +980,7 @@ function updatePlayer(dt){
   player.group.position.set(player.pos.x,0,player.pos.z);
   player.group.rotation.y = lerpAngle(player.group.rotation.y, player.yaw, Math.min(1,12*dt));
   // limb swing
-  const L=player.group.userData.limbs, sw=Math.sin(player.phase)*0.5*(moving?1:0.1);
-  L.legL.rotation.x=sw; L.legR.rotation.x=-sw; L.armL.rotation.x=-sw; L.armR.rotation.x=sw;
+  animateWalk(player.group, player.phase, moving?1:0.06);
 }
 function updateCar(dt){
   if(player.onFoot||!S.car) return;
@@ -886,15 +1012,25 @@ function updatePeds(dt){
     const dx=p.target.x-p.pos.x, dz=p.target.z-p.pos.z, d=Math.hypot(dx,dz);
     if(d<0.6){ pickPedTarget(p); }
     else {
-      const sp=p.speed||2.2;
-      let nx=p.pos.x+dx/d*sp*dt, nz=p.pos.z+dz/d*sp*dt;
-      [nx,nz]=resolveXZ(nx,nz,0.5);              // pedestrians don't walk through walls
-      if(Math.hypot(nx-p.pos.x,nz-p.pos.z) < sp*dt*0.25){ pickPedTarget(p); }  // blocked → pick a new goal
-      p.pos.x=nx; p.pos.z=nz; p.yaw=Math.atan2(dx,dz);
+      const sp=p.speed||2.2, step=sp*dt;
+      const nx=p.pos.x+dx/d*step, nz=p.pos.z+dz/d*step;
+      // move; never step onto the road unless it's a crossing. Blocked → slide along the curb.
+      const tryMove=(ax,az)=>{
+        const [rx,rz]=resolveXZ(ax,az,0.5);
+        if(onRoad(rx,rz) && !inCrosswalk(rx,rz)) return false;
+        p.pos.x=rx; p.pos.z=rz; return true;
+      };
+      if(!tryMove(nx,nz)){
+        if(!tryMove(nx,p.pos.z)){ if(!tryMove(p.pos.x,nz)){ pickPedTarget(p); } }
+      }
+      if(d>0.01) p.yaw=Math.atan2(dx,dz);
     }
-    // tiny walk-bob so the crowd feels alive
-    p.bob=(p.bob||0)+dt*8;
-    p.group.position.set(p.pos.x, Math.abs(Math.sin(p.bob))*0.06, p.pos.z);
+    // walking animation + bob, driven by distance actually travelled
+    const moved=Math.hypot(p.pos.x-(p._lx??p.pos.x), p.pos.z-(p._lz??p.pos.z));
+    p._lx=p.pos.x; p._lz=p.pos.z;
+    p.phase=(p.phase||0) + moved*9 + dt*0.7;
+    animateWalk(p.group, p.phase, moved>0.0008?1:0.12);
+    p.group.position.set(p.pos.x, Math.abs(Math.sin(p.phase))*0.05, p.pos.z);
     p.group.rotation.y=p.yaw;
   }
 }
@@ -903,7 +1039,11 @@ function updateCops(dt){
   while(cops.length>stars){ const c=cops.pop(); scene.remove(c.group); }
   for(const c of cops){
     const dx=player.pos.x-c.pos.x, dz=player.pos.z-c.pos.z, d=Math.hypot(dx,dz);
+    const bx=c.pos.x, bz=c.pos.z;
     if(d>1.2){ const sp=Math.min(6.5, 3.4+stars*0.5); let nx=c.pos.x+dx/d*sp*dt, nz=c.pos.z+dz/d*sp*dt; [nx,nz]=resolveXZ(nx,nz,0.55); c.pos.x=nx; c.pos.z=nz; c.yaw=Math.atan2(dx,dz); }
+    const moved=Math.hypot(c.pos.x-bx, c.pos.z-bz);
+    c.phase=(c.phase||0)+moved*9+dt*0.7;
+    animateWalk(c.group, c.phase, moved>0.0008?1:0.1);
     c.group.position.set(c.pos.x,0,c.pos.z);
     c.group.rotation.y+=dt*0.0 + (c.yaw-c.group.rotation.y)*Math.min(1,8*dt);
     if(d<1.4 && S.heat>0){ busted(); break; }
@@ -960,7 +1100,8 @@ function frame(){
     updatePlayer(dt); updateCar(dt); updateCops(dt);
   }
   updatePeds(dt);
-  updateTraffic(dt);
+  updateTraffic(dt, t);
+  updateLights(t);
   updateHeat(dt);
   updateCamera(dt);
   updateBeam(t);
@@ -1018,7 +1159,7 @@ addEventListener('resize',()=>{
 if('ontouchstart' in window || innerWidth<900) joyEl.classList.add('show');
 
 /* expose for debugging/testing */
-window.GRIND = { S, PLACES, player, cars, peds, cops, traffic:TRAFFIC, cam, camera, scene, THREE, solids, startShift, applyJob, buy, addHeat, doAction, enterCar, exitCar, MG, openPhone, selectTab, nearestTarget, usePlace, mug, get nearTarget(){return nearTarget;} };
+window.GRIND = { S, PLACES, player, cars, peds, cops, traffic:TRAFFIC, cam, camera, scene, THREE, solids, INTERSECTIONS, CROSSWALKS, ROAD, lightState, onRoad, inCrosswalk, walkable, startShift, applyJob, buy, addHeat, doAction, enterCar, exitCar, MG, openPhone, selectTab, nearestTarget, usePlace, mug, get nearTarget(){return nearTarget;} };
 </script>
 </body>
 </html>
