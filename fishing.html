@@ -6235,22 +6235,26 @@
     // hull — the equipped boat's shape
     ctx.save(); ctx.translate(x,y); drawBoatShape((curBoat().style)||'rowboat'); ctx.restore();
     ctx.fillStyle='#2d4354'; ctx.fillRect(x-56,y+12,112,8);   // waterline stripe (under surface)
-    // boat LAMP — lights the water. Brighter lamp = a bigger glow + better night fishing.
+    // boat LAMP — lights the water at night. Brighter lamp = a bigger glow + better night fishing.
+    // Fades right down in daylight so it never washes a warm haze over the boat/angler at noon.
     { const lamp=(curBoat().lamp||0);
       if(lamp>0.05){
         const dAmt=Math.max(0, Math.min(1, (Math.sin((dayT-0.25)*Math.PI*2)+0.2)/1.1));
         const night=1-dAmt;
+        const dayFade=0.06+0.94*night*night;   // ~off at midday, full at night
+        if(dayFade>0.03){
         ctx.save(); ctx.globalCompositeOperation='lighter';
         const lg=ctx.createRadialGradient(x,y-6,2,x,y-6,40+lamp*46);
-        const a=0.12+0.09*lamp+0.10*night;
-        lg.addColorStop(0,'rgba(255,240,190,'+(a+0.12)+')'); lg.addColorStop(.5,'rgba(255,225,150,'+(a*0.5)+')'); lg.addColorStop(1,'rgba(255,220,150,0)');
+        const a=(0.12+0.09*lamp+0.10*night)*dayFade;
+        lg.addColorStop(0,'rgba(255,240,190,'+(a+0.12*dayFade)+')'); lg.addColorStop(.5,'rgba(255,225,150,'+(a*0.5)+')'); lg.addColorStop(1,'rgba(255,220,150,0)');
         ctx.fillStyle=lg; ctx.beginPath(); ctx.arc(x,y-6,40+lamp*46,0,7); ctx.fill();
         const cone=ctx.createLinearGradient(x,y-6,x,y-6+120);
-        cone.addColorStop(0,'rgba(255,245,200,'+(0.16+0.10*lamp)+')'); cone.addColorStop(1,'rgba(255,240,190,0)');
+        cone.addColorStop(0,'rgba(255,245,200,'+((0.16+0.10*lamp)*dayFade)+')'); cone.addColorStop(1,'rgba(255,240,190,0)');
         ctx.fillStyle=cone; ctx.beginPath(); ctx.moveTo(x-8,y-6); ctx.lineTo(x+8,y-6);
         ctx.lineTo(x+26+lamp*14,y-6+130); ctx.lineTo(x-26-lamp*14,y-6+130); ctx.closePath(); ctx.fill();
         ctx.fillStyle='#fff2c4'; ctx.beginPath(); ctx.arc(x,y-8,2.6,0,7); ctx.fill();
         ctx.restore();
+        }
       }
       if(curBoat().dive && !isRowingPose()){   // submarine: a soft dive dome
         ctx.fillStyle='rgba(120,230,255,.35)'; ctx.beginPath(); ctx.arc(x,y-6,60,0,7); ctx.fill();
