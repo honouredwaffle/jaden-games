@@ -424,22 +424,37 @@ function buildPed(x,z){
   g.add(box(0.48,0.48,0.46,0xd8a878,0,1.88,0));
   g.traverse(o=>{o.castShadow=true;});
   scene.add(g);
-  const ped={ group:g, pos:new THREE.Vector3(x,0,z), yaw:rnd(0,6.28), t:0, target:new THREE.Vector3(x,0,z) };
+  const ped={ group:g, pos:new THREE.Vector3(x,0,z), yaw:rnd(0,6.28), t:0, target:new THREE.Vector3(x,0,z), speed:rnd(1.6,2.9), bob:rnd(0,6.28) };
   return ped;
+}
+function insideSolid(x,z,pad){
+  for(const s of solids){
+    if(x>s.minx-pad && x<s.maxx+pad && z>s.minz-pad && z<s.maxz+pad) return true;
+  }
+  return false;
+}
+function freeSpot(){
+  for(let k=0;k<50;k++){
+    const x=rnd(-CITY.half+8, CITY.half-8), z=rnd(-CITY.half+8, CITY.half-8);
+    if(!insideSolid(x,z,0.7)) return {x,z};
+  }
+  return {x:24,z:24};
 }
 function spawnPeds(n){
   for(let k=0;k<n;k++){
-    const i=Math.floor(rnd(-2,3))*CITY.step + rnd(-8,8);
-    const j=Math.floor(rnd(-2,3))*CITY.step + rnd(-8,8);
-    peds.push(buildPed(i,j));
+    const s=freeSpot();
+    peds.push(buildPed(s.x,s.z));
   }
 }
-spawnPeds(24);
+spawnPeds(72);
 function pickPedTarget(p){
-  const near = (Math.round(p.pos.x/CITY.step)*CITY.step);
-  p.target.set(p.pos.x + rnd(-16,16), 0, p.pos.z + rnd(-16,16));
-  p.target.x = clamp(p.target.x, -CITY.half+6, CITY.half-6);
-  p.target.z = clamp(p.target.z, -CITY.half+6, CITY.half-6);
+  // pick a walkable spot nearby so they wander the streets instead of piling into walls
+  for(let k=0;k<10;k++){
+    const x=clamp(p.pos.x+rnd(-16,16),-CITY.half+6,CITY.half-6);
+    const z=clamp(p.pos.z+rnd(-16,16),-CITY.half+6,CITY.half-6);
+    if(!insideSolid(x,z,0.7)){ p.target.set(x,0,z); return; }
+  }
+  p.target.set(clamp(p.pos.x+rnd(-8,8),-CITY.half+6,CITY.half-6),0,clamp(p.pos.z+rnd(-8,8),-CITY.half+6,CITY.half-6));
 }
 
 /* ============================================================
@@ -871,13 +886,15 @@ function updatePeds(dt){
     const dx=p.target.x-p.pos.x, dz=p.target.z-p.pos.z, d=Math.hypot(dx,dz);
     if(d<0.6){ pickPedTarget(p); }
     else {
-      const sp=2.2;
+      const sp=p.speed||2.2;
       let nx=p.pos.x+dx/d*sp*dt, nz=p.pos.z+dz/d*sp*dt;
       [nx,nz]=resolveXZ(nx,nz,0.5);              // pedestrians don't walk through walls
       if(Math.hypot(nx-p.pos.x,nz-p.pos.z) < sp*dt*0.25){ pickPedTarget(p); }  // blocked → pick a new goal
       p.pos.x=nx; p.pos.z=nz; p.yaw=Math.atan2(dx,dz);
     }
-    p.group.position.set(p.pos.x,0,p.pos.z);
+    // tiny walk-bob so the crowd feels alive
+    p.bob=(p.bob||0)+dt*8;
+    p.group.position.set(p.pos.x, Math.abs(Math.sin(p.bob))*0.06, p.pos.z);
     p.group.rotation.y=p.yaw;
   }
 }
