@@ -196,7 +196,7 @@
     <div class="drow"><span id="diveZone">🌊 OPEN WATER</span></div>
     <div class="drow">🫧 AIR <span class="dbar"><i id="airFill"></i></span> <span id="airTxt">50s</span></div>
     <div class="drow">⬇ DEPTH <span class="dbar"><i id="depFill"></i></span> <span id="depTxt">0m</span></div>
-    <div class="drow dtip" id="diveTip">Tap the water to aim · 🔱 SPEAR · hold SINK to go deeper</div>
+    <div class="drow dtip" id="diveTip">Drag the water to SWIM · 🔱 SPEAR to fire · let go to float up</div>
   </div>
   <div id="rarityPop"></div>
   <div id="arriveBanner"></div>
@@ -3085,14 +3085,14 @@
     if(areaSail) return;
     if(travel){ if(travel.phase==='row'){ travel.rowing=true; } return; }
     if(S.mode==='row'){ return; }
-    if(S.mode==='dive'){ if(e){ const p=canvasPos(e); target.x=Math.max(20,Math.min(W-20,p.x)); target.y=Math.max(waterY+20,Math.min(H-16,p.y)); dragging=true; } return; }
+    if(S.mode==='dive'){ if(e){ const p=canvasPos(e); joyStart(p.x,p.y,e.pointerId); dragging=true; } return; }
     if(e){ const p=canvasPos(e); target.x=p.x; target.y=p.y; }
     if(S.state==='idle'){ dragging=true; clampTarget(); }      // aim by tapping the water
     else if(S.state==='bite'){ hookIt(); }                     // tap anywhere to strike
   }
   function pointerMove(e){
     if(travel || areaSail) return;
-    if(S.mode==='dive'){ if(e){ const p=canvasPos(e); target.x=Math.max(20,Math.min(W-20,p.x)); target.y=Math.max(waterY+20,Math.min(H-16,p.y)); } return; }
+    if(S.mode==='dive'){ if(e && JOY.active){ const p=canvasPos(e); joyMove(p.x,p.y); } return; }
     if(!dragging || S.state!=='idle') return;
     const p=canvasPos(e); target.x=p.x; target.y=p.y; clampTarget();
   }
@@ -3108,9 +3108,9 @@
 
   cv.addEventListener('pointerdown', e=>{ e.preventDefault(); try{cv.setPointerCapture(e.pointerId);}catch(_){} pointerDown(e); });
   cv.addEventListener('pointermove', e=>{ if(dragging||travel){ e.preventDefault(); pointerMove(e); } });
-  cv.addEventListener('pointerup', ()=>{ dragging=false; });
-  cv.addEventListener('pointercancel', ()=>{ dragging=false; });
-  window.addEventListener('pointerup', ()=>{ dragging=false; if(travel) travel.rowing=false; });
+  cv.addEventListener('pointerup', e=>{ dragging=false; if(JOY.active && (JOY.pointerId==null || e.pointerId===JOY.pointerId)) joyEnd(); });
+  cv.addEventListener('pointercancel', e=>{ dragging=false; if(JOY.active && (JOY.pointerId==null || e.pointerId===JOY.pointerId)) joyEnd(); });
+  window.addEventListener('pointerup', e=>{ dragging=false; if(travel) travel.rowing=false; if(JOY.active && (JOY.pointerId==null || e.pointerId===JOY.pointerId)) joyEnd(); });
   window.addEventListener('keydown', e=>{ if(e.code==='Space'&&!e.repeat){ e.preventDefault(); if(S.mode==='row') return; if(S.state==='idle') doCast(); else if(S.state==='bite') hookIt(); } });
 
   // ---- on-screen THROW + REEL buttons ----
@@ -3179,9 +3179,9 @@
       modeBtn.style.display='';
       modeBtn.classList.remove('rowmode');
       modeBtn.innerHTML='🤿 DIVING<small>TAP: BOAT ⛵</small>';
-      throwBtn.style.display=''; reelBtn.style.display='none';
-      paddleL.style.display=''; paddleR.style.display='';
-      throwBtn.style.order=1; paddleL.style.order=0; reelBtn.style.order=2; paddleR.style.order=3;
+      throwBtn.style.display=''; reelBtn.style.display='';
+      paddleL.style.display='none'; paddleR.style.display='none';
+      throwBtn.style.order=''; reelBtn.style.order='';
       modeBtn.classList.add('divemode');
       const atFloor = DIVER.y >= diveFloorY()-8;
       const more = (S.area+1)<islandAreas(S.world).length;
@@ -3193,9 +3193,6 @@
       reelLabel.textContent='SINK';
       reelBtn.classList.toggle('hot', diveSink);
       reelBtn.classList.remove('dim');
-      paddleLLabel.textContent='SWIM'; paddleRLabel.textContent='SWIM';
-      paddleL.classList.toggle('hot', ROW.dir===-1);
-      paddleR.classList.toggle('hot', ROW.dir===1);
       updateDiveHud();
       return;
     }
@@ -3904,6 +3901,21 @@
   // and you can descend into a deeper part of the ocean — if your gear can take the pressure.
   const DIVER={x:0,y:0,vx:0,vy:0,phase:0};
   let diveAir=0, diveSink=false, diveShot=null, diveBubbles=[], divePops=[];
+  // floating swim joystick — drag anywhere in the water to steer the diver
+  const JOY={active:false, ox:0, oy:0, x:0, y:0, r:62, pointerId:null};
+  function joyVec(){
+    if(!JOY.active) return {x:0,y:0,m:0};
+    let jx=(JOY.x-JOY.ox)/JOY.r, jy=(JOY.y-JOY.oy)/JOY.r;
+    let m=Math.hypot(jx,jy); if(m>1){ jx/=m; jy/=m; m=1; }
+    return {x:jx,y:jy,m};
+  }
+  function joyStart(px,py,id){ JOY.active=true; JOY.ox=JOY.x=px; JOY.oy=JOY.y=py; JOY.pointerId=(id==null?null:id); }
+  function joyMove(px,py){
+    const dx=px-JOY.ox, dy=py-JOY.oy, d=Math.hypot(dx,dy)||1;
+    const k=Math.min(1, JOY.r/d);
+    JOY.x=JOY.ox+dx*k; JOY.y=JOY.oy+dy*k;
+  }
+  function joyEnd(){ JOY.active=false; JOY.pointerId=null; }
   function diveFloorY(){ return fishZoneBot()+34; }
   function curZone(){ return curArea(); }
   function enterDive(){
@@ -3916,8 +3928,8 @@
     diveAir=(curKit().air||50);
     diveShot=null; diveBubbles=[];
     save(); updateHUD();
-    say('🤿 Diving — tap the water to aim, fire the spear, sink to the floor');
-    hint('Reach the sea floor to descend deeper. Watch your air!');
+    say('🤿 Diving — drag the water to SWIM, tap 🔱 SPEAR to fire');
+    hint('Drag anywhere to steer the diver. Let go and you float up. Watch your air!');
     setTimeout(()=>{ if(S.mode==='dive') say(''); },3400);
   }
   function exitDive(msg){
@@ -3929,7 +3941,17 @@
   function fireSpear(){
     if(S.mode!=='dive' || diveShot) return;
     const sp=curSpear();
-    const dx=(target.x||W*0.5)-DIVER.x, dy=(target.y||DIVER.y)-DIVER.y, d=Math.hypot(dx,dy)||1;
+    // auto-aim at the nearest fish in range; otherwise fire the way you're swimming/facing
+    let tx=null, ty=null, best=1e9;
+    for(const f of fishes){ const dd=Math.hypot(f.x-DIVER.x, f.y-DIVER.y); if(dd<best){ best=dd; tx=f.x; ty=f.y; } }
+    let dx, dy;
+    if(tx!=null && best<=270){ dx=tx-DIVER.x; dy=ty-DIVER.y; }
+    else {
+      const jv=joyVec();
+      if(jv.m>0.1){ dx=jv.x; dy=jv.y; }
+      else { dx=(rod.x>DIVER.x?1:-1); dy=-0.15; }
+    }
+    const d=Math.hypot(dx,dy)||1;
     const spd=560*(0.75+sp.pwr*0.14);
     diveShot={ x:DIVER.x+(dx/d)*22, y:DIVER.y+(dy/d)*22, vx:(dx/d)*spd, vy:(dy/d)*spd, t:0, dead:false };
     sfx('cast');
@@ -3971,12 +3993,21 @@
     setTimeout(()=>{ if(S.mode==='dive') say(''); },3000);
   }
   function updateDive(dt){
-    // horizontal swim
-    if(ROW.dir!==0) DIVER.vx += ROW.dir*dt*430; else DIVER.vx *= Math.pow(0.06, dt);
-    DIVER.vx=Math.max(-300,Math.min(300,DIVER.vx));
-    // vertical: hold SINK to go down, otherwise you slowly float up
-    DIVER.vy += (diveSink ? 250 : -80)*dt;
-    DIVER.vy=Math.max(-170,Math.min(310,DIVER.vy));
+    // ---- swim control: floating joystick (drag in the water) ----
+    const jv=joyVec();
+    const accel=620, maxV=280;
+    if(jv.m>0.05){
+      DIVER.vx += jv.x*accel*dt; DIVER.vy += jv.y*accel*dt;
+    } else if(ROW.dir!==0){
+      DIVER.vx += ROW.dir*accel*0.8*dt;
+    } else {
+      DIVER.vx *= Math.pow(0.06, dt);
+    }
+    // buoyancy: let go and you drift slowly up; hold SINK to descend
+    if(jv.m<=0.05 && !diveSink){ DIVER.vy += -70*dt; }
+    if(jv.m<=0.05 && diveSink){ DIVER.vy += 250*dt; }
+    DIVER.vx=Math.max(-maxV,Math.min(maxV,DIVER.vx));
+    DIVER.vy=Math.max(-230,Math.min(maxV,DIVER.vy));
     DIVER.x += DIVER.vx*dt; DIVER.y += DIVER.vy*dt;
     const top=waterY+34, bot=diveFloorY();
     if(DIVER.x<40){ DIVER.x=40; DIVER.vx=Math.abs(DIVER.vx)*0.4; }
@@ -4013,7 +4044,8 @@
   }
   function drawDiver(t){
     const x=DIVER.x, y=DIVER.y;
-    const dir=(DIVER.vx<-6?-1:(DIVER.vx>6?1:(rod.x>x?-1:1)));
+    const _jv=joyVec();
+    const dir=(_jv.m>0.1&&Math.abs(_jv.x)>0.12)?(_jv.x<0?-1:1):(DIVER.vx<-6?-1:(DIVER.vx>6?1:(rod.x>x?-1:1)));
     const kick=Math.sin(DIVER.phase*2.2)*6;
     ctx.save(); ctx.translate(x,y); ctx.scale(dir,1);
     ctx.fillStyle='rgba(0,0,0,.25)'; ctx.beginPath(); ctx.ellipse(-2,20,16,5,0,0,7); ctx.fill();
@@ -4100,13 +4132,25 @@
     ctx.save(); ctx.globalAlpha=.5; ctx.strokeStyle='#cdeeff'; ctx.lineWidth=1;
     for(const b of diveBubbles){ ctx.globalAlpha=.5*b.life; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,7); ctx.stroke(); }
     ctx.restore();
-    // aiming reticle
-    if(!diveShot && S.state==='idle'){
-      const rx=target.x, ry=target.y;
-      ctx.save(); ctx.strokeStyle='rgba(125,255,214,.85)'; ctx.lineWidth=2;
-      ctx.beginPath(); ctx.arc(rx,ry,10,0,7); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(rx-16,ry); ctx.lineTo(rx-4,ry); ctx.moveTo(rx+4,ry); ctx.lineTo(rx+16,ry);
-      ctx.moveTo(rx,ry-16); ctx.lineTo(rx,ry-4); ctx.moveTo(rx,ry+4); ctx.lineTo(rx,ry+16); ctx.stroke(); ctx.restore();
+    // swim joystick (cursor pad) — drag anywhere in the water to steer
+    if(JOY.active){
+      ctx.save();
+      ctx.globalAlpha=.32; ctx.fillStyle='#04121c';
+      ctx.beginPath(); ctx.arc(JOY.ox,JOY.oy,JOY.r,0,7); ctx.fill();
+      ctx.globalAlpha=.22; ctx.strokeStyle='rgba(125,255,214,.6)'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(JOY.ox,JOY.oy,JOY.r*0.55,0,7); ctx.stroke();
+      ctx.globalAlpha=.9; ctx.lineWidth=3; ctx.strokeStyle='rgba(125,255,214,.8)';
+      ctx.beginPath(); ctx.arc(JOY.ox,JOY.oy,JOY.r,0,7); ctx.stroke();
+      ctx.globalAlpha=.95; ctx.fillStyle='#7dffd6';
+      ctx.beginPath(); ctx.arc(JOY.x,JOY.y,21,0,7); ctx.fill();
+      ctx.globalAlpha=.5; ctx.fillStyle='#04121c';
+      ctx.beginPath(); ctx.arc(JOY.x,JOY.y,13,0,7); ctx.fill();
+      ctx.restore();
+    } else if(!diveShot){
+      // idle cue: a gentle pulsing hint ring the moment you're in the water
+      ctx.save(); ctx.globalAlpha=.28+0.12*Math.sin(t*2.4);
+      ctx.strokeStyle='rgba(125,255,214,.8)'; ctx.lineWidth=2; ctx.setLineDash([7,8]);
+      ctx.beginPath(); ctx.arc(DIVER.x,DIVER.y,34,0,7); ctx.stroke(); ctx.restore();
     }
     // floor prompt
     if(DIVER.y>=fy-8 && more){
