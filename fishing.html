@@ -448,8 +448,8 @@
       <div class="step"><div class="num">3</div><div class="txt"><b>THROW:</b> tap the THROW button (top-left) to cast to your marker. Tap the water again to re-aim before you throw.</div></div>
       <div class="step"><div class="num">4</div><div class="txt"><b>Wait:</b> a fish swims over and starts <b>nibbling</b> — the float dips. Usually best to WAIT, it circles and taps up to 3 times. Reel too early and it'll <b>spook</b> (sometimes it just backs off and stays).</div></div>
       <div class="step"><div class="num">5</div><div class="txt"><b>Hook it:</b> when it finally commits the float slams under — <b>TAP</b> anywhere (or REEL) to set the hook.</div></div>
-      <div class="step"><div class="num">6</div><div class="txt"><b>REEL:</b> HOLD the REEL button to pull the fish up — the catch bar rises toward the surface. The fight starts in <b>slow-mo</b> so you've got time to react. Let go when the tension bar reddens.</div></div>
-      <div class="step"><div class="num">7</div><div class="txt">Bar <b>full = caught</b> → it flies into your bucket. Bar <b>empty = it snaps off</b>. Then pick <b>Keep</b> (goes into your 🎒 crate, top-right — sell them any time) or <b>Sell</b> (straight to coins).</div></div>
+      <div class="step"><div class="num">6</div><div class="txt"><b>FIGHT:</b> a moving <b>bar</b> appears and the fish darts up and down it. <b>HOLD REEL</b> to sweep your catcher <b>UP</b>, let go to drop it — keep the <b>fish inside your bar</b> to fill the catch meter. Watch the <b>tension bar</b> — let it hit the top and the line snaps.</div></div>
+      <div class="step"><div class="num">7</div><div class="txt"><b>Land it:</b> catch meter <b>full = caught</b> → it flies into your bucket. Meter <b>empty = it snaps off</b>. Wear the fish's <b>STAMINA</b> down and its bar slows right down. Then pick <b>Keep</b> (goes into your 🎒 crate) or <b>Sell</b> (straight to coins).</div></div>
       <button class="btn" id="howClose">Got it — let me fish 🔥</button>
     </div>
   </div>
@@ -2029,9 +2029,10 @@
   // You pick HOW you reel. Each style trades progress speed against tension + how fast
   // the fish tires. Every fish has a PREFERRED style — match it for a bonus.
   const STYLES = {
-    steady:    {name:'Steady',    icon:'🧘', prog:0.82, tens:0.62, stam:0.90, desc:'Slow, safe grind. Low tension the whole way.'},
-    aggressive:{name:'Aggressive',icon:'🔥', prog:1.50, tens:1.72, stam:1.35, desc:'Yank hard and land fast — but the line strains badly.'},
-    burst:     {name:'Burst',     icon:'⚡', prog:1.02, tens:1.02, stam:1.15, desc:'Rhythmic taps. Hold the tension in the sweet spot to build a combo.'}
+    // `bar` = how tall/generous your control bar is in the minigame (bigger = easier to keep the fish in)
+    steady:    {name:'Steady',    icon:'🧘', prog:0.85, tens:0.62, stam:0.90, bar:0.155, desc:'A tall, forgiving bar. Slow, safe grind — low tension the whole way.'},
+    aggressive:{name:'Aggressive',icon:'🔥', prog:1.55, tens:1.72, stam:1.35, bar:0.075, desc:'A tiny bar but lightning catches. High risk, high reward — the line strains badly.'},
+    burst:     {name:'Burst',     icon:'⚡', prog:1.06, tens:1.02, stam:1.15, bar:0.110, desc:'Middle bar. Keep the fish dead-centre to build a combo and land it fast.'}
   };
   const STYLE_ORDER = ['steady','aggressive','burst'];
   function fishStylePref(f){ return f.stylePref || 'steady'; }
@@ -2919,14 +2920,20 @@
   }
 
   function rollFishDef(){
-    const luck = totalLuck();
+    // The deeper you are, the better the odds — and each depth ZONE has its own fish pool
+    // (AREA_FISH). So the further down you dive, the more the fish change + the rarer they get.
+    const db = (typeof curDepthBias==='function') ? curDepthBias() : 0;   // 0 shallow .. 1 sea floor
+    const luck = totalLuck() + db*7;
     const w = {};
     for(const k in RARITY) w[k]=RARITY[k].weight;
     // luck pushes odds hard toward rare+: each point of luck adds a lot
     w.rare += luck*4.0; w.epic += luck*2.0; w.cursed += luck*0.6;
     w.legendary += luck*0.30; w.mythical += luck*0.10; w.transcendent += luck*0.03;
-    w.common = Math.max(4, w.common - luck*4.5);
-    w.uncommon = Math.max(4, w.uncommon - luck*2.0);
+    // depth bias: get off the surface and the shallows thin out, the monsters turn up
+    w.rare += db*10; w.epic += db*7; w.cursed += db*3.2;
+    w.legendary += db*1.5; w.mythical += db*0.55;
+    w.common = Math.max(3, w.common - luck*4.5 - db*15);
+    w.uncommon = Math.max(3, w.uncommon - luck*2.0 - db*5);
     // rarity-targeting bait: commons/uncommons won't touch it — only RARE+ will bite
     const eb=equippedBait();
     if(eb && eb.def && eb.def.onlyRare){ w.common=0; w.uncommon=0; }
@@ -2936,8 +2943,13 @@
     let tot=0; for(const k in w) tot+=w[k];
     let r=Math.random()*tot, pick='common';
     for(const k in w){ r-=w[k]; if(r<=0){pick=k;break;} }
-    let pool = worldFish(S.world).filter(f=>f.r===pick && condOK(f));
+    // depth zone pool first (AREA_FISH for deep zones), then fall back to the world pool
+    const zpool = (typeof areaFish==='function') ? areaFish() : worldFish(S.world);
+    let pool = zpool.filter(f=>f.r===pick && condOK(f));
+    if(!pool.length) pool = zpool.filter(f=>f.r===pick && !isSpecialFish(f));
+    if(!pool.length) pool = worldFish(S.world).filter(f=>f.r===pick && condOK(f));
     if(!pool.length) pool = worldFish(S.world).filter(f=>f.r===pick && !isSpecialFish(f));
+    if(!pool.length) pool = zpool.filter(f=>!isSpecialFish(f));
     if(!pool.length) pool = worldFish(S.world).filter(f=>!isSpecialFish(f));
     if(!pool.length) pool = worldFish(S.world);
     const def = pool[Math.floor(Math.random()*pool.length)] || worldFish(S.world)[0];
@@ -3106,7 +3118,15 @@
     if(areaSail) return;
     if(travel){ if(travel.phase==='row'){ travel.rowing=true; } return; }
     if(S.mode==='row'){ return; }
-    if(S.mode==='dive'){ return; }   // steer with the on-screen joystick, not the water
+    if(S.mode==='dive'){
+      if(spearGame){ spearTap(); return; }            // mid-spear-fight: tap fills the bar
+      if(e){ const p=canvasPos(e);
+        const f=nearestFishTo(p.x,p.y,70);
+        if(f){ spearLockId=(spearLockId===f.id?null:f.id); sfx('cast'); }   // tap a fish to aim at it (tap again to unlock)
+        else { spearLockId=null; }
+      }
+      return;
+    }
     if(e){ const p=canvasPos(e); target.x=p.x; target.y=p.y; }
     if(S.state==='idle'){ dragging=true; clampTarget(); }      // aim by tapping the water
     else if(S.state==='bite'){ hookIt(); }                     // tap anywhere to strike
@@ -3145,8 +3165,9 @@
   }
   bindDown(throwBtn, ()=>{ if(travel){ if(travel.phase==='row') travel.rowing=true; }
     else if(areaSail){ /* crossing */ }
-    else if(S.mode==='dive'){ const atFloor=DIVER.y>=diveFloorY()-8; const more=(S.area+1)<islandAreas(S.world).length;
-      if(atFloor && more && !diveShot) diveDescend(); else fireSpear(); }
+    else if(S.mode==='dive'){ if(spearGame){ spearTap(); }
+      else { const atFloor=DIVER.y>=diveFloorY()-8; const more=(S.area+1)<islandAreas(S.world).length;
+        if(atFloor && more && !diveShot) diveDescend(); else fireSpear(); } }
     else if(S.state==='idle') doCast(); });
   throwBtn.addEventListener('pointerup', ()=>{ if(travel) travel.rowing=false; });
   throwBtn.addEventListener('pointercancel', ()=>{ if(travel) travel.rowing=false; });
@@ -3208,11 +3229,18 @@
       if(joyPad) joyPad.classList.add('show');
       const atFloor = DIVER.y >= diveFloorY()-8;
       const more = (S.area+1)<islandAreas(S.world).length;
+      if(spearGame){
+        throwBtn.querySelector('.ic').textContent='🔱';
+        throwLabel.textContent='TAP!';
+        throwBtn.classList.remove('rowing');
+        throwBtn.classList.remove('dim'); throwBtn.classList.add('hot');
+      } else {
       throwBtn.querySelector('.ic').textContent = (atFloor&&more)?'⬇':'🔱';
       throwLabel.textContent = (atFloor&&more)?'DESCEND':'SPEAR';
       throwBtn.classList.remove('rowing');
       throwBtn.classList.toggle('dim', !!diveShot);
       throwBtn.classList.toggle('hot', !diveShot);
+      }
       reelLabel.textContent='SINK';
       reelBtn.classList.toggle('hot', diveSink);
       reelBtn.classList.remove('dim');
@@ -3634,7 +3662,10 @@
       diving:false, diveT:0, diveCd: 2.4+Math.random()*2.4,
       grace: 1.6 + Math.min(1.4, ratio*1.1),    // slow-motion head start so you can react
       slowFade:0,
-      style:S.style||'steady', pref:f.stylePref, stam:1, line:curLine(), burstT:0
+      style:S.style||'steady', pref:f.stylePref, stam:1, line:curLine(), burstT:0,
+      // ---- Fisch-style minigame state ----
+      barPos:0.5, barH:((STYLES[S.style||'steady']||STYLES.steady).bar)||0.13,
+      fishY:0.5, fishTgt:0.5, fishCd:0.9
     };
     S.state='reeling';
     if(rodMut){
@@ -3925,6 +3956,23 @@
   // and you can descend into a deeper part of the ocean — if your gear can take the pressure.
   const DIVER={x:0,y:0,vx:0,vy:0,phase:0};
   let diveAir=0, diveSink=false, diveShot=null, diveBubbles=[], divePops=[];
+  // diving extras: which fish you've locked on to, and the live spear minigame state
+  let spearLockId=null;   // the fish you've tapped to aim at
+  let spearGame=null;     // {f, prog, tap, drain, t, imp} while fighting a speared fish
+  function curDepthBias(){
+    if(S.mode!=='dive') return 0;
+    const top=(typeof waterY!=='undefined'?waterY:0)+34, span=Math.max(1,diveFloorY()-top);
+    return Math.min(1,Math.max(0,(DIVER.y-top)/span));
+  }
+  function nearestFishTo(x,y,maxR){
+    let best=null, bd=maxR*maxR;
+    for(const f of fishes){ const d=(f.x-x)*(f.x-x)+(f.y-y)*(f.y-y); if(d<bd){ bd=d; best=f; } }
+    return best;
+  }
+  function aimedFish(){
+    if(spearLockId!=null){ const f=fishes.find(x=>x.id===spearLockId); if(f) return f; spearLockId=null; }
+    return null;
+  }
   // floating swim joystick — drag anywhere in the water to steer the diver
   const JOY={active:false, ox:0, oy:0, x:0, y:0, r:62, pointerId:null, fromPad:false};
   function joyVec(){
@@ -3990,11 +4038,11 @@
   function fireSpear(){
     if(S.mode!=='dive' || diveShot) return;
     const sp=curSpear();
-    // auto-aim at the nearest fish in range; otherwise fire the way you're swimming/facing
-    let tx=null, ty=null, best=1e9;
-    for(const f of fishes){ const dd=Math.hypot(f.x-DIVER.x, f.y-DIVER.y); if(dd<best){ best=dd; tx=f.x; ty=f.y; } }
+    // aim: your locked fish first, else the nearest fish in range, else the way you're swimming
+    let tgt=aimedFish();
+    if(!tgt){ tgt=nearestFishTo(DIVER.x,DIVER.y,270); }
     let dx, dy;
-    if(tx!=null && best<=270){ dx=tx-DIVER.x; dy=ty-DIVER.y; }
+    if(tgt){ dx=tgt.x-DIVER.x; dy=tgt.y-DIVER.y; }
     else {
       const jv=joyVec();
       if(jv.m>0.1){ dx=jv.x; dy=jv.y; }
@@ -4005,6 +4053,40 @@
     diveShot={ x:DIVER.x+(dx/d)*22, y:DIVER.y+(dy/d)*22, vx:(dx/d)*spd, vy:(dy/d)*spd, t:0, dead:false };
     sfx('cast');
     DIVER.phase+=1.2;
+  }
+  // ---- spear minigame: spear a fish, then tap fast to overpower it before it tears free ----
+  function spearPowerFactor(){ return 0.7 + curSpear().pwr*0.35; }
+  function startSpearGame(f){
+    fishes=fishes.filter(x=>x!==f);
+    const rk=rarRank(f.r);
+    const sizeF=Math.min(1.6, (f.size||20)/34);
+    const tap = 0.055 + 0.020*curSpear().pwr;                 // each tap fills this much
+    const drain = (0.075 + 0.052*rk) * (0.85 + 0.5*sizeF) / spearPowerFactor();
+    spearGame={ f, prog:0.30, tap, drain, t:0, imp:0, done:false,
+                ang:Math.atan2(f.y-DIVER.y,f.x-DIVER.x), dist:Math.min(60,Math.hypot(f.x-DIVER.x,f.y-DIVER.y)) };
+    spearLockId=null;
+    say('🔱 On the spear! TAP FAST to land it!');
+    hint('Mash 🔱 SPEAR (or tap the screen) to fill the bar before it rips loose!');
+    sfx('hook');
+  }
+  function spearTap(){
+    if(!spearGame || spearGame.done) return;
+    spearGame.prog += spearGame.tap; spearGame.imp=1;
+    if(spearGame.prog>=1){ spearGame.prog=1; endSpearGame(true); return; }
+  }
+  function endSpearGame(win){
+    const g=spearGame; if(!g) return; g.done=true;
+    const f=g.f;
+    if(win){ spearGame=null; diveCatch(f); }
+    else {
+      // it tore off the spear — fling it away, still in the water
+      f.vx=(f.x>DIVER.x?1:-1)*(90+Math.random()*60); f.vy=-40-Math.random()*40;
+      fishes.push(f);
+      spearGame=null; spearLockId=null;
+      floatText(f.x,f.y-20,'GOT AWAY!','#ff9d76');
+      say('It tore off the spear and bolted 💨'); hint('');
+      sfx('snap');
+    }
   }
   function diveCatch(f){
     fishes=fishes.filter(x=>x!==f);
@@ -4065,7 +4147,7 @@
     if(DIVER.y>bot){ DIVER.y=bot; if(DIVER.vy>0) DIVER.vy=0; }
     DIVER.phase += dt*(2.2 + Math.abs(DIVER.vx)*0.012 + Math.abs(DIVER.vy)*0.008);
     // air
-    diveAir -= dt*(1 + (diveSink?0.45:0));
+    diveAir -= dt*(1 + (diveSink?0.45:0)) * (spearGame?0.15:1);   // barely drains while wrestling a fish
     if(diveAir<=0){ exitDive('🫧 Out of air — you kicked back up to the boat!'); return; }
     // spear flight + hit test
     if(diveShot){
@@ -4074,7 +4156,7 @@
         if(s.dead) break;
         if(Math.hypot(f.x-s.x, f.y-s.y) < 15+f.size*0.28){
           s.dead=true;
-          if(curSpear().pwr >= spearTough(f)){ diveCatch(f); }
+          if(curSpear().pwr >= spearTough(f)){ startSpearGame(f); }
           else {
             floatText(f.x, f.y-18, 'TOO TOUGH!', '#ff9d76');
             say('The spear bounced off — that one needs a stronger spear 🔱');
@@ -4083,6 +4165,13 @@
         }
       }
       if(s.t>1.3 || s.x<-60 || s.x>W+60 || s.y<waterY-60 || s.y>H+60) diveShot=null;
+    }
+    // ---- spear minigame: the fish pulls the other way; tap to overpower it ----
+    if(spearGame && !spearGame.done){
+      spearGame.t+=dt;
+      spearGame.imp=Math.max(0, spearGame.imp - dt*3.2);
+      spearGame.prog -= spearGame.drain*dt;
+      if(spearGame.prog<=0){ spearGame.prog=0; endSpearGame(false); }
     }
     // bubbles trailing the diver
     if(Math.random()<0.3) diveBubbles.push({x:DIVER.x+(Math.random()-.5)*14, y:DIVER.y-14, r:1+Math.random()*2.3, v:28+Math.random()*30, life:1});
@@ -4181,6 +4270,44 @@
     ctx.save(); ctx.globalAlpha=.5; ctx.strokeStyle='#cdeeff'; ctx.lineWidth=1;
     for(const b of diveBubbles){ ctx.globalAlpha=.5*b.life; ctx.beginPath(); ctx.arc(b.x,b.y,b.r,0,7); ctx.stroke(); }
     ctx.restore();
+    // ---- aimed-fish reticle: tap a fish to LOCK ON, spear flies straight at it ----
+    const lk=aimedFish();
+    if(lk && !spearGame){
+      ctx.save(); ctx.translate(lk.x,lk.y);
+      const rr=lk.size*0.9+10+Math.sin(t*5)*1.5;
+      ctx.strokeStyle='rgba(125,255,214,.95)'; ctx.lineWidth=2;
+      ctx.beginPath(); ctx.arc(0,0,rr,0,7); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(-rr-8,0); ctx.lineTo(-rr+2,0); ctx.moveTo(rr-2,0); ctx.lineTo(rr+8,0);
+      ctx.moveTo(0,-rr-8); ctx.lineTo(0,-rr+2); ctx.moveTo(0,rr-2); ctx.lineTo(0,rr+8); ctx.stroke();
+      ctx.fillStyle='#7dffd6'; ctx.font='bold 10px Trebuchet MS'; ctx.textAlign='center';
+      ctx.fillText('LOCKED', 0, -rr-12); ctx.restore();
+    }
+    // ---- spear minigame UI: tap fast to overpower the speared fish ----
+    if(spearGame){
+      const g=spearGame;
+      const fxp = DIVER.x + Math.cos(g.ang)*g.dist + Math.sin(t*22)*3*g.imp;
+      const fyp = DIVER.y + Math.sin(g.ang)*g.dist + Math.cos(t*19)*3*g.imp;
+      ctx.save(); ctx.translate(fxp,fyp); ctx.rotate(g.ang + Math.sin(t*20)*0.3);
+      const R2=RARITY[g.f.r]||RARITY.common;
+      ctx.globalAlpha=.92; ctx.fillStyle=R2.color;
+      ctx.beginPath(); ctx.ellipse(0,0,Math.min(20,(g.f.size*0.5)||12),Math.min(11,(g.f.size*0.28)||7),0,0,7); ctx.fill();
+      ctx.fillStyle='#0a2233'; ctx.beginPath(); ctx.arc(-6,-2,1.6,0,7); ctx.fill();
+      ctx.restore();
+      const bwS=Math.min(W*0.8,360), bhS=22, bxS=W/2-bwS/2, byS=H*0.26;
+      ctx.save();
+      ctx.fillStyle='rgba(6,26,43,.92)'; roundRect(bxS-8,byS-30,bwS+16,bhS+52,14); ctx.fill();
+      ctx.strokeStyle='rgba(120,210,255,.4)'; ctx.lineWidth=2; roundRect(bxS-8,byS-30,bwS+16,bhS+52,14); ctx.stroke();
+      ctx.fillStyle='#0a2c44'; roundRect(bxS,byS,bwS,bhS,9); ctx.fill();
+      const g2=ctx.createLinearGradient(bxS,0,bxS+bwS,0); g2.addColorStop(0,'#8fe3ff'); g2.addColorStop(1,'#5dff9d');
+      ctx.save(); roundRect(bxS,byS,bwS,bhS,9); ctx.clip(); ctx.fillStyle=g2; ctx.fillRect(bxS,byS,bwS*Math.max(0,Math.min(1,g.prog)),bhS); ctx.restore();
+      ctx.strokeStyle='rgba(255,255,255,.55)'; ctx.lineWidth=1.5; roundRect(bxS,byS,bwS,bhS,9); ctx.stroke();
+      if(g.imp>0){ ctx.globalAlpha=g.imp*0.45; ctx.fillStyle='#fff'; roundRect(bxS,byS,bwS,bhS,9); ctx.fill(); ctx.globalAlpha=1; }
+      ctx.fillStyle='#eaf6ff'; ctx.font='bold 15px Trebuchet MS'; ctx.textAlign='center';
+      ctx.fillText('TAP FAST! 🔱', W/2, byS-9);
+      ctx.fillStyle='#ffd85e'; ctx.font='bold 11px Trebuchet MS';
+      ctx.fillText(g.f.n+' is fighting back!', W/2, byS+bhS+16);
+      ctx.restore();
+    }
     // swim joystick (cursor pad) — drag anywhere in the water to steer
     if(JOY.active && !JOY.fromPad){
       ctx.save();
@@ -4785,6 +4912,13 @@
   // ---------- UPDATE LOG ----------
   // newest first. Each entry: {date, title, tag, points:[...]}. Add a new object at the top when you ship.
   const UPDATES = [
+    { date:'2026-09-25', title:'Hook Up! (new minigames)', tag:'🎣 NEW', points:[
+      '🎣 New fishing minigame (like Fisch!) — a moving bar appears; hold to sweep it up, let go to drop. Keep the fish inside your bar to fill the catch meter.',
+      '🧘 Tension + 💪 stamina stay — the line still snaps if you overpull, and wearing the fish out slows its bar right down.',
+      '🔱 Spear minigame — spear a fish and it fights back: TAP FAST to overpower it before it tears off the spear and bolts.',
+      '🎯 Aim at a fish you want — tap a fish underwater to LOCK ON (tap again to clear), then spear flies straight at it.',
+      '🌊 Deeper = different fish — the deeper you dive, the more the species change and the rarer they get.'
+    ]},
     { date:'2026-09-25', title:'The Big One', tag:'🌊 MEGA', points:[
       '🤿 Diving — get off the boat! Dive under, hunt with a spear/harpoon, sink to the sea floor.',
       '⬇ Deeper water — reach the floor and DESCEND into the next zone of your island (3 per island, each with its own name).',
@@ -5366,46 +5500,51 @@
       const slow = graceActive ? 0.30 : 1.0;    // everything at 30% speed for the head start
       const edt = dt*slow;
       if(graceActive){ reel.slowFade = 1; } else if(reel.slowFade>0){ reel.slowFade=Math.max(0,reel.slowFade-dt*1.5); }
-      // does the fish run (pull away)? stronger fish run more often — never during the grace window
+
+      // ===== FISCH-STYLE MINIGAME: keep the fish marker inside your moving control bar =====
+      // HOLD REEL → the bar sweeps UP toward the surface; let go → it sinks back down.
+      const barH = reel.barH;
+      const barSpeed = reel.holding ? 0.95 : 0.80;
+      if(reel.holding) reel.barPos -= barSpeed*edt; else reel.barPos += barSpeed*edt;
+      reel.barPos = Math.max(barH*0.55, Math.min(1-barH*0.55, reel.barPos));
+
+      // the fish darts to a new spot now and then — quicker + more erratic the fresher it is
+      reel.fishCd -= edt;
+      if(reel.fishCd<=0){
+        const wild = 0.42 + 0.5*(1-reel.stam);
+        reel.fishTgt = 0.5 + (Math.random()-0.5)*2*wild;
+        reel.fishTgt = Math.max(0.05, Math.min(0.95, reel.fishTgt));
+        reel.fishCd = (0.55 + Math.random()*0.85) * (0.55 + 1.0*(1-reel.stam));
+      }
+      const fspd = (1.3 + 2.6*(1-reel.stam)) * (1 + 0.35*ratio);
+      reel.fishY += (reel.fishTgt - reel.fishY) * Math.min(1, fspd*edt);
+      // runs/dives shove the fish away from your bar
       reel.runCd -= edt;
-      if(!reel.running && reel.runCd<=0 && !graceActive){
-        reel.running = true; reel.runT = 0.9 + Math.random()*1.4;
-        reel.runCd = 2.0 + Math.random()*2.5; feelDip = 0.6;   // you feel the run
-      }
-      if(reel.running){ reel.runT -= edt; if(reel.runT<=0) reel.running=false; }
-
-      // does the fish DIVE? — it drags the hook straight down, even while you reel
+      if(!reel.running && reel.runCd<=0 && !graceActive){ reel.running=true; reel.runT=0.8+Math.random()*1.1; reel.runCd=1.8+Math.random()*2.2; feelDip=0.6; }
+      if(reel.running){ reel.runT-=edt; if(reel.runT<=0) reel.running=false; }
       reel.diveCd -= edt;
-      if(!reel.diving && reel.diveCd<=0 && !graceActive){
-        reel.diving = true; reel.diveT = 0.8 + Math.random()*1.1;
-        reel.diveCd = 2.4 + Math.random()*2.6; reel.diveV = 0; feelDip = 0.85;   // the rod bows hard
-      }
-      if(reel.diving){ reel.diveT -= edt; if(reel.diveT<=0) reel.diving=false; }
+      if(!reel.diving && reel.diveCd<=0 && !graceActive){ reel.diving=true; reel.diveT=0.7+Math.random()*0.9; reel.diveCd=2.2+Math.random()*2.4; feelDip=0.85; }
+      if(reel.diving){ reel.diveT-=edt; if(reel.diveT<=0) reel.diving=false; }
+      if(reel.running) reel.fishY += (reel.fishY>=reel.barPos?1:-1)*1.1*edt*(0.5+(1-reel.stam));
+      if(reel.diving) reel.fishY = Math.min(0.96, reel.fishY + 1.3*edt);
+      reel.fishY = Math.max(0.04, Math.min(0.96, reel.fishY));
 
+      // is the fish inside your bar right now?
+      const inZone = Math.abs(reel.fishY - reel.barPos) <= barH;
       let dProg = 0;
-      if(reel.holding){
-        // reeling lifts the fish up; your rod + chosen STYLE decide how fast
-        dProg += 0.38 * reel.pwr / (1 + ratio*0.9) * st.prog * (match?1.24:1) * edt;
-        // harder when the fish runs
-        if(reel.running) dProg -= 0.26 * eff.pull * edt;
-        // a dive drags it down hard — reeling fights it, but it still loses ground
-        if(reel.diving) dProg -= 0.22 * eff.pull * edt;
-        // tension climbs faster the more the fish struggles — a STRONGER ROD keeps it under control
-        const relief = 1/(1 + 0.34*(reel.pwr-1));
-        reel.tension += eff.tension * (0.70 + ratio*0.60) * relief * st.tens * (match?0.86:1) / reel.line.pwr * edt;
-        // LINE OVERLOAD: a fish above your line's max strains the line on its own, no matter the rod
-        if(ratio > reel.line.max) reel.tension += (ratio-reel.line.max)*0.5*edt;
-        // holding huffs the fish out — the style decides how fast it tires
-        reel.stam = Math.max(0, reel.stam - 0.17*st.stam*edt);
-      } else {
-        reel.tension -= 0.85*edt * reel.line.pwr;      // a stronger line sheds heat faster
-        // the fish pulls back down when you stop reeling — progress slips away
-        dProg -= (0.11 + eff.pull*0.16)*edt;
-        reel.stam = Math.min(1, reel.stam + 0.07*edt); // it gets its wind back while you rest
-        if(ratio > reel.line.max) reel.tension += (ratio-reel.line.max)*0.12*edt;
-      }
-      // a too-weak rod (high ratio) drags your progress back down
-      if(ratio > 0.95){ dProg -= (ratio-0.95)*0.28*edt; }
+      if(inZone) dProg += 0.34*reel.pwr*(0.7+0.5*st.prog)*(match?1.2:1)*(0.55+0.45*(1-reel.stam))*edt;
+      else dProg -= (0.09+0.16*ratio)*edt;
+
+      // tension climbs while you're reeling; it wrenches harder when the fish is off your bar
+      const relief = 1/(1 + 0.34*(reel.pwr-1));
+      if(reel.holding) reel.tension += eff.tension*(0.50+ratio*0.50)*relief*st.tens*(match?0.86:1)/reel.line.pwr*edt;
+      else reel.tension -= 0.9*edt*reel.line.pwr;
+      if(!inZone) reel.tension += eff.tension*0.30*edt;
+      if(ratio > reel.line.max) reel.tension += (ratio-reel.line.max)*0.45*edt;
+      // stamina: wearing the fish down while it's stuck in your bar
+      if(inZone) reel.stam = Math.max(0, reel.stam - 0.11*st.stam*edt);
+      else if(!reel.holding) reel.stam = Math.min(1, reel.stam + 0.05*edt);
+      if(ratio > 0.95) dProg -= (ratio-0.95)*0.20*edt;
 
       reel.prog += dProg;
       reel.tension=Math.max(0,reel.tension);
@@ -5413,18 +5552,14 @@
       reel.prog=Math.max(0,Math.min(1,reel.prog));
       if(S.instant) reel.prog=1;   // admin: instant catch
 
-      // ---- move the fish: holistically toward the surface, thrashing side to side ----
-      const targetY = fishDepth(reel.prog);
-      // a dive pushes the fish's actual depth down, so it visibly yanks the hook down
-      reel.dive = (reel.dive||0) + ((reel.diving?1:0) - (reel.dive||0)) * Math.min(1, 5*edt);
-      const diveDrop = reel.dive * 90 * (1 + F.pull*0.4);
-      reel.fy += (targetY + diveDrop - reel.fy) * Math.min(1, 4.2*edt);
-      reel.vx = (reel.vx||0) + (Math.random()-.5)*260*eff.thrash*edt;
+      // ---- visuals: fish rides the track; a little horizontal thrash for life ----
+      const topY=waterY+42, botY=fishZoneBot();
+      const fishTargetY = topY + reel.fishY*(botY-topY);
+      reel.fy += (fishTargetY - reel.fy) * Math.min(1, 5*edt);
+      reel.vx = (reel.vx||0) + (Math.random()-.5)*240*eff.thrash*edt;
       reel.vx *= Math.pow(0.90, edt*60);
-      // fish dodges sideways when it runs
-      if(reel.running) reel.vx += (Math.random()<.5?-1:1)*180*eff.thrash*edt;
+      if(reel.running) reel.vx += (Math.random()<.5?-1:1)*160*eff.thrash*edt;
       reel.fx += reel.vx*dt;
-      // grab the bait-line x toward the float
       reel.fx += (bob.tx - reel.fx)*0.7*edt;
       if(reel.fx<24){reel.fx=24;reel.vx=Math.abs(reel.vx);}
       if(reel.fx>W-24){reel.fx=W-24;reel.vx=-Math.abs(reel.vx);}
@@ -6811,27 +6946,51 @@
     ctx.fillText('SNAP',tx+tw/2,by-th/2-6); ctx.fillText('SAFE',tx+tw/2,by+th/2+14);
 
     const danger=reel.tension>0.8, inDanger=reel.tension>0.9;
+    const inZone = Math.abs(reel.fishY - reel.barPos) <= reel.barH;
+    // ---- FISCH-STYLE TRACK: keep the fish marker inside your moving control bar ----
+    const trackW=Math.min(bw*0.5,140), trackTop=by-bh/2+40, trackBot=by+bh/2-50;
+    const trackH=Math.max(70,trackBot-trackTop), trackX=bx-trackW/2;
+    ctx.fillStyle='rgba(4,18,30,.72)'; roundRect(trackX,trackTop,trackW,trackH,10); ctx.fill();
+    ctx.strokeStyle='rgba(120,210,255,.35)'; ctx.lineWidth=1.5; roundRect(trackX,trackTop,trackW,trackH,10); ctx.stroke();
+    const inTop=trackTop+8, inH=trackH-16;
+    // your moving control bar (glows green when the fish is inside)
+    const barH2=Math.max(18, reel.barH*inH);
+    const barCy=inTop + reel.barPos*inH;
+    ctx.save();
+    ctx.globalAlpha=inZone?0.95:0.55;
+    const bg2=ctx.createLinearGradient(0,barCy-barH2/2,0,barCy+barH2/2);
+    bg2.addColorStop(0,'rgba(125,255,214,.06)'); bg2.addColorStop(.5,'rgba(125,255,214,.5)'); bg2.addColorStop(1,'rgba(125,255,214,.06)');
+    ctx.fillStyle=bg2; roundRect(trackX+4,barCy-barH2/2,trackW-8,barH2,8); ctx.fill();
+    ctx.strokeStyle=inZone?'#7dffd6':'rgba(125,255,214,.6)'; ctx.lineWidth=2.5; roundRect(trackX+4,barCy-barH2/2,trackW-8,barH2,8); ctx.stroke();
+    ctx.restore();
+    // the fish riding the track
+    const fy2=inTop + reel.fishY*inH;
+    ctx.save(); ctx.translate(bx,fy2);
+    ctx.fillStyle='#ffd85e'; ctx.beginPath(); ctx.moveTo(-12,0); ctx.lineTo(1,-8); ctx.lineTo(1,8); ctx.closePath(); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(6,0,10,6.5,0,0,7); ctx.fill();
+    ctx.fillStyle='#3a2400'; ctx.beginPath(); ctx.arc(11,-2,1.7,0,7); ctx.fill();
+    ctx.restore();
+
     let label,col;
     if(inDanger){ label='⚠ LINE SNAPPING!'; col='#ff7a7a'; }
     else if(reel.over){ label='⚠ LINE TOO THIN!'; col='#ff9d3d'; }
-    else if(danger){ label='EASE OFF!'; col='#ff7a7a'; }
-    else if(reel.holding){ label='REELING UP...'; col='#5dff9d'; }
-    else { label='HOLD REEL TO PULL'; col='#ffd85e'; }
-    ctx.fillStyle=col; ctx.font='bold 15px Trebuchet MS'; ctx.textAlign='center';
-    ctx.fillText(label,bx,by);
+    else if(inZone){ label=reel.holding?'ON IT — KEEP REELING!':'IN THE ZONE!'; col='#5dff9d'; }
+    else { label=reel.holding?'MATCH THE FISH!':'HOLD REEL TO SWEEP UP'; col='#ffd85e'; }
+    ctx.fillStyle=col; ctx.font='bold 14px Trebuchet MS'; ctx.textAlign='center';
+    ctx.fillText(label,bx,by-bh/2+10);
     // ---- FISH STAMINA bar — wear it down to make the landing easier ----
-    const stw=bw*0.56, sth=9, sx=bx-stw/2, sy=by+bh/2-2;
+    const stw=bw*0.56, sth=9, sx=bx-stw/2, sy=by+bh/2-6;
     ctx.fillStyle='#0a2c44'; roundRect(sx,sy,stw,sth,5); ctx.fill();
     const sg=ctx.createLinearGradient(sx,0,sx+stw,0); sg.addColorStop(0,'#ff7a7a'); sg.addColorStop(0.5,'#ffd85e'); sg.addColorStop(1,'#5dff9d');
     ctx.save(); roundRect(sx,sy,stw,sth,5); ctx.clip(); ctx.fillStyle=sg; ctx.fillRect(sx,sy,stw*Math.max(0,Math.min(1,reel.stam)),sth); ctx.restore();
     ctx.fillStyle='#9fd6ff'; ctx.font='bold 9px Trebuchet MS'; ctx.textAlign='center';
-    ctx.fillText('FISH STAMINA', bx, sy-4);
+    ctx.fillText('FISH STAMINA — wear it out and the bar slows down', bx, sy-4);
     // ---- style readout + match bonus ----
     const stt=STYLES[reel.style]||STYLES.steady, isMatch=(reel.style===reel.pref);
     ctx.fillStyle=isMatch?'#5dff9d':'#ffd85e'; ctx.font='bold 11px Trebuchet MS';
-    ctx.fillText(stt.icon+' '+stt.name.toUpperCase()+(isMatch?' ✓ MATCH +bonus':' — prefers '+STYLES[reel.pref].name), bx, by+38);
-    ctx.globalAlpha=.85; ctx.fillStyle='#eaf6ff'; ctx.font='bold 12px Trebuchet MS';
-    ctx.fillText(hooked.n+(hooked.mut?' ⚡'+MUTATIONS[hooked.mut].name:'')+(hooked.trait?' ✦'+TRAITS[hooked.trait].name:'')+' · '+hooked.kg.toFixed(1)+'kg'+(reel.running?' · RUNNING!':'')+(reel.diving?' · DIVING ↓':''),bx,by+22);
+    ctx.fillText(stt.icon+' '+stt.name.toUpperCase()+(isMatch?' ✓ MATCH +bonus':' — prefers '+STYLES[reel.pref].name), bx, by-bh/2+26);
+    ctx.globalAlpha=.85; ctx.fillStyle='#eaf6ff'; ctx.font='bold 11px Trebuchet MS';
+    ctx.fillText(hooked.n+(hooked.mut?' ⚡'+MUTATIONS[hooked.mut].name:'')+(hooked.trait?' ✦'+TRAITS[hooked.trait].name:'')+' · '+hooked.kg.toFixed(1)+'kg'+(reel.running?' · RUNNING!':'')+(reel.diving?' · DIVING ↓':''),bx,by+bh/2-50);
     ctx.globalAlpha=1; ctx.restore();
   }
 
