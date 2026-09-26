@@ -597,49 +597,136 @@ walking backwards on video.) */
 /* Humanoid rig. Modelled FACING +Z (movement aims +Z at the target).
    Joint chain: hip -> knee -> ankle -> foot, shoulder -> elbow -> forearm -> hand.
    Pivot groups let us pose real joints, not flapping sticks. */
-function buildHumanoid({shirt=0xe3644f, pants=0x2b3a55, skin=0xe9b98c, hair=0x2a201a,
-                        cap=null, hands=true, scale=1, longHair=false, shoe=0x1c1f26, capcol=null}={}){
-  const g=new THREE.Group();
-  const capCol = capcol || cap;
-  // ---------- torso group, pivot at the hip line (lets the whole upper body
-  //            lean / bob / counter-rotate as one) ----------
+function buildHumanoid(o={}){
+  // ---- accept both the new rich spec and the old shirt/pants/longHair/capcol names ----
+  const skin   = o.skin   ?? 0xe9b98c;
+  const hair   = o.hair   ?? 0x2a201a;
+  const top    = o.top    ?? o.shirt ?? 0xe3644f;
+  const top2   = o.top2   ?? 0x1a1a20;      // hood lining / lapel / trim colour
+  const bottom = o.bottom ?? o.pants ?? 0x2b3a55;
+  const shoe   = o.shoe   ?? 0x1c1f26;
+  const topStyle    = o.topStyle    || 'tee';
+  const bottomStyle = o.bottomStyle || 'jeans';
+  const shoeStyle   = o.shoeStyle   || 'sneaker';
+  const hairStyle   = o.hairStyle   || (o.longHair ? 'long' : 'short');
+  const heavy  = clamp(o.build ?? 0.5, 0, 1);
+  const fem    = (o.gender === 'f') ? 1 : 0;
+  const capCol = o.cap ?? o.capcol ?? null;
+  const hands  = o.hands !== false;
+  const scale  = o.scale ?? 1;
+  const g = new THREE.Group();
+  const TW = 1 + 0.26*heavy;                 // torso width multiplier
+  const TD = 1 + 0.20*heavy;                 // torso depth multiplier
+  const longSleeve = ['hoodie','jacket','coat','suit','sweater','flannel'].includes(topStyle);
+  // ================= torso (pivot at the hip line) =================
   const body=new THREE.Group(); body.position.set(0,0.95,0); g.add(body);
-  const torso=[];
-  torso.push(cgeo(ball(0.30), pants, V(0,0.02,0), V(1.12,0.64,0.86)));    // pelvis
-  torso.push(cgeo(caps(0.30,0.58), shirt, V(0,0.47,0), V(1.06,1,0.80)));  // chest
-  torso.push(cgeo(ball(0.16), shirt, V(-0.30,0.75,0), V(1,1,0.86)));       // shoulder L
-  torso.push(cgeo(ball(0.16), shirt, V( 0.30,0.75,0), V(1,1,0.86)));       // shoulder R
-  torso.push(cgeo(caps(0.105,0.10), skin, V(0,1.05,0)));                  // neck
-  torso.push(cgeo(ball(0.235,11), skin, V(0,1.29,0), V(1,1.12,1)));       // head
-  torso.push(cgeo(ball(0.248,11), capCol||hair, V(0,1.35,-0.015), V(1,0.98,1)));
-  if(longHair) torso.push(cgeo(ball(0.20,10), hair, V(0,1.11,-0.13), V(1.05,1.25,1)));
-  if(capCol)   torso.push(cgeo(ball(0.20,10), capCol, V(0,1.43,0.14), V(1,0.35,1.3))); // cap brim (+Z)
-  torso.push(cgeo(ball(0.055,8), skin, V(0,1.26,0.215), V(1,0.75,1.1)));            // nose (+Z)
-  torso.push(cgeo(ball(0.032,8), 0x141414, V(-0.085,1.32,0.212), V(1,1.15,0.7)));   // eye L
-  torso.push(cgeo(ball(0.032,8), 0x141414, V( 0.085,1.32,0.212), V(1,1.15,0.7)));   // eye R
-  body.add(part(torso));
-  // ---------- leg: hip -> thigh -> knee -> shin -> ankle -> foot ----------
+  const t=[];
+  t.push(cgeo(ball(0.238), bottom, V(0,0.01,0), V(1.14+0.24*heavy+0.10*fem,0.68,0.92)));   // hips
+  t.push(cgeo(caps(0.205,0.10), top, V(0,0.30,0), V(1.02*TW,1,0.86*TD)));                 // waist
+  t.push(cgeo(caps(0.255,0.42), top, V(0,0.56,0), V(1.10*TW,1,0.84*TD)));                 // chest
+  t.push(cgeo(ball(0.138+0.02*heavy), top, V(-0.275*TW,0.73,0), V(1,1,0.86)));            // deltoid L
+  t.push(cgeo(ball(0.138+0.02*heavy), top, V( 0.275*TW,0.73,0), V(1,1,0.86)));            // deltoid R
+  if(bottomStyle==='skirt')                                                                // flared skirt
+    t.push(cgeo(new THREE.CylinderGeometry(0.30,0.44,0.34,10), bottom, V(0,-0.05,0), V(1.10,1,0.95)));
+  // clothing detail on the chest
+  if(topStyle==='hoodie') t.push(cgeo(ball(0.205,10), top2, V(0,0.86,-0.15), V(1.18,0.66,0.80)));  // hood
+  if(topStyle==='jacket'||topStyle==='coat'){                                                       // lapels
+    t.push(cgeo(new THREE.BoxGeometry(0.075,0.36,0.03), top2, V(-0.105,0.62,0.205), V(1,1,1), new THREE.Euler(0,0, 0.30)));
+    t.push(cgeo(new THREE.BoxGeometry(0.075,0.36,0.03), top2, V( 0.105,0.62,0.205), V(1,1,1), new THREE.Euler(0,0,-0.30)));
+    t.push(cgeo(caps(0.235,0.05), top2, V(0,0.80,0.0), V(1.06*TW,1,0.9*TD)));                       // collar
+  }
+  if(topStyle==='suit'){                                                                            // suit + tie
+    t.push(cgeo(new THREE.BoxGeometry(0.06,0.30,0.03), 0xf2f2f0, V(0,0.60,0.205)));
+    t.push(cgeo(new THREE.BoxGeometry(0.05,0.20,0.03), 0x8a1414, V(0,0.53,0.215)));
+  }
+  if(topStyle==='shirt'){                                                                          // button-up
+    t.push(cgeo(new THREE.BoxGeometry(0.032,0.44,0.02), 0xdadade, V(0,0.57,0.212)));              // placket
+    t.push(cgeo(caps(0.233,0.045), top, V(0,0.80,0), V(1.05*TW,1,0.9*TD)));                       // collar
+    if(o.under) t.push(cgeo(ball(0.085,8), o.under, V(0,0.815,0.155), V(1.6,0.72,0.9)));          // undershirt at the neck
+  }
+  if(o.backpack){                                                                                   // pack on the back (-Z)
+    t.push(cgeo(new THREE.BoxGeometry(0.34,0.44,0.20), o.backpack, V(0,0.60,-0.30)));
+    t.push(cgeo(new THREE.BoxGeometry(0.055,0.30,0.045), o.backpack, V(-0.15,0.60,0.19), V(1,1,1), new THREE.Euler(0.12,0,0)));
+    t.push(cgeo(new THREE.BoxGeometry(0.055,0.30,0.045), o.backpack, V( 0.15,0.60,0.19), V(1,1,1), new THREE.Euler(0.12,0,0)));
+  }
+  // ================= head + face =================
+  const hy=1.34;                                                                                   // higher -> a real neck shows
+  t.push(cgeo(caps(0.095,0.15), skin, V(0,1.06,0)));                                       // neck (taller)
+  t.push(cgeo(ball(0.212,11), skin, V(0,hy,0), V(1,1.13,1.02)));                           // head
+  t.push(cgeo(ball(0.030,7), skin, V(0,hy-0.02,0.215), V(0.9,0.7,1.3)));                   // nose (+Z)
+  t.push(cgeo(ball(0.036,7), 0xffffff, V(-0.078,hy+0.055,0.196), V(1.25,0.85,0.7)));       // eye white L
+  t.push(cgeo(ball(0.036,7), 0xffffff, V( 0.078,hy+0.055,0.196), V(1.25,0.85,0.7)));       // eye white R
+  t.push(cgeo(ball(0.017,6), 0x201a16, V(-0.078,hy+0.055,0.212), V(1,1,0.7)));             // pupil L
+  t.push(cgeo(ball(0.017,6), 0x201a16, V( 0.078,hy+0.055,0.212), V(1,1,0.7)));             // pupil R
+  t.push(cgeo(ball(0.032,7), hair, V(-0.082,hy+0.106,0.202), V(1.5,0.5,0.6)));             // brow L
+  t.push(cgeo(ball(0.032,7), hair, V( 0.082,hy+0.106,0.202), V(1.5,0.5,0.6)));             // brow R
+  t.push(cgeo(ball(0.028,7), 0xb0645a, V(0,hy-0.088,0.202), V(1.6,0.5,0.5)));              // mouth
+  if(o.beard) t.push(cgeo(ball(0.195,10), hair, V(0,hy-0.085,0.05), V(1.00,0.95,1.06)));   // beard
+  // hair
+  if(hairStyle!=='bald'){
+    t.push(cgeo(ball(hairStyle==='buzz'?0.234:0.246,11), hair, V(0,hy+0.052,-0.012), V(1,0.98,1)));
+  }
+  if(hairStyle==='long')     t.push(cgeo(ball(0.205,10), hair, V(0,hy-0.17,-0.12), V(1.10,1.35,0.90)));
+  if(hairStyle==='bun')      t.push(cgeo(ball(0.105,9),  hair, V(0,hy+0.215,-0.165)));
+  if(hairStyle==='ponytail') t.push(cgeo(caps(0.058,0.17), hair, V(0,hy-0.02,-0.245), V(1,1,1), new THREE.Euler(0.5,0,0)));
+  if(hairStyle==='mohawk')   for(let i=0;i<5;i++) t.push(cgeo(ball(0.05,6), o.hair2??0xff2d55, V(0,hy+0.19,-0.10+i*0.05), V(0.6,1.7,0.9)));
+  // headwear / accessory
+  if(capCol){ t.push(cgeo(ball(0.238,11), capCol, V(0,hy+0.075,-0.01), V(1,0.72,1)));               // cap crown
+              t.push(cgeo(ball(0.20,10),  capCol, V(0,hy+0.135,0.105), V(1,0.40,1.35))); }          // brim (+Z)
+  if(o.beanie) t.push(cgeo(ball(0.248,11), o.beanie, V(0,hy+0.095,0), V(1,0.92,1)));
+  if(o.glasses){ t.push(cgeo(new THREE.BoxGeometry(0.30,0.018,0.03), 0x141414, V(0,hy+0.05,0.214)));
+                 t.push(cgeo(new THREE.BoxGeometry(0.075,0.075,0.02), 0x0e1420, V(-0.075,hy+0.05,0.224)));
+                 t.push(cgeo(new THREE.BoxGeometry(0.075,0.075,0.02), 0x0e1420, V( 0.075,hy+0.05,0.224))); }
+  if(o.headphones){ t.push(cgeo(new THREE.BoxGeometry(0.42,0.05,0.06), 0x22262e, V(0,hy+0.205,0)));    // band
+                    t.push(cgeo(ball(0.082,9), 0x2a2f38, V(-0.238,hy+0.02,0)));
+                    t.push(cgeo(ball(0.082,9), 0x2a2f38, V( 0.238,hy+0.02,0))); }
+  if(o.mask) t.push(cgeo(ball(0.20,10), o.mask, V(0,hy-0.075,0.03), V(1.02,0.70,1.06)));              // face mask
+  body.add(part(t));
+  // ================= leg: hip -> knee -> ankle -> foot =================
   function leg(sx){
-    const hip=new THREE.Group(); hip.position.set(sx*0.155,0.95,0);
-    hip.add(part([ cgeo(caps(0.150,0.24), pants, V(0,-0.28,0)) ]));        // thigh
+    const hip=new THREE.Group(); hip.position.set(sx*0.150*TW,0.95,0);
+    const bareLeg = (bottomStyle==='shorts'||bottomStyle==='skirt');
+    hip.add(part([ cgeo(caps(0.132+0.02*heavy,0.26), bottom, V(0,-0.28,0)) ]));            // thigh
     const knee=new THREE.Group(); knee.position.set(0,-0.54,0);
-    knee.add(part([ cgeo(caps(0.116,0.16), pants, V(0,-0.19,0)) ]));       // shin
+    knee.add(part([ cgeo(caps(0.100+0.018*heavy,0.16), bareLeg?skin:bottom, V(0,-0.19,0)) ])); // shin
     const ankle=new THREE.Group(); ankle.position.set(0,-0.38,0);
-    ankle.add(part([ cgeo(ball(0.098), skin, V(0,-0.01,0), V(1,0.85,1)),   // ankle
-                     cgeo(ball(0.112), shoe, V(0,-0.055,0.075), V(1.05,0.5,1.75)) ])); // foot (toe +Z)
+    const soleC = shoeStyle==='sneaker' ? 0xf0f0f0 : 0x0d0f13;
+    const f=[ cgeo(ball(0.086,9), skin, V(0,-0.005,0), V(1,0.85,1)) ];                     // ankle skin
+    if(shoeStyle==='boot'){
+      f.push(cgeo(caps(0.108,0.14), shoe, V(0,-0.055,0.015), V(1,1,1.10)));                // boot shaft
+      f.push(cgeo(new THREE.BoxGeometry(0.155,0.072,0.285), soleC, V(0,-0.132,0.055)));    // boot sole
+    } else {
+      f.push(cgeo(ball(0.108,10), shoe, V(0,-0.055,0.072), V(1.05,0.60,1.72)));            // shoe upper
+      f.push(cgeo(new THREE.BoxGeometry(0.19,0.046,0.315), soleC, V(0,-0.130,0.05)));      // sneaker sole
+    }
+    ankle.add(part(f));
     knee.add(ankle); hip.add(knee);
     hip.userData.knee=knee; hip.userData.ankle=ankle;
     return hip;
   }
-  // ---------- arm: shoulder -> upper -> elbow -> forearm -> hand ----------
+  // ================= arm: shoulder -> elbow -> wrist -> hand =================
   function arm(sx){
-    const sh=new THREE.Group(); sh.position.set(sx*0.335,1.74,0);
-    sh.add(part([ cgeo(caps(0.122,0.14), shirt, V(0,-0.20,0)) ]));         // upper arm
+    const sh=new THREE.Group(); sh.position.set(sx*0.318*TW,1.70,0);
+    const rolled = (topStyle==='shirt');             // button-up: long upper sleeve, bare forearm
+    const upC = (longSleeve || rolled) ? top : skin;
+    const up=[ cgeo(caps(0.104+0.014*heavy,0.16), upC, V(0,-0.20,0)) ];                      // upper arm (reaches the deltoid)
+    if(!longSleeve && !rolled && topStyle!=='tank') up.push(cgeo(caps(0.122,0.06), top, V(0,-0.055,0))); // sleeve cap
+    sh.add(part(up));
     const elbow=new THREE.Group(); elbow.position.set(0,-0.40,0);
-    elbow.add(part([ cgeo(caps(0.104,0.16), shirt, V(0,-0.14,0)) ]));      // forearm
+    const foreC = rolled ? skin : upC;                                                        // rolled sleeves
+    elbow.add(part([ cgeo(caps(0.090+0.014*heavy,0.17), foreC, V(0,-0.14,0)) ]));             // forearm
+    if(rolled) elbow.add(part([ cgeo(caps(0.110+0.014*heavy,0.05), top, V(0,-0.02,0)) ]));    // rolled cuff
     const wrist=new THREE.Group(); wrist.position.set(0,-0.29,0);
-    if(hands) wrist.add(part([ cgeo(ball(0.128,10), skin, V(0,-0.03,0.01), V(1,0.9,0.75)) ])); // hand
-    else      wrist.add(part([ cgeo(caps(0.098,0.05), skin, V(0,-0.03,0)) ]));                 // bare cuff
+    const wp=[];
+    if(hands){
+      wp.push(cgeo(ball(0.092,10), skin, V(0,-0.02,0.005), V(1,0.95,0.85)));                 // palm
+      wp.push(cgeo(new THREE.BoxGeometry(0.088,0.115,0.070), skin, V(0,-0.115,0.012)));       // fingers
+      wp.push(cgeo(ball(0.036,7), skin, V(sx*0.062,-0.045,0.030)));                           // thumb
+    } else {
+      wp.push(cgeo(caps(0.086,0.05), skin, V(0,-0.03,0)));                                    // bare cuff
+    }
+    if(o.bands) wp.push(cgeo(caps(0.082,0.02), o.bands===true?0x2a2a30:o.bands, V(0,0.02,0), V(1.14,1,1.14))); // wristband
+    wrist.add(part(wp));
     elbow.add(wrist); sh.add(elbow);
     sh.userData.elbow=elbow; elbow.userData.wrist=wrist;
     return sh;
@@ -764,7 +851,10 @@ function idlePose(g){
   const B=g.userData.body; if(B){ B.rotation.set(0.02,0,0); B.position.y=0.95; }
 }
 function buildPlayer(){
-  const g=buildHumanoid({ shirt:0xe3644f, pants:0x2b3a55, hands:true });
+  const g=buildHumanoid({ top:0xd8452f, topStyle:'jacket', top2:0x141821,
+                          bottom:0x2b3a55, bottomStyle:'jeans',
+                          skin:0xe9b98c, hair:0x241b14, hairStyle:'short',
+                          shoe:0xf0f0f0, shoeStyle:'sneaker', build:0.5, hands:true });
   scene.add(g); return g;
 }
 player.group=buildPlayer();
@@ -1085,23 +1175,87 @@ separateTraffic();
    PEDESTRIANS (robbable NPCs)
    ============================================================ */
 const peds=[];
-const SHIRT=[0x3fa9f5,0xffd85e,0x7dffd6,0xc07dff,0xff9d3d,0x9fd6ff,0xff5d6d,0x4dd07a,0xf2f2f0];
-const PANTS=[0x2b2b33,0x39445a,0x4a3b2f,0x23303f,0x5a2f3a,0x1f2833,0x3a3a40];
-const SKIN_TONES=[0xe9b98c,0xd8a878,0xb07d52,0x8a5a34,0xf0c9a0,0x6e4526];
-const HAIR_TONES=[0x2a201a,0x6b4a2a,0xd8b26a,0x8a4a1f,0x9a9a9a,0x1a1a1e,0x3a2f4a];
-const SHOES=[0x1c1f26,0xf0f0f0,0x8a1414,0x3a4a2a];
+/* ---- civilian palette (GTA-V / Insomniac vibe: varied skin, hair, clothes) ---- */
+const PSKIN=[0xf2c9a0,0xe9b98c,0xd8a878,0xc08a5a,0xa06a3f,0x7a4d2a,0x5c3a20,0x402717];
+const PHAIR=[0x15151a,0x241b14,0x3a2c1e,0x6b4a2a,0x8a5a2a,0xa87a3a,0xd8b26a,0x8f8f96,0xe6e6e8,0x6a1f1f,0x2f2440,0xbfae8a];
+const PTOP =[0xe3644f,0x3fa9f5,0x3fbf8f,0x9a6dd6,0xe8913a,0x7fb8e0,0xd94f5e,0x46b060,0xe8e8e4,0x2b3550,0x1c1c22,0x6a4a2a,0x1c5233,0x8c1f24,0xd8a930,0xf0a0b8];
+const PBOT =[0x2b2b33,0x39445a,0x4a3b2f,0x23303f,0x5a2f3a,0x1f2833,0x3a3a40,0x2e4a6a,0x5a5a4a,0x1a1a1e,0x6a5a3a,0x3d2f4a];
+const PSHOE=[0x1c1f26,0xe8e8e8,0x8c1f24,0x3a4a2a,0x2a2a5a,0x6a4a20,0xd8d8d8];
+const pck=a=>a[Math.floor(Math.random()*a.length)];
+/* Each civilian picks a look archetype, so the crowd has real silhouettes
+   (hoodie kids, suits, workers, sporty, punks, elders, tourists) instead of
+   everyone being the same T-shirt. */
 function buildPed(x,z){
-  const shirt=SHIRT[Math.floor(Math.random()*SHIRT.length)];
-  const pants=PANTS[Math.floor(Math.random()*PANTS.length)];
-  const skin=SKIN_TONES[Math.floor(Math.random()*SKIN_TONES.length)];
-  const hair=HAIR_TONES[Math.floor(Math.random()*HAIR_TONES.length)];
-  const shoe=SHOES[Math.floor(Math.random()*SHOES.length)];
-  const kid=Math.random()<0.12;
-  const g=buildHumanoid({ shirt, pants, skin, hair, shoe, hands:true,
-                          longHair:Math.random()<0.35,
-                          scale:(kid?rnd(0.66,0.76):rnd(0.90,1.02)) });
+  const kid=Math.random()<0.10, fem=Math.random()<0.5;
+  const p={ skin:pck(PSKIN), hair:pck(PHAIR), gender:fem?'f':'m', hands:true,
+            build:rnd(0.22,0.78), scale:rnd(0.94,1.06) };
+  if(kid){ p.scale=rnd(0.64,0.76); p.build=rnd(0.30,0.55); }
+  const hat=()=>Math.random()<0.30?pck(PTOP):null;
+  switch(pck(['casual','casual','casual','hoodie','jacket','suit','student','worker','sporty','punk','elder','tourist'])){
+    case 'student':   // the Insomniac "Peter" look: button-up, rolled sleeves, wristbands
+      Object.assign(p,{ topStyle:'shirt', top:pck([0x9a9a9e,0x8a8f98,0x7a8490,0x5c6a5c,0xb0a898]),
+        under:pck([0x4a6ab0,0xb04a4a,0xe8e8e4,0x2a4a2a,0xd8a930]),
+        bottomStyle:'jeans', bottom:pck([0x2a3550,0x1e2740,0x33406a]),
+        shoe:pck([0x33363c,0x2a2d33]), shoeStyle:'sneaker',
+        hairStyle:'short', bands: Math.random()<0.6, glasses: Math.random()<0.25 });
+      p.build=rnd(0.35,0.6); p.scale=rnd(0.98,1.06);
+      break;
+    case 'hoodie':
+      Object.assign(p,{ topStyle:'hoodie', top:pck(PTOP), top2:pck([0x141821,0x1a1a20,0x2a2a30]),
+        bottomStyle:'jeans', bottom:pck(PBOT), shoe:pck(PSHOE), shoeStyle:'sneaker',
+        hairStyle:pck(['short','buzz','long','bun']), cap:hat(),
+        backpack: Math.random()<0.35?pck(PTOP):null, headphones: Math.random()<0.2 });
+      break;
+    case 'jacket':
+      Object.assign(p,{ topStyle:'jacket', top:pck(PTOP), top2:pck([0x141821,0x2a2a30,0x5a3a20]),
+        bottomStyle:'jeans', bottom:pck(PBOT), shoe:pck(PSHOE), shoeStyle:'boot',
+        hairStyle:pck(['short','buzz','long']), beanie: Math.random()<0.3?pck(PTOP):null, cap:hat() });
+      break;
+    case 'suit':
+      Object.assign(p,{ topStyle:'suit', top:pck([0x1a1a24,0x22283a,0x2a2a2a,0x30384a]), top2:0x141821,
+        bottomStyle:'jeans', bottom:pck([0x1a1a24,0x22283a,0x2a2a2a]), shoe:0x14161c, shoeStyle:'boot',
+        hairStyle:pck(['short','bald','buzz']), glasses: Math.random()<0.5 });
+      p.build=rnd(0.35,0.7);
+      break;
+    case 'worker':
+      Object.assign(p,{ topStyle:'flannel', top:pck([0x8c3a24,0x2a4a6a,0x3a5a2a,0x6a5a2a]), top2:0x141821,
+        bottomStyle:'cargo', bottom:pck([0x4a5a3a,0x3a3a2a,0x2a3a4a]), shoe:0x6a4a20, shoeStyle:'boot',
+        hairStyle:'short', cap:pck(PTOP), beard: Math.random()<0.5 });
+      p.build=rnd(0.45,0.85);
+      break;
+    case 'sporty':
+      Object.assign(p,{ topStyle: Math.random()<0.5?'tank':'tee', top:pck(PTOP),
+        bottomStyle:'shorts', bottom:pck(PBOT), shoe:0xe8e8e8, shoeStyle:'sneaker',
+        hairStyle: fem?pck(['ponytail','bun','buzz','short']):pck(['buzz','short']),
+        headphones: Math.random()<0.5 });
+      p.build=rnd(0.25,0.55);
+      break;
+    case 'punk':
+      Object.assign(p,{ topStyle:'tee', top:0x1a1a1e, bottomStyle:'jeans', bottom:0x1a1a1e, shoe:0x14161c, shoeStyle:'boot',
+        hairStyle:'mohawk', hair2:pck([0xff2d55,0x2dff8a,0x2d9dff,0xffd52d]), beard: Math.random()<0.5 });
+      break;
+    case 'elder':
+      Object.assign(p,{ topStyle:'coat', top:pck([0x4a4a52,0x5a4a3a,0x3a4a5a]), top2:0x2a2a30,
+        bottomStyle:'jeans', bottom:pck([0x3a3a40,0x4a4a52]), shoe:0x2a2a2a, shoeStyle:'boot',
+        hairStyle:pck(['short','bald','buzz']), hair:pck([0x8f8f96,0xe6e6e8,0xbfae8a]),
+        glasses: Math.random()<0.6, beanie: Math.random()<0.4?pck([0x8c2a2a,0x2a4a6a]):null });
+      p.build=rnd(0.4,0.8);
+      break;
+    case 'tourist':
+      Object.assign(p,{ topStyle:'tee', top:pck(PTOP), bottomStyle:'shorts', bottom:pck(PBOT),
+        shoe:0xe8e8e8, shoeStyle:'sneaker', hairStyle:pck(['short','long']),
+        cap:pck(PTOP), backpack:pck(PTOP), glasses: Math.random()<0.4 });
+      break;
+    default: // casual
+      Object.assign(p,{ topStyle: Math.random()<0.15?'tank':'tee', top:pck(PTOP),
+        bottomStyle: Math.random()<0.2?'shorts':'jeans', bottom:pck(PBOT), shoe:pck(PSHOE), shoeStyle:'sneaker',
+        hairStyle: fem?pck(['long','ponytail','bun','short']):pck(['short','buzz','bald']) });
+      break;
+  }
+  const g=buildHumanoid(p);
   scene.add(g);
-  const ped={ group:g, pos:new THREE.Vector3(x,0,z), yaw:rnd(0,6.28), t:0, target:new THREE.Vector3(x,0,z), speed:rnd(1.6,2.9), phase:rnd(0,6.28) };
+  const ped={ group:g, pos:new THREE.Vector3(x,0,z), yaw:rnd(0,6.28), t:0, target:new THREE.Vector3(x,0,z),
+              speed:rnd(1.6,2.9)*(kid?1.25:1), phase:rnd(0,6.28) };
   return ped;
 }
 function insideSolid(x,z,pad){
@@ -1159,7 +1313,9 @@ function pickPedTarget(p){
    ============================================================ */
 const cops=[];
 function buildCop(x,z){
-  const g=buildHumanoid({ shirt:0x24407a, pants:0x18213a, skin:0xd8a878, hair:0x2a201a, capcol:0x2a5db0, shoe:0x14202f, hands:true });
+  const g=buildHumanoid({ top:0x24407a, topStyle:'jacket', top2:0x0f1524,
+    bottom:0x18213a, bottomStyle:'jeans', skin:0xd8a878, hair:0x2a201a, hairStyle:'short',
+    cap:0x2a5db0, shoe:0x14202f, shoeStyle:'boot', build:0.6, scale:1.06, hands:true });
   const badge=new THREE.Mesh(new THREE.BoxGeometry(0.14,0.14,0.03), new THREE.MeshStandardMaterial({color:0xffd85e,emissive:0xffd85e,emissiveIntensity:0.6}));
   badge.position.set(0.22,1.52,0.26); g.add(badge);
   // light bar on the hat
@@ -1782,7 +1938,7 @@ addEventListener('resize',()=>{
 if('ontouchstart' in window || innerWidth<900) joyEl.classList.add('show');
 
 /* expose for debugging/testing */
-window.GRIND = { S, PLACES, player, cars, peds, cops, traffic:TRAFFIC, cam, camera, scene, THREE, solids, INTERSECTIONS, CROSSWALKS, ROAD, lightState, onRoad, inCrosswalk, walkable, startShift, applyJob, buy, addHeat, doAction, enterCar, exitCar, MG, openPhone, selectTab, nearestTarget, usePlace, mug, tryJump, setSprint, animateWalk, poseJump, poseLand, idlePose, get jumpY(){return jumpY;}, get sprint(){return sprint;}, get nearTarget(){return nearTarget;} };
+window.GRIND = { S, PLACES, player, cars, peds, cops, traffic:TRAFFIC, cam, camera, scene, THREE, solids, INTERSECTIONS, CROSSWALKS, ROAD, lightState, onRoad, inCrosswalk, walkable, startShift, applyJob, buy, addHeat, doAction, enterCar, exitCar, MG, openPhone, selectTab, nearestTarget, usePlace, mug, tryJump, setSprint, animateWalk, poseJump, poseLand, idlePose, buildHumanoid, buildPed, get jumpY(){return jumpY;}, get sprint(){return sprint;}, get nearTarget(){return nearTarget;} };
 </script>
 </body>
 </html>
