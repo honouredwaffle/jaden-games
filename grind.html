@@ -868,16 +868,25 @@ player.group.position.copy(player.pos);
    ============================================================ */
 function P(k){ return new URLSearchParams(location.search).get(k)!==null; }
 const MANNEQUIN={ready:false, proto:null, h:1.8, minY:0};
+/* per-material palettes -> recolour each cloned NPC so the crowd varies.
+   Material names come from the Blender export (Skin/Top/Pants/Shoes/Hair). */
+const CHAR_MATPAL={
+  Top:   [0xe3644f,0x3fa9f5,0x3fbf8f,0x9a6dd6,0xe8913a,0x7fb8e0,0xd94f5e,0x46b060,0x2b3550,0x1c1c22,0xd8a930,0x8c1f24],
+  Pants: [0x2b2b33,0x39445a,0x4a3b2f,0x23303f,0x5a2f3a,0x1f2833,0x3a3a40,0x2e4a6a,0x1a1a1e],
+  Shoes: [0x1c1f26,0xe8e8e8,0x8c1f24,0x2a2a5a,0x6a4a20,0xd8d8d8],
+  Hair:  [0x15151a,0x241b14,0x3a2c1e,0x6b4a2a,0x8a5a2a,0xa87a3a,0xd8b26a,0x8f8f96,0x6a1f1f,0x2f2440],
+  Skin:  [0xe9b98c,0xd9a878,0xc48c60,0xa9714a,0x8a5636,0x6b4028,0xf0c9a0,0x7a4a2e],
+};
 const AXX=new THREE.Vector3(1,0,0), AXY=new THREE.Vector3(0,1,0), AXZ=new THREE.Vector3(0,0,1);
 function loadMannequin(){
-  new GLTFLoader().load('assets/mannequin.glb', g=>{
+  new GLTFLoader().load('assets/character.glb', g=>{
     const root=g.scene; root.updateMatrixWorld(true);
     const box=new THREE.Box3().setFromObject(root);
     MANNEQUIN.h=Math.max(0.1, box.max.y-box.min.y);
     MANNEQUIN.minY=box.min.y;
     MANNEQUIN.proto=root; MANNEQUIN.ready=true;
     let nb=0, nm=0; root.traverse(o=>{ if(o.isBone) nb++; if(o.isMesh) nm++; });
-    console.log('[mannequin] loaded h='+MANNEQUIN.h.toFixed(3)+' bones='+nb+' meshes='+nm);
+    console.log('[character] loaded h='+MANNEQUIN.h.toFixed(3)+' bones='+nb+' meshes='+nm);
     if(!P('procedural')) reloadPeds();
   }, undefined, e=>console.warn('[mannequin] load failed', e));
 }
@@ -894,7 +903,16 @@ function buildSkinnedPed(x,z){
   const s=target/MANNEQUIN.h;
   root.scale.setScalar(s);
   root.position.y=-MANNEQUIN.minY*s;                 // feet on the ground
-  root.traverse(o=>{ if(o.isMesh){ o.castShadow=true; o.receiveShadow=true; o.frustumCulled=false; } });
+  root.traverse(o=>{ if(o.isMesh){
+    o.castShadow=true; o.receiveShadow=true; o.frustumCulled=false;
+    // recolour per-NPC: each material slot maps to a palette -> a varied crowd
+    const mats=Array.isArray(o.material)?o.material:[o.material];
+    const out=mats.map(m=>{
+      const pal=CHAR_MATPAL[m.name]; if(!pal) return m;
+      const nm=m.clone(); nm.color.setHex(pck(pal)); return nm;
+    });
+    o.material = out.length===1 ? out[0] : out;
+  } });
   const bones={};
   root.traverse(o=>{ if(o.isBone){ const k=_boneKey(o.name); if(!bones[k]) bones[k]=o; } });
   for(const k in bones){ bones[k].userData.rest=bones[k].quaternion.clone(); }
@@ -906,8 +924,7 @@ function buildSkinnedPed(x,z){
 /* ---- bone-driven run/walk cycle. Axis per joint set from a live probe:
    Mixamo limb bones swing around their LOCAL X. ---- */
 const _q1=new THREE.Quaternion();
-const AX={X:new THREE.Vector3(1,0,0),Y:new THREE.Vector3(0,1,0),Z:new THREE.Vector3(0,0,1)};
-function sb(B,name,ang,axis){
+const AX={X:new THREE.Vector3(1,0,0),Y:new THREE.Vector3(0,1,0),Z:new THREE.Vector3(0,0,1)};function sb(B,name,ang,axis){
   const b=B[name]; if(!b||!b.userData.rest) return;
   _q1.setFromAxisAngle(AX[axis],ang);
   b.quaternion.copy(b.userData.rest).multiply(_q1);
