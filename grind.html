@@ -52,6 +52,8 @@
   .abtn:active{background:rgba(63,169,245,.5);}
   .abtn.hot{border-color:#ffd85e;box-shadow:0 0 16px rgba(255,216,94,.55);}
   #phoneBtn{width:56px;height:56px;font-size:20px;}
+  #btns .srow{display:flex;gap:10px;}
+  .abtn.small{width:58px;height:58px;font-size:18px;}
 
   /* phone / panels */
   .overlay{position:absolute;inset:0;z-index:60;background:rgba(3,8,14,.86);backdrop-filter:blur(8px);display:none;flex-direction:column;}
@@ -116,6 +118,10 @@
 <!-- touch controls -->
 <div id="joy"><div id="joyKnob"></div><div class="lbl">MOVE</div></div>
 <div id="btns">
+  <div class="srow">
+    <div class="abtn small" id="jumpBtn">⤒<small>JUMP</small></div>
+    <div class="abtn small" id="sprintBtn">»<small>RUN</small></div>
+  </div>
   <div class="abtn" id="utilBtn">📱<small>PHONE</small></div>
   <div class="abtn" id="actBtn">E<small>USE</small></div>
 </div>
@@ -596,7 +602,8 @@ function spawnParked(){
     const t=CARKEYS[Math.floor(Math.random()*CARKEYS.length)];
     const c=buildCar(t, CARCOLS[Math.floor(Math.random()*CARCOLS.length)], x,z,y);
     cars.push(c);
-    addSolid(x,z,2.2,4.6);
+    const along=Math.abs(Math.sin(y))>0.5;             // rotated 90°?
+    addSolid(x,z, along?4.6:2.2, along?2.2:4.6);
   }
 }
 spawnParked();
@@ -741,6 +748,14 @@ function updateTraffic(dt, t){
       }
     }
     t2.speed += (target-t2.speed)*Math.min(1,4*dt);
+    // keep a gap: don't rear-end the car ahead in the same lane
+    let gap=Infinity;
+    for(const o of TRAFFIC){
+      if(o===t2 || o.stolen || o.alongZ!==t2.alongZ || o.line!==t2.line || o.dir!==t2.dir) continue;
+      const d=(o.axial - t2.axial)*t2.dir;
+      if(d>0 && d<gap) gap=d;
+    }
+    if(gap<10) t2.speed = Math.min(t2.speed, Math.max(0,(gap-4.6)*1.7));
     c.moving = t2.speed>1.5;
     t2.axial += t2.dir*t2.speed*dt;
     if(t2.next!==null){
@@ -892,8 +907,24 @@ const SHOP = [
    INPUT
    ============================================================ */
 const keys={};
-addEventListener('keydown',e=>{ keys[e.code]=true; if(e.code==='KeyE') doAction(); if(e.code==='KeyP') togglePhone(); if(e.code==='Space'&&MG.active) e.preventDefault(); });
-addEventListener('keyup',e=>{ keys[e.code]=false; });
+/* ---------- run + jump state ---------- */
+let jumpY=0, jumpV=0, sprint=false;
+const jumpBtnEl=document.getElementById('jumpBtn'), sprintBtnEl=document.getElementById('sprintBtn');
+function tryJump(){
+  if(!player.onFoot) return;
+  if(jumpY>0.02) return;               // already airborne
+  jumpV=6.7; jumpY=0.001;
+}
+function setSprint(on){ sprint=on; sprintBtnEl.classList.toggle('hot',on); }
+addEventListener('keydown',e=>{ keys[e.code]=true; if(e.code==='KeyE') doAction(); if(e.code==='KeyP') togglePhone();
+  if(e.code==='Space'&&MG.active){ e.preventDefault(); }
+  if(e.code==='Space'&&!MG.active){ e.preventDefault(); tryJump(); }
+  if(e.code==='ShiftLeft'||e.code==='ShiftRight') setSprint(true); });
+addEventListener('keyup',e=>{ keys[e.code]=false;
+  if(e.code==='ShiftLeft'||e.code==='ShiftRight') setSprint(false); });
+/* touch buttons: jump = tap, run = tap to toggle */
+jumpBtnEl.addEventListener('pointerdown',e=>{ e.preventDefault(); tryJump(); });
+sprintBtnEl.addEventListener('pointerdown',e=>{ e.preventDefault(); setSprint(!sprint); });
 
 // pointer look + on-screen joystick
 let look={ dragging:false, id:null, lastX:0, lastY:0, moved:0 };
@@ -1209,9 +1240,9 @@ function collideCircle(px,pz,r){
   return [px,pz];
 }
 function updatePlayer(dt){
-  if(!player.onFoot) return;
+  if(!player.onFoot){ jumpY=0; jumpV=0; return; }
   const iv=inputVec();
-  const spd=5.6;
+  const spd = sprint ? 9.4 : 5.6;                  // RUN = hold Shift / tap the RUN button
   // move relative to camera yaw
   const sin=Math.sin(cam.yaw), cos=Math.cos(cam.yaw);
   const wx = iv.x*cos - iv.z*sin;
@@ -1221,8 +1252,13 @@ function updatePlayer(dt){
   [nx,nz]=collideCircle(nx,nz,0.7);
   player.pos.x=nx; player.pos.z=nz;
   const moving = iv.m>0.05;
-  if(moving){ player.yaw = Math.atan2(wx,wz); player.phase += dt*10; } else player.phase *= 0.85;
-  player.group.position.set(player.pos.x,0,player.pos.z);
+  if(moving){ player.yaw = Math.atan2(wx,wz); player.phase += dt*(sprint?17:10); } else player.phase *= 0.85;
+  // jump: simple ballistic arc
+  if(jumpY>0 || jumpV!==0){
+    jumpV -= 18*dt; jumpY += jumpV*dt;
+    if(jumpY<=0){ jumpY=0; jumpV=0; }
+  }
+  player.group.position.set(player.pos.x, jumpY, player.pos.z);
   player.group.rotation.y = lerpAngle(player.group.rotation.y, player.yaw, Math.min(1,12*dt));
   // limb swing
   animateWalk(player.group, player.phase, moving?1:0.06);
@@ -1322,7 +1358,7 @@ function updateCamera(dt){
     cam.yaw = lerpAngle(cam.yaw, player.yaw+Math.PI, Math.min(1, 1.6*dt));
   }
   const target = (player.onFoot? player.pos : (S.car? S.car.pos : player.pos));
-  const cy = target.y + (player.onFoot?1.6:1.0);
+  const cy = target.y + (player.onFoot?(1.6+jumpY):1.0);
   const horiz = Math.cos(cam.pitch)*cam.dist;
   const cx = target.x + Math.sin(cam.yaw)*horiz;
   const cz = target.z + Math.cos(cam.yaw)*horiz;
@@ -1404,7 +1440,7 @@ addEventListener('resize',()=>{
 if('ontouchstart' in window || innerWidth<900) joyEl.classList.add('show');
 
 /* expose for debugging/testing */
-window.GRIND = { S, PLACES, player, cars, peds, cops, traffic:TRAFFIC, cam, camera, scene, THREE, solids, INTERSECTIONS, CROSSWALKS, ROAD, lightState, onRoad, inCrosswalk, walkable, startShift, applyJob, buy, addHeat, doAction, enterCar, exitCar, MG, openPhone, selectTab, nearestTarget, usePlace, mug, get nearTarget(){return nearTarget;} };
+window.GRIND = { S, PLACES, player, cars, peds, cops, traffic:TRAFFIC, cam, camera, scene, THREE, solids, INTERSECTIONS, CROSSWALKS, ROAD, lightState, onRoad, inCrosswalk, walkable, startShift, applyJob, buy, addHeat, doAction, enterCar, exitCar, MG, openPhone, selectTab, nearestTarget, usePlace, mug, tryJump, setSprint, get jumpY(){return jumpY;}, get sprint(){return sprint;}, get nearTarget(){return nearTarget;} };
 </script>
 </body>
 </html>
