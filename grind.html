@@ -227,10 +227,11 @@ function addSolid(cx,cz,w,d){ solids.push({ minx:cx-w/2, maxx:cx+w/2, minz:cz-d/
    buildings, houses AND people. */
 const VCMAT = new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.72 });
 const _tmpc = new THREE.Color();
-function cgeo(geo, hex, pos, scl){
+function cgeo(geo, hex, pos, scl, rot){
+  const q = rot ? new THREE.Quaternion().setFromEuler(rot) : new THREE.Quaternion();
   const m = new THREE.Matrix4().compose(
     pos || new THREE.Vector3(),
-    new THREE.Quaternion(),
+    q,
     scl || new THREE.Vector3(1,1,1));
   geo.applyMatrix4(m);
   _tmpc.set(hex);
@@ -512,34 +513,90 @@ player.group.position.copy(player.pos);
    CARS
    ============================================================ */
 const cars=[];
-const CARCOLS=[0xff5d6d,0x3fa9f5,0xffd85e,0x7dffd6,0xc07dff,0xffffff,0x2b3a55,0x3ddc84];
-function buildCar(col, x, z, yaw=0, isPlayer=false){
-  const g=new THREE.Group();
-  const body=box(2.0,0.7,4.2,col,0,0.7,0);
-  const cabin=box(1.8,0.65,2.0,0x1b2430,0,1.3,-0.1);
-  const glassM=new THREE.MeshStandardMaterial({color:0x8fd0ff,transparent:true,opacity:0.5,roughness:0.2,metalness:0.2});
-  const glass=new THREE.Mesh(new THREE.BoxGeometry(1.7,0.5,2.1),glassM); glass.position.set(0,1.35,-0.1);
-  const wg=new THREE.CylinderGeometry(0.42,0.42,0.35,12);
-  const wm=new THREE.MeshStandardMaterial({color:0x14181d,roughness:1});
-  for(const [wx,wz] of [[-0.95,1.35],[0.95,1.35],[-0.95,-1.35],[0.95,-1.35]]){
-    const w=new THREE.Mesh(wg,wm); w.rotation.z=Math.PI/2; w.position.set(wx,0.42,wz); w.castShadow=true; g.add(w);
+const CARCOLS=[0xf5f6f8,0xd8dce2,0x1b2430,0xb02a2a,0x2a4bb0,0x2f7a4a,0xe0a72e,0x8a4bb0,0xd86a2a,0x2aa5b8];
+/* ---------- car bodies: tapered frustums, NOT flat boxes ----------
+   Painted lower body + dark greenhouse + painted roof cap + wheels.
+   Each car merges to ~4 meshes (paint / trim / headlights / taillights). */
+const CAR_TYPES = {
+  sedan:  { len:4.35, wid:1.94, bh:0.66, ch:0.62, cl:2.15, co:-0.16, wr:0.35 },
+  hatch:  { len:3.78, wid:1.84, bh:0.62, ch:0.66, cl:2.00, co:-0.06, wr:0.33 },
+  sports: { len:4.20, wid:2.04, bh:0.48, ch:0.44, cl:1.70, co:-0.38, wr:0.33, spoiler:true },
+  van:    { len:4.95, wid:2.06, bh:0.98, ch:0.94, cl:3.35, co:-0.02, wr:0.38, boxy:true },
+  taxi:   { len:4.40, wid:1.94, bh:0.66, ch:0.62, cl:2.15, co:-0.16, wr:0.35, taxi:true },
+  ute:    { len:4.70, wid:1.98, bh:0.66, ch:0.70, cl:1.75, co: 0.45, wr:0.36, bed:true }
+};
+const CARKEYS=Object.keys(CAR_TYPES);
+const CARPAINTMAT=new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.38,metalness:0.35});
+const CARTRIMAT =new THREE.MeshStandardMaterial({vertexColors:true,roughness:0.62,metalness:0.15});
+/* box with a shrunken top face → tapered body / cabin */
+function frustumGeo(wb,db,wt,dt,h){
+  const a=wb/2,b=db/2,c=wt/2,d=dt/2;
+  const v=[-a,0,-b, a,0,-b, a,0,b, -a,0,b, -c,h,-d, c,h,-d, c,h,d, -c,h,d];
+  const g=new THREE.BufferGeometry();
+  g.setAttribute('position',new THREE.Float32BufferAttribute(v,3));
+  g.setIndex([0,1,2,0,2,3, 4,6,5,4,7,6, 0,4,5,0,5,1, 1,5,6,1,6,2, 2,6,7,2,7,3, 3,7,4,3,4,0]);
+  g.computeVertexNormals();
+  const uv=[]; for(let i=0;i<8;i++) uv.push(0,0);
+  g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+  return g;
+}
+function buildCar(type, col, x, z, yaw=0){
+  const T=CAR_TYPES[type]||CAR_TYPES.sedan;
+  if(type==='taxi') col=0xf2c23a;
+  const paint=[], trim=[];
+  const bottom=0.32, top=bottom+T.bh;
+  // lower body (tapered toward the roof line)
+  paint.push(cgeo(frustumGeo(T.wid,T.len,T.wid*0.92,T.len*0.86,T.bh), col, V(0,bottom,0)));
+  // greenhouse (dark tinted glass)
+  const cw=T.boxy?T.wid*0.98:T.wid*0.88;
+  trim.push(cgeo(frustumGeo(cw,T.cl,cw*0.72,T.cl*0.66,T.ch), 0x0c141d, V(0,top,T.co)));
+  // roof cap (painted)
+  paint.push(cgeo(frustumGeo(cw*0.72,T.cl*0.72,cw*0.66,T.cl*0.64,0.09), col, V(0,top+T.ch,T.co)));
+  // bumpers + skirts
+  trim.push(cgeo(new THREE.BoxGeometry(T.wid*0.97,0.2,0.22), 0x161c24, V(0,bottom+0.06, T.len/2-0.06)));
+  trim.push(cgeo(new THREE.BoxGeometry(T.wid*0.97,0.2,0.22), 0x161c24, V(0,bottom+0.06,-T.len/2+0.06)));
+  trim.push(cgeo(new THREE.BoxGeometry(T.wid*1.005,0.14,T.len*0.7), 0x11161d, V(0,bottom-0.06,0)));
+  // wheels
+  for(const sx of [-1,1]) for(const sz of [-1,1]){
+    trim.push(cgeo(new THREE.CylinderGeometry(T.wr,T.wr,0.26,12), 0x0e1216,
+      V(sx*(T.wid/2-0.01), T.wr, sz*(T.len*0.32)), V(1,1,1), new THREE.Euler(0,0,Math.PI/2)));
+    trim.push(cgeo(new THREE.CylinderGeometry(T.wr*0.5,T.wr*0.5,0.28,8), 0x8f97a2,
+      V(sx*(T.wid/2-0.01), T.wr, sz*(T.len*0.32)), V(1,1,1), new THREE.Euler(0,0,Math.PI/2)));
   }
-  const hl=new THREE.Mesh(new THREE.BoxGeometry(1.6,0.22,0.1), new THREE.MeshStandardMaterial({color:0xfff4c0,emissive:0xffef9a,emissiveIntensity:0.8}));
-  hl.position.set(0,0.75,2.12); g.add(hl);
-  g.add(body,cabin,glass);
+  if(T.spoiler) paint.push(cgeo(new THREE.BoxGeometry(T.wid*0.8,0.07,0.32), col, V(0,top+0.12,-T.len/2+0.2)));
+  if(T.bed) paint.push(cgeo(new THREE.BoxGeometry(T.wid*0.9,0.5,1.5), col, V(0,bottom+T.bh*0.6,-T.len/2+0.9)));
+  const g=new THREE.Group();
+  g.add(partMat(paint,CARPAINTMAT));
+  g.add(partMat(trim,CARTRIMAT));
+  // lights
+  const hy=bottom+0.3;
+  g.add(new THREE.Mesh(mergeGeometries([
+    cgeo(new THREE.BoxGeometry(0.36,0.15,0.09), 0xffffff, V(-T.wid*0.33,hy,T.len/2-0.02)),
+    cgeo(new THREE.BoxGeometry(0.36,0.15,0.09), 0xffffff, V( T.wid*0.33,hy,T.len/2-0.02))],false),
+    new THREE.MeshStandardMaterial({color:0xfff6d2,emissive:0xfff0b4,emissiveIntensity:1.3})));
+  g.add(new THREE.Mesh(mergeGeometries([
+    cgeo(new THREE.BoxGeometry(0.32,0.14,0.08), 0xffffff, V(-T.wid*0.33,hy,-T.len/2+0.01)),
+    cgeo(new THREE.BoxGeometry(0.32,0.14,0.08), 0xffffff, V( T.wid*0.33,hy,-T.len/2+0.01))],false),
+    new THREE.MeshStandardMaterial({color:0xff3a2a,emissive:0xff2010,emissiveIntensity:1.1})));
+  if(T.taxi){
+    const sign=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.22,0.34),
+      new THREE.MeshStandardMaterial({color:0xfff2b0,emissive:0xffd873,emissiveIntensity:1.2}));
+    sign.position.set(0,top+T.ch+0.2,T.co);
+    g.add(sign);
+  }
   g.traverse(o=>{o.castShadow=true;});
   g.position.set(x,0,z); g.rotation.y=yaw;
   scene.add(g);
-  const car={ group:g, pos:new THREE.Vector3(x,0,z), yaw, speed:0, isPlayer:false };
-  return car;
+  return { group:g, pos:new THREE.Vector3(x,0,z), yaw, speed:0, isPlayer:false, len:T.len, wid:T.wid };
 }
 // parked cars along roads near spawn
 function spawnParked(){
-  const spots=[[24,40,0],[40,24,Math.PI/2],[-40,24,Math.PI/2],[24,-40,0],[-24,40,0],[72,24,Math.PI/2],[24,72,0],[-72,-24,Math.PI/2]];
+  const spots=[[24,40,0],[40,24,Math.PI/2],[-40,24,Math.PI/2],[24,-40,0],[-24,40,0],[72,24,Math.PI/2],[24,72,0],[-72,-24,Math.PI/2],[48,24,Math.PI/2],[24,48,0],[-48,-24,Math.PI/2],[0,24,Math.PI/2]];
   for(const [x,z,y] of spots){
-    const c=buildCar(CARCOLS[Math.floor(Math.random()*CARCOLS.length)],x,z,y);
+    const t=CARKEYS[Math.floor(Math.random()*CARKEYS.length)];
+    const c=buildCar(t, CARCOLS[Math.floor(Math.random()*CARCOLS.length)], x,z,y);
     cars.push(c);
-    addSolid(x,z,2.2,4.4);
+    addSolid(x,z,2.2,4.6);
   }
 }
 spawnParked();
@@ -643,7 +700,8 @@ function spawnTraffic(n){
     const dir=Math.random()<0.5?1:-1;
     const line=ROAD[Math.floor(Math.random()*ROAD.length)];
     const col=CARCOLS[Math.floor(Math.random()*CARCOLS.length)];
-    const car=buildCar(col,0,0,0);
+    const ttype=CARKEYS[Math.floor(Math.random()*CARKEYS.length)];
+    const car=buildCar(ttype,col,0,0,0);
     const start=ROAD[Math.floor(Math.random()*ROAD.length)]+rnd(-30,30);
     const t={ car, alongZ, dir, line, base:rnd(7,13), speed:rnd(6,11), axial:start, next:null };
     t.next=nextRoadAhead(start,dir);
@@ -703,7 +761,7 @@ function updateTraffic(dt, t){
     placeTraffic(t2);
   }
 }
-spawnTraffic(12);
+spawnTraffic(30);
 
 /* ============================================================
    PEDESTRIANS (robbable NPCs)
@@ -1074,7 +1132,7 @@ function buy(id){
   else if(it.id==='snack'){ toast('☕ Nice. +morale'); }
   else if(it.id==='scooter'||it.id==='sedan'){
     S.ownedCar=true;
-    const c=buildCar(it.id==='sedan'?0x3fa9f5:0x9fd6ff, player.pos.x+4, player.pos.z+4, player.yaw);
+    const c=buildCar(it.id==='sedan'?'sedan':'hatch', it.id==='sedan'?0x3fa9f5:0x9fd6ff, player.pos.x+4, player.pos.z+4, player.yaw);
     cars.push(c);
     toast('🚗 Your '+it.name+' is parked right there!');
   }
