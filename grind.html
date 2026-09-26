@@ -636,10 +636,12 @@ function buildHumanoid({shirt=0xe3644f, pants=0x2b3a55, skin=0xe9b98c, hair=0x2a
     const sh=new THREE.Group(); sh.position.set(sx*0.335,1.74,0);
     sh.add(part([ cgeo(caps(0.122,0.14), shirt, V(0,-0.20,0)) ]));         // upper arm
     const elbow=new THREE.Group(); elbow.position.set(0,-0.40,0);
-    const p=[ cgeo(caps(0.104,0.16), shirt, V(0,-0.14,0)) ];               // forearm
-    if(hands) p.push(cgeo(ball(0.130,10), skin, V(0,-0.31,0.01), V(1,0.9,0.75)));
-    elbow.add(part(p)); sh.add(elbow);
-    sh.userData.elbow=elbow;
+    elbow.add(part([ cgeo(caps(0.104,0.16), shirt, V(0,-0.14,0)) ]));      // forearm
+    const wrist=new THREE.Group(); wrist.position.set(0,-0.29,0);
+    if(hands) wrist.add(part([ cgeo(ball(0.128,10), skin, V(0,-0.03,0.01), V(1,0.9,0.75)) ])); // hand
+    else      wrist.add(part([ cgeo(caps(0.098,0.05), skin, V(0,-0.03,0)) ]));                 // bare cuff
+    elbow.add(wrist); sh.add(elbow);
+    sh.userData.elbow=elbow; elbow.userData.wrist=wrist;
     return sh;
   }
   const legL=leg(-1), legR=leg(1), armL=arm(-1), armR=arm(1);
@@ -647,7 +649,8 @@ function buildHumanoid({shirt=0xe3644f, pants=0x2b3a55, skin=0xe9b98c, hair=0x2a
   g.userData.limbs={ legL,legR,armL,armR,
                      kneeL:legL.userData.knee, kneeR:legR.userData.knee,
                      ankleL:legL.userData.ankle, ankleR:legR.userData.ankle,
-                     elbowL:armL.userData.elbow, elbowR:armR.userData.elbow };
+                     elbowL:armL.userData.elbow, elbowR:armR.userData.elbow,
+                     wristL:armL.userData.elbow.userData.wrist, wristR:armR.userData.elbow.userData.wrist };
   g.userData.body=body;
   g.userData.humanoid=true;
   if(scale!==1) g.scale.setScalar(scale);
@@ -677,12 +680,20 @@ function animateWalk(g, phase, amt, run){
   const ankOf=(sw)=> (0.34*Math.max(0,sw) - 0.30*Math.max(0,-sw))*amt;
   L.ankleL.rotation.x = ankOf(swL);
   L.ankleR.rotation.x = ankOf(swR);
-  // ---- arms: counter-swing from the shoulder, tucked slightly to the body ----
-  const AA = 1.00 + 0.28*R;
-  L.armL.rotation.x = -swL*AA*amt;     L.armR.rotation.x = -swR*AA*amt;
-  L.armL.rotation.z =  0.10*amt;       L.armR.rotation.z = -0.10*amt;
-  const elbBend=()=> (0.95 + 0.45*Math.abs(c) + 0.20*R)*amt + 0.10*(1-amt);   // ~90deg, breathing
-  L.elbowL.rotation.x = -elbBend();    L.elbowR.rotation.x = -elbBend();
+  // ---- arms: swing from the shoulder in BOTH axes, plus lateral sway so they
+  //      are not locked to the body. Sign: for the LEFT arm (at -x) a NEGATIVE
+  //      z-rotation swings the hand AWAY from the torso; the right arm mirrors.
+  const AA = 1.05 + 0.35*R;
+  L.armL.rotation.x = -swL*AA*amt;   L.armR.rotation.x = -swR*AA*amt;
+  const splay=(0.11 + 0.17*R)*amt, sway=c*0.07*amt;
+  L.armL.rotation.z = -splay - sway;
+  L.armR.rotation.z =  splay - sway;
+  const elbBend=()=> (0.95 + 0.45*Math.abs(c) + 0.20*R)*amt + 0.30*(1-amt);
+  L.elbowL.rotation.x = -elbBend();   L.elbowR.rotation.x = -elbBend();
+  // hands drag a beat behind the forearm (overlapping action)
+  if(L.wristL){ const w=0.22*Math.sin(phase-0.75); L.wristL.rotation.x = w*amt; L.wristR.rotation.x = -w*amt; }
+  // legs splay a hair outward instead of sitting on the centre seam
+  L.legL.rotation.z =  0.05*amt;   L.legR.rotation.z = -0.05*amt;
   // ---- torso: forward lean + bob + shoulder/hip counter-rotation ----
   const B=g.userData.body;
   if(B){
@@ -719,8 +730,10 @@ function poseJump(g, h, rising){
   L.kneeL.rotation.x = knee*0.85;   L.kneeR.rotation.x = knee*0.55 + 0.15;
   L.ankleL.rotation.x = ankle;      L.ankleR.rotation.x = ankle*0.6;
   L.armL.rotation.x = arm;          L.armR.rotation.x = arm*0.85 - 0.15;
-  L.armL.rotation.z = 0.14;         L.armR.rotation.z = -0.14;
+  L.armL.rotation.z = -0.24;        L.armR.rotation.z = 0.24;   // arms out for balance
   L.elbowL.rotation.x = elbow;      L.elbowR.rotation.x = elbow*0.85;
+  if(L.wristL){ L.wristL.rotation.x=-0.25*k; L.wristR.rotation.x=-0.18*k; }
+  L.legL.rotation.z = 0.05;         L.legR.rotation.z = -0.05;
   const B=g.userData.body;
   if(B){ B.rotation.x=lean; B.rotation.y=0; B.rotation.z=0; B.position.y=0.95+dy; }
 }
@@ -732,8 +745,10 @@ function poseLand(g, t){
   L.kneeL.rotation.x = 1.05*a;  L.kneeR.rotation.x = 0.85*a;
   L.ankleL.rotation.x = -0.35*a; L.ankleR.rotation.x = -0.28*a;
   L.armL.rotation.x = 0.35*a;   L.armR.rotation.x = 0.28*a;
-  L.armL.rotation.z = 0.16*a;   L.armR.rotation.z = -0.16*a;
+  L.armL.rotation.z = -0.30*a;  L.armR.rotation.z = 0.30*a;    // arms out to catch balance
   L.elbowL.rotation.x = -0.85*a; L.elbowR.rotation.x = -0.70*a;
+  if(L.wristL){ L.wristL.rotation.x=-0.30*a; L.wristR.rotation.x=-0.22*a; }
+  L.legL.rotation.z = 0.05*(1-a*0.5); L.legR.rotation.z = -0.05*(1-a*0.5);
   const B=g.userData.body; if(B){ B.rotation.x=0.22*a; B.rotation.y=0; B.rotation.z=0; B.position.y=0.95-0.24*a; }
 }
 function idlePose(g){
@@ -742,8 +757,10 @@ function idlePose(g){
   L.kneeL.rotation.x=0.04; L.kneeR.rotation.x=0.04;
   L.ankleL.rotation.x=0; L.ankleR.rotation.x=0;
   L.armL.rotation.x=0; L.armR.rotation.x=0;
-  L.armL.rotation.z=0.06; L.armR.rotation.z=-0.06;
+  L.armL.rotation.z=-0.09; L.armR.rotation.z=0.09;   // relaxed, just clear of the body
   L.elbowL.rotation.x=-0.14; L.elbowR.rotation.x=-0.14;
+  if(L.wristL){ L.wristL.rotation.x=0.05; L.wristR.rotation.x=0.05; }
+  L.legL.rotation.z=0.02; L.legR.rotation.z=-0.02;
   const B=g.userData.body; if(B){ B.rotation.set(0.02,0,0); B.position.y=0.95; }
 }
 function buildPlayer(){
@@ -818,10 +835,12 @@ function buildCar(type, col, x, z, yaw=0){
     cgeo(new THREE.BoxGeometry(0.36,0.15,0.09), 0xffffff, V(-T.wid*0.33,hy,T.len/2-0.02)),
     cgeo(new THREE.BoxGeometry(0.36,0.15,0.09), 0xffffff, V( T.wid*0.33,hy,T.len/2-0.02))],false),
     new THREE.MeshStandardMaterial({color:0xfff6d2,emissive:0xfff0b4,emissiveIntensity:1.3})));
+  const tailMat=new THREE.MeshStandardMaterial({color:0xff3a2a,emissive:0xff2010,emissiveIntensity:1.1});
   g.add(new THREE.Mesh(mergeGeometries([
     cgeo(new THREE.BoxGeometry(0.32,0.14,0.08), 0xffffff, V(-T.wid*0.33,hy,-T.len/2+0.01)),
     cgeo(new THREE.BoxGeometry(0.32,0.14,0.08), 0xffffff, V( T.wid*0.33,hy,-T.len/2+0.01))],false),
-    new THREE.MeshStandardMaterial({color:0xff3a2a,emissive:0xff2010,emissiveIntensity:1.1})));
+    tailMat));
+  g.userData.tailMat=tailMat;
   if(T.taxi){
     const sign=new THREE.Mesh(new THREE.BoxGeometry(0.6,0.22,0.34),
       new THREE.MeshStandardMaterial({color:0xfff2b0,emissive:0xffd873,emissiveIntensity:1.2}));
@@ -831,7 +850,7 @@ function buildCar(type, col, x, z, yaw=0){
   g.traverse(o=>{o.castShadow=true;});
   g.position.set(x,0,z); g.rotation.y=yaw;
   scene.add(g);
-  return { group:g, pos:new THREE.Vector3(x,0,z), yaw, speed:0, isPlayer:false, len:T.len, wid:T.wid };
+  return { group:g, pos:new THREE.Vector3(x,0,z), yaw, speed:0, isPlayer:false, len:T.len, wid:T.wid, tailMat };
 }
 // parked cars along roads near spawn
 function spawnParked(){
@@ -857,6 +876,9 @@ const HALF_ROAD=8;                 // road half-width (blocks are 32 wide, gaps 
    TRAFFIC LIGHTS + CROSSWALKS
    ============================================================ */
 const LIGHT_PERIOD=13;             // seconds for a full cycle
+const COMMIT_DIST=16;              // stop line sits this far before the junction centre.
+                                   // Crosswalk spans 9-13m, so stopping at >=16m keeps cars
+                                   // clear of the stripes. Inside 16m you're COMMITTED.
 const INTERSECTIONS=[];            // {x,z,off,zLamps,xLamps}
 const INTER_MAP=new Map();         // "x,z" -> intersection
 const CROSSWALKS=[];               // {x0,x1,z0,z1,axis}
@@ -981,11 +1003,20 @@ function updateTraffic(dt, t){
       if(inter){
         const st=lightState(inter, t);
         const sig = t2.alongZ ? st.z : st.x;
-        const dist=(t2.next - t2.axial)*t2.dir;      // >0 = still approaching
-        if(dist>0 && dist<9 && (sig==='red' || (sig==='amber' && dist<4))) target=0;
+        const approach=(t2.next - t2.axial)*t2.dir;   // >0 = still approaching the junction
+        // Dilemma zone: inside COMMIT_DIST a car must clear the junction, never stop in it.
+        if(approach<=COMMIT_DIST) t2.committed=true;
+        else if(approach>COMMIT_DIST+8) t2.committed=false;
+        const mustYield = (sig==='red') || (sig==='amber' && approach<COMMIT_DIST+12);
+        // Brake to a smooth halt AT the stop line (not slam at the last second): the
+        // target speed tapers to 0 as we reach COMMIT_DIST, so cars settle ~16m out.
+        if(!t2.committed && approach>0 && mustYield)
+          target=Math.min(target, Math.max(0, (approach-COMMIT_DIST)*0.9));
       }
     }
-    t2.speed += (target-t2.speed)*Math.min(1,4*dt);
+    t2.speed += (target-t2.speed)*Math.min(1,(target<t2.speed?7:4)*dt);
+    // brake lights glow when slowing/stopped
+    if(c.tailMat) c.tailMat.emissiveIntensity = (target<t2.speed-0.4 || t2.speed<1.5) ? 3.0 : 1.1;
     // keep a gap: don't rear-end the car ahead in the same lane
     let gap=Infinity;
     for(const o of TRAFFIC){
