@@ -594,67 +594,157 @@ const player = { pos:new THREE.Vector3(24,0,40), yaw:0, vel:new THREE.Vector3(),
 target (`yaw=Math.atan2(dx,dz)`), so eyes/brim/shoes/nose must live on +Z
 or the character moonwalks. (Fixed 2026-09-26 — Jaden spotted peds
 walking backwards on video.) */
+/* Humanoid rig. Modelled FACING +Z (movement aims +Z at the target).
+   Joint chain: hip -> knee -> ankle -> foot, shoulder -> elbow -> forearm -> hand.
+   Pivot groups let us pose real joints, not flapping sticks. */
 function buildHumanoid({shirt=0xe3644f, pants=0x2b3a55, skin=0xe9b98c, hair=0x2a201a,
                         cap=null, hands=true, scale=1, longHair=false, shoe=0x1c1f26, capcol=null}={}){
   const g=new THREE.Group();
   const capCol = capcol || cap;
-  // ---------- body (static: torso, pelvis, shoulders, neck, head, hair) ----------
-  const body=[];
-  body.push(cgeo(caps(0.30,0.60), shirt, V(0,1.42,0), V(1.06,1,0.80)));  // torso
-  body.push(cgeo(ball(0.30), pants, V(0,0.99,0), V(1.12,0.62,0.86)));     // pelvis (bridges waist)
-  body.push(cgeo(ball(0.16), shirt, V(-0.30,1.70,0), V(1,1,0.86)));        // shoulder L
-  body.push(cgeo(ball(0.16), shirt, V( 0.30,1.70,0), V(1,1,0.86)));        // shoulder R
-  body.push(cgeo(caps(0.105,0.10), skin, V(0,2.00,0)));                   // neck
-  body.push(cgeo(ball(0.235,11), skin, V(0,2.24,0), V(1,1.12,1)));        // head
-  body.push(cgeo(ball(0.248,11), capCol||hair, V(0,2.30,-0.015), V(1,0.98,1)));
-  if(longHair) body.push(cgeo(ball(0.20,10), hair, V(0,2.06,-0.13), V(1.05,1.25,1)));
-  if(capCol)   body.push(cgeo(ball(0.20,10), capCol, V(0,2.38,0.14), V(1,0.35,1.3))); // cap brim
-  body.push(cgeo(ball(0.055,8), skin, V(0,2.21,0.215), V(1,0.75,1.1)));            // nose (front)
-  body.push(cgeo(ball(0.032,8), 0x141414, V(-0.085,2.27,0.212), V(1,1.15,0.7)));  // eye L
-  body.push(cgeo(ball(0.032,8), 0x141414, V( 0.085,2.27,0.212), V(1,1.15,0.7)));  // eye R
-  const bodyMesh=part(body); g.add(bodyMesh);
-  // ---------- legs (thigh pivots at hip, shin+knee pivots at knee) ----------
+  // ---------- torso group, pivot at the hip line (lets the whole upper body
+  //            lean / bob / counter-rotate as one) ----------
+  const body=new THREE.Group(); body.position.set(0,0.95,0); g.add(body);
+  const torso=[];
+  torso.push(cgeo(ball(0.30), pants, V(0,0.02,0), V(1.12,0.64,0.86)));    // pelvis
+  torso.push(cgeo(caps(0.30,0.58), shirt, V(0,0.47,0), V(1.06,1,0.80)));  // chest
+  torso.push(cgeo(ball(0.16), shirt, V(-0.30,0.75,0), V(1,1,0.86)));       // shoulder L
+  torso.push(cgeo(ball(0.16), shirt, V( 0.30,0.75,0), V(1,1,0.86)));       // shoulder R
+  torso.push(cgeo(caps(0.105,0.10), skin, V(0,1.05,0)));                  // neck
+  torso.push(cgeo(ball(0.235,11), skin, V(0,1.29,0), V(1,1.12,1)));       // head
+  torso.push(cgeo(ball(0.248,11), capCol||hair, V(0,1.35,-0.015), V(1,0.98,1)));
+  if(longHair) torso.push(cgeo(ball(0.20,10), hair, V(0,1.11,-0.13), V(1.05,1.25,1)));
+  if(capCol)   torso.push(cgeo(ball(0.20,10), capCol, V(0,1.43,0.14), V(1,0.35,1.3))); // cap brim (+Z)
+  torso.push(cgeo(ball(0.055,8), skin, V(0,1.26,0.215), V(1,0.75,1.1)));            // nose (+Z)
+  torso.push(cgeo(ball(0.032,8), 0x141414, V(-0.085,1.32,0.212), V(1,1.15,0.7)));   // eye L
+  torso.push(cgeo(ball(0.032,8), 0x141414, V( 0.085,1.32,0.212), V(1,1.15,0.7)));   // eye R
+  body.add(part(torso));
+  // ---------- leg: hip -> thigh -> knee -> shin -> ankle -> foot ----------
   function leg(sx){
-    const p=new THREE.Group(); p.position.set(sx*0.17,0.95,0);
-    p.add(part([ cgeo(caps(0.150,0.32), pants, V(0,-0.31,0)) ]));      // thigh
-    const knee=new THREE.Group(); knee.position.set(0,-0.55,0);
-    knee.add(part([ cgeo(caps(0.118,0.22), pants, V(0,-0.15,0)),       // shin
-                    cgeo(ball(0.155), shoe, V(0,-0.27,0.06), V(1,0.5,1.5)) ])); // shoe (toe forward)
-    p.add(knee); p.userData.knee=knee;
-    return p;
+    const hip=new THREE.Group(); hip.position.set(sx*0.155,0.95,0);
+    hip.add(part([ cgeo(caps(0.150,0.24), pants, V(0,-0.28,0)) ]));        // thigh
+    const knee=new THREE.Group(); knee.position.set(0,-0.54,0);
+    knee.add(part([ cgeo(caps(0.116,0.16), pants, V(0,-0.19,0)) ]));       // shin
+    const ankle=new THREE.Group(); ankle.position.set(0,-0.38,0);
+    ankle.add(part([ cgeo(ball(0.098), skin, V(0,-0.01,0), V(1,0.85,1)),   // ankle
+                     cgeo(ball(0.112), shoe, V(0,-0.055,0.075), V(1.05,0.5,1.75)) ])); // foot (toe +Z)
+    knee.add(ankle); hip.add(knee);
+    hip.userData.knee=knee; hip.userData.ankle=ankle;
+    return hip;
   }
-  // ---------- arms (upper pivots at shoulder, forearm pivots at elbow) ----------
+  // ---------- arm: shoulder -> upper -> elbow -> forearm -> hand ----------
   function arm(sx){
-    const p=new THREE.Group(); p.position.set(sx*0.345,1.80,0);
-    p.add(part([ cgeo(caps(0.122,0.18), shirt, V(0,-0.21,0)) ]));      // upper arm
-    const elbow=new THREE.Group(); elbow.position.set(0,-0.42,0);
-    const parts=[ cgeo(caps(0.104,0.20), shirt, V(0,-0.15,0)) ];       // forearm
-    if(hands) parts.push(cgeo(ball(0.132,10), skin, V(0,-0.34,0.0), V(1,0.9,0.75)));
-    elbow.add(part(parts));
-    p.add(elbow); p.userData.elbow=elbow;
-    return p;
+    const sh=new THREE.Group(); sh.position.set(sx*0.335,1.74,0);
+    sh.add(part([ cgeo(caps(0.122,0.14), shirt, V(0,-0.20,0)) ]));         // upper arm
+    const elbow=new THREE.Group(); elbow.position.set(0,-0.40,0);
+    const p=[ cgeo(caps(0.104,0.16), shirt, V(0,-0.14,0)) ];               // forearm
+    if(hands) p.push(cgeo(ball(0.130,10), skin, V(0,-0.31,0.01), V(1,0.9,0.75)));
+    elbow.add(part(p)); sh.add(elbow);
+    sh.userData.elbow=elbow;
+    return sh;
   }
   const legL=leg(-1), legR=leg(1), armL=arm(-1), armR=arm(1);
   g.add(legL,legR,armL,armR);
-  g.userData.limbs={legL,legR,armL,armR};
-  g.userData.body=bodyMesh;
+  g.userData.limbs={ legL,legR,armL,armR,
+                     kneeL:legL.userData.knee, kneeR:legR.userData.knee,
+                     ankleL:legL.userData.ankle, ankleR:legR.userData.ankle,
+                     elbowL:armL.userData.elbow, elbowR:armR.userData.elbow };
+  g.userData.body=body;
+  g.userData.humanoid=true;
   if(scale!==1) g.scale.setScalar(scale);
   return g;
 }
-/* Proper walk/run cycle: hip swing + knee lift on the back leg + counter-swinging
-   arms with bent elbows + a slight forward body lean. amt 0 = idle, 1 = full. */
-function animateWalk(g, phase, amt){
+/* Run/walk cycle with real joint articulation:
+   - hips swing, knees FOLD on the swing-through leg, ankles roll (toe-off / toe-up)
+   - arms swing opposite the legs, elbows held bent and breathing
+   - torso leans forward, bobs, and counter-rotates against the hips
+   amt 0 = idle .. 1 = full run */
+function animateWalk(g, phase, amt, run){
   const L=g.userData.limbs; if(!L) return;
   amt = amt===undefined?1:amt;
-  const s=Math.sin(phase);
-  const sw=s*0.72*amt;
-  L.legL.rotation.x =  sw;   L.legR.rotation.x = -sw;      // + = leg back
-  if(L.legL.userData.knee) L.legL.userData.knee.rotation.x = 0.06 + 0.95*Math.max(0,  s)*amt; // heel kicks up behind
-  if(L.legR.userData.knee) L.legR.userData.knee.rotation.x = 0.06 + 0.95*Math.max(0, -s)*amt;
-  L.armL.rotation.x = -sw*0.82;  L.armR.rotation.x = sw*0.82;
-  if(L.armL.userData.elbow) L.armL.userData.elbow.rotation.x = -(0.22 + 0.55*Math.max(0,  s)*amt);
-  if(L.armR.userData.elbow) L.armR.userData.elbow.rotation.x = -(0.22 + 0.55*Math.max(0, -s)*amt);
-  if(g.userData.body) g.userData.body.rotation.x = 0.10*amt;   // lean into the run
+  const R = clamp(run||0, 0, 1);            // 0 = walk, 1 = sprint (bigger stride + lean)
+  const s=Math.sin(phase), c=Math.cos(phase);
+  const swL=s, swR=-s;
+  // ---- hips ----
+  const A = 0.80 + 0.38*R;
+  L.legL.rotation.x =  swL*A*amt;
+  L.legR.rotation.x =  swR*A*amt;
+  // ---- knees: fold hard when the leg swings forward through the air ----
+  const kneeOf=(sw)=>{ const fold=Math.max(0,-sw), push=Math.max(0,sw);
+                       return (0.10 + (1.40+0.35*R)*fold*fold + 0.30*push*Math.max(0,c))*amt + 0.04*(1-amt); };
+  L.kneeL.rotation.x = kneeOf(swL);
+  L.kneeR.rotation.x = kneeOf(swR);
+  // ---- ankles: point the toe on push-off, lift the toe as the leg swings through ----
+  const ankOf=(sw)=> (0.34*Math.max(0,sw) - 0.30*Math.max(0,-sw))*amt;
+  L.ankleL.rotation.x = ankOf(swL);
+  L.ankleR.rotation.x = ankOf(swR);
+  // ---- arms: counter-swing from the shoulder, tucked slightly to the body ----
+  const AA = 1.00 + 0.28*R;
+  L.armL.rotation.x = -swL*AA*amt;     L.armR.rotation.x = -swR*AA*amt;
+  L.armL.rotation.z =  0.10*amt;       L.armR.rotation.z = -0.10*amt;
+  const elbBend=()=> (0.95 + 0.45*Math.abs(c) + 0.20*R)*amt + 0.10*(1-amt);   // ~90deg, breathing
+  L.elbowL.rotation.x = -elbBend();    L.elbowR.rotation.x = -elbBend();
+  // ---- torso: forward lean + bob + shoulder/hip counter-rotation ----
+  const B=g.userData.body;
+  if(B){
+    B.rotation.x = (0.05 + 0.13*amt + 0.11*R*amt);   // lean harder the faster you go
+    B.rotation.y = -s*0.12*amt;                      // shoulders twist opposite the hips
+    B.rotation.z =  c*0.06*amt;                      // slight roll
+    B.position.y = 0.95 + (0.02 + 0.04*Math.abs(c))*amt;   // vertical bob
+  }
+}
+/* Airborne jump pose: extend off the ground, tuck at the apex, reach down and
+   absorb on landing. Driven by height + whether we're rising/falling. */
+function poseJump(g, h, rising){
+  const L=g.userData.limbs; if(!L) return;
+  const k=clamp(h,0,1);                 // 0 = just took off / about to land, 1 = apex
+  let hip,knee,ankle,arm,elbow,lean,dy;
+  if(rising){                           // push-off -> tuck as we rise
+    hip  = 0.55 - 1.35*k;
+    knee = 0.35 + 1.05*k;
+    ankle= 0.45 - 0.60*k;
+    arm  = 0.55 - 1.85*k;
+    elbow= -0.35 - 0.95*k;
+    lean = 0.22 - 0.30*k;
+    dy   = 0.02*k;
+  } else {                              // falling -> legs reach down to land
+    hip  = -0.80 + 0.95*k;
+    knee = 1.30 - 0.75*k;
+    ankle= -0.20 + 0.10*k;
+    arm  = -1.20 + 1.00*k;
+    elbow= -1.30 + 0.60*k;
+    lean = 0.02 + 0.10*k;
+    dy   = -0.06*k;
+  }
+  L.legL.rotation.x = hip;          L.legR.rotation.x = hip*0.80 + 0.12;   // slight stride offset
+  L.kneeL.rotation.x = knee*0.85;   L.kneeR.rotation.x = knee*0.55 + 0.15;
+  L.ankleL.rotation.x = ankle;      L.ankleR.rotation.x = ankle*0.6;
+  L.armL.rotation.x = arm;          L.armR.rotation.x = arm*0.85 - 0.15;
+  L.armL.rotation.z = 0.14;         L.armR.rotation.z = -0.14;
+  L.elbowL.rotation.x = elbow;      L.elbowR.rotation.x = elbow*0.85;
+  const B=g.userData.body;
+  if(B){ B.rotation.x=lean; B.rotation.y=0; B.rotation.z=0; B.position.y=0.95+dy; }
+}
+/* Landing crouch: knees bend + torso dips to absorb the impact. t 1 -> 0. */
+function poseLand(g, t){
+  const L=g.userData.limbs; if(!L) return;
+  const a=clamp(t,0,1);
+  L.legL.rotation.x = -0.30*a;  L.legR.rotation.x = -0.22*a;
+  L.kneeL.rotation.x = 1.05*a;  L.kneeR.rotation.x = 0.85*a;
+  L.ankleL.rotation.x = -0.35*a; L.ankleR.rotation.x = -0.28*a;
+  L.armL.rotation.x = 0.35*a;   L.armR.rotation.x = 0.28*a;
+  L.armL.rotation.z = 0.16*a;   L.armR.rotation.z = -0.16*a;
+  L.elbowL.rotation.x = -0.85*a; L.elbowR.rotation.x = -0.70*a;
+  const B=g.userData.body; if(B){ B.rotation.x=0.22*a; B.rotation.y=0; B.rotation.z=0; B.position.y=0.95-0.24*a; }
+}
+function idlePose(g){
+  const L=g.userData.limbs; if(!L) return;
+  L.legL.rotation.x=0; L.legR.rotation.x=0;
+  L.kneeL.rotation.x=0.04; L.kneeR.rotation.x=0.04;
+  L.ankleL.rotation.x=0; L.ankleR.rotation.x=0;
+  L.armL.rotation.x=0; L.armR.rotation.x=0;
+  L.armL.rotation.z=0.06; L.armR.rotation.z=-0.06;
+  L.elbowL.rotation.x=-0.14; L.elbowR.rotation.x=-0.14;
+  const B=g.userData.body; if(B){ B.rotation.set(0.02,0,0); B.position.y=0.95; }
 }
 function buildPlayer(){
   const g=buildHumanoid({ shirt:0xe3644f, pants:0x2b3a55, hands:true });
@@ -1091,12 +1181,12 @@ const SHOP = [
    ============================================================ */
 const keys={};
 /* ---------- run + jump state ---------- */
-let jumpY=0, jumpV=0, sprint=false;
+let jumpY=0, jumpV=0, sprint=false, landT=0;
 const jumpBtnEl=document.getElementById('jumpBtn'), sprintBtnEl=document.getElementById('sprintBtn');
 function tryJump(){
   if(!player.onFoot) return;
   if(jumpY>0.02) return;               // already airborne
-  jumpV=6.7; jumpY=0.001;
+  jumpV=6.7; jumpY=0.001; landT=0;
 }
 function setSprint(on){ sprint=on; sprintBtnEl.classList.toggle('hot',on); }
 addEventListener('keydown',e=>{ keys[e.code]=true; if(e.code==='KeyE') doAction(); if(e.code==='KeyP') togglePhone();
@@ -1464,12 +1554,19 @@ function updatePlayer(dt){
   // jump: simple ballistic arc
   if(jumpY>0 || jumpV!==0){
     jumpV -= 18*dt; jumpY += jumpV*dt;
-    if(jumpY<=0){ jumpY=0; jumpV=0; }
+    if(jumpY<=0){ jumpY=0; jumpV=0; landT=1; }   // touch down -> landing crouch
   }
   player.group.position.set(player.pos.x, jumpY, player.pos.z);
   player.group.rotation.y = lerpAngle(player.group.rotation.y, player.yaw, Math.min(1,12*dt));
-  // limb swing
-  animateWalk(player.group, player.phase, moving?1:0.06);
+  // limb animation: airborne pose / landing crouch / walk-run cycle
+  if(jumpY>0){
+    poseJump(player.group, jumpY/1.25, jumpV>0);
+  } else if(landT>0.01){
+    landT=Math.max(0, landT-dt*3.2);
+    poseLand(player.group, landT);
+  } else {
+    animateWalk(player.group, player.phase, moving?1:0.10, sprint?1:0);
+  }
 }
 function updateCar(dt){
   if(player.onFoot||!S.car) return;
@@ -1521,7 +1618,7 @@ function updatePeds(dt){
     p._lx=p.pos.x; p._lz=p.pos.z;
     p.phase=(p.phase||0) + moved*9 + dt*0.7;
     animateWalk(p.group, p.phase, moved>0.0008?1:0.12);
-    p.group.position.set(p.pos.x, Math.abs(Math.sin(p.phase))*0.05, p.pos.z);
+    p.group.position.set(p.pos.x, 0, p.pos.z);
     p.group.rotation.y=p.yaw;
   }
 }
@@ -1654,7 +1751,7 @@ addEventListener('resize',()=>{
 if('ontouchstart' in window || innerWidth<900) joyEl.classList.add('show');
 
 /* expose for debugging/testing */
-window.GRIND = { S, PLACES, player, cars, peds, cops, traffic:TRAFFIC, cam, camera, scene, THREE, solids, INTERSECTIONS, CROSSWALKS, ROAD, lightState, onRoad, inCrosswalk, walkable, startShift, applyJob, buy, addHeat, doAction, enterCar, exitCar, MG, openPhone, selectTab, nearestTarget, usePlace, mug, tryJump, setSprint, get jumpY(){return jumpY;}, get sprint(){return sprint;}, get nearTarget(){return nearTarget;} };
+window.GRIND = { S, PLACES, player, cars, peds, cops, traffic:TRAFFIC, cam, camera, scene, THREE, solids, INTERSECTIONS, CROSSWALKS, ROAD, lightState, onRoad, inCrosswalk, walkable, startShift, applyJob, buy, addHeat, doAction, enterCar, exitCar, MG, openPhone, selectTab, nearestTarget, usePlace, mug, tryJump, setSprint, animateWalk, poseJump, poseLand, idlePose, get jumpY(){return jumpY;}, get sprint(){return sprint;}, get nearTarget(){return nearTarget;} };
 </script>
 </body>
 </html>
