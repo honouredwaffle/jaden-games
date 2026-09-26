@@ -764,10 +764,11 @@ function updateTraffic(dt, t){
         t2.axial = t2.next;                        // snap onto the intersection
         const inter = t2.next, oldLine = t2.line;
         if(Math.random()<0.45){                  // maybe turn onto the crossing road
-          t2.alongZ = !t2.alongZ;
-          t2.line = inter;
-          t2.dir = Math.random()<0.5?1:-1;
-          t2.axial = oldLine;                     // start along the new direction from where we were
+          const nAlongZ=!t2.alongZ, nLine=inter, nDir=Math.random()<0.5?1:-1, nAxial=oldLine;
+          // only turn if that lane slot is clear — never teleport on top of another car
+          if(laneClear(nAlongZ,nLine,nDir,nAxial,t2)){
+            t2.alongZ=nAlongZ; t2.line=nLine; t2.dir=nDir; t2.axial=nAxial;
+          }
         }
         t2.next = nextRoadAhead(t2.axial, t2.dir);
         if(t2.next===null){ t2.axial = t2.dir>0? ROAD[0]-3 : ROAD[ROAD.length-1]+3; t2.next=nextRoadAhead(t2.axial,t2.dir); }
@@ -775,8 +776,41 @@ function updateTraffic(dt, t){
     }
     placeTraffic(t2);
   }
+  separateTraffic();
+}
+/* is a spot in a given lane clear of other cars? */
+function laneClear(alongZ,line,dir,axial,self){
+  const minSep=6.5;
+  for(const o of TRAFFIC){
+    if(o===self || o.stolen) continue;
+    if(o.alongZ!==alongZ || o.line!==line || o.dir!==dir) continue;
+    if(Math.abs(o.axial-axial)<minSep) return false;
+  }
+  return true;
+}
+/* hard separation: no two same-lane cars may overlap. Push followers back. */
+function separateTraffic(){
+  const lanes={};
+  for(const t of TRAFFIC){
+    if(t.stolen) continue;
+    const k=t.alongZ+'|'+t.line+'|'+t.dir;
+    (lanes[k]=lanes[k]||[]).push(t);
+  }
+  for(const k in lanes){
+    const arr=lanes[k];
+    const dir=arr[0].dir;
+    // order front→back so we can place each follower behind the one ahead
+    arr.sort((a,b)=> dir>0 ? b.axial-a.axial : a.axial-b.axial);
+    for(let i=1;i<arr.length;i++){
+      const lead=arr[i-1], foll=arr[i];
+      const minSep=(lead.car.len+foll.car.len)/2 + 1.2;   // 1.2m bumper gap
+      const gap=(lead.axial-foll.axial)*dir;
+      if(gap<minSep) foll.axial = lead.axial - dir*minSep;
+    }
+  }
 }
 spawnTraffic(30);
+separateTraffic();
 
 /* ============================================================
    PEDESTRIANS (robbable NPCs)
