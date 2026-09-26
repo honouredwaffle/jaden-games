@@ -108,6 +108,7 @@
 <div id="topLeft" class="hud">
   <div class="pill" id="cash">$0</div>
   <div class="pill" id="heat">☆☆☆☆☆</div>
+  <div class="pill" id="energy" style="display:none;color:#ffb84d;">🍔</div>
 </div>
 <div id="objWrap" class="hud">
   <div id="obj"><b>Objective</b><br><span class="sub">Open your phone (📱) and apply for a job.</span></div>
@@ -397,7 +398,15 @@ function buildCity(){
     const kind=special[key];
     if(kind){ buildSpecial(kind,cx,cz); continue; }
     const outer = (Math.abs(i)===2 || Math.abs(j)===2);
-    if(outer){
+    if(outer && Math.abs(i)===2 && Math.abs(j)===2){
+      // ---- commercial corner: a restaurant / takeaway ----
+      const brandKeys=['chicken','pizza','cafe','donut'];
+      const bk=brandKeys[EXTRA_PLACES.length % brandKeys.length];
+      const brand=BRANDS[bk];
+      const w=14+Math.random()*3, d=12+Math.random()*3, h=6.5+Math.random()*1.5;
+      buildShop('food'+EXTRA_PLACES.length, brand, cx, cz, w, d, h, {roofSign:true, warm:bk==='cafe'});
+      EXTRA_PLACES.push({key:'food'+EXTRA_PLACES.length, name:brand.name, x:cx, z:cz, w, d, brand:bk});
+    } else if(outer){
       // ---- suburban ring: houses with lawns + fences ----
       buildHouse(cx-8.6, cz-8.6, 0, seed++);
       buildHouse(cx+8.2, cz-8.2, 0, seed++);
@@ -414,35 +423,152 @@ function buildCity(){
     }
   }
 }
-function buildSpecial(kind, cx, cz){
-  const spec = {
-    store:{ w:16, d:14, h:6,  warm:true,  acc:0xffd9a0, sign:'CORNER STORE',  signCol:'#3a2400', fg:'#7a4a00' },
-    shop:{  w:16, d:16, h:8,  warm:false, acc:0x9affd0, sign:'SHOP',          signCol:'#04321f', fg:'#7dffd6' },
-    police:{w:18, d:16, h:9,  warm:false, acc:0x9fc4ff, sign:'POLICE STATION',signCol:'#0b1c3a', fg:'#bcd6ff' },
-    bank:{  w:18, d:16, h:12, warm:true,  acc:0xf0e2b8, sign:'BANK',          signCol:'#31260a', fg:'#ffd85e' },
-    tower:{ w:20, d:20, h:52, warm:false, acc:0xcfe0ff, sign:'MEGA TOWER',    signCol:'#0b2338', fg:'#eaf6ff' }
-  }[kind];
+/* ============================================================
+   SHOP BRANDS + SIGNAGE
+   Real games can't license real brands, so they invent look-alikes
+   (GTA has "Cluckin' Bell"). Same trick here: fast-food style logos
+   painted ON the buildings — no floating billboards.
+   ============================================================ */
+const BRANDS = {
+  mart:   { name:'24/7 MART',   bg:'#0f7a3d', fg:'#ffffff', accent:'#ffd23d', logo:'basket', roof:0x2f5d3a, wall:0xe8e6df },
+  burger: { name:'BURGER BOSS', bg:'#c8102e', fg:'#fff3c4', accent:'#ffc72c', logo:'arches', roof:0x8a1420, wall:0xf2ede2 },
+  chicken:{ name:'CHICKEN HUT', bg:'#b3121a', fg:'#ffffff', accent:'#ffd23d', logo:'bucket', roof:0x7a1016, wall:0xf0ece4 },
+  cafe:   { name:'BEAN SCENE',  bg:'#3a2a1c', fg:'#f5e2b8', accent:'#c98b3a', logo:'cup',    roof:0x2a1e14, wall:0x8a6448 },
+  pizza:  { name:'SLICE CITY',  bg:'#1d6b3a', fg:'#ffe08a', accent:'#e2382a', logo:'pizza',  roof:0x8a2a1e, wall:0xe6dfd0 },
+  donut:  { name:'DONUT LOOP',  bg:'#e85a9a', fg:'#ffffff', accent:'#5ac8e8', logo:'ring',   roof:0xb03a72, wall:0xf3e6ef },
+  bank:   { name:'BANK',        bg:'#14243d', fg:'#ffd85e', accent:'#ffd85e', logo:'vault',  roof:0x20345a, wall:0xd8cfae },
+  police: { name:'POLICE',      bg:'#0b1c3a', fg:'#bcd6ff', accent:'#3a7bd5', logo:'shield', roof:0x11305e, wall:0x9fc4ff },
+  tower:  { name:'MEGA TOWER',  bg:'#0b2338', fg:'#eaf6ff', accent:'#66e0ff', logo:'tower',  roof:0x39404a, wall:0xcfe0ff }
+};
+function logoGlyph(g, kind, cx, cy, r, accent){
+  g.save(); g.translate(cx,cy);
+  if(kind==='arches'){
+    g.strokeStyle=accent; g.lineWidth=r*0.34; g.lineCap='round';
+    for(const i of [-1,1]){ g.beginPath(); g.arc(i*r*0.48, r*0.18, r*0.55, Math.PI*1.05, Math.PI*1.95); g.stroke(); }
+  } else if(kind==='bucket'){
+    g.fillStyle=accent; g.beginPath(); g.moveTo(-r*0.7,-r*0.4); g.lineTo(r*0.7,-r*0.4); g.lineTo(r*0.5,r*0.72); g.lineTo(-r*0.5,r*0.72); g.closePath(); g.fill();
+    g.strokeStyle='#ffffff'; g.lineWidth=r*0.12; g.beginPath(); g.moveTo(-r*0.62,-r*0.08); g.lineTo(r*0.62,-r*0.08); g.stroke();
+  } else if(kind==='cup'){
+    g.fillStyle=accent; g.beginPath(); g.moveTo(-r*0.52,-r*0.28); g.lineTo(r*0.52,-r*0.28); g.lineTo(r*0.34,r*0.72); g.lineTo(-r*0.34,r*0.72); g.closePath(); g.fill();
+    g.fillStyle='#ffffff'; g.fillRect(-r*0.6,-r*0.42,r*1.2,r*0.16);
+  } else if(kind==='pizza'){
+    g.fillStyle=accent; g.beginPath(); g.moveTo(0,-r*0.72); g.lineTo(r*0.78,r*0.62); g.lineTo(-r*0.78,r*0.62); g.closePath(); g.fill();
+    g.fillStyle='#b3121a';
+    for(const p of [[0,-r*0.12],[-r*0.32,r*0.26],[r*0.32,r*0.26]]){ g.beginPath(); g.arc(p[0],p[1],r*0.13,0,7); g.fill(); }
+  } else if(kind==='ring'){
+    g.strokeStyle=accent; g.lineWidth=r*0.44; g.beginPath(); g.arc(0,0,r*0.56,0,7); g.stroke();
+  } else if(kind==='vault'){
+    g.fillStyle=accent; g.beginPath(); g.arc(0,0,r*0.64,0,7); g.fill();
+    g.fillStyle='#14243d'; g.beginPath(); g.arc(0,0,r*0.34,0,7); g.fill();
+    g.strokeStyle=accent; g.lineWidth=r*0.1; g.beginPath(); g.moveTo(0,0); g.lineTo(r*0.28,-r*0.28); g.stroke();
+  } else if(kind==='shield'){
+    g.fillStyle=accent; g.beginPath(); g.moveTo(0,-r*0.72); g.lineTo(r*0.62,-r*0.4); g.lineTo(r*0.44,r*0.46); g.lineTo(0,r*0.76); g.lineTo(-r*0.44,r*0.46); g.lineTo(-r*0.62,-r*0.4); g.closePath(); g.fill();
+    g.fillStyle='#ffffff'; g.font='bold '+Math.round(r*0.85)+'px sans-serif'; g.textAlign='center'; g.textBaseline='middle'; g.fillText('★',0,r*0.02);
+  } else if(kind==='tower'){
+    g.fillStyle=accent; g.fillRect(-r*0.35,-r*0.7,r*0.7,r*1.4);
+    g.fillStyle='#0b2338';
+    for(let ry=0;ry<4;ry++) for(let rx=0;rx<2;rx++) g.fillRect(-r*0.24+rx*r*0.3,-r*0.56+ry*r*0.32,r*0.18,r*0.2);
+  } else { // basket
+    g.strokeStyle=accent; g.lineWidth=r*0.14; g.strokeRect(-r*0.62,-r*0.24,r*1.24,r*0.72);
+    g.beginPath(); g.arc(0,-r*0.24,r*0.44,Math.PI,0); g.stroke();
+  }
+  g.restore();
+}
+function brandSignTex(brand, W=512, H=256){
+  const c=document.createElement('canvas'); c.width=W; c.height=H; const g=c.getContext('2d');
+  g.fillStyle=brand.bg; g.fillRect(0,0,W,H);
+  g.fillStyle=brand.accent; g.fillRect(0,0,W,9); g.fillRect(0,H-9,W,9);
+  logoGlyph(g, brand.logo, 116, H/2, 74, brand.accent);
+  g.fillStyle=brand.fg; g.textAlign='left'; g.textBaseline='middle';
+  g.font='bold 58px Trebuchet MS, sans-serif';
+  g.fillText(brand.name, 218, H/2, W-238);
+  const t=new THREE.CanvasTexture(c); t.colorSpace=THREE.SRGBColorSpace; t.anisotropy=4;
+  return t;
+}
+const _signMatCache={};
+function signMat(brand){
+  if(_signMatCache[brand.name]) return _signMatCache[brand.name];
+  const tex=brandSignTex(brand);
+  const m=new THREE.MeshStandardMaterial({ map:tex, emissiveMap:tex, emissive:0xffffff,
+                                           emissiveIntensity:0.8, roughness:0.6, metalness:0.0 });
+  _signMatCache[brand.name]=m; return m;
+}
+/* ---------- shop building: sign band wrapped round the ground floor ---------- */
+function buildShop(key, brand, cx, cz, w, d, h, opts={}){
   const grp=new THREE.Group(); grp.position.set(cx,0,cz);
-  const cols=Math.max(3,Math.round(spec.w/2.6)), rows=Math.max(2,Math.round(spec.h/3.0));
-  const body=new THREE.Mesh(new THREE.BoxGeometry(spec.w,spec.h,spec.d), litWindowMat(cols,rows,spec.warm));
-  body.position.y=spec.h/2+0.35; body.castShadow=true; body.receiveShadow=true; grp.add(body);
-  const base=new THREE.Mesh(new THREE.BoxGeometry(spec.w*1.05,1.0,spec.d*1.05),
-    new THREE.MeshStandardMaterial({color:spec.acc,emissive:spec.acc,emissiveIntensity:0.85}));
-  base.position.y=0.85; grp.add(base);
-  const roof=new THREE.Mesh(new THREE.BoxGeometry(spec.w*1.03,0.7,spec.d*1.03),
-    new THREE.MeshStandardMaterial({color:0x39404a,roughness:1}));
-  roof.position.y=spec.h+0.7; grp.add(roof);
+  // body (lit windows) + solid ground floor so the sign band reads
+  const cols=Math.max(3,Math.round(w/2.6)), rows=Math.max(2,Math.round(h/3));
+  const body=new THREE.Mesh(new THREE.BoxGeometry(w,h,d), litWindowMat(cols,rows,opts.warm!==false));
+  body.position.y=h/2+0.35; body.castShadow=true; body.receiveShadow=true; grp.add(body);
+  // parapet / roof trim in the brand's roof colour
+  const roof=new THREE.Mesh(new THREE.BoxGeometry(w*1.03,0.7,d*1.03),
+    new THREE.MeshStandardMaterial({color:brand.roof, roughness:0.9}));
+  roof.position.y=h+0.7; grp.add(roof);
+  // SIGN BAND: one box → the brand sign shows on all four walls
+  const bandH=opts.bandH||2.0, bandY=opts.bandY!==undefined?opts.bandY:(h-1.4);
+  const band=new THREE.Mesh(new THREE.BoxGeometry(w+0.14, bandH, d+0.14), signMat(brand));
+  band.position.y=bandY; grp.add(band);
+  // entrance glass + door on the street side (+z)
+  const ent=new THREE.Mesh(new THREE.BoxGeometry(w*0.42, 2.5, 0.18),
+    new THREE.MeshStandardMaterial({color:0x101820, emissive:0xfff0c0, emissiveIntensity:0.35, roughness:0.3}));
+  ent.position.set(0, 1.6, d/2+0.02); grp.add(ent);
+  // awning
+  if(opts.awning!==false){
+    const aw=new THREE.Mesh(new THREE.BoxGeometry(w*0.72, 0.3, 1.7),
+      new THREE.MeshStandardMaterial({color:brand.accent, emissive:brand.accent, emissiveIntensity:0.25, roughness:0.7}));
+    aw.position.set(0, 3.0, d/2+0.85); grp.add(aw);
+  }
+  // projecting blade sign (sticks out so you can read it down the street)
+  for(const sx of [-1,1]){
+    const blade=new THREE.Mesh(new THREE.BoxGeometry(0.16, bandH*0.85, 1.5), signMat(brand));
+    blade.position.set(sx*(w/2+0.55), bandY, 0); grp.add(blade);
+  }
+  // big roof sign for restaurants (mounted, with posts — not floating)
+  if(opts.roofSign){
+    const panel=new THREE.Mesh(new THREE.BoxGeometry(Math.min(w*1.15, 13), 2.6, 0.3), signMat(brand));
+    panel.position.set(0, h+2.2, d/2-0.4); grp.add(panel);
+    for(const sx of [-1,1]){
+      const post=new THREE.Mesh(new THREE.BoxGeometry(0.2, 1.6, 0.2),
+        new THREE.MeshStandardMaterial({color:0x2a2f36, roughness:0.9}));
+      post.position.set(sx*Math.min(w*0.4,4.5), h+0.9, d/2-0.4); grp.add(post);
+    }
+  }
   scene.add(grp);
-  addSolid(cx,cz,spec.w,spec.d);
-  const lbl=makeLabel(spec.sign, spec.w*0.9, spec.w*0.9*0.22, spec.signCol, spec.fg);
-  lbl.position.set(cx, spec.h*0.62, cz + spec.d/2 + 0.6); scene.add(lbl);
+  addSolid(cx,cz,w,d);
   return { x:cx, z:cz };
+}
+/* fast-food / retail layouts, all different */
+const SHOP_DEFS = {
+  store:  { brand:'mart',    w:15, d:13, h:7,  opts:{roofSign:false} },
+  shop:   { brand:'burger',  w:16, d:15, h:7,  opts:{roofSign:true} },
+  police: { brand:'police',  w:18, d:16, h:12, opts:{warm:false} },
+  bank:   { brand:'bank',    w:18, d:16, h:13, opts:{warm:true} },
+};
+function buildSpecial(kind, cx, cz){
+  if(kind==='tower'){
+    const brand=BRANDS.tower;
+    const height=52;
+    buildTower(cx, cz, 20, 20, height, 'setback', 777);
+    const grp=new THREE.Group(); grp.position.set(cx,0,cz);
+    const panel=new THREE.Mesh(new THREE.BoxGeometry(14, 3.2, 0.4), signMat(brand));
+    panel.position.set(0, height-2, 10.4); grp.add(panel);
+    for(const sx of [-1,1]){
+      const p2=new THREE.Mesh(new THREE.BoxGeometry(0.25,3.4,0.25),
+        new THREE.MeshStandardMaterial({color:0x2a2f36,roughness:0.9}));
+      p2.position.set(sx*6.2, height+1.7, -2.5); grp.add(p2);
+    }
+    scene.add(grp);
+    return { x:cx, z:cz };
+  }
+  const def=SHOP_DEFS[kind];
+  return buildShop(kind, BRANDS[def.brand], cx, cz, def.w, def.d, def.h, def.opts||{});
 }
 
 /* landmarks store for interaction */
 const PLACES = {};
-const PLACE_DIMS = { store:{w:16,d:14}, shop:{w:16,d:16}, police:{w:18,d:16}, bank:{w:18,d:16}, tower:{w:20,d:20} };
+const PLACE_DIMS = { store:{w:15,d:13}, shop:{w:16,d:15}, police:{w:18,d:16}, bank:{w:18,d:16}, tower:{w:20,d:20} };
 const PLACE_KEYS = {'-1,-1':'store','1,1':'shop','-1,1':'police','1,-1':'bank','0,0':'tower'};
+const EXTRA_PLACES = [];                       // restaurants etc, filled by buildCity
 buildCity();
 // register place coords + footprint (used for edge-based interaction range)
 for(let i=-2;i<=2;i++) for(let j=-2;j<=2;j++){
@@ -450,6 +576,7 @@ for(let i=-2;i<=2;i++) for(let j=-2;j<=2;j++){
   const k=PLACE_KEYS[key];
   if(k){ const dim=PLACE_DIMS[k]; PLACES[k]={ x:cx, z:cz, w:dim.w, d:dim.d }; }
 }
+for(const p of EXTRA_PLACES) PLACES[p.key]={ x:p.x, z:p.z, w:p.w, d:p.d };
 
 /* ============================================================
    PLAYER
@@ -917,7 +1044,8 @@ const S = {
   hasSuit: false,
   ownedCar: false,
   activeJob: null,   // {id,name,place}
-  car: null          // currently driven car ref
+  car: null,         // currently driven car ref
+  energy: 0          // restaurant feed buff (seconds of faster movement)
 };
 
 /* ============================================================
@@ -1050,9 +1178,18 @@ function usePlace(k){
     if(job && job.place===k){ startShift(job); }
     else if(k==='store'){ toast('You could apply here — open your phone 📱'); }
     else toast('MEGA TOWER — office jobs live here. Apply on your phone.');
-  } else if(k==='shop'){ openPhone('shop'); }
+  } else if(k==='shop' || k.startsWith('food')){ buyFood(k); }
   else if(k==='bank'){ toast('BANK — a job for later… or a target. 🔒'); }
   else if(k==='police'){ toast('POLICE STATION — apply on your phone to join.'); }
+}
+/* eating at a restaurant gives a temporary energy boost (faster on foot) */
+function buyFood(k){
+  const cost=12;
+  if(S.energy>0){ toast('Still full 🍔 — energy '+Math.ceil(S.energy)+'s'); return; }
+  if(S.cash<cost){ toast('Need $'+cost+' for a feed 😬'); return; }
+  S.cash-=cost; S.energy=45; updateHUD();
+  const brandName = (EXTRA_PLACES.find(p=>p.key===k)||{}).name || 'BURGER BOSS';
+  toast('🍔 Fed at '+brandName+' — energy up! (+speed 45s)');
 }
 
 /* car enter/exit */
@@ -1181,7 +1318,11 @@ function renderPhone(){
     <div class="meta">🚨 Record: <b>${S.arrested?'Arrested before':'Clean'}</b></div>
     <div class="meta">🚗 Vehicle: <b>${S.ownedCar?'Owned':'None'}</b></div></div>`;
 }
-function placeName(k){ return {store:'Corner Store',shop:'Goods Store',bank:'Bank',police:'Police Station',tower:'Mega Tower'}[k]||k; }
+function placeName(k){
+  const base={store:'24/7 Mart',shop:'Burger Boss',bank:'Bank',police:'Police Station',tower:'Mega Tower'}[k];
+  if(base) return base;
+  const x=EXTRA_PLACES.find(p=>p.key===k); return x? x.name : k;
+}
 function applyJob(id){
   const job=JOBS.find(x=>x.id===id); if(!job) return;
   S.activeJob={ id:job.id, name:job.name, place:job.place };
@@ -1213,6 +1354,9 @@ function updateHUD(){
   const h=document.getElementById('heat');
   h.textContent='★'.repeat(stars)+'☆'.repeat(5-stars);
   h.classList.toggle('hot',stars>=3);
+  const e=document.getElementById('energy');
+  if(e){ if(S.energy>0){ e.textContent='🍔 '+Math.ceil(S.energy)+'s'; e.style.display='inline-block'; }
+         else e.style.display='none'; }
 }
 function updateObjective(){
   const o=document.getElementById('obj');
@@ -1276,7 +1420,8 @@ function collideCircle(px,pz,r){
 function updatePlayer(dt){
   if(!player.onFoot){ jumpY=0; jumpV=0; return; }
   const iv=inputVec();
-  const spd = sprint ? 9.4 : 5.6;                  // RUN = hold Shift / tap the RUN button
+  const boost = S.energy>0 ? 1.35 : 1;             // restaurant feed = faster on foot
+  const spd = (sprint ? 9.4 : 5.6) * boost;         // RUN = hold Shift / tap the RUN button
   // move relative to camera yaw
   const sin=Math.sin(cam.yaw), cos=Math.cos(cam.yaw);
   const wx = iv.x*cos - iv.z*sin;
@@ -1374,6 +1519,9 @@ function busted(){
   bigMsg('BUSTED','Lost $'+fine+' — heat cleared','#ff5d6d');
   updateHUD(); feel(1);
 }
+function updateEnergy(dt){
+  if(S.energy>0){ S.energy=Math.max(0,S.energy-dt); if(S.energy===0) toast('🍔 Energy worn off'); }
+}
 function updateHeat(dt){
   if(S.heatLock>0){ S.heatLock-=dt; return; }
   if(S.heat>0){ S.heat=Math.max(0, S.heat-dt*0.18); if(S.heat<0.02) S.heat=0; }
@@ -1418,6 +1566,7 @@ function frame(){
   updateTraffic(dt, t);
   updateLights(t);
   updateHeat(dt);
+  updateEnergy(dt);
   updateCamera(dt);
   updateBeam(t);
 
