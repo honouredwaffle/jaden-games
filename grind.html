@@ -590,6 +590,10 @@ const player = { pos:new THREE.Vector3(24,0,40), yaw:0, vel:new THREE.Vector3(),
    + 2 arms), FEWER draw calls than the old boxy version. Limbs stay parented
    to hip/shoulder pivots so the walk cycle still works.
    (cgeo/part/caps/ball/V live in the shared mesh-helpers block above.) */
+/* Humanoid: built FACING +Z. The movement code aims local +Z at the walk
+target (`yaw=Math.atan2(dx,dz)`), so eyes/brim/shoes/nose must live on +Z
+or the character moonwalks. (Fixed 2026-09-26 — Jaden spotted peds
+walking backwards on video.) */
 function buildHumanoid({shirt=0xe3644f, pants=0x2b3a55, skin=0xe9b98c, hair=0x2a201a,
                         cap=null, hands=true, scale=1, longHair=false, shoe=0x1c1f26, capcol=null}={}){
   const g=new THREE.Group();
@@ -602,38 +606,55 @@ function buildHumanoid({shirt=0xe3644f, pants=0x2b3a55, skin=0xe9b98c, hair=0x2a
   body.push(cgeo(ball(0.16), shirt, V( 0.30,1.70,0), V(1,1,0.86)));        // shoulder R
   body.push(cgeo(caps(0.105,0.10), skin, V(0,2.00,0)));                   // neck
   body.push(cgeo(ball(0.235,11), skin, V(0,2.24,0), V(1,1.12,1)));        // head
-  body.push(cgeo(ball(0.248,11), capCol||hair, V(0,2.30,0.015), V(1,0.98,1)));
-  if(longHair) body.push(cgeo(ball(0.20,10), hair, V(0,2.06,0.13), V(1.05,1.25,1)));
-  if(capCol)   body.push(cgeo(ball(0.20,10), capCol, V(0,2.38,-0.14), V(1,0.35,1.3))); // cap brim
-  body.push(cgeo(ball(0.032,8), 0x141414, V(-0.085,2.27,-0.212), V(1,1.15,0.7)));  // eye L
-  body.push(cgeo(ball(0.032,8), 0x141414, V( 0.085,2.27,-0.212), V(1,1.15,0.7)));  // eye R
-  g.add(part(body));
-  // ---------- legs ----------
+  body.push(cgeo(ball(0.248,11), capCol||hair, V(0,2.30,-0.015), V(1,0.98,1)));
+  if(longHair) body.push(cgeo(ball(0.20,10), hair, V(0,2.06,-0.13), V(1.05,1.25,1)));
+  if(capCol)   body.push(cgeo(ball(0.20,10), capCol, V(0,2.38,0.14), V(1,0.35,1.3))); // cap brim
+  body.push(cgeo(ball(0.055,8), skin, V(0,2.21,0.215), V(1,0.75,1.1)));            // nose (front)
+  body.push(cgeo(ball(0.032,8), 0x141414, V(-0.085,2.27,0.212), V(1,1.15,0.7)));  // eye L
+  body.push(cgeo(ball(0.032,8), 0x141414, V( 0.085,2.27,0.212), V(1,1.15,0.7)));  // eye R
+  const bodyMesh=part(body); g.add(bodyMesh);
+  // ---------- legs (thigh pivots at hip, shin+knee pivots at knee) ----------
   function leg(sx){
     const p=new THREE.Group(); p.position.set(sx*0.17,0.95,0);
-    p.add(part([ cgeo(caps(0.150,0.55), pants, V(0,-0.45,0)),
-                 cgeo(ball(0.16), shoe, V(0,-0.86,-0.07), V(1,0.5,1.5)) ]));
+    p.add(part([ cgeo(caps(0.150,0.32), pants, V(0,-0.31,0)) ]));      // thigh
+    const knee=new THREE.Group(); knee.position.set(0,-0.55,0);
+    knee.add(part([ cgeo(caps(0.118,0.22), pants, V(0,-0.15,0)),       // shin
+                    cgeo(ball(0.155), shoe, V(0,-0.27,0.06), V(1,0.5,1.5)) ])); // shoe (toe forward)
+    p.add(knee); p.userData.knee=knee;
     return p;
   }
-  // ---------- arms ----------
+  // ---------- arms (upper pivots at shoulder, forearm pivots at elbow) ----------
   function arm(sx){
     const p=new THREE.Group(); p.position.set(sx*0.345,1.80,0);
-    const parts=[ cgeo(caps(0.122,0.46), shirt, V(0,-0.30,0)) ];
-    if(hands) parts.push(cgeo(ball(0.135,10), skin, V(0,-0.60,0.01), V(1,0.9,0.75)));
-    p.add(part(parts));
+    p.add(part([ cgeo(caps(0.122,0.18), shirt, V(0,-0.21,0)) ]));      // upper arm
+    const elbow=new THREE.Group(); elbow.position.set(0,-0.42,0);
+    const parts=[ cgeo(caps(0.104,0.20), shirt, V(0,-0.15,0)) ];       // forearm
+    if(hands) parts.push(cgeo(ball(0.132,10), skin, V(0,-0.34,0.0), V(1,0.9,0.75)));
+    elbow.add(part(parts));
+    p.add(elbow); p.userData.elbow=elbow;
     return p;
   }
   const legL=leg(-1), legR=leg(1), armL=arm(-1), armR=arm(1);
   g.add(legL,legR,armL,armR);
   g.userData.limbs={legL,legR,armL,armR};
+  g.userData.body=bodyMesh;
   if(scale!==1) g.scale.setScalar(scale);
   return g;
 }
+/* Proper walk/run cycle: hip swing + knee lift on the back leg + counter-swinging
+   arms with bent elbows + a slight forward body lean. amt 0 = idle, 1 = full. */
 function animateWalk(g, phase, amt){
   const L=g.userData.limbs; if(!L) return;
-  const sw=Math.sin(phase)*0.62*amt;
-  L.legL.rotation.x=sw;        L.legR.rotation.x=-sw;
-  L.armL.rotation.x=-sw*0.85;  L.armR.rotation.x=sw*0.85;
+  amt = amt===undefined?1:amt;
+  const s=Math.sin(phase);
+  const sw=s*0.72*amt;
+  L.legL.rotation.x =  sw;   L.legR.rotation.x = -sw;      // + = leg back
+  if(L.legL.userData.knee) L.legL.userData.knee.rotation.x = 0.06 + 0.95*Math.max(0,  s)*amt; // heel kicks up behind
+  if(L.legR.userData.knee) L.legR.userData.knee.rotation.x = 0.06 + 0.95*Math.max(0, -s)*amt;
+  L.armL.rotation.x = -sw*0.82;  L.armR.rotation.x = sw*0.82;
+  if(L.armL.userData.elbow) L.armL.userData.elbow.rotation.x = -(0.22 + 0.55*Math.max(0,  s)*amt);
+  if(L.armR.userData.elbow) L.armR.userData.elbow.rotation.x = -(0.22 + 0.55*Math.max(0, -s)*amt);
+  if(g.userData.body) g.userData.body.rotation.x = 0.10*amt;   // lean into the run
 }
 function buildPlayer(){
   const g=buildHumanoid({ shirt:0xe3644f, pants:0x2b3a55, hands:true });
@@ -1421,17 +1442,25 @@ function updatePlayer(dt){
   if(!player.onFoot){ jumpY=0; jumpV=0; return; }
   const iv=inputVec();
   const boost = S.energy>0 ? 1.35 : 1;             // restaurant feed = faster on foot
-  const spd = (sprint ? 9.4 : 5.6) * boost;         // RUN = hold Shift / tap the RUN button
-  // move relative to camera yaw
+  const RUN=9.4, WALK=5.6;
+  // How the body turns:
+  //  • full stick (forward / forward+strafe) → body faces where you're going
+  //  • pure sideways or backward → body turns to FACE the camera (true strafe /
+  //    backpedal), never moonwalks — the character always faces its heading.
   const sin=Math.sin(cam.yaw), cos=Math.cos(cam.yaw);
-  const wx = iv.x*cos - iv.z*sin;
+  const wx = iv.x*cos - iv.z*sin;                  // world move dir
   const wz = -iv.x*sin - iv.z*cos;
-  let nx=player.pos.x + wx*spd*dt;
-  let nz=player.pos.z + wz*spd*dt;
+  const isStrafe = Math.abs(iv.x)>0.1 && iv.z<=0.1;
+  const speed = (isStrafe?WALK:(sprint?RUN:WALK)) * boost;
+  let nx=player.pos.x + wx*speed*dt;
+  let nz=player.pos.z + wz*speed*dt;
   [nx,nz]=collideCircle(nx,nz,0.7);
   player.pos.x=nx; player.pos.z=nz;
   const moving = iv.m>0.05;
-  if(moving){ player.yaw = Math.atan2(wx,wz); player.phase += dt*(sprint?17:10); } else player.phase *= 0.85;
+  if(moving){
+    player.yaw = isStrafe ? (cam.yaw+Math.PI) : Math.atan2(wx,wz);
+    player.phase += dt*((sprint&&!isStrafe)?17:10);
+  } else player.phase *= 0.85;
   // jump: simple ballistic arc
   if(jumpY>0 || jumpV!==0){
     jumpV -= 18*dt; jumpY += jumpV*dt;
@@ -1483,8 +1512,10 @@ function updatePeds(dt){
       if(!tryMove(nx,nz)){
         if(!tryMove(nx,p.pos.z)){ if(!tryMove(p.pos.x,nz)){ pickPedTarget(p); } }
       }
-      if(d>0.01) p.yaw=Math.atan2(dx,dz);
+      if(d>0.01) p.tYaw=Math.atan2(dx,dz);
     }
+    // turn smoothly toward the heading — the body always faces where it's walking
+    p.yaw = lerpAngle(p.yaw||0, p.tYaw||p.yaw||0, Math.min(1, 11*dt));
     // walking animation + bob, driven by distance actually travelled
     const moved=Math.hypot(p.pos.x-(p._lx??p.pos.x), p.pos.z-(p._lz??p.pos.z));
     p._lx=p.pos.x; p._lz=p.pos.z;
