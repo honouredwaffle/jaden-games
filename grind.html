@@ -583,7 +583,7 @@ for(const p of EXTRA_PLACES) PLACES[p.key]={ x:p.x, z:p.z, w:p.w, d:p.d };
 /* ============================================================
    PLAYER
    ============================================================ */
-const player = { pos:new THREE.Vector3(24,0,40), yaw:0, vel:new THREE.Vector3(), onFoot:true, group:null, speed:0, phase:0 };
+const player = { pos:new THREE.Vector3(24,0,40), yaw:0, vel:new THREE.Vector3(), onFoot:true, group:null, speed:0, phase:0, skinned:false, root:null, bones:null };
 /* ---------- shared low-poly humanoid ----------
    Limbs are parented to pivot Groups at the hip/shoulder so they swing naturally. */
 /* ---------- smooth humanoid (capsules + spheres, NOT boxes) ----------
@@ -861,13 +861,14 @@ function buildPlayer(){
 }
 player.group=buildPlayer();
 player.group.position.copy(player.pos);
+player.group.rotation.y=player.yaw;
 
 /* ============================================================
    IMPORTED CHARACTER — Mixamo base mesh (.glb), skinned + bone-driven
    +Z facing preserved (Mixamo base faces +Z, same as our rig).
    ============================================================ */
 function P(k){ return new URLSearchParams(location.search).get(k)!==null; }
-const MANNEQUIN={ready:false, proto:null, h:1.8, minY:0};
+const MANNEQUIN={ready:false, proto:null, h:1.8, minY:0, maxY:1.8};
 /* per-material palettes -> recolour each cloned NPC so the crowd varies.
    Material names come from the Blender export (Skin/Top/Pants/Shoes/Hair). */
 const CHAR_MATPAL={
@@ -883,7 +884,7 @@ function loadMannequin(){
     const root=g.scene; root.updateMatrixWorld(true);
     const box=new THREE.Box3().setFromObject(root);
     MANNEQUIN.h=Math.max(0.1, box.max.y-box.min.y);
-    MANNEQUIN.minY=box.min.y;
+    MANNEQUIN.minY=box.min.y; MANNEQUIN.maxY=box.max.y;
     MANNEQUIN.proto=root; MANNEQUIN.ready=true;
     let nb=0, nm=0; root.traverse(o=>{ if(o.isBone) nb++; if(o.isMesh) nm++; });
     console.log('[character] loaded h='+MANNEQUIN.h.toFixed(3)+' bones='+nb+' meshes='+nm);
@@ -893,13 +894,19 @@ function loadMannequin(){
 loadMannequin();
 function reloadPeds(){
   for(const p of peds){ if(p.group) scene.remove(p.group); }
-  peds.length=0; spawnPeds(72);
+  peds.length=0;
+  const n = P('n') ? Math.max(2, +new URLSearchParams(location.search).get('n')||24) : 72;
+  spawnPeds(n);
+  if(MANNEQUIN.ready && !P('procedural')) makeSkinnedPlayer();
 }
-/* bone name without the mixamo prefix (works for mixamorig: / mixamorig1:) */
-const _boneKey = n => n.replace(/^mixamorig[0-9]*:/,'');
-function buildSkinnedPed(x,z){
+/* bone name without the mixamo prefix.
+   GLTFLoader strips the colon -> names arrive as `mixamorig1Hips` (no ':'),
+   so the prefix match must make the colon OPTIONAL. Getting this wrong means
+   sb() finds no bones and the whole crowd stands still. */
+const _boneKey = n => n.replace(/^mixamorig[0-9]*:?/,'');
+function buildSkinnedPed(x,z,targetHeight){
   const root=skeletonClone(MANNEQUIN.proto);
-  const target=rnd(1.62,1.88);
+  const target=targetHeight||rnd(1.62,1.88);
   const s=target/MANNEQUIN.h;
   root.scale.setScalar(s);
   root.position.y=-MANNEQUIN.minY*s;                 // feet on the ground
@@ -916,6 +923,7 @@ function buildSkinnedPed(x,z){
   const bones={};
   root.traverse(o=>{ if(o.isBone){ const k=_boneKey(o.name); if(!bones[k]) bones[k]=o; } });
   for(const k in bones){ bones[k].userData.rest=bones[k].quaternion.clone(); }
+  root.userData.bones=bones;
   const wrap=new THREE.Group(); wrap.add(root); scene.add(wrap);
   return { group:wrap, root, bones, skinned:true, pos:new THREE.Vector3(x,0,z),
            yaw:rnd(0,6.28), tYaw:rnd(0,6.28), target:new THREE.Vector3(x,0,z),
@@ -924,15 +932,31 @@ function buildSkinnedPed(x,z){
 /* ---- bone-driven run/walk cycle. Axis per joint set from a live probe:
    Mixamo limb bones swing around their LOCAL X. ---- */
 const _q1=new THREE.Quaternion();
-const AX={X:new THREE.Vector3(1,0,0),Y:new THREE.Vector3(0,1,0),Z:new THREE.Vector3(0,0,1)};function sb(B,name,ang,axis){
+const AX={X:new THREE.Vector3(1,0,0),Y:new THREE.Vector3(0,1,0),Z:new THREE.Vector3(0,0,1)};
+/* sb = SET one local-axis rotation from rest (wipes any other axis on that bone).
+   Use for single-axis joints. */
+function sb(B,name,ang,axis){
   const b=B[name]; if(!b||!b.userData.rest) return;
   _q1.setFromAxisAngle(AX[axis],ang);
   b.quaternion.copy(b.userData.rest).multiply(_q1);
 }
+/* sbm = SET several local-axis rotations on ONE bone, composed (rest * r1 * r2 ...).
+   Needed for joints that move on two axes (e.g. arms: X = hang down, Z = swing).
+   Previously two sb() calls on the same bone clobbered each other, which left the
+   arms stuck in the rest T-pose and made the whole crowd look like scarecrows. */
+function sbm(B,name,rots){
+  const b=B[name]; if(!b||!b.userData.rest) return;
+  b.quaternion.copy(b.userData.rest);
+  for(let i=0;i<rots.length;i++){
+    _q1.setFromAxisAngle(AX[rots[i][0]], rots[i][1]);
+    b.quaternion.multiply(_q1);
+  }
+}
 /* Run/walk cycle driving the MIXAMO skeleton. Axes verified by a live probe
    (assets/probe.html): legs swing on local X (+forward both sides), knees hinge
    on X (+ = bend), arms raise/lower on X (both + = down) and swing front/back on
-   Z (+Z = fwd for LEFT, back for RIGHT => both use -s to swing contralaterally). */
+   Z (+Z = fwd for LEFT, back for RIGHT => both use -s to swing contralaterally).
+   amt 0 = idle .. 1 = full stride.  R 0 = walk .. 1 = sprint. */
 function animateSkinned(p, phase, amt, run){
   const B=p.bones; if(!B) return;
   const R=clamp(run||0,0,1), a=clamp(amt,0,1);
@@ -946,23 +970,88 @@ function animateSkinned(p, phase, amt, run){
   // ankle: toe-off when back, toe-up on the swing
   sb(B,'LeftFoot', (0.28*Math.max(0,-s)-0.22*Math.max(0, s))*a,'X');
   sb(B,'RightFoot',(0.28*Math.max(0, s)-0.22*Math.max(0,-s))*a,'X');
-  // arms: hang then swing opposite the legs
-  const HANG=1.18+0.10*R, AA=(0.95+0.45*R)*a;
-  sb(B,'LeftArm',  HANG,'X'); sb(B,'RightArm', HANG,'X');
-  sb(B,'LeftArm',  -s*AA,'Z'); sb(B,'RightArm', -s*AA,'Z');
+  // arms: hang down from the rest T-pose, swing opposite the legs.
+  // NOTE the SAME Z sign on both sides = contralateral swing (this rig mirrors L/R,
+  // so opposite signs would swing both arms the same way).
+  const HANG=HANG0+0.10*R, AA=(0.50+0.42*R)*a;
+  sbm(B,'LeftArm', [['X',HANG],['Z',-s*AA]]);
+  sbm(B,'RightArm',[['X',HANG],['Z',-s*AA]]);
   const EB=(0.55+0.75*R)*a + 0.30*(1-a);
   sb(B,'LeftForeArm', EB,'X'); sb(B,'RightForeArm', EB,'X');
   // torso: forward lean grows with speed + subtle counter-rotation
   sb(B,'Spine',  (0.04+0.09*a+0.20*R)*a,'X'); sb(B,'Spine1',-s*0.12*a,'Y'); sb(B,'Spine2',-s*0.07*a,'Y');
 }
-function idleSkinned(p){
+/* how far to rotate the upper arm down from the rest T-pose so it hangs by the side.
+   Derived live: rest hand sits ~0.68m lateral (arm ~0.80m); the arm lowers about
+   -1.13m of lateral offset per radian, so HANG0 ~1.58 puts the hand ~0.19m out
+   (straight below the shoulder) instead of a scarecrow T-pose. */
+const HANG0=1.58;
+function idleSkinned(p, t){
   const B=p.bones; if(!B) return;
+  const br=(t!==undefined? Math.sin(t*1.5)*0.5 : 0);   // gentle breathing sway
   sb(B,'LeftUpLeg',0,'X'); sb(B,'RightUpLeg',0,'X');
   sb(B,'LeftLeg',0.06,'X'); sb(B,'RightLeg',0.06,'X');
   sb(B,'LeftFoot',0,'X'); sb(B,'RightFoot',0,'X');
-  sb(B,'LeftArm',1.18,'X'); sb(B,'RightArm',1.18,'X');
+  sbm(B,'LeftArm', [['X',HANG0+br*0.03],['Z',0]]);
+  sbm(B,'RightArm',[['X',HANG0-br*0.03],['Z',0]]);
   sb(B,'LeftForeArm',0.30,'X'); sb(B,'RightForeArm',0.30,'X');
-  sb(B,'Spine',0.04,'X'); sb(B,'Spine1',0,'Y'); sb(B,'Spine2',0,'Y');
+  sb(B,'Spine',0.04+br*0.02,'X'); sb(B,'Spine1',0,'Y'); sb(B,'Spine2',0,'Y');
+}
+/* Airborne jump pose for the skinned rig. h 0..1 = height, rising = going up. */
+function poseJumpSkinned(p, h, rising){
+  const B=p.bones; if(!B) return;
+  const k=clamp(h,0,1);
+  let hip,knee,ankle,arm,elbow,lean;
+  if(rising){ hip=0.70-1.55*k; knee=0.35+1.15*k; ankle=0.45-0.60*k; arm=-0.10-1.30*k; elbow=0.30+0.60*k; lean=0.22-0.28*k; }
+  else      { hip=-0.85+0.95*k; knee=1.35-0.70*k; ankle=-0.20+0.12*k; arm=-1.35+1.10*k; elbow=0.90-0.30*k; lean=0.02+0.10*k; }
+  sb(B,'LeftUpLeg',hip,'X');  sb(B,'RightUpLeg',hip*0.82+0.10,'X');
+  sb(B,'LeftLeg',knee*0.90,'X'); sb(B,'RightLeg',knee*0.60+0.15,'X');
+  sb(B,'LeftFoot',ankle,'X'); sb(B,'RightFoot',ankle*0.6,'X');
+  sbm(B,'LeftArm', [['X',HANG0+arm]]);
+  sbm(B,'RightArm',[['X',HANG0+arm*0.85]]);
+  sb(B,'LeftForeArm',elbow,'X'); sb(B,'RightForeArm',elbow*0.9,'X');
+  sb(B,'Spine',lean,'X'); sb(B,'Spine1',0,'Y'); sb(B,'Spine2',0,'Y');
+}
+/* Landing absorb on the skinned rig. t 1 -> 0 = crouch -> stand. */
+function poseLandSkinned(p, t){
+  const B=p.bones; if(!B) return;
+  const a=clamp(t,0,1);
+  sb(B,'LeftUpLeg',-0.30*a,'X'); sb(B,'RightUpLeg',-0.22*a,'X');
+  sb(B,'LeftLeg',1.10*a,'X');    sb(B,'RightLeg',0.90*a,'X');
+  sb(B,'LeftFoot',-0.35*a,'X');  sb(B,'RightFoot',-0.28*a,'X');
+  sbm(B,'LeftArm', [['X',HANG0+0.35*a]]);
+  sbm(B,'RightArm',[['X',HANG0+0.25*a]]);
+  sb(B,'LeftForeArm',0.85*a,'X'); sb(B,'RightForeArm',0.70*a,'X');
+  sb(B,'Spine',0.20*a,'X'); sb(B,'Spine1',0,'Y'); sb(B,'Spine2',0,'Y');
+}
+/* ---- the PLAYER is the SAME skinned character as the crowd ----
+   built from the identical character.glb rig so he is not a separate model.
+   Slightly taller build + fixed jacket colours so he reads as "you". */
+const PLAYER_LOOK={ Top:0xd8452f, Pants:0x2b3a55, Shoes:0xf0f0f0, Hair:0x241b14, Skin:0xe9b98c };
+function makeSkinnedPlayer(){
+  const old=player.group;
+  const np=buildSkinnedPed(player.pos.x, player.pos.z, 1.82);
+  np.bones = np.root.userData.bones;
+  // player look = always the same jacket, not a random crowd palette
+  np.root.traverse(o=>{ if(!o.isMesh) return;
+    const mats=Array.isArray(o.material)?o.material:[o.material];
+    const out=mats.map(m=>{ const col=PLAYER_LOOK[m.name]; if(col===undefined) return m;
+      const nm=m.clone(); nm.color.setHex(col); return nm; });
+    o.material = out.length===1?out[0]:out;
+  });
+  const wrap=np.group;
+  const ip=peds.indexOf(np); if(ip>=0) peds.splice(ip,1);   // not a wandering ped
+  player.skinned=true; player.root=np.root; player.bones=np.bones;
+  player.group=wrap; player.phase=0;
+  wrap.position.set(player.pos.x, 0, player.pos.z);
+  wrap.rotation.y=player.yaw;
+  scene.add(wrap);
+  if(old) scene.remove(old);   // retire the old blocky player
+}
+/* graceful fallback: if character.glb is missing, keep the procedural player */
+function ensurePlayerSkinned(){
+  if(!MANNEQUIN.ready && player.group && player.group.userData && player.group.userData.humanoid) return;
+  if(MANNEQUIN.ready && !player.skinned) makeSkinnedPlayer();
 }
 
 /* ============================================================
@@ -1397,6 +1486,7 @@ function spawnPeds(n){
   }
 }
 spawnPeds(P('n') ? Math.max(2, +new URLSearchParams(location.search).get('n')||24) : 72);
+window.__GRIND_PEDN = P('n') ? Math.max(2, +new URLSearchParams(location.search).get('n')||24) : 72;
 function pickPedTarget(p){
   // prefer a nearby walkable spot (sidewalk / crossing) so they don't wander into traffic
   for(let k=0;k<14;k++){
@@ -1852,13 +1942,20 @@ function updatePlayer(dt){
   player.group.position.set(player.pos.x, jumpY, player.pos.z);
   player.group.rotation.y = lerpAngle(player.group.rotation.y, player.yaw, Math.min(1,12*dt));
   // limb animation: airborne pose / landing crouch / walk-run cycle
-  if(jumpY>0){
-    poseJump(player.group, jumpY/1.25, jumpV>0);
-  } else if(landT>0.01){
-    landT=Math.max(0, landT-dt*3.2);
-    poseLand(player.group, landT);
+  if(player.skinned){
+    if(jumpY>0)            poseJumpSkinned(player, jumpY/1.25, jumpV>0);
+    else if(landT>0.01){ landT=Math.max(0, landT-dt*3.2); poseLandSkinned(player, landT); }
+    else if(moving && !isStrafe) animateSkinned(player, player.phase, 1, sprint?1:0);
+    else                         idleSkinned(player, performance.now()/1000);
   } else {
-    animateWalk(player.group, player.phase, moving?1:0.10, sprint?1:0);
+    if(jumpY>0){
+      poseJump(player.group, jumpY/1.25, jumpV>0);
+    } else if(landT>0.01){
+      landT=Math.max(0, landT-dt*3.2);
+      poseLand(player.group, landT);
+    } else {
+      animateWalk(player.group, player.phase, moving?1:0.10, sprint?1:0);
+    }
   }
 }
 function updateCar(dt){
@@ -1910,8 +2007,9 @@ function updatePeds(dt){
     const moved=Math.hypot(p.pos.x-(p._lx??p.pos.x), p.pos.z-(p._lz??p.pos.z));
     p._lx=p.pos.x; p._lz=p.pos.z;
     p.phase=(p.phase||0) + moved*9 + dt*0.7;
-    if(p.skinned) animateSkinned(p, p.phase, moved>0.0008?1:0.10, 0);
-    else animateWalk(p.group, p.phase, moved>0.0008?1:0.12);
+    const walking = moved>0.0008;
+    if(p.skinned){ if(walking) animateSkinned(p, p.phase, 1, 0); else idleSkinned(p, performance.now()/1000); }
+    else animateWalk(p.group, p.phase, walking?1:0.12);
     p.group.position.set(p.pos.x, 0, p.pos.z);
     p.group.rotation.y=p.yaw;
   }
@@ -1976,12 +2074,13 @@ function updateCamera(dt){
    LOOP
    ============================================================ */
 let acc=0;
+let paused=false;   // debug/test hook: freeze player + camera so poses can be inspected
 function frame(){
   requestAnimationFrame(frame);
   const dt=Math.min(0.05, clock.getDelta());
   const t=performance.now()/1000;
 
-  if(!MG.active){
+  if(!MG.active && !paused){
     updatePlayer(dt); updateCar(dt); updateCops(dt);
   }
   updatePeds(dt);
@@ -1989,7 +2088,7 @@ function frame(){
   updateLights(t);
   updateHeat(dt);
   updateEnergy(dt);
-  updateCamera(dt);
+  if(!paused) updateCamera(dt);
   updateBeam(t);
 
   // minigame update
@@ -2045,7 +2144,7 @@ addEventListener('resize',()=>{
 if('ontouchstart' in window || innerWidth<900) joyEl.classList.add('show');
 
 /* expose for debugging/testing */
-window.GRIND = { S, PLACES, player, cars, peds, cops, traffic:TRAFFIC, cam, camera, scene, THREE, solids, INTERSECTIONS, CROSSWALKS, ROAD, lightState, onRoad, inCrosswalk, walkable, startShift, applyJob, buy, addHeat, doAction, enterCar, exitCar, MG, openPhone, selectTab, nearestTarget, usePlace, mug, tryJump, setSprint, animateWalk, poseJump, poseLand, idlePose, buildHumanoid, buildPed, buildSkinnedPed, animateSkinned, MANNEQUIN, reloadPeds, get jumpY(){return jumpY;}, get sprint(){return sprint;}, get nearTarget(){return nearTarget;} };
+window.GRIND = { S, PLACES, player, cars, peds, cops, traffic:TRAFFIC, cam, camera, scene, THREE, solids, INTERSECTIONS, CROSSWALKS, ROAD, lightState, onRoad, inCrosswalk, walkable, startShift, applyJob, buy, addHeat, doAction, enterCar, exitCar, MG, openPhone, selectTab, nearestTarget, usePlace, mug, tryJump, setSprint, animateWalk, poseJump, poseLand, idlePose, buildHumanoid, buildPed, buildSkinnedPed, animateSkinned, idleSkinned, poseJumpSkinned, poseLandSkinned, makeSkinnedPlayer, MANNEQUIN, reloadPeds, setPause:(v)=>{paused=!!v;}, get paused(){return paused;}, get jumpY(){return jumpY;}, get sprint(){return sprint;}, get nearTarget(){return nearTarget;} };
 </script>
 </body>
 </html>
