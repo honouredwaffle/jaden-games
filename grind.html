@@ -969,9 +969,16 @@ function buildSkinnedPed(x,z,targetHeight,mk){
   if(bones['Hips'] && mk.bob){ const bo=mk.bob; bones['Hips'].userData.bobAxis=bo.ax; bones['Hips'].userData.bobUpm=bo.upm/s; }
   const wrap=new THREE.Group(); wrap.add(root); scene.add(wrap);
   wrap.updateMatrixWorld(true);
+  // capture each bone's PARENT orientation, in the character frame (rest, yaw 0), so
+  // aimBone() can later point bones by body-space direction (+Z fwd/+Y up/+X left)
+  // regardless of whether this model rests in a T-pose or an A-pose.
+  for(const k in bones){ const b=bones[k]; const pw=new THREE.Quaternion();
+    if(b.parent) b.parent.getWorldQuaternion(pw);
+    b.userData.kQ=pw.clone().invert(); }
   let restToe=0;
-  if(bones['LeftToe_End'] && bones['RightToe_End']){ const _a=new THREE.Vector3(), _b=new THREE.Vector3();
-    bones['LeftToe_End'].getWorldPosition(_a); bones['RightToe_End'].getWorldPosition(_b);
+  const _tL=bones['LeftToe_End']||bones['LeftToeBase'], _tR=bones['RightToe_End']||bones['RightToeBase'];
+  if(_tL && _tR){ const _a=new THREE.Vector3(), _b=new THREE.Vector3();
+    _tL.getWorldPosition(_a); _tR.getWorldPosition(_b);
     restToe=Math.min(_a.y,_b.y)-wrap.position.y; }
   return { group:wrap, root, bones, skinned:true, restToe, pos:new THREE.Vector3(x,0,z),
            yaw:rnd(0,6.28), tYaw:rnd(0,6.28), target:new THREE.Vector3(x,0,z),
@@ -986,7 +993,7 @@ function groundClampOne(ent, airborne, cap){
   if(airborne) return;
   if(!ent || !ent.skinned) return;
   const B=ent.bones; if(!B) return;
-  const hb=B['Hips'], lf=B['LeftToe_End'], rf=B['RightToe_End'];
+  const hb=B['Hips'], lf=B['LeftToe_End']||B['LeftToeBase'], rf=B['RightToe_End']||B['RightToeBase'];
   if(!hb || !lf || !rf || hb.userData.bobUpm===undefined) return;
   lf.getWorldPosition(_clA); rf.getWorldPosition(_clB);
   const lowest=Math.min(_clA.y,_clB.y);
@@ -1034,6 +1041,39 @@ function sbpUp(B,name,metres){
   const off=[0,0,0]; off[b.userData.bobAxis]=metres*b.userData.bobUpm;
   b.position.set(b.userData.restPos.x+off[0], b.userData.restPos.y+off[1], b.userData.restPos.z+off[2]);
 }
+/* ---- MODEL-INDEPENDENT BONE AIMING --------------------------------------
+   The old fixed-angle arm/leg constants assumed a T-POSE rest. Our new Blender
+   humans rest in an A-POSE (arms already ~48deg down), so those constants swung
+   the arms straight past "down" into a cursed hands-out pose.
+
+   aimBone() instead points a bone's LENGTH axis (local +Y on a Mixamo rig) at a
+   direction given in the CHARACTER's own frame: +Z = forward, +Y = up,
+   +X = character's LEFT. kQ (parent orientation in the char frame, captured once
+   at load) converts that body-space direction into the bone's parent space, so it
+   works identically on a T-pose OR an A-pose rig. */
+const UPY=new THREE.Vector3(0,1,0);
+const _va=new THREE.Vector3();
+function aimBone(B,name,dx,dy,dz){
+  const b=B[name]; if(!b||!b.userData.rest||!b.userData.kQ) return;
+  const dRest=_va.copy(UPY).applyQuaternion(b.userData.rest);
+  const dNew=new THREE.Vector3(dx,dy,dz).normalize().applyQuaternion(b.userData.kQ);
+  const r=new THREE.Quaternion().setFromUnitVectors(dRest,dNew);
+  b.quaternion.copy(r).multiply(b.userData.rest);
+}
+/* aim an upper arm: hang = radians DOWN from horizontal, fwd = forward/back swing
+   (+ forward). Left is +X, right is -X in the character frame. */
+function aimArm(B,side,hang,fwd){
+  const pre=(side==='L'?'Left':'Right');
+  const lat=(side==='L'?1:-1), cl=Math.cos(hang), sl=Math.sin(hang);
+  aimBone(B, pre+'Arm', lat*cl, -sl, fwd);
+}
+/* aim a forearm: bend = elbow flexion (0 straight .. ~1.6 = right angle), fwd carries
+   the arm's swing so the forearm follows the upper arm. */
+function aimFore(B,side,bend,fwd){
+  const pre=(side==='L'?'Left':'Right');
+  const lat=(side==='L'?1:-1);
+  aimBone(B, pre+'ForeArm', lat*0.30, -Math.cos(bend), Math.sin(bend)+fwd*0.6);
+}
 /* ============================================================
    LOCOMOTION — real per-joint articulation
    Modelled on a proper run cycle (Blender reference, 2026-09-27):
@@ -1058,8 +1098,11 @@ function animateSkinned(p, phase, amt, run){
   //     reach the ground on stance instead of hovering at hip height. ---
   const A=0.60+0.55*R, bias=0.14*R, backC=0.60, adduct=0.05+0.06*R;
   const swing=(sv)=>{ const r=A*sv; return bias + (r>0? r : r*backC); };
-  sbm(B,'LeftUpLeg', [['X',swing( s)],['Z', -adduct]]);    // slight adduction -> legs
-  sbm(B,'RightUpLeg',[['X',swing(-s)],['Z', adduct]]);    // track under the body, not splayed
+  // --- legs: AIM each bone in body space (+Z fwd / +Y up / +X = char's LEFT) so it
+  //     works on a T-pose OR an A-pose rig. thighL/thighR > 0 = leg swung FORWARD ---
+  const thighL=swing(s), thighR=swing(-s);
+  aimBone(B,'LeftUpLeg',  -adduct*0.5, -Math.cos(thighL), Math.sin(thighL));  // slight adduction
+  aimBone(B,'RightUpLeg',  adduct*0.5, -Math.cos(thighR), Math.sin(thighR));  // -> legs track under
   // --- knees: one flex per step, PEAKED MID-SWING (thigh vertical, heel up to the
   //     butt) then extending as the thigh drives forward to reach for the ground.
   //     Plus a smaller absorption flex at stance contact. The kernel is asymmetric
@@ -1071,41 +1114,41 @@ function animateSkinned(p, phase, amt, run){
     const d=wrapPi(ph-BASE), w=(d<0? d*1.50 : d*1.20);
     const sw=Math.pow(0.5+0.5*Math.cos(w),2.0);
     const ab=Math.pow(Math.max(0,Math.cos(wrapPi(ph-ABS))),1.6);
-    return 0.06 + (0.72+0.92*R)*sw + (0.12+0.42*R)*ab;
+    return 0.05 + (0.40+1.05*R)*sw + (0.08+0.42*R)*ab;
   };
   const kneeL=kneeRaw(phase, SWING_PK, CONTACT_PK), kneeR=kneeRaw(phase, SWING_PK+Math.PI, CONTACT_PK+Math.PI);
-  // NB the knee angle is NEGATED: on this rig positive local-X folds the shin
-  // FORWARD (a backward knee). A human knee folds the heel BACKWARD, so bend = -X.
-  sb(B,'LeftLeg', -kneeL*a - 0.04*(1-a),'X');
-  sb(B,'RightLeg',-kneeR*a - 0.04*(1-a),'X');
-  // --- ankles: point the toe on push-off, lift it on the forward reach ---
+  // shin swings BACK from the thigh by the knee angle (heel toward the butt); keep a
+  // downward floor so the shin can never flip up through the thigh.
+  const shinL=thighL-kneeL*a, shinR=thighR-kneeR*a;
+  aimBone(B,'LeftLeg',  -0.02, -Math.max(0.12,Math.cos(shinL)), Math.sin(shinL));
+  aimBone(B,'RightLeg',  0.02, -Math.max(0.12,Math.cos(shinR)), Math.sin(shinR));
+  // --- ankles: point the toe down on push-off, lift it on the forward reach ---
   const ank=(sv)=>((0.30+0.22*R)*Math.max(0,-sv) - (0.24+0.16*R)*Math.max(0,sv))*a;
-  sb(B,'LeftFoot', -ank(s),'X');      // negated for the same reason as the knee
-  sb(B,'RightFoot',-ank(-s),'X');
+  aimBone(B,'LeftFoot',  -0.03, -Math.sin(0.18+ank(s)),  Math.cos(0.18+ank(s)));
+  aimBone(B,'RightFoot',  0.03, -Math.sin(0.18+ank(-s)), Math.cos(0.18+ank(-s)));
   // --- pelvis. Two parts:
-  //   PLANT: swinging a straight leg out about the hip LIFTS its foot by
-  //     L*(1-cos(angle)), so drop the pelvis by that much for the straighter
-  //     (support) leg -> the foot stays on the ground instead of skating.
-  //     A full plant for a walk; only partial for a run so it still floats.
+  //   PLANT: aim a support leg at (thigh th, knee k); its foot sits
+  //     Lt*cos(th)+Ls*cos(th-k) below the hip vs Lt+Ls when straight, so its lift is
+  //     the shortfall. Drop the pelvis by the SUPPORT (lower) leg's lift -> planted.
   //   LIFT: a run needs a flight bounce between strides.
   //   Plus a slow counter-rotation of the pelvis against the shoulders. ---
-  //   Support leg = whichever foot sits LOWER (small thigh ANGLE and small knee
-  //     bend both lift a foot), and drop the pelvis by that much -> planted feet.
-  const thighL=swing(s), thighR=swing(-s);
-  const liftOf=(th,k)=>0.86*(1-Math.cos(th)) + 0.45*(1-Math.cos(k));
-  const supportLift=Math.min(liftOf(thighL,kneeL), liftOf(thighR,kneeR));
-  const plant=Math.min(0.075-0.050*R, (supportLift*0.26*(1-0.45*R) + 0.006*(1-0.5*R))*a);
+  const Lt=0.44, Ls=0.44;
+  const footLift=(th,k)=>{ const sh=th-k; return Lt*(1-Math.cos(th)) + Ls*(1-Math.cos(sh)); };
+  const supportLift=Math.min(footLift(thighL,kneeL), footLift(thighR,kneeR));
+  const plant=clamp(supportLift*(1-0.55*R)*a, 0, 0.30);
   const lift=0.075*R*Math.max(0,-c2)*a;
   sbpUp(B,'Hips',lift - plant);
   sbm(B,'Hips',[['Y', s*(0.06+0.09*R)*a],['Z', c2*0.035*a]]);
-  // --- arms: hang from the T-pose, swing opposite the legs (same Z sign both sides) ---
-  const HANG=HANG0+0.06*R, AA=(0.45+0.65*R)*a;
-  sbm(B,'LeftArm', [['X',HANG],['Z',-s*AA]]);
-  sbm(B,'RightArm',[['X',HANG],['Z',-s*AA]]);
+  // --- arms: AIM in body space so the A-pose rest can't throw them out into a
+  //     "hands out" pose. hang = radians DOWN from horizontal; swing opposite legs ---
+  const AA=(0.45+0.65*R)*a;
+  const hangA=1.30+0.05*R, fwdL=-s*AA, fwdR=s*AA;
+  aimArm(B,'L',hangA,fwdL);
+  aimArm(B,'R',hangA,fwdR);
   // elbows held bent when running (reference: ~90deg), gently pumping
   const EB=0.42+(0.30+0.75*R)*a + (0.24*R*a)*Math.abs(c2*0.5);
-  sb(B,'LeftForeArm', EB + 0.22*R*a*Math.max(0,-s),'X');
-  sb(B,'RightForeArm',EB + 0.22*R*a*Math.max(0, s),'X');
+  aimFore(B,'L',EB + 0.22*R*a*Math.max(0,-s), fwdL);
+  aimFore(B,'R',EB + 0.22*R*a*Math.max(0, s), fwdR);
   // --- torso: forward lean grows with speed, shoulders twist AGAINST the pelvis ---
   sb(B,'Spine', (0.05+0.21*R)*a + 0.02*(1-a),'X');
   sb(B,'Spine1', -s*(0.09+0.07*R)*a,'Y');
@@ -1122,13 +1165,17 @@ function idleSkinned(p, t){
   const B=p.bones; if(!B) return;
   const br=(t!==undefined? Math.sin(t*1.5) : 0);       // gentle breathing
   const sw=(t!==undefined? Math.sin(t*0.45) : 0);      // slow weight shift
-  sb(B,'LeftUpLeg',0,'X'); sb(B,'RightUpLeg',0,'X');
-  sb(B,'LeftLeg',0.06,'X'); sb(B,'RightLeg',0.06,'X');
-  sb(B,'LeftFoot',0,'X'); sb(B,'RightFoot',0,'X');
+  const k=0.10;                                   // soft-knee stance
+  aimBone(B,'LeftUpLeg', -0.02, -1, 0);           // legs straight down, neutral
+  aimBone(B,'RightUpLeg', 0.02, -1, 0);
+  aimBone(B,'LeftLeg', -0.02, -Math.cos(-k), Math.sin(-k));
+  aimBone(B,'RightLeg', 0.02, -Math.cos(-k), Math.sin(-k));
+  aimBone(B,'LeftFoot', -0.03, -Math.sin(0.18), Math.cos(0.18));
+  aimBone(B,'RightFoot', 0.03, -Math.sin(0.18), Math.cos(0.18));
   sbm(B,'Hips',[['Z', sw*0.02]]); sbpUp(B,'Hips',0);
-  sbm(B,'LeftArm', [['X',HANG0+br*0.02],['Z',-0.04]]);
-  sbm(B,'RightArm',[['X',HANG0-br*0.02],['Z',-0.04]]);
-  sb(B,'LeftForeArm',0.30+br*0.03,'X'); sb(B,'RightForeArm',0.30-br*0.03,'X');
+  aimArm(B,'L', 1.30+br*0.02, -0.05);
+  aimArm(B,'R', 1.30-br*0.02, -0.05);
+  aimFore(B,'L',0.30+br*0.03,-0.05); aimFore(B,'R',0.30-br*0.03,-0.05);
   sb(B,'Spine',0.04+br*0.02,'X'); sb(B,'Spine1',0,'Y'); sb(B,'Spine2',0,'Y');
   sb(B,'Neck',0,'X');
 }
@@ -1158,26 +1205,34 @@ function poseJumpSkinned(p, h, rising){
     elbow = 0.60 + 0.25*k;
     lean  = 0.04 + 0.12*k;
   }
-  sb(B,'LeftUpLeg',hip,'X');  sb(B,'RightUpLeg',hip*0.85+0.08,'X');
-  sb(B,'LeftLeg',kneeL,'X');  sb(B,'RightLeg',kneeR,'X');
-  sb(B,'LeftFoot',ankle,'X'); sb(B,'RightFoot',ankle*0.65,'X');
+  const hipR=hip*0.85+0.08;
+  aimBone(B,'LeftUpLeg', -0.03, -Math.cos(hip), Math.sin(hip));
+  aimBone(B,'RightUpLeg', 0.03, -Math.cos(hipR), Math.sin(hipR));
+  aimBone(B,'LeftLeg', -0.02, -Math.max(0.12,Math.cos(hip-kneeL)), Math.sin(hip-kneeL));
+  aimBone(B,'RightLeg', 0.02, -Math.max(0.12,Math.cos(hipR-kneeR)), Math.sin(hipR-kneeR));
+  aimBone(B,'LeftFoot', -0.03, -Math.sin(0.18+ankle), Math.cos(0.18+ankle));
+  aimBone(B,'RightFoot', 0.03, -Math.sin(0.18+ankle*0.65), Math.cos(0.18+ankle*0.65));
   sbm(B,'Hips',[['X',lean*0.5]]); sbpUp(B,'Hips',0);
-  sbm(B,'LeftArm', [['X',HANG0+armX],['Z',-armZ]]);
-  sbm(B,'RightArm',[['X',HANG0+armX*0.9],['Z',-armZ]]);
-  sb(B,'LeftForeArm',elbow,'X'); sb(B,'RightForeArm',elbow*0.9,'X');
+  aimArm(B,'L', 0.92+armX, -armZ);
+  aimArm(B,'R', 0.92+armX*0.9, -armZ);
+  aimFore(B,'L',elbow,-armZ); aimFore(B,'R',elbow*0.9,-armZ);
   sb(B,'Spine',lean,'X'); sb(B,'Spine1',0,'Y'); sb(B,'Spine2',0,'Y'); sb(B,'Neck',-lean*0.5,'X');
 }
 /* Landing absorb on the skinned rig. t 1 -> 0 = deep crouch -> stand. */
 function poseLandSkinned(p, t){
   const B=p.bones; if(!B) return;
   const a=clamp(t,0,1);
-  sb(B,'LeftUpLeg',-0.38*a,'X'); sb(B,'RightUpLeg',-0.30*a,'X');
-  sb(B,'LeftLeg',1.25*a,'X');    sb(B,'RightLeg',1.00*a,'X');   // knees bend to absorb
-  sb(B,'LeftFoot',-0.40*a,'X');  sb(B,'RightFoot',-0.32*a,'X');
+  const hL=-0.38*a, hR=-0.30*a, kL=1.25*a, kR=1.00*a;
+  aimBone(B,'LeftUpLeg', -0.03, -Math.cos(hL), Math.sin(hL));
+  aimBone(B,'RightUpLeg', 0.03, -Math.cos(hR), Math.sin(hR));
+  aimBone(B,'LeftLeg', -0.02, -Math.max(0.12,Math.cos(hL-kL)), Math.sin(hL-kL));   // knees bend to absorb
+  aimBone(B,'RightLeg', 0.02, -Math.max(0.12,Math.cos(hR-kR)), Math.sin(hR-kR));
+  aimBone(B,'LeftFoot', -0.03, -Math.sin(0.18-0.40*a), Math.cos(0.18-0.40*a));
+  aimBone(B,'RightFoot', 0.03, -Math.sin(0.18-0.32*a), Math.cos(0.18-0.32*a));
   sbm(B,'Hips',[['X',0.10*a]]); sbpUp(B,'Hips',-0.06*a);     // pelvis drops into the crouch
-  sbm(B,'LeftArm', [['X',HANG0-0.55*a],['Z',-0.30*a]]);           // arms swing forward for balance
-  sbm(B,'RightArm',[['X',HANG0-0.45*a],['Z',-0.30*a]]);
-  sb(B,'LeftForeArm',0.95*a,'X'); sb(B,'RightForeArm',0.80*a,'X');
+  aimArm(B,'L',0.92-0.55*a, -0.30*a);           // arms swing forward for balance
+  aimArm(B,'R',0.92-0.45*a, -0.30*a);
+  aimFore(B,'L',0.95*a,-0.30*a); aimFore(B,'R',0.80*a,-0.30*a);
   sb(B,'Spine',0.26*a,'X'); sb(B,'Spine1',0,'Y'); sb(B,'Spine2',0,'Y'); sb(B,'Neck',-0.12*a,'X');
 }
 /* ---- the PLAYER is a skinned character from the same pool (boy/girl) ----
@@ -2342,6 +2397,12 @@ function updatePeds(dt){
     else animateWalk(p.group, p.phase, walking?1:0.12);
     p.group.position.set(p.pos.x, 0, p.pos.z);
     p.group.rotation.y=p.yaw;
+    // exact ground clamp so the support foot plants (no skating) — nearby peds only,
+    // so the crowd keeps the cheap analytic plant at distance.
+    if(p.skinned){
+      const ddx=p.pos.x-player.pos.x, ddz=p.pos.z-player.pos.z;
+      if(ddx*ddx+ddz*ddz < 900){ p.group.updateMatrixWorld(true); groundClampOne(p,false,0.30); }
+    }
   }
 }
 function updateCops(dt){
@@ -2422,7 +2483,7 @@ function frame(){
   // ground-clamp the player so the support foot plants (no skating) — measured, exact
   if(player.skinned && player.onFoot){
     player.root.updateMatrixWorld(true);
-    groundClampOne(player, jumpY>0, sprint?0.008:0.045);
+    groundClampOne(player, jumpY>0, sprint?0.06:0.30);
   }
   if(!paused) updateCamera(dt);
   updateBeam(t);
@@ -2480,7 +2541,7 @@ addEventListener('resize',()=>{
 if('ontouchstart' in window || innerWidth<900) joyEl.classList.add('show');
 
 /* expose for debugging/testing */
-window.GRIND = { S, PLACES, player, cars, peds, cops, traffic:TRAFFIC, cam, camera, scene, THREE, solids, INTERSECTIONS, CROSSWALKS, ROAD, lightState, onRoad, inCrosswalk, walkable, startShift, applyJob, buy, addHeat, doAction, enterCar, exitCar, MG, openPhone, selectTab, nearestTarget, usePlace, mug, punch, hurtPed, updateCombat, updateTraffic, tryJump, setSprint, animateWalk, poseJump, poseLand, idlePose, buildHumanoid, buildPed, buildSkinnedPed, animateSkinned, idleSkinned, poseJumpSkinned, poseLandSkinned, makeSkinnedPlayer, MANNEQUIN, reloadPeds, groundClampOne, measureBobAxis, setPause:(v)=>{paused=!!v;}, get paused(){return paused;}, get jumpY(){return jumpY;}, get sprint(){return sprint;}, get nearTarget(){return nearTarget;}, get playerHp(){return playerHp;} };
+window.GRIND = { S, PLACES, player, cars, peds, cops, traffic:TRAFFIC, cam, camera, scene, THREE, solids, INTERSECTIONS, CROSSWALKS, ROAD, lightState, onRoad, inCrosswalk, walkable, startShift, applyJob, buy, addHeat, doAction, enterCar, exitCar, MG, openPhone, selectTab, nearestTarget, usePlace, mug, punch, hurtPed, updateCombat, updateTraffic, tryJump, setSprint, animateWalk, poseJump, poseLand, idlePose, buildHumanoid, buildPed, buildSkinnedPed, animateSkinned, idleSkinned, poseJumpSkinned, poseLandSkinned, makeSkinnedPlayer, MANNEQUIN, MANNEQUINS, aimBone, aimArm, aimFore, reloadPeds, groundClampOne, measureBobAxis, setPause:(v)=>{paused=!!v;}, get paused(){return paused;}, get jumpY(){return jumpY;}, get sprint(){return sprint;}, get nearTarget(){return nearTarget;}, get playerHp(){return playerHp;} };
 </script>
 </body>
 </html>
