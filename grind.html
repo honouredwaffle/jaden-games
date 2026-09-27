@@ -886,12 +886,29 @@ function loadMannequin(){
     MANNEQUIN.h=Math.max(0.1, box.max.y-box.min.y);
     MANNEQUIN.minY=box.min.y; MANNEQUIN.maxY=box.max.y;
     MANNEQUIN.proto=root; MANNEQUIN.ready=true;
+    MANNEQUIN.bob=measureBobAxis(root);
     let nb=0, nm=0; root.traverse(o=>{ if(o.isBone) nb++; if(o.isMesh) nm++; });
     console.log('[character] loaded h='+MANNEQUIN.h.toFixed(3)+' bones='+nb+' meshes='+nm);
     if(!P('procedural')) reloadPeds();
   }, undefined, e=>console.warn('[mannequin] load failed', e));
 }
 loadMannequin();
+/* The FBX->GLB bake leaves the armature at a 0.01 scale and rotates the bone axes,
+   so the Hips bone's local axes do NOT line up with world up and 1 local unit is
+   worth ~0.01m. Measure it instead of hard-coding: returns which local axis moves
+   the body vertically and how many local units = 1 metre. */
+function measureBobAxis(root){
+  let hips=null; root.traverse(o=>{ if(!hips && o.isBone && _boneKey(o.name)==='Hips') hips=o; });
+  if(!hips) return {ax:2, upm:100};
+  const p0=hips.position.clone();
+  const wy=()=>{ hips.updateMatrixWorld(true); const v=new THREE.Vector3(); hips.getWorldPosition(v); return v.y; };
+  hips.position.copy(p0); const y0=wy(); const res=[0,0,0];
+  for(let i=0;i<3;i++){ const t=p0.clone(); t.setComponent(i,t.getComponent(i)+1); hips.position.copy(t); res[i]=wy()-y0; }
+  hips.position.copy(p0);
+  let ax=0; for(let i=1;i<3;i++) if(Math.abs(res[i])>Math.abs(res[ax])) ax=i;
+  const d=res[ax]|| -0.01;
+  return {ax, upm: 1/d};
+}
 function reloadPeds(){
   for(const p of peds){ if(p.group) scene.remove(p.group); }
   peds.length=0;
@@ -922,12 +939,40 @@ function buildSkinnedPed(x,z,targetHeight){
   } });
   const bones={};
   root.traverse(o=>{ if(o.isBone){ const k=_boneKey(o.name); if(!bones[k]) bones[k]=o; } });
-  for(const k in bones){ bones[k].userData.rest=bones[k].quaternion.clone(); }
+  for(const k in bones){ const b=bones[k]; b.userData.rest=b.quaternion.clone(); b.userData.restPos=b.position.clone(); }
   root.userData.bones=bones;
+  // let the Hips bone be pushed up/down in WORLD metres (pelvis bob / crouch)
+  if(bones['Hips'] && MANNEQUIN.bob){ const bo=MANNEQUIN.bob; bones['Hips'].userData.bobAxis=bo.ax; bones['Hips'].userData.bobUpm=bo.upm/s; }
   const wrap=new THREE.Group(); wrap.add(root); scene.add(wrap);
-  return { group:wrap, root, bones, skinned:true, pos:new THREE.Vector3(x,0,z),
+  // record the rest-pose toe height above the group origin (for the ground clamp)
+  wrap.updateMatrixWorld(true);
+  let restToe=0;
+  if(bones['LeftToe_End'] && bones['RightToe_End']){ const _a=new THREE.Vector3(), _b=new THREE.Vector3();
+    bones['LeftToe_End'].getWorldPosition(_a); bones['RightToe_End'].getWorldPosition(_b);
+    restToe=Math.min(_a.y,_b.y)-wrap.position.y; }
+  return { group:wrap, root, bones, skinned:true, restToe, pos:new THREE.Vector3(x,0,z),
            yaw:rnd(0,6.28), tYaw:rnd(0,6.28), target:new THREE.Vector3(x,0,z),
            speed:rnd(1.6,2.9), phase:rnd(0,6.28) };
+}
+/* ---- exact ground clamp (cheap stand-in for leg IK) ----
+   After the pose is applied, measure where the lower toe actually ended up and drop
+   the pelvis by the remainder, so the support foot sits on the ground. Used for the
+   player (who is always in view); the crowd uses the cheaper analytic plant. ---- */
+const _clA=new THREE.Vector3(), _clB=new THREE.Vector3();
+function groundClampOne(ent, airborne, cap){
+  if(airborne) return;
+  if(!ent || !ent.skinned) return;
+  const B=ent.bones; if(!B) return;
+  const hb=B['Hips'], lf=B['LeftToe_End'], rf=B['RightToe_End'];
+  if(!hb || !lf || !rf || hb.userData.bobUpm===undefined) return;
+  lf.getWorldPosition(_clA); rf.getWorldPosition(_clB);
+  const lowest=Math.min(_clA.y,_clB.y);
+  const groundY=(ent.group? ent.group.position.y : 0) + (ent.restToe||0);
+  let drop=lowest-groundY;
+  if(drop<=0) return;
+  if(cap!==undefined) drop=Math.min(drop, cap);   // keep some float so a run can still take off
+  const ax=hb.userData.bobAxis;
+  hb.position.setComponent(ax, hb.position.getComponent(ax) - drop*hb.userData.bobUpm);
 }
 /* ---- bone-driven run/walk cycle. Axis per joint set from a live probe:
    Mixamo limb bones swing around their LOCAL X. ---- */
@@ -952,34 +997,98 @@ function sbm(B,name,rots){
     b.quaternion.multiply(_q1);
   }
 }
-/* Run/walk cycle driving the MIXAMO skeleton. Axes verified by a live probe
-   (assets/probe.html): legs swing on local X (+forward both sides), knees hinge
-   on X (+ = bend), arms raise/lower on X (both + = down) and swing front/back on
-   Z (+Z = fwd for LEFT, back for RIGHT => both use -s to swing contralaterally).
-   amt 0 = idle .. 1 = full stride.  R 0 = walk .. 1 = sprint. */
+/* sbp = SET a bone's local position, offset from its rest position (bone translation,
+   used for the pelvis bob so the whole body rises/falls through a stride). */
+function sbp(B,name,off){
+  const b=B[name]; if(!b||!b.userData.restPos) return;
+  b.position.set(b.userData.restPos.x+off[0], b.userData.restPos.y+off[1], b.userData.restPos.z+off[2]);
+}
+/* sbpUp = raise/lower a bone by a given number of WORLD metres, on whichever local
+   axis actually points up for this rig (measured at load). Used for the pelvis bob. */
+function sbpUp(B,name,metres){
+  const b=B[name]; if(!b||!b.userData.restPos) return;
+  if(b.userData.bobUpm===undefined || !metres){ b.position.copy(b.userData.restPos); return; }
+  const off=[0,0,0]; off[b.userData.bobAxis]=metres*b.userData.bobUpm;
+  b.position.set(b.userData.restPos.x+off[0], b.userData.restPos.y+off[1], b.userData.restPos.z+off[2]);
+}
+/* ============================================================
+   LOCOMOTION — real per-joint articulation
+   Modelled on a proper run cycle (Blender reference, 2026-09-27):
+     • hips swing the thighs, with a forward bias at speed
+     • knees flex hard through the swing phase (knee lift ~90deg)
+       + a second, smaller absorption bend on stance contact
+     • ankles roll: toe-off (plantarflex) when the leg is back,
+       toe-up (dorsiflex) as it reaches forward
+     • pelvis bobs (twice per stride) + counter-rotates against the shoulders
+     • elbows held bent ~90deg when running, swinging opposite the legs
+   R 0 = walk .. 1 = sprint.  amt 0 = idle .. 1 = full stride.
+   Axis map (verified live on this Mixamo rig):
+     legs/knees/ankles/spine = local X,  arms = X(hang)+Z(swing),
+     forearms = X(bend), spine1/2 = Y(counter-rotate).
+   ============================================================ */
 function animateSkinned(p, phase, amt, run){
   const B=p.bones; if(!B) return;
   const R=clamp(run||0,0,1), a=clamp(amt,0,1);
-  const s=Math.sin(phase), c=Math.cos(phase);
-  const LEG=(0.80+0.32*R)*a;
-  sb(B,'LeftUpLeg',  s*LEG,'X');
-  sb(B,'RightUpLeg',-s*LEG,'X');
-  // knee folds as the leg swings forward (cos>0 for L / <0 for R)
-  sb(B,'LeftLeg', (0.05+(0.40+0.80*R)*(0.5+0.5*c)+(0.15+0.20*R)*Math.max(0,-c))*a,'X');
-  sb(B,'RightLeg',(0.05+(0.40+0.80*R)*(0.5-0.5*c)+(0.15+0.20*R)*Math.max(0, c))*a,'X');
-  // ankle: toe-off when back, toe-up on the swing
-  sb(B,'LeftFoot', (0.28*Math.max(0,-s)-0.22*Math.max(0, s))*a,'X');
-  sb(B,'RightFoot',(0.28*Math.max(0, s)-0.22*Math.max(0,-s))*a,'X');
-  // arms: hang down from the rest T-pose, swing opposite the legs.
-  // NOTE the SAME Z sign on both sides = contralateral swing (this rig mirrors L/R,
-  // so opposite signs would swing both arms the same way).
-  const HANG=HANG0+0.10*R, AA=(0.50+0.42*R)*a;
+  const s=Math.sin(phase), c2=Math.cos(2*phase);
+  // --- thigh swing from the hip. Asymmetric: a run throws the thigh far forward
+  //     at the knee-drive but only ~half that far back, so the foot can actually
+  //     reach the ground on stance instead of hovering at hip height. ---
+  const A=0.60+0.55*R, bias=0.14*R, backC=0.60, adduct=0.05+0.06*R;
+  const swing=(sv)=>{ const r=A*sv; return bias + (r>0? r : r*backC); };
+  sbm(B,'LeftUpLeg', [['X',swing( s)],['Z', -adduct]]);    // slight adduction -> legs
+  sbm(B,'RightUpLeg',[['X',swing(-s)],['Z', adduct]]);    // track under the body, not splayed
+  // --- knees: one flex per step, PEAKED MID-SWING (thigh vertical, heel up to the
+  //     butt) then extending as the thigh drives forward to reach for the ground.
+  //     Plus a smaller absorption flex at stance contact. The kernel is asymmetric
+  //     (fast flex, slower extend) so the two legs never mirror into a "both legs
+  //     folded" pose. ---
+  const wrapPi=d=>{ d=((d+Math.PI)%(2*Math.PI)+2*Math.PI)%(2*Math.PI)-Math.PI; return d; };
+  const SWING_PK=5.10, CONTACT_PK=1.92;
+  const kneeRaw=(ph,BASE,ABS)=>{
+    const d=wrapPi(ph-BASE), w=(d<0? d*1.50 : d*1.20);
+    const sw=Math.pow(0.5+0.5*Math.cos(w),2.0);
+    const ab=Math.pow(Math.max(0,Math.cos(wrapPi(ph-ABS))),1.6);
+    return 0.06 + (0.72+0.92*R)*sw + (0.12+0.42*R)*ab;
+  };
+  const kneeL=kneeRaw(phase, SWING_PK, CONTACT_PK), kneeR=kneeRaw(phase, SWING_PK+Math.PI, CONTACT_PK+Math.PI);
+  // NB the knee angle is NEGATED: on this rig positive local-X folds the shin
+  // FORWARD (a backward knee). A human knee folds the heel BACKWARD, so bend = -X.
+  sb(B,'LeftLeg', -kneeL*a - 0.04*(1-a),'X');
+  sb(B,'RightLeg',-kneeR*a - 0.04*(1-a),'X');
+  // --- ankles: point the toe on push-off, lift it on the forward reach ---
+  const ank=(sv)=>((0.30+0.22*R)*Math.max(0,-sv) - (0.24+0.16*R)*Math.max(0,sv))*a;
+  sb(B,'LeftFoot', -ank(s),'X');      // negated for the same reason as the knee
+  sb(B,'RightFoot',-ank(-s),'X');
+  // --- pelvis. Two parts:
+  //   PLANT: swinging a straight leg out about the hip LIFTS its foot by
+  //     L*(1-cos(angle)), so drop the pelvis by that much for the straighter
+  //     (support) leg -> the foot stays on the ground instead of skating.
+  //     A full plant for a walk; only partial for a run so it still floats.
+  //   LIFT: a run needs a flight bounce between strides.
+  //   Plus a slow counter-rotation of the pelvis against the shoulders. ---
+  //   Support leg = whichever foot sits LOWER (small thigh ANGLE and small knee
+  //     bend both lift a foot), and drop the pelvis by that much -> planted feet.
+  const thighL=swing(s), thighR=swing(-s);
+  const liftOf=(th,k)=>0.86*(1-Math.cos(th)) + 0.45*(1-Math.cos(k));
+  const supportLift=Math.min(liftOf(thighL,kneeL), liftOf(thighR,kneeR));
+  const plant=Math.min(0.075-0.050*R, (supportLift*0.26*(1-0.45*R) + 0.006*(1-0.5*R))*a);
+  const lift=0.075*R*Math.max(0,-c2)*a;
+  sbpUp(B,'Hips',lift - plant);
+  sbm(B,'Hips',[['Y', s*(0.06+0.09*R)*a],['Z', c2*0.035*a]]);
+  // --- arms: hang from the T-pose, swing opposite the legs (same Z sign both sides) ---
+  const HANG=HANG0+0.06*R, AA=(0.45+0.65*R)*a;
   sbm(B,'LeftArm', [['X',HANG],['Z',-s*AA]]);
   sbm(B,'RightArm',[['X',HANG],['Z',-s*AA]]);
-  const EB=(0.55+0.75*R)*a + 0.30*(1-a);
-  sb(B,'LeftForeArm', EB,'X'); sb(B,'RightForeArm', EB,'X');
-  // torso: forward lean grows with speed + subtle counter-rotation
-  sb(B,'Spine',  (0.04+0.09*a+0.20*R)*a,'X'); sb(B,'Spine1',-s*0.12*a,'Y'); sb(B,'Spine2',-s*0.07*a,'Y');
+  // elbows held bent when running (reference: ~90deg), gently pumping
+  const EB=0.42+(0.30+0.75*R)*a + (0.24*R*a)*Math.abs(c2*0.5);
+  sb(B,'LeftForeArm', EB + 0.22*R*a*Math.max(0,-s),'X');
+  sb(B,'RightForeArm',EB + 0.22*R*a*Math.max(0, s),'X');
+  // --- torso: forward lean grows with speed, shoulders twist AGAINST the pelvis ---
+  sb(B,'Spine', (0.05+0.21*R)*a + 0.02*(1-a),'X');
+  sb(B,'Spine1', -s*(0.09+0.07*R)*a,'Y');
+  sb(B,'Spine2', -s*(0.05+0.05*R)*a,'Y');
+  // head stays level despite the lean
+  sb(B,'Neck', -(0.02+0.10*R)*a,'X');
 }
 /* how far to rotate the upper arm down from the rest T-pose so it hangs by the side.
    Derived live: rest hand sits ~0.68m lateral (arm ~0.80m); the arm lowers about
@@ -988,41 +1097,65 @@ function animateSkinned(p, phase, amt, run){
 const HANG0=1.58;
 function idleSkinned(p, t){
   const B=p.bones; if(!B) return;
-  const br=(t!==undefined? Math.sin(t*1.5)*0.5 : 0);   // gentle breathing sway
+  const br=(t!==undefined? Math.sin(t*1.5) : 0);       // gentle breathing
+  const sw=(t!==undefined? Math.sin(t*0.45) : 0);      // slow weight shift
   sb(B,'LeftUpLeg',0,'X'); sb(B,'RightUpLeg',0,'X');
   sb(B,'LeftLeg',0.06,'X'); sb(B,'RightLeg',0.06,'X');
   sb(B,'LeftFoot',0,'X'); sb(B,'RightFoot',0,'X');
-  sbm(B,'LeftArm', [['X',HANG0+br*0.03],['Z',0]]);
-  sbm(B,'RightArm',[['X',HANG0-br*0.03],['Z',0]]);
-  sb(B,'LeftForeArm',0.30,'X'); sb(B,'RightForeArm',0.30,'X');
+  sbm(B,'Hips',[['Z', sw*0.02]]); sbpUp(B,'Hips',0);
+  sbm(B,'LeftArm', [['X',HANG0+br*0.02],['Z',-0.04]]);
+  sbm(B,'RightArm',[['X',HANG0-br*0.02],['Z',-0.04]]);
+  sb(B,'LeftForeArm',0.30+br*0.03,'X'); sb(B,'RightForeArm',0.30-br*0.03,'X');
   sb(B,'Spine',0.04+br*0.02,'X'); sb(B,'Spine1',0,'Y'); sb(B,'Spine2',0,'Y');
+  sb(B,'Neck',0,'X');
 }
-/* Airborne jump pose for the skinned rig. h 0..1 = height, rising = going up. */
+/* Airborne jump for the skinned rig, driven off height h (0..1) and rising/falling.
+   Takeoff = full extension + toe point; tuck = knees drawn up + arms up;
+   falling = legs reach down; landing crouch handled by poseLandSkinned. */
 function poseJumpSkinned(p, h, rising){
   const B=p.bones; if(!B) return;
   const k=clamp(h,0,1);
-  let hip,knee,ankle,arm,elbow,lean;
-  if(rising){ hip=0.70-1.55*k; knee=0.35+1.15*k; ankle=0.45-0.60*k; arm=-0.10-1.30*k; elbow=0.30+0.60*k; lean=0.22-0.28*k; }
-  else      { hip=-0.85+0.95*k; knee=1.35-0.70*k; ankle=-0.20+0.12*k; arm=-1.35+1.10*k; elbow=0.90-0.30*k; lean=0.02+0.10*k; }
-  sb(B,'LeftUpLeg',hip,'X');  sb(B,'RightUpLeg',hip*0.82+0.10,'X');
-  sb(B,'LeftLeg',knee*0.90,'X'); sb(B,'RightLeg',knee*0.60+0.15,'X');
-  sb(B,'LeftFoot',ankle,'X'); sb(B,'RightFoot',ankle*0.6,'X');
-  sbm(B,'LeftArm', [['X',HANG0+arm]]);
-  sbm(B,'RightArm',[['X',HANG0+arm*0.85]]);
+  let hip,kneeL,kneeR,ankle,armX,armZ,elbow,lean;
+  if(rising){
+    hip   = 0.62 - 1.50*k;      // drive the thigh up as we tuck
+    kneeL = 0.30 + 1.45*k;      // knees fold up to ~100deg
+    kneeR = 0.20 + 1.20*k;
+    ankle = 0.50 - 0.75*k;      // point the toes off the ground, then tuck
+    armX  = -0.95 - 0.55*k;     // arms swing up/through
+    armZ  = 0.10 + 0.25*k;
+    elbow = 0.35 + 0.55*k;
+    lean  = 0.20 - 0.26*k;
+  } else {
+    hip   = -0.55 + 0.80*k;     // legs reach down to land
+    kneeL = 0.95 - 0.55*k;
+    kneeR = 0.75 - 0.40*k;
+    ankle = -0.25 + 0.18*k;
+    armX  = -1.15 + 1.25*k;     // arms come down for balance
+    armZ  = 0.30 - 0.20*k;
+    elbow = 0.60 + 0.25*k;
+    lean  = 0.04 + 0.12*k;
+  }
+  sb(B,'LeftUpLeg',hip,'X');  sb(B,'RightUpLeg',hip*0.85+0.08,'X');
+  sb(B,'LeftLeg',kneeL,'X');  sb(B,'RightLeg',kneeR,'X');
+  sb(B,'LeftFoot',ankle,'X'); sb(B,'RightFoot',ankle*0.65,'X');
+  sbm(B,'Hips',[['X',lean*0.5]]); sbpUp(B,'Hips',0);
+  sbm(B,'LeftArm', [['X',HANG0+armX],['Z',-armZ]]);
+  sbm(B,'RightArm',[['X',HANG0+armX*0.9],['Z',-armZ]]);
   sb(B,'LeftForeArm',elbow,'X'); sb(B,'RightForeArm',elbow*0.9,'X');
-  sb(B,'Spine',lean,'X'); sb(B,'Spine1',0,'Y'); sb(B,'Spine2',0,'Y');
+  sb(B,'Spine',lean,'X'); sb(B,'Spine1',0,'Y'); sb(B,'Spine2',0,'Y'); sb(B,'Neck',-lean*0.5,'X');
 }
-/* Landing absorb on the skinned rig. t 1 -> 0 = crouch -> stand. */
+/* Landing absorb on the skinned rig. t 1 -> 0 = deep crouch -> stand. */
 function poseLandSkinned(p, t){
   const B=p.bones; if(!B) return;
   const a=clamp(t,0,1);
-  sb(B,'LeftUpLeg',-0.30*a,'X'); sb(B,'RightUpLeg',-0.22*a,'X');
-  sb(B,'LeftLeg',1.10*a,'X');    sb(B,'RightLeg',0.90*a,'X');
-  sb(B,'LeftFoot',-0.35*a,'X');  sb(B,'RightFoot',-0.28*a,'X');
-  sbm(B,'LeftArm', [['X',HANG0+0.35*a]]);
-  sbm(B,'RightArm',[['X',HANG0+0.25*a]]);
-  sb(B,'LeftForeArm',0.85*a,'X'); sb(B,'RightForeArm',0.70*a,'X');
-  sb(B,'Spine',0.20*a,'X'); sb(B,'Spine1',0,'Y'); sb(B,'Spine2',0,'Y');
+  sb(B,'LeftUpLeg',-0.38*a,'X'); sb(B,'RightUpLeg',-0.30*a,'X');
+  sb(B,'LeftLeg',1.25*a,'X');    sb(B,'RightLeg',1.00*a,'X');   // knees bend to absorb
+  sb(B,'LeftFoot',-0.40*a,'X');  sb(B,'RightFoot',-0.32*a,'X');
+  sbm(B,'Hips',[['X',0.10*a]]); sbpUp(B,'Hips',-0.06*a);     // pelvis drops into the crouch
+  sbm(B,'LeftArm', [['X',HANG0-0.55*a],['Z',-0.30*a]]);           // arms swing forward for balance
+  sbm(B,'RightArm',[['X',HANG0-0.45*a],['Z',-0.30*a]]);
+  sb(B,'LeftForeArm',0.95*a,'X'); sb(B,'RightForeArm',0.80*a,'X');
+  sb(B,'Spine',0.26*a,'X'); sb(B,'Spine1',0,'Y'); sb(B,'Spine2',0,'Y'); sb(B,'Neck',-0.12*a,'X');
 }
 /* ---- the PLAYER is the SAME skinned character as the crowd ----
    built from the identical character.glb rig so he is not a separate model.
@@ -1041,7 +1174,7 @@ function makeSkinnedPlayer(){
   });
   const wrap=np.group;
   const ip=peds.indexOf(np); if(ip>=0) peds.splice(ip,1);   // not a wandering ped
-  player.skinned=true; player.root=np.root; player.bones=np.bones;
+  player.skinned=true; player.root=np.root; player.bones=np.bones; player.restToe=np.restToe;
   player.group=wrap; player.phase=0;
   wrap.position.set(player.pos.x, 0, player.pos.z);
   wrap.rotation.y=player.yaw;
@@ -2088,6 +2221,11 @@ function frame(){
   updateLights(t);
   updateHeat(dt);
   updateEnergy(dt);
+  // ground-clamp the player so the support foot plants (no skating) — measured, exact
+  if(player.skinned && player.onFoot){
+    player.root.updateMatrixWorld(true);
+    groundClampOne(player, jumpY>0, sprint?0.008:0.045);
+  }
   if(!paused) updateCamera(dt);
   updateBeam(t);
 
@@ -2144,7 +2282,7 @@ addEventListener('resize',()=>{
 if('ontouchstart' in window || innerWidth<900) joyEl.classList.add('show');
 
 /* expose for debugging/testing */
-window.GRIND = { S, PLACES, player, cars, peds, cops, traffic:TRAFFIC, cam, camera, scene, THREE, solids, INTERSECTIONS, CROSSWALKS, ROAD, lightState, onRoad, inCrosswalk, walkable, startShift, applyJob, buy, addHeat, doAction, enterCar, exitCar, MG, openPhone, selectTab, nearestTarget, usePlace, mug, tryJump, setSprint, animateWalk, poseJump, poseLand, idlePose, buildHumanoid, buildPed, buildSkinnedPed, animateSkinned, idleSkinned, poseJumpSkinned, poseLandSkinned, makeSkinnedPlayer, MANNEQUIN, reloadPeds, setPause:(v)=>{paused=!!v;}, get paused(){return paused;}, get jumpY(){return jumpY;}, get sprint(){return sprint;}, get nearTarget(){return nearTarget;} };
+window.GRIND = { S, PLACES, player, cars, peds, cops, traffic:TRAFFIC, cam, camera, scene, THREE, solids, INTERSECTIONS, CROSSWALKS, ROAD, lightState, onRoad, inCrosswalk, walkable, startShift, applyJob, buy, addHeat, doAction, enterCar, exitCar, MG, openPhone, selectTab, nearestTarget, usePlace, mug, tryJump, setSprint, animateWalk, poseJump, poseLand, idlePose, buildHumanoid, buildPed, buildSkinnedPed, animateSkinned, idleSkinned, poseJumpSkinned, poseLandSkinned, makeSkinnedPlayer, MANNEQUIN, reloadPeds, groundClampOne, measureBobAxis, setPause:(v)=>{paused=!!v;}, get paused(){return paused;}, get jumpY(){return jumpY;}, get sprint(){return sprint;}, get nearTarget(){return nearTarget;} };
 </script>
 </body>
 </html>
