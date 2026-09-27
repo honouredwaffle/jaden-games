@@ -870,29 +870,57 @@ player.group.rotation.y=player.yaw;
    +Z facing preserved (Mixamo base faces +Z, same as our rig).
    ============================================================ */
 function P(k){ return new URLSearchParams(location.search).get(k)!==null; }
-const MANNEQUIN={ready:false, proto:null, h:1.8, minY:0, maxY:1.8};
-/* per-material palettes -> recolour each cloned NPC so the crowd varies.
-   Material names come from the Blender export (Skin/Top/Pants/Shoes/Hair). */
+const MANNEQUIN={ready:false, proto:null, h:1.8, minY:0, maxY:1.8, bob:null, src:''};
+const MANNEQUINS=[];   // pool of loaded human prototypes (boy + girl)
+/* per-material-role palettes -> recolour each cloned NPC so the crowd varies.
+   Material names come from the Blender export; matRole() maps them to a role. */
 const CHAR_MATPAL={
   Top:   [0xe3644f,0x3fa9f5,0x3fbf8f,0x9a6dd6,0xe8913a,0x7fb8e0,0xd94f5e,0x46b060,0x2b3550,0x1c1c22,0xd8a930,0x8c1f24],
-  Pants: [0x2b2b33,0x39445a,0x4a3b2f,0x23303f,0x5a2f3a,0x1f2833,0x3a3a40,0x2e4a6a,0x1a1a1e],
   Shoes: [0x1c1f26,0xe8e8e8,0x8c1f24,0x2a2a5a,0x6a4a20,0xd8d8d8],
   Hair:  [0x15151a,0x241b14,0x3a2c1e,0x6b4a2a,0x8a5a2a,0xa87a3a,0xd8b26a,0x8f8f96,0x6a1f1f,0x2f2440],
-  Skin:  [0xe9b98c,0xd9a878,0xc48c60,0xa9714a,0x8a5636,0x6b4028,0xf0c9a0,0x7a4a2e],
+  Skin:  [0xffffff,0xf6e3d0,0xecd0b4,0xdcb894,0xc9a074,0xf9ecdd,0xe6c39c],
 };
-const AXX=new THREE.Vector3(1,0,0), AXY=new THREE.Vector3(0,1,0), AXZ=new THREE.Vector3(0,0,1);
+/* map a GLB material name to a recolour ROLE (or null = leave it alone).
+   Checked most-specific first so e.g. Human.eyebrow003_mat -> Brow, not Skin. */
+function matRole(n){
+  if(!n) return null;
+  if(/eyebrow/i.test(n)) return 'Brow';
+  if(/eyelash/i.test(n)) return 'Lash';
+  if(/teeth/i.test(n)) return 'Teeth';
+  if(/casualsuit|sportsuit|elegantsuit|worksuit|hoodie|jacket|shirt|clothes|suit/i.test(n)) return 'Top';
+  if(/shoe|sneaker|boot/i.test(n)) return 'Shoes';
+  if(/short\d|long\d|bob\d|ponytail|afro|braid|hair/i.test(n)) return 'Hair';
+  if(/^human_mat$|human\.?mat$|lips|ears|nipple|nails|skin/i.test(n)) return 'Skin';
+  if(/^eye/i.test(n) || /_eye$/i.test(n)) return 'Eye';
+  return null;
+}
+/* apply a role->colour look to every mesh under root. */
+function applyLook(root, look){
+  root.traverse(o=>{ if(!o.isMesh) return;
+    const mats=Array.isArray(o.material)?o.material:[o.material];
+    const out=mats.map(m=>{ const role=matRole(m.name); if(!role) return m;
+      const col=look[role]; if(col===undefined||col===null) return m;
+      const nm=m.clone(); nm.color.setHex(col); return nm; });
+    o.material = out.length===1?out[0]:out;
+  });
+}
 function loadMannequin(){
-  new GLTFLoader().load('assets/character.glb', g=>{
-    const root=g.scene; root.updateMatrixWorld(true);
-    const box=new THREE.Box3().setFromObject(root);
-    MANNEQUIN.h=Math.max(0.1, box.max.y-box.min.y);
-    MANNEQUIN.minY=box.min.y; MANNEQUIN.maxY=box.max.y;
-    MANNEQUIN.proto=root; MANNEQUIN.ready=true;
-    MANNEQUIN.bob=measureBobAxis(root);
-    let nb=0, nm=0; root.traverse(o=>{ if(o.isBone) nb++; if(o.isMesh) nm++; });
-    console.log('[character] loaded h='+MANNEQUIN.h.toFixed(3)+' bones='+nb+' meshes='+nm);
-    if(!P('procedural')) reloadPeds();
-  }, undefined, e=>console.warn('[mannequin] load failed', e));
+  const files=[['boy','assets/boy.glb'],['girl','assets/girl.glb']];
+  let pending=files.length;
+  const done=()=>{ if(--pending<=0){ MANNEQUIN.ready=MANNEQUINS.length>0; if(!P('procedural')) reloadPeds(); } };
+  for(const f of files){
+    const which=f[0], url=f[1];
+    new GLTFLoader().load(url, g=>{
+      const root=g.scene; root.updateMatrixWorld(true);
+      const box=new THREE.Box3().setFromObject(root);
+      const m={which, proto:root, h:Math.max(0.1, box.max.y-box.min.y), minY:box.min.y, maxY:box.max.y, bob:measureBobAxis(root)};
+      MANNEQUINS.push(m);
+      if(!MANNEQUIN.proto){ MANNEQUIN.proto=root; MANNEQUIN.h=m.h; MANNEQUIN.minY=m.minY; MANNEQUIN.maxY=m.maxY; MANNEQUIN.bob=m.bob; MANNEQUIN.src=which; }
+      let nb=0, nm=0; root.traverse(o=>{ if(o.isBone) nb++; if(o.isMesh) nm++; });
+      console.log('[human] '+which+' loaded h='+m.h.toFixed(3)+' bones='+nb+' meshes='+nm);
+      done();
+    }, undefined, e=>{ console.warn('[human] load failed '+which, e); done(); });
+  }
 }
 loadMannequin();
 /* The FBX->GLB bake leaves the armature at a 0.01 scale and rotates the bone axes,
@@ -923,30 +951,23 @@ function reloadPeds(){
    so the prefix match must make the colon OPTIONAL. Getting this wrong means
    sb() finds no bones and the whole crowd stands still. */
 const _boneKey = n => n.replace(/^mixamorig[0-9]*:?/,'');
-function buildSkinnedPed(x,z,targetHeight){
-  const root=skeletonClone(MANNEQUIN.proto);
+function pickMannequin(){ return MANNEQUINS.length ? MANNEQUINS[(Math.random()*MANNEQUINS.length)|0] : MANNEQUIN; }
+function buildSkinnedPed(x,z,targetHeight,mk){
+  mk = mk || pickMannequin();
+  const root=skeletonClone(mk.proto);
   const target=targetHeight||rnd(1.62,1.88);
-  const s=target/MANNEQUIN.h;
+  const s=target/mk.h;
   root.scale.setScalar(s);
-  root.position.y=-MANNEQUIN.minY*s;                 // feet on the ground
-  root.traverse(o=>{ if(o.isMesh){
-    o.castShadow=true; o.receiveShadow=true; o.frustumCulled=false;
-    // recolour per-NPC: each material slot maps to a palette -> a varied crowd
-    const mats=Array.isArray(o.material)?o.material:[o.material];
-    const out=mats.map(m=>{
-      const pal=CHAR_MATPAL[m.name]; if(!pal) return m;
-      const nm=m.clone(); nm.color.setHex(pck(pal)); return nm;
-    });
-    o.material = out.length===1 ? out[0] : out;
-  } });
+  root.position.y=-mk.minY*s;                 // feet on the ground
+  applyLook(root, { Top:pck(CHAR_MATPAL.Top), Shoes:pck(CHAR_MATPAL.Shoes),
+                    Hair:pck(CHAR_MATPAL.Hair), Skin:pck(CHAR_MATPAL.Skin) });
   const bones={};
   root.traverse(o=>{ if(o.isBone){ const k=_boneKey(o.name); if(!bones[k]) bones[k]=o; } });
   for(const k in bones){ const b=bones[k]; b.userData.rest=b.quaternion.clone(); b.userData.restPos=b.position.clone(); }
   root.userData.bones=bones;
   // let the Hips bone be pushed up/down in WORLD metres (pelvis bob / crouch)
-  if(bones['Hips'] && MANNEQUIN.bob){ const bo=MANNEQUIN.bob; bones['Hips'].userData.bobAxis=bo.ax; bones['Hips'].userData.bobUpm=bo.upm/s; }
+  if(bones['Hips'] && mk.bob){ const bo=mk.bob; bones['Hips'].userData.bobAxis=bo.ax; bones['Hips'].userData.bobUpm=bo.upm/s; }
   const wrap=new THREE.Group(); wrap.add(root); scene.add(wrap);
-  // record the rest-pose toe height above the group origin (for the ground clamp)
   wrap.updateMatrixWorld(true);
   let restToe=0;
   if(bones['LeftToe_End'] && bones['RightToe_End']){ const _a=new THREE.Vector3(), _b=new THREE.Vector3();
@@ -1159,21 +1180,14 @@ function poseLandSkinned(p, t){
   sb(B,'LeftForeArm',0.95*a,'X'); sb(B,'RightForeArm',0.80*a,'X');
   sb(B,'Spine',0.26*a,'X'); sb(B,'Spine1',0,'Y'); sb(B,'Spine2',0,'Y'); sb(B,'Neck',-0.12*a,'X');
 }
-/* ---- the PLAYER is the SAME skinned character as the crowd ----
-   built from the identical character.glb rig so he is not a separate model.
-   Slightly taller build + fixed jacket colours so he reads as "you". */
-const PLAYER_LOOK={ Top:0xd8452f, Pants:0x2b3a55, Shoes:0xf0f0f0, Hair:0x241b14, Skin:0xe9b98c };
+/* ---- the PLAYER is a skinned character from the same pool (boy/girl) ----
+   Fixed jacket colours so he reads as "you", not a random crowd NPC. */
+const PLAYER_LOOK={ Top:0xd8452f, Pants:0x2b3a55, Shoes:0xf0f0f0, Hair:0x241b14, Skin:0xf6e3d0 };
 function makeSkinnedPlayer(){
   const old=player.group;
   const np=buildSkinnedPed(player.pos.x, player.pos.z, 1.82);
   np.bones = np.root.userData.bones;
-  // player look = always the same jacket, not a random crowd palette
-  np.root.traverse(o=>{ if(!o.isMesh) return;
-    const mats=Array.isArray(o.material)?o.material:[o.material];
-    const out=mats.map(m=>{ const col=PLAYER_LOOK[m.name]; if(col===undefined) return m;
-      const nm=m.clone(); nm.color.setHex(col); return nm; });
-    o.material = out.length===1?out[0]:out;
-  });
+  applyLook(np.root, PLAYER_LOOK);   // fixed player colours (no random crowd palette)
   const wrap=np.group;
   const ip=peds.indexOf(np); if(ip>=0) peds.splice(ip,1);   // not a wandering ped
   player.skinned=true; player.root=np.root; player.bones=np.bones; player.restToe=np.restToe;
