@@ -72,6 +72,9 @@ function mix(a,b,t){ const A=hex2rgb(a),B=hex2rgb(b);
   return `rgb(${Math.round(A[0]+(B[0]-A[0])*t)},${Math.round(A[1]+(B[1]-A[1])*t)},${Math.round(A[2]+(B[2]-A[2])*t)})`; }
 function light(c,t){ return mix(c,'#ffffff',t); }
 function dark(c,t){ return mix(c,'#000000',t); }
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+const smooth=t=>t*t*(3-2*t);
 
 function roundRect(g,x,y,w,h,r){ r=Math.min(r,w/2,h/2);
   g.beginPath(); g.moveTo(x+r,y); g.arcTo(x+w,y,x+w,y+h,r); g.arcTo(x+w,y+h,x,y+h,r);
@@ -468,6 +471,11 @@ class Fighter {
    CHARACTER ART  (shared by fight + menus)
    feet at (0,0), faces +x
    ============================================================ */
+function atkStage(a){
+  if(a.t < a.startup)               return {stage:'wind', k: a.startup?a.t/a.startup:1};
+  if(a.t < a.startup+a.active)      return {stage:'hit',  k: (a.t-a.startup)/(a.active||1)};
+  return {stage:'rec', k: (a.t-a.startup-a.active)/(a.recover||1)};
+}
 function paintFighter(g,c,S){
   const t=S.t||0, a=S.anim||0, state=S.state??POSE.IDLE;
   const flash=S.hitFlash>0;
@@ -481,17 +489,26 @@ function paintFighter(g,c,S){
 
   const eB=state===POSE.BLOCK, pn=state===POSE.PUNCH, kk=state===POSE.KICK, sp=state===POSE.SUPER;
   const walking = state===POSE.WALK;
-  const airborne = state===POSE.JUMP || !S.onGround;
+  const airborne = state===POSE.JUMP || S.onGround===false;
+  const pnPh = (pn && S.atk) ? atkStage(S.atk) : null;
+  const kkPh = (kk && S.atk) ? atkStage(S.atk) : null;
 
-  // ---- legs (real thigh+shin+foot with a knee that bends backward) ----
+  // ---- legs (thigh + shin + foot, knee folds backward) ----
   const HIP_Y=-48+bob, THIGH=26, SHIN=24, LEGW=15;
-  if(walking){
-    const s1=Math.sin(a), c1=Math.cos(a);
-    // phase offsets: front leg leads, back leg trails half a cycle
+  if(kkPh){
+    // planted rear leg
+    drawLeg3d(g,-8,HIP_Y, 0.14,-0.20, THIGH,SHIN,LEGW, dark(c.colB,0.12), shoe);
+    // kicking front leg: knee up -> snap out -> retract
+    let th,kn,ft,k;
+    if(kkPh.stage==='wind'){ k=smooth(kkPh.k); th=lerp(-0.10,-1.05,k); kn=lerp(-0.20,-1.55,k); ft=0.3*k; }
+    else if(kkPh.stage==='hit'){ k=smooth(kkPh.k); th=lerp(-1.05,-1.42,k); kn=lerp(-1.55,-0.08,k); ft=-0.35*k; }
+    else { k=smooth(kkPh.k); th=lerp(-1.42,-0.06,k); kn=lerp(-0.08,-0.14,k); ft=-0.35*(1-k); }
+    drawLeg3d(g,8,HIP_Y, th,kn, THIGH,SHIN,LEGW, c.colB, shoe, ft);
+  } else if(walking){
     for(const L of [{hip:-8,ph:0,col:dark(c.colB,0.12)},{hip:8,ph:Math.PI,col:c.colB}]){
       const sw=Math.sin(a+L.ph), lift=Math.max(0,Math.cos(a+L.ph));
       const thighAng=sw*0.52;                       // hip swing
-      const kneeAng=-(0.30+0.95*Math.max(0,-sw))*1   // straight at contact, folds on the swing
+      const kneeAng=-(0.30+0.95*Math.max(0,-sw))    // straight at contact, folds on the swing
                     - 0.55*lift;                    // extra fold during the lift
       drawLeg3d(g,L.hip,HIP_Y,thighAng,kneeAng,THIGH,SHIN,LEGW,L.col,shoe,0.22*sw);
     }
@@ -513,29 +530,37 @@ function paintFighter(g,c,S){
   g.save(); g.globalAlpha=.20; g.fillStyle='#fff';
   roundRect(g,-10,-88+bob,18,16,6); g.fill(); g.restore();
 
-  // ---- back arm (swings opposite the back leg) ----
+  // ---- back arm (counterbalances the front arm) ----
   const armSw = walking ? Math.sin(a+Math.PI) : Math.sin(t*2)*4;
-  if(walking || eB || pn || kk || sp){
-    drawArm3d(g,-15,-86+bob, armSw*0.55, -0.5-Math.max(0,armSw)*0.35, 20,18, 13, dark(c.colB,0.12), skin, 6.5);
-  } else {
-    drawArm3d(g,-15,-86+bob, 0.08, -0.30, 20,18, 13, dark(c.colB,0.12), skin, 6.5);
-  }
+  let bUp, bElb;
+  if(walking){ bUp=armSw*0.55; bElb=-0.5-Math.max(0,armSw)*0.35; }
+  else if(pnPh && S.atk.kind==='punch'){ bUp=Math.PI/2-0.35; bElb=-1.15; }   // retract to guard
+  else if(kkPh){ bUp=1.15; bElb=-0.55; }                                     // swing back for balance
+  else if(eB){ bUp=-Math.PI/2+0.9; bElb=-0.9; }
+  else if(sp){ bUp=-Math.PI/2-0.35; bElb=-0.35; }
+  else { bUp=0.08; bElb=-0.30; }
+  drawArm3d(g,-15,-86+bob, bUp, bElb, 20,18, 13, dark(c.colB,0.12), skin, 6.5);
 
   // ---- front arm ----
-  let fUp = walking ? -Math.sin(a)*0.55 : Math.sin(t*2)*0.10;
-  let fElb = -0.35;
-  if(pn&&S.atk){ fUp=-Math.PI/2+0.15; fElb=-0.12; }
-  if(kk&&S.atk){ fUp=Math.PI/2-0.4;   fElb=-0.5; }
-  if(eB){ fUp=-Math.PI/2+0.9; fElb=-0.9; }
-  if(sp){ fUp=-Math.PI/2-0.35; fElb=-0.35; }
-  if(walking) fElb = -0.45 - Math.max(0, -Math.sin(a))*0.5;
-  g.save();
+  let fUp, fElb;
+  if(pnPh && S.atk){
+    // wind up (pull elbow back) -> snap out straight -> retract
+    let k;
+    if(pnPh.stage==='wind'){ k=smooth(pnPh.k); fUp=lerp(0.10,-0.55,k); fElb=lerp(-0.30,-1.75,k); }
+    else if(pnPh.stage==='hit'){ k=smooth(pnPh.k); fUp=lerp(-0.55,-1.52,k); fElb=lerp(-1.75,-0.04,k); }
+    else { k=smooth(pnPh.k); fUp=lerp(-1.52,0.05,k); fElb=lerp(-0.04,-0.32,k); }
+  } else if(kkPh){
+    fUp=-0.75; fElb=-0.9;                                                      // arms up while kicking
+  } else if(walking){
+    fUp=-Math.sin(a)*0.55; fElb=-0.45-Math.max(0,-Math.sin(a))*0.5;
+  } else if(eB){ fUp=-Math.PI/2+0.9; fElb=-0.9; }
+  else if(sp){ fUp=-Math.PI/2-0.35; fElb=-0.35; }
+  else { fUp=Math.sin(t*2)*0.10; fElb=-0.35; }
   drawArm3d(g,15,-86+bob, fUp, fElb, 22,20, 13, gi, skin, 7);
-  if(pn){ g.translate(0,0); }
-  g.restore();
-  // punching fist flash
-  if(pn && S.atk){
-    g.save(); g.translate(15,-86+bob); g.rotate(fUp); g.translate(0,44);
+
+  // punching fist highlight
+  if(pnPh && pnPh.stage==='hit' && S.atk){
+    g.save(); g.translate(15,-86+bob); g.rotate(fUp); g.translate(0,42);
     sphere3d(g,0,0,9.5,gi); g.restore();
   }
   if(sp){ g.save(); g.shadowColor=c.colA; g.shadowBlur=22; g.fillStyle=c.colA;
@@ -554,14 +579,26 @@ function paintFighter(g,c,S){
   g.beginPath(); g.moveTo(9.5,-118+bob); g.lineTo(14,-119+bob); g.stroke();
   g.restore();
 
-  // ---- weapon fx on active frames ----
-  if(S.atk && S.atk.t>=S.atk.startup && S.atk.t<=S.atk.startup+S.atk.active){
-    const hx=S.atk.reach, hy=-70+(S.atk.kind==='kick'?18:0);
-    g.save(); g.globalAlpha=.9; g.strokeStyle='#fff'; g.lineWidth=5; g.lineCap='round';
-    g.shadowColor=c.colA; g.shadowBlur=24; g.beginPath();
-    if(S.atk.kind==='kick'){ g.moveTo(4,-40); g.lineTo(hx-6,-30); }
-    else { g.moveTo(15,-86); g.lineTo(hx,hy); }
-    g.stroke(); g.restore();
+  // ---- strike impact fx on active frames ----
+  if(pnPh && pnPh.stage==='hit' && S.atk){
+    const hx=S.atk.reach-4;
+    g.save(); g.globalAlpha=.95; g.strokeStyle='#fff'; g.lineWidth=6; g.lineCap='round';
+    g.shadowColor=c.colA; g.shadowBlur=26;
+    g.beginPath(); g.moveTo(15,-86); g.lineTo(hx,-70); g.stroke();
+    g.globalAlpha=.5; g.strokeStyle=c.colA; g.lineWidth=3;
+    g.beginPath(); g.moveTo(15,-96); g.lineTo(hx-6,-84); g.stroke();
+    g.beginPath(); g.moveTo(15,-76); g.lineTo(hx-6,-58); g.stroke();
+    g.restore();
+  }
+  if(kkPh && kkPh.stage==='hit' && S.atk){
+    const hx=S.atk.reach, hy=-34;
+    g.save(); g.globalAlpha=.95; g.strokeStyle='#fff'; g.lineWidth=7; g.lineCap='round';
+    g.shadowColor=c.colA; g.shadowBlur=28;
+    g.beginPath(); g.moveTo(6,-40); g.lineTo(hx,hy); g.stroke();
+    g.globalAlpha=.45; g.strokeStyle=c.colA; g.lineWidth=3;
+    g.beginPath(); g.moveTo(2,-52); g.lineTo(hx-8,-46); g.stroke();
+    g.beginPath(); g.moveTo(2,-30); g.lineTo(hx-8,-22); g.stroke();
+    g.restore();
   }
 
   // ---- ability aura ----
