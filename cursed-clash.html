@@ -102,6 +102,26 @@ function drawLimb3d(g,x,y,ang,len,wdt,col,footCol){
   if(footCol){ part3d(g,-wdt/2-1.5,len-wdt*0.85,wdt+3,wdt*0.95,wdt*0.42,footCol); }
   g.restore();
 }
+// two-bone leg: thigh + shin + foot (knee folds BACKWARD for a +x-facing rig)
+function drawLeg3d(g,hipX,hipY,thighAng,kneeAng,thighLen,shinLen,wdt,col,shoeCol,footAng){
+  g.save(); g.translate(hipX,hipY); g.rotate(thighAng);
+  part3d(g,-wdt/2,0,wdt,thighLen,wdt*0.50,col);
+  g.translate(0,thighLen); g.rotate(kneeAng);
+  part3d(g,-wdt/2*0.88,0,wdt*0.88,shinLen,wdt*0.44,col);
+  g.save(); g.translate(0,shinLen); g.rotate(footAng||0);
+  part3d(g,-wdt/2-2,-wdt*0.85,wdt+4,wdt*0.85,wdt*0.38,shoeCol);
+  g.restore();
+  g.restore();
+}
+// two-bone arm: upper + forearm + fist
+function drawArm3d(g,shX,shY,upAng,elbAng,upLen,foreLen,wdt,col,handCol,handR){
+  g.save(); g.translate(shX,shY); g.rotate(upAng);
+  part3d(g,-wdt/2,0,wdt,upLen,wdt*0.48,col);
+  g.translate(0,upLen); g.rotate(elbAng);
+  part3d(g,-wdt/2*0.86,0,wdt*0.86,foreLen,wdt*0.42,col);
+  sphere3d(g,0,foreLen+handR*0.55,handR,handCol);
+  g.restore();
+}
 
 /* ============================================================
    ROSTER
@@ -456,15 +476,32 @@ function paintFighter(g,c,S){
   const hairC= flash?'#ffffff':c.colC;
   const skin = flash?'#ffffff':c.skin;
   const shoe = flash?'#ffffff':c.shoe;
-  const bob  = state===POSE.IDLE ? Math.sin(t*3)*2 : 0;
+  const bob  = state===POSE.WALK ? Math.abs(Math.sin(a))*2.4
+             : state===POSE.IDLE ? Math.sin(t*3)*2 : 0;
 
   const eB=state===POSE.BLOCK, pn=state===POSE.PUNCH, kk=state===POSE.KICK, sp=state===POSE.SUPER;
-  const legSwing = state===POSE.WALK ? Math.sin(a)*16 : 0;
+  const walking = state===POSE.WALK;
+  const airborne = state===POSE.JUMP || !S.onGround;
 
-  // ---- back leg ----
-  drawLimb3d(g,-8,-48+bob, legSwing+0.05, 48, 15, dark(c.colB,0.12), shoe);
-  // ---- front leg ----
-  drawLimb3d(g, 8,-48+bob, -legSwing-0.05, 48, 15, c.colB, shoe);
+  // ---- legs (real thigh+shin+foot with a knee that bends backward) ----
+  const HIP_Y=-48+bob, THIGH=26, SHIN=24, LEGW=15;
+  if(walking){
+    const s1=Math.sin(a), c1=Math.cos(a);
+    // phase offsets: front leg leads, back leg trails half a cycle
+    for(const L of [{hip:-8,ph:0,col:dark(c.colB,0.12)},{hip:8,ph:Math.PI,col:c.colB}]){
+      const sw=Math.sin(a+L.ph), lift=Math.max(0,Math.cos(a+L.ph));
+      const thighAng=sw*0.52;                       // hip swing
+      const kneeAng=-(0.30+0.95*Math.max(0,-sw))*1   // straight at contact, folds on the swing
+                    - 0.55*lift;                    // extra fold during the lift
+      drawLeg3d(g,L.hip,HIP_Y,thighAng,kneeAng,THIGH,SHIN,LEGW,L.col,shoe,0.22*sw);
+    }
+  } else if(airborne){
+    drawLeg3d(g,-8,HIP_Y, 0.45,-0.75, THIGH,SHIN,LEGW,dark(c.colB,0.12),shoe, 0.3);
+    drawLeg3d(g, 8,HIP_Y,-0.35,-0.5,  THIGH,SHIN,LEGW,c.colB,shoe, 0.3);
+  } else {
+    drawLeg3d(g,-8,HIP_Y, 0.06,-0.10, THIGH,SHIN,LEGW,dark(c.colB,0.12),shoe);
+    drawLeg3d(g, 8,HIP_Y,-0.06,-0.10, THIGH,SHIN,LEGW,c.colB,shoe);
+  }
 
   // ---- torso ----
   part3d(g,-17,-92+bob,34,46,11,sub);
@@ -476,24 +513,33 @@ function paintFighter(g,c,S){
   g.save(); g.globalAlpha=.20; g.fillStyle='#fff';
   roundRect(g,-10,-88+bob,18,16,6); g.fill(); g.restore();
 
-  // ---- back arm ----
-  const swA = state===POSE.WALK ? -Math.sin(a)*18 : Math.sin(t*2)*4;
-  g.save(); g.translate(-15,-86+bob); g.rotate(swA*0.4);
-  part3d(g,-6.5,0,13,20,6,dark(c.colB,0.12)); sphere3d(g,0,22,6.5,skin); g.restore();
+  // ---- back arm (swings opposite the back leg) ----
+  const armSw = walking ? Math.sin(a+Math.PI) : Math.sin(t*2)*4;
+  if(walking || eB || pn || kk || sp){
+    drawArm3d(g,-15,-86+bob, armSw*0.55, -0.5-Math.max(0,armSw)*0.35, 20,18, 13, dark(c.colB,0.12), skin, 6.5);
+  } else {
+    drawArm3d(g,-15,-86+bob, 0.08, -0.30, 20,18, 13, dark(c.colB,0.12), skin, 6.5);
+  }
 
   // ---- front arm ----
-  let fAng=swA;
-  if(pn&&S.atk) fAng=-Math.PI/2+0.15;
-  if(kk&&S.atk) fAng=Math.PI/2-0.4;
-  if(eB) fAng=-Math.PI/2+0.9;
-  if(sp) fAng=-Math.PI/2-0.35;
-  g.save(); g.translate(15,-86+bob); g.rotate(fAng);
-  part3d(g,-6.5,0,13,24,6,gi);
-  sphere3d(g,0,26,7,skin);
-  if(pn){ sphere3d(g,0,30,9.5,gi); }
-  if(sp){ g.save(); g.shadowColor=c.colA; g.shadowBlur=22; g.fillStyle=c.colA;
-    g.beginPath(); g.arc(0,12,13,0,7); g.fill(); g.restore(); }
+  let fUp = walking ? -Math.sin(a)*0.55 : Math.sin(t*2)*0.10;
+  let fElb = -0.35;
+  if(pn&&S.atk){ fUp=-Math.PI/2+0.15; fElb=-0.12; }
+  if(kk&&S.atk){ fUp=Math.PI/2-0.4;   fElb=-0.5; }
+  if(eB){ fUp=-Math.PI/2+0.9; fElb=-0.9; }
+  if(sp){ fUp=-Math.PI/2-0.35; fElb=-0.35; }
+  if(walking) fElb = -0.45 - Math.max(0, -Math.sin(a))*0.5;
+  g.save();
+  drawArm3d(g,15,-86+bob, fUp, fElb, 22,20, 13, gi, skin, 7);
+  if(pn){ g.translate(0,0); }
   g.restore();
+  // punching fist flash
+  if(pn && S.atk){
+    g.save(); g.translate(15,-86+bob); g.rotate(fUp); g.translate(0,44);
+    sphere3d(g,0,0,9.5,gi); g.restore();
+  }
+  if(sp){ g.save(); g.shadowColor=c.colA; g.shadowBlur=22; g.fillStyle=c.colA;
+    g.beginPath(); g.arc(23,-74+bob,13,0,7); g.fill(); g.restore(); }
 
   // ---- neck + head ----
   part3d(g,-5,-98+bob,10,8,3,skin);
