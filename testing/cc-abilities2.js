@@ -1,0 +1,27 @@
+const { chromium } = require('/root/.npm/_npx/e41f203b7505f1fb/node_modules/playwright-core');
+const EXEC='/root/.cache/ms-playwright/chromium-1208/chrome-linux64/chrome';
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+(async()=>{
+  const b=await chromium.launch({executablePath:EXEC,headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
+  const p=await b.newPage({viewport:{width:1280,height:720}});
+  const errs=[]; p.on('pageerror',e=>errs.push('pageerror:'+e.message));
+  p.on('console',m=>{ if(m.type()==='error') errs.push('console:'+m.text()); });
+  await p.goto('file://'+process.cwd()+'/cursed-clash.html',{waitUntil:'load'});
+  await sleep(500);
+  await p.keyboard.press('Enter'); await sleep(300);
+  const out=[];
+  for(let idx=0; idx<5; idx++){
+    await p.evaluate(i=>window.CLASH.setSel(i), idx); await sleep(120);
+    await p.keyboard.press('Enter'); await sleep(1500);
+    await sleep(500);
+    await p.evaluate(()=>{ window.CLASH.p1.meter=100; window.CLASH.p1.atk=null; });
+    await p.keyboard.down('KeyI'); await sleep(80); await p.keyboard.up('KeyI');
+    const nm=await p.evaluate(()=>window.CLASH.p1.name);
+    for(const [i,dt] of [140,140,200].entries()){ await sleep(dt); await p.screenshot({path:`testing/abf-${idx}-${nm}-${i}.png`}); }
+    const info=await p.evaluate(()=>({proj:window.CLASH.projCount(), superT:+window.CLASH.p1.superT.toFixed(2)}));
+    out.push(`${nm}: proj=${info.proj} superT=${info.superT}`);
+    await sleep(1500); await p.keyboard.press('Escape'); await sleep(400);
+  }
+  console.log(JSON.stringify({errs, out},null,1));
+  await b.close();
+})().catch(e=>{console.error('FAIL',e.message);process.exit(1)});

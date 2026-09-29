@@ -72,6 +72,7 @@ function mix(a,b,t){ const A=hex2rgb(a),B=hex2rgb(b);
   return `rgb(${Math.round(A[0]+(B[0]-A[0])*t)},${Math.round(A[1]+(B[1]-A[1])*t)},${Math.round(A[2]+(B[2]-A[2])*t)})`; }
 function light(c,t){ return mix(c,'#ffffff',t); }
 function dark(c,t){ return mix(c,'#000000',t); }
+function hexA(c,a){ const r=hex2rgb(c); return `rgba(${r[0]},${r[1]},${r[2]},${a})`; }
 const clamp=(v,a,b)=>v<a?a:v>b?b:v;
 const lerp=(a,b,t)=>a+(b-a)*t;
 const smooth=t=>t*t*(3-2*t);
@@ -134,31 +135,31 @@ const CHARS = [
     colA:'#ff8c1a', colB:'#1f63c9', colC:'#16161e', skin:'#f2c49b', shoe:'#2b4a8f', hair:'goku',
     hp:110, speed:320, dmg:1.00,
     ability:{name:'KAMEHAMEHA', short:'KAMEHAMEHA', type:'wave',
-      desc:'Fires a wide blue ki wave straight across the screen.', dmg:20, kb:430, speed:850, col:'#63c8ff'} },
+      desc:'Cups both palms and fires a huge blue-white ki beam straight across the screen.', dmg:20, kb:430, speed:640, col:'#63c8ff'} },
 
   { id:'vegeta', name:'VEGETA', tag:'Prince of All Saiyans',
     colA:'#e8ecf2', colB:'#26417a', colC:'#15151c', skin:'#f2c49b', shoe:'#dfe6ef', hair:'vegeta',
     hp:105, speed:315, dmg:1.05,
     ability:{name:'BIG BANG ATTACK', short:'BIG BANG', type:'orb',
-      desc:'Hurls a huge pink ki sphere that pierces through anything.', dmg:26, kb:400, speed:300, col:'#ff5cc8', bigOrb:true} },
+      desc:'Hurls a huge blue-white ki sphere that pierces through anything.', dmg:26, kb:400, speed:300, col:'#8fd8ff', bigOrb:true, r:42} },
 
   { id:'saitama', name:'SAITAMA', tag:'One Punch',
     colA:'#ffd83d', colB:'#e5382f', colC:'#eef2f5', skin:'#f2c49b', shoe:'#e5382f', hair:'bald',
     hp:120, speed:340, dmg:1.20,
     ability:{name:'SERIOUS PUNCH', short:'SERIOUS', type:'burst',
-      desc:'One punch. Massive damage if it connects.', dmg:34, kb:620, dashT:0.34, col:'#ffe14d'} },
+      desc:'One punch. Massive damage if it connects.', dmg:34, kb:620, dashT:0.34, col:'#ffe14d', fx:'punch'} },
 
   { id:'hiei', name:'HIEI', tag:'Master of the Jagan',
     colA:'#191b26', colB:'#4a2a7a', colC:'#0c0c12', skin:'#e9cda9', shoe:'#101018', hair:'hiei',
     hp:100, speed:352, dmg:1.08,
     ability:{name:'DRAGON OF THE DARKNESS FLAME', short:'DARK FLAME', type:'wave',
-      desc:'Unleashes a black dragon of cursed flame straight across the screen.', dmg:24, kb:470, speed:780, col:'#8b3bff'} },
+      desc:'Unleashes the black dragon of the Darkness Flame straight across the screen.', dmg:24, kb:470, speed:560, col:'#a24dff', kind:'dragon', r:42, h:96} },
 
   { id:'shishio', name:'SHISHIO', tag:'The Hitokiri Battousai Slayer',
     colA:'#2b2430', colB:'#c9b79a', colC:'#141018', skin:'#e7c6a1', shoe:'#1c1720', hair:'shishio',
     hp:108, speed:326, dmg:1.12,
     ability:{name:'HOMURA DAMA', short:'HOMURA DAMA', type:'burst',
-      desc:'Erupts in searing flame — a point-blank blast that shreds through guard.', dmg:28, kb:560, dashT:0.32, col:'#ff5a1f'} }
+      desc:'Erupts in searing flame — a point-blank blast that shreds through guard.', dmg:28, kb:560, dashT:0.32, col:'#ff5a1f', fx:'fire'} }
 ];
 
 /* ============================================================
@@ -224,6 +225,7 @@ function burst(x,y,n,col,spd=1){
   }
 }
 function ring(x,y,col,r=0){ fx.push({ring:true,x,y,r:r||12,max:90,col,t:0,life:.4}); }
+function blast(x,y,r,col,life=0.55,kind='energy'){ fx.push({blast:true,x,y,r,col,t:0,life,kind}); }
 function floatText(x,y,txt,col){ fx.push({txt:txt,x,y,vy:-60,t:0,life:.8,c:col||'#fff'}); }
 
 /* ============================================================
@@ -240,7 +242,8 @@ function updateProjectiles(dt){
       p.vy = Math.max(-260,Math.min(260,p.vy));
     }
     p.x+=p.vx*dt; p.y+=p.vy*dt;
-    p.trail=p.trail||[]; p.trail.push({x:p.x,y:p.y}); if(p.trail.length>10) p.trail.shift();
+    p.spin=(p.spin||0)+dt*(p.spinRate||6);
+    p.trail=p.trail||[]; p.trail.push({x:p.x,y:p.y}); if(p.trail.length>12) p.trail.shift();
     const foe = p.owner===p1 ? p2 : p1;
     if(!p.dead && !foe.ko && p.t>p.armDelay && !p.hitList.includes(foe)){
       const hb=foe.hurtbox();
@@ -249,6 +252,7 @@ function updateProjectiles(dt){
         p.hitList.push(foe);
         foe.takeHit(p.owner,{dmg:Math.round(p.dmg*(p.owner.char.dmg||1)),kb:p.kb,stun:.26,super:!!p.superAttack,ranged:true,yoff:0});
         burst(p.x,p.y,p.r>24?22:10,p.col,1.15);
+        blast(p.x,p.y,p.r*1.7,p.col,0.42);
         if(p.pierce){ p.hp=(p.hp||1)-1; if(p.hp<=0) p.dead=true; }
         else p.dead=true;
       }
@@ -259,7 +263,7 @@ function updateProjectiles(dt){
 }
 function spawnProjectile(owner,opt){
   projectiles.push(Object.assign({owner,x:0,y:0,vx:0,vy:0,r:16,dmg:10,kb:200,life:2.2,t:0,
-    armDelay:0,col:'#fff',pierce:false,homing:false,target:null,hitList:[],trail:[],kind:'orb'},opt));
+    armDelay:0,col:'#fff',pierce:false,homing:false,target:null,hitList:[],trail:[],kind:'orb',spin:0,spinRate:6},opt));
 }
 function fireAbility(f){
   const ab=f.char.ability, gy=GROUND_Y();
@@ -334,7 +338,15 @@ class Fighter {
           this.abilityFired=true;
           foe.takeHit(this,{dmg:Math.round(ab.dmg*this.char.dmg),kb:ab.kb,stun:.55,super:true,yoff:0});
           burst(foe.x,foe.top+55,44,ab.col,1.8); ring(foe.x,foe.top+55,'#fff',34);
+          blast(foe.x,foe.top+55,150,ab.col,0.55,ab.fx||'energy');
           shake=20; flashScreen=0.45;
+        }
+        // guarantee the signature blast even if it whiffs past the target
+        if(!this.abilityFired && this.superT < (ab.dashT||0.4)*0.5){
+          this.abilityFired=true;
+          const bx=this.x+this.dir*44, by=this.top+55;
+          blast(bx,by,140,ab.col,0.55,ab.fx||'energy');
+          burst(bx,by,22,ab.col,1.2); shake=Math.max(shake,10);
         }
         this.vx*=0.90; this.applyPhysics(dt);
         if(this.superT<=0){ this.state=POSE.IDLE; this.vx*=0.3; }
@@ -344,10 +356,10 @@ class Fighter {
         this.abilityFired=true;
         if(ab.type==='wave'){
           spawnProjectile(this,{x:this.x+this.dir*52,y:this.top+62,vx:this.dir*ab.speed,vy:0,
-            r:34,h:66,dmg:ab.dmg,kb:ab.kb,col:ab.col,life:1.6,kind:'wave',superAttack:true});
+            r:ab.r||34,h:ab.h||66,dmg:ab.dmg,kb:ab.kb,col:ab.col,life:2.0,kind:(ab.kind||'wave'),pierce:true,hp:99,superAttack:true});
           shake=8;
         } else if(ab.type==='orb'){
-          const r = ab.bigOrb?34:20;
+          const r = ab.bigOrb?(ab.r||40):20;
           spawnProjectile(this,{x:this.x+this.dir*48,y:this.top+46,vx:this.dir*ab.speed,vy:0,
             r, h:52, dmg:ab.dmg, kb:ab.kb, col:ab.col, life:2.6, pierce:!ab.bigOrb, hp:ab.bigOrb?99:2,
             kind:ab.bigOrb?'bigorb':'orb', superAttack:true});
@@ -630,14 +642,51 @@ function paintFighter(g,c,S){
 
   // ---- ability aura ----
   if(sp){
-    const ab=c.ability;
+    const ab=c.ability, col=ab.col;
     const denom = (ab.type==='dash'||ab.type==='burst')?(ab.dashT||0.4):0.9;
     const p = 1-S.superT/denom;
     g.save();
-    g.globalAlpha=0.5*(1-p); g.strokeStyle=ab.col; g.lineWidth=4;
-    g.beginPath(); g.arc(0,-60,70+p*150,0,7); g.stroke();
-    g.globalAlpha=0.22; g.fillStyle=ab.col;
-    g.beginPath(); g.arc(0,-60,40+p*90,0,7); g.fill();
+    const fade=(1-p);
+    // ground charge ring
+    g.globalAlpha=0.65*fade; g.strokeStyle=col; g.lineWidth=4; g.shadowColor=col; g.shadowBlur=24;
+    g.beginPath(); g.ellipse(0,2,70+p*130,18+p*28,0,0,7); g.stroke();
+    // rising energy column
+    const ch=g.createLinearGradient(0,-180,0,10);
+    ch.addColorStop(0,hexA(col,0)); ch.addColorStop(.6,hexA(col,.32*fade)); ch.addColorStop(1,hexA(light(col,.3),.5*fade));
+    g.globalAlpha=1; g.shadowBlur=0; g.fillStyle=ch;
+    g.beginPath(); g.moveTo(-26,-180); g.lineTo(26,-180); g.lineTo(42,6); g.lineTo(-42,6); g.closePath(); g.fill();
+    // aura rings pulsing up the body
+    for(let i=0;i<4;i++){
+      const yy=4-i*40-((p*44)%40);
+      g.globalAlpha=0.55*fade*(1-i*0.18); g.strokeStyle=col; g.lineWidth=3;
+      g.beginPath(); g.ellipse(0,yy,46-i*5,13-i*2.4,0,0,7); g.stroke();
+    }
+    // bright core flare
+    g.globalAlpha=0.4*fade;
+    const cg=g.createRadialGradient(0,-92,4,0,-92,96+p*80);
+    cg.addColorStop(0,hexA(light(col,.5),.9)); cg.addColorStop(1,hexA(col,0));
+    g.fillStyle=cg; g.beginPath(); g.arc(0,-92,96+p*80,0,7); g.fill();
+    // point-blank charge in the extended hand (burst/dash abilities)
+    if(ab.type==='burst'||ab.type==='dash'){
+      const bx=36, by=-84, R=(ab.fx==='fire'?28:20)+p*20;
+      g.globalAlpha=fade;
+      const og=g.createRadialGradient(bx,by,2,bx,by,R*2.4);
+      og.addColorStop(0,hexA('#ffffff',.98)); og.addColorStop(.4,hexA(light(col,.4),.9)); og.addColorStop(1,hexA(col,0));
+      g.fillStyle=og; g.beginPath(); g.arc(bx,by,R*2.4,0,7); g.fill();
+      // radial flick
+      g.globalAlpha=fade*.85; g.strokeStyle=hexA(light(col,.4),.95); g.lineWidth=3.5; g.lineCap='round';
+      for(let i=0;i<6;i++){ const a=-0.7+i*0.28;
+        g.beginPath(); g.moveTo(bx,by); g.lineTo(bx+Math.cos(a)*R*2.8, by+Math.sin(a)*R*2.8); g.stroke(); }
+      // flame tongues for the fire variant
+      if(ab.fx==='fire'){
+        g.globalAlpha=fade*.9;
+        for(let i=0;i<8;i++){ const a=i/8*6.283+R*0.2;
+          const px=bx+Math.cos(a)*R*1.6, py=by+Math.sin(a)*R*1.6-R*0.4;
+          const fg=g.createRadialGradient(px,py,1,px,py,R*0.9);
+          fg.addColorStop(0,hexA('#fff2c0',.95)); fg.addColorStop(.5,hexA(col,.85)); fg.addColorStop(1,hexA(dark(col,.4),0));
+          g.fillStyle=fg; g.beginPath(); g.arc(px,py,R*0.9,0,7); g.fill(); }
+      }
+    }
     g.restore();
   }
 }
@@ -745,33 +794,259 @@ function drawArena(g){
 
 function drawProjectiles(g){
   for(const p of projectiles){
+    const vs=Math.hypot(p.vx,p.vy)||1, ux=p.vx/vs, uy=p.vy/vs;
     g.save();
+    // ---- tapered glowing wake ----
     for(let i=0;i<p.trail.length;i++){
-      const q=p.trail[i],k=i/p.trail.length;
-      g.globalAlpha=k*0.4; g.fillStyle=p.col;
-      g.beginPath(); g.arc(q.x,q.y,p.r*k*0.9,0,7); g.fill();
+      const q=p.trail[i], k=(i+1)/p.trail.length;
+      const rr=(p.r*0.85)*k;
+      g.globalAlpha=k*0.30;
+      const tg=g.createRadialGradient(q.x,q.y,1,q.x,q.y,rr*1.5);
+      tg.addColorStop(0,hexA(light(p.col,.35),.9)); tg.addColorStop(.55,hexA(p.col,.4)); tg.addColorStop(1,hexA(p.col,0));
+      g.fillStyle=tg;
+      g.beginPath(); g.ellipse(q.x,q.y,rr*1.4,rr*0.9,Math.atan2(uy,ux),0,7); g.fill();
     }
     g.globalAlpha=1;
-    if(p.kind==='wave'){
-      g.translate(p.x,p.y);
-      g.shadowColor=p.col; g.shadowBlur=34; g.fillStyle=p.col;
-      g.beginPath(); g.ellipse(0,0,p.r*0.4,p.h/2,0,0,7); g.fill();
-      g.fillStyle='#fff'; g.globalAlpha=.9;
-      g.beginPath(); g.ellipse(0,0,p.r*0.22,p.h/2*0.85,0,0,7); g.fill();
-    } else if(p.kind==='bigorb'){
-      g.translate(p.x,p.y);
-      g.shadowColor=p.col; g.shadowBlur=40;
-      sphere3d(g,0,0,p.r,p.col);
-      g.globalAlpha=.5; g.fillStyle='#fff';
-      g.beginPath(); g.arc(0,0,p.r*0.4,0,7); g.fill();
-    } else {
-      g.shadowColor=p.col; g.shadowBlur=28;
-      sphere3d(g,p.x,p.y,p.r,p.col);
-      g.globalAlpha=.45; g.fillStyle='#fff';
-      g.beginPath(); g.arc(p.x,p.y,p.r*0.42,0,7); g.fill();
+    // bright core streak tying the wake to the head
+    if(p.trail.length>1){
+      const first=p.trail[0];
+      g.globalAlpha=0.45; g.strokeStyle=hexA(light(p.col,.45),.75); g.lineWidth=p.r*0.5; g.lineCap='round';
+      g.beginPath(); g.moveTo(first.x,first.y); g.lineTo(p.x,p.y); g.stroke(); g.globalAlpha=1;
     }
+    if(p.kind==='dragon')      drawDragon(g,p);
+    else if(p.kind==='wave')   drawBeam(g,p,ux,uy);
+    else if(p.kind==='bigorb') drawOrb(g,p.x,p.y,p.r,p.col,1.0,false);
+    else                       drawOrb(g,p.x,p.y,p.r,p.col,0.62,true);
     g.restore();
   }
+}
+
+// glowing energy sphere with a hot core + crackling corona (Big Bang / orbs)
+function drawOrb(g,x,y,r,col,coreScale,pierce){
+  g.save(); g.translate(x,y);
+  if(pierce){                              // sharp forward lance (piercing shots)
+    g.shadowColor=light(col,.4); g.shadowBlur=26;
+    const lg=g.createLinearGradient(-r*0.3,0,r*3.4,0);
+    lg.addColorStop(0,hexA('#ffffff',.95)); lg.addColorStop(.5,hexA(light(col,.3),.7)); lg.addColorStop(1,hexA(col,0));
+    g.fillStyle=lg;
+    g.beginPath(); g.moveTo(-r*0.3,-r*0.55); g.lineTo(r*3.4,0); g.lineTo(-r*0.3,r*0.55); g.closePath(); g.fill();
+  }
+  const halo=g.createRadialGradient(0,0,r*0.1,0,0,r*2.4);
+  halo.addColorStop(0,hexA(light(col,.6),.6)); halo.addColorStop(.4,hexA(col,.34)); halo.addColorStop(1,hexA(col,0));
+  g.fillStyle=halo; g.beginPath(); g.arc(0,0,r*2.4,0,7); g.fill();
+  sphere3d(g,0,0,r,col,true);
+  g.globalAlpha=.75;
+  const cor=g.createRadialGradient(0,0,r*0.2,0,0,r*1.05);
+  cor.addColorStop(0,hexA('#ffffff',.92)); cor.addColorStop(.5,hexA(light(col,.4),.5)); cor.addColorStop(1,hexA(col,0));
+  g.fillStyle=cor; g.beginPath(); g.arc(0,0,r*1.05,0,7); g.fill();
+  g.globalAlpha=1;
+  g.shadowColor=col; g.shadowBlur=18; g.strokeStyle=hexA('#ffffff',.8); g.lineWidth=Math.max(1.3,r*0.1);
+  for(let i=0;i<4;i++){ const a=i*1.57+r*0.05;
+    g.beginPath(); g.ellipse(0,0,r*0.98,r*0.55,a,0.3,Math.PI*0.95); g.stroke(); }
+  // outer energy shell
+  g.globalAlpha=.5; g.strokeStyle=hexA(light(col,.5),.85); g.lineWidth=r*0.14;
+  g.beginPath(); g.arc(0,0,r*1.5,0.3,2.4); g.stroke();
+  g.beginPath(); g.arc(0,0,r*1.5,3.4,5.6); g.stroke();
+  // lightning crackle
+  g.globalAlpha=.9; g.strokeStyle='#ffffff'; g.lineWidth=1.6;
+  for(let i=0;i<5;i++){ const a=i*1.256+r*0.03, r0=r*0.95, r1=r*1.75;
+    g.beginPath(); g.moveTo(Math.cos(a)*r0,Math.sin(a)*r0);
+    g.lineTo(Math.cos(a+0.22)*(r0+r1)*0.5, Math.sin(a+0.22)*(r0+r1)*0.5);
+    g.lineTo(Math.cos(a)*r1,Math.sin(a)*r1); g.stroke(); }
+  g.shadowColor='#fff'; g.shadowBlur=20;
+  g.fillStyle=hexA('#ffffff',.95); g.beginPath(); g.arc(-r*0.1,-r*0.1,r*coreScale*0.55,0,7); g.fill();
+  g.restore();
+}
+
+// Kamehameha-style beam: long tapered column, white-hot core, leading tip, energy rings
+function drawBeam(g,p,ux,uy){
+  const ang=Math.atan2(uy,ux), L=p.r*7.0, H=p.h*0.62;
+  g.save(); g.translate(p.x,p.y); g.rotate(ang);
+  const aura=g.createRadialGradient(0,0,2,0,0,L*1.05);
+  aura.addColorStop(0,hexA(light(p.col,.3),.65)); aura.addColorStop(.5,hexA(p.col,.28)); aura.addColorStop(1,hexA(p.col,0));
+  g.fillStyle=aura; g.beginPath(); g.ellipse(-L*0.1,0,L*1.02,H*1.7,0,0,7); g.fill();
+  const body=g.createLinearGradient(0,-H,0,H);
+  body.addColorStop(0,hexA(dark(p.col,.2),0.05)); body.addColorStop(.28,hexA(p.col,.85)); body.addColorStop(.5,hexA(light(p.col,.45),1)); body.addColorStop(.72,hexA(p.col,.85)); body.addColorStop(1,hexA(dark(p.col,.2),0.05));
+  g.fillStyle=body;
+  g.beginPath();
+  g.moveTo(-L,0);
+  g.quadraticCurveTo(-L*0.1,-H, p.r*0.8,-H*1.08);
+  g.quadraticCurveTo(p.r*1.25,0, p.r*0.8,H*1.08);
+  g.quadraticCurveTo(-L*0.1,H, -L,0);
+  g.closePath(); g.fill();
+  g.shadowColor=light(p.col,.5); g.shadowBlur=26;
+  const core=g.createLinearGradient(0,-H*0.42,0,H*0.42);
+  core.addColorStop(0,hexA('#ffffff',.1)); core.addColorStop(.5,hexA('#ffffff',1)); core.addColorStop(1,hexA('#ffffff',.1));
+  g.fillStyle=core;
+  g.beginPath();
+  g.moveTo(-L*0.92,0);
+  g.quadraticCurveTo(-L*0.1,-H*0.42, p.r*0.7,-H*0.42);
+  g.quadraticCurveTo(p.r*1.0,0, p.r*0.7,H*0.42);
+  g.quadraticCurveTo(-L*0.1,H*0.42, -L*0.92,0);
+  g.closePath(); g.fill();
+  g.fillStyle='#fff'; g.shadowBlur=36;
+  g.beginPath(); g.arc(p.r*0.78,0,p.r*0.62,0,7); g.fill();
+  g.globalAlpha=.6; g.fillStyle=light(p.col,.5);
+  g.beginPath(); g.arc(p.r*0.78,0,p.r*0.95,0,7); g.fill();
+  g.globalAlpha=1;
+  g.shadowBlur=0; g.strokeStyle=hexA(light(p.col,.55),.6); g.lineWidth=2.4;
+  for(let i=0;i<6;i++){ const rx=-L*0.2+i*L*0.2, rr=H*(1-i*0.11);
+    g.beginPath(); g.ellipse(rx,0,rr*0.24,rr,0,0,7); g.stroke(); }
+  g.strokeStyle=hexA('#ffffff',.35); g.lineWidth=2;
+  for(let i=0;i<7;i++){ const rx=-L*0.5+i*L*0.16, o=Math.sin(i*2.1)*H*0.5;
+    g.beginPath(); g.moveTo(rx,-H*0.9+o*0.3); g.quadraticCurveTo(rx+L*0.08,-H*1.3,rx+L*0.16,-H*0.7+o*0.3); g.stroke();
+    g.beginPath(); g.moveTo(rx,H*0.9-o*0.3); g.quadraticCurveTo(rx+L*0.08,H*1.3,rx+L*0.16,H*0.7-o*0.3); g.stroke(); }
+  g.restore();
+}
+
+// Hiei's Dragon of the Darkness Flame: black dragon head + purple dark-flame wake
+function drawDragon(g,p){
+  const dir=Math.sign(p.vx)||1;
+  // dark serpentine spine (body) under the flames
+  const pts=[{x:p.x,y:p.y}].concat(p.trail.slice().reverse());
+  g.save(); g.lineCap='round';
+  for(let i=0;i<pts.length-1;i++){
+    const a=pts[i], b=pts[i+1], w=p.r*(0.7-i/pts.length*0.55);
+    g.strokeStyle='#150a24'; g.lineWidth=Math.max(2,w*1.9);
+    g.beginPath(); g.moveTo(a.x,a.y); g.lineTo(b.x,b.y); g.stroke();
+  }
+  // dark-flame body coiling along the wake
+  for(let i=0;i<p.trail.length;i++){
+    const q=p.trail[i], k=(i+1)/p.trail.length, rr=p.r*(0.45+1.05*k);
+    const wob=Math.sin(i*0.9)*p.r*0.28;
+    const fg=g.createRadialGradient(q.x,q.y+wob,1,q.x,q.y+wob,rr*1.6);
+    fg.addColorStop(0,hexA('#c66bff',.95)); fg.addColorStop(.45,hexA('#6a1fd0',.6)); fg.addColorStop(1,hexA('#2a0740',0));
+    g.fillStyle=fg; g.beginPath(); g.arc(q.x,q.y+wob,rr*1.6,0,7); g.fill();
+  }
+  // sharp dark-flame tongues licking off the body
+  for(let i=0;i<p.trail.length;i++){
+    const q=p.trail[i], kk=(i+1)/p.trail.length, w=p.r*(0.35+kk*1.0);
+    for(const s of [-1,1]){
+      const fg=g.createLinearGradient(q.x,q.y,q.x-p.r*0.35,q.y+s*w);
+      fg.addColorStop(0,hexA('#e6b3ff',.9)); fg.addColorStop(.5,hexA('#8b3bff',.55)); fg.addColorStop(1,hexA('#3a0d6b',0));
+      g.fillStyle=fg;
+      g.beginPath();
+      g.moveTo(q.x+w*0.25, q.y);
+      g.quadraticCurveTo(q.x-p.r*0.1, q.y+s*w*0.75, q.x-p.r*0.55, q.y+s*w);
+      g.quadraticCurveTo(q.x-p.r*0.15, q.y+s*w*0.4, q.x-p.r*0.5, q.y);
+      g.closePath(); g.fill();
+    }
+  }
+  g.restore();   // close the spine/tongue save
+  // head
+  g.save(); g.translate(p.x,p.y); g.scale(dir,1);
+  g.shadowColor='#8b3bff'; g.shadowBlur=30;
+  const R=p.r;
+  g.fillStyle='#0c0714';
+  // --- skull + upper jaw (profile, pointed forward) ---
+  g.beginPath();
+  g.moveTo(-R*0.95,-R*0.5);
+  g.quadraticCurveTo(-R*0.2,-R*1.02, R*0.6,-R*0.72);
+  g.quadraticCurveTo(R*1.45,-R*0.6, R*2.15,-R*0.34);
+  g.lineTo(R*2.45,-R*0.15);
+  g.lineTo(R*1.15,-R*0.03);
+  g.quadraticCurveTo(R*0.5,-R*0.04,-R*0.1,R*0.06);
+  g.quadraticCurveTo(-R*0.62,R*0.12,-R*0.95,-R*0.5);
+  g.closePath(); g.fill();
+  // --- lower jaw (open, also pointing forward) ---
+  g.beginPath();
+  g.moveTo(-R*0.5,R*0.22);
+  g.quadraticCurveTo(R*0.6,R*0.34, R*1.35,R*0.47);
+  g.lineTo(R*2.32,R*0.62);
+  g.lineTo(R*1.45,R*0.9);
+  g.quadraticCurveTo(R*0.3,R*1.0,-R*0.5,R*0.84);
+  g.quadraticCurveTo(-R*0.74,R*0.5,-R*0.5,R*0.22);
+  g.closePath(); g.fill();
+  // --- big horns sweeping back off the crown ---
+  g.beginPath();
+  g.moveTo(-R*0.05,-R*0.78);
+  g.quadraticCurveTo(-R*0.7,-R*1.55,-R*1.95,-R*1.18);
+  g.quadraticCurveTo(-R*0.95,-R*0.98,-R*0.5,-R*0.72);
+  g.closePath(); g.fill();
+  g.beginPath();
+  g.moveTo(-R*0.5,-R*0.62);
+  g.quadraticCurveTo(-R*1.2,-R*1.05,-R*1.85,-R*0.55);
+  g.quadraticCurveTo(-R*1.1,-R*0.6,-R*0.75,-R*0.42);
+  g.closePath(); g.fill();
+  // --- dark open-mouth cavity (the gaping maw) ---
+  g.fillStyle='#05030a';
+  g.beginPath();
+  g.moveTo(R*0.85,-R*0.02);
+  g.quadraticCurveTo(R*1.7,-R*0.08, R*2.44,-R*0.12);
+  g.lineTo(R*2.34,R*0.6);
+  g.quadraticCurveTo(R*1.6,R*0.5, R*0.72,R*0.3);
+  g.closePath(); g.fill();
+  // --- fangs along the maw (pointing into the gap) ---
+  g.fillStyle='#e8e0ff';
+  for(let i=0;i<4;i++){ const tx=R*(1.25+i*0.24);
+    g.beginPath(); g.moveTo(tx,-R*0.05); g.lineTo(tx+R*0.07,R*0.22); g.lineTo(tx-R*0.07,R*0.22); g.closePath(); g.fill();
+    g.beginPath(); g.moveTo(tx+R*0.07,R*0.52); g.lineTo(tx+R*0.17,R*0.2); g.lineTo(tx-R*0.03,R*0.2); g.closePath(); g.fill(); }
+  // --- single glowing eye (profile) + brow ---
+  g.shadowColor='#ff3df0'; g.shadowBlur=24; g.fillStyle='#ff9bff';
+  g.beginPath(); g.ellipse(R*0.5,-R*0.52,R*0.3,R*0.15,-0.3,0,7); g.fill();
+  g.shadowBlur=0; g.fillStyle='#ffffff';
+  g.beginPath(); g.arc(R*0.6,-R*0.52,R*0.06,0,7); g.fill();
+  g.fillStyle='#0c0714';
+  g.beginPath(); g.moveTo(R*0.12,-R*0.58); g.quadraticCurveTo(R*0.55,-R*0.82,R*0.95,-R*0.58); g.quadraticCurveTo(R*0.55,-R*0.66,R*0.12,-R*0.58); g.closePath(); g.fill();
+  // --- dark flame pouring from the maw (kept off the snout tip) ---
+  g.shadowColor='#c66bff'; g.shadowBlur=30; g.globalAlpha=.9;
+  const bf=g.createRadialGradient(R*2.62,R*0.24,1,R*2.62,R*0.24,R*0.78);
+  bf.addColorStop(0,hexA('#f0d0ff',.95)); bf.addColorStop(.5,hexA('#a24dff',.6)); bf.addColorStop(1,hexA('#8b3bff',0));
+  g.fillStyle=bf; g.beginPath(); g.arc(R*2.62,R*0.24,R*0.78,0,7); g.fill();
+  g.globalAlpha=1;
+  g.restore();
+}
+
+// point-blank impact blast (Saitama shockwave / Shishio flame burst)
+function drawBlast(g,f,k){
+  const p=1-k, col=f.col, kind=f.kind||'energy', white=(kind==='punch');
+  const main = white?'#eaf6ff':col;
+  g.save(); g.translate(f.x,f.y);
+  // bright explosive flash disc
+  const discA = white? Math.min(1,k*1.5) : k*0.9;
+  const discR = f.r*(0.45+p*1.0);
+  const dg=g.createRadialGradient(0,0,1,0,0,discR);
+  dg.addColorStop(0,hexA('#ffffff',.98*discA));
+  dg.addColorStop(.5,hexA(light(main,.3),.78*discA));
+  dg.addColorStop(1,hexA(main,0));
+  g.fillStyle=dg; g.beginPath(); g.arc(0,0,discR,0,7); g.fill();
+  // expanding concentric shock rings
+  const rings = white?4:2;
+  for(let i=0;i<rings;i++){
+    const rr=f.r*(0.25+p*(0.7+i*0.26));
+    g.globalAlpha=Math.min(1,k*1.25)*(0.95-i*0.17);
+    g.strokeStyle = i===0 ? '#ffffff' : hexA(main,.85);
+    g.lineWidth=(9-i*1.6)*k+2.5; g.shadowColor=white?'#ffffff':main; g.shadowBlur=34;
+    g.beginPath(); g.arc(0,0,rr,0,7); g.stroke();
+  }
+  // radial air/speed lines (shockwave)
+  if(white){
+    g.globalAlpha=Math.min(1,k*1.2)*0.85; g.strokeStyle='#ffffff'; g.lineWidth=3; g.lineCap='round';
+    for(let i=0;i<16;i++){ const a=i/16*6.283+f.t*0.3;
+      const r0=f.r*(0.3+p*0.55), r1=r0+f.r*(0.45+p*0.55);
+      g.beginPath(); g.moveTo(Math.cos(a)*r0,Math.sin(a)*r0); g.lineTo(Math.cos(a)*r1,Math.sin(a)*r1); g.stroke(); }
+  }
+  // hot core flash
+  const coreK=Math.max(0,1-p*1.8);
+  if(coreK>0){
+    const cg=g.createRadialGradient(0,0,1,0,0,f.r*0.85);
+    cg.addColorStop(0,hexA('#ffffff',coreK)); cg.addColorStop(.5,hexA(light(main,.4),.8*coreK)); cg.addColorStop(1,hexA(main,0));
+    g.globalAlpha=coreK; g.fillStyle=cg; g.beginPath(); g.arc(0,0,f.r*0.85,0,7); g.fill();
+  }
+  // fire tongues (Shishio)
+  if(kind==='fire'){
+    g.globalAlpha=k*0.9;
+    for(let i=0;i<12;i++){
+      const a=i/12*6.283+f.t*0.4, rr=f.r*(0.3+p*0.6);
+      const px=Math.cos(a)*rr, py=Math.sin(a)*rr-p*f.r*0.5;
+      const fg=g.createRadialGradient(px,py,1,px,py,f.r*0.34);
+      fg.addColorStop(0,hexA('#fff2c0',1)); fg.addColorStop(.4,hexA(col,.85)); fg.addColorStop(1,hexA(dark(col,.4),0));
+      g.fillStyle=fg; g.beginPath(); g.arc(px,py,f.r*0.34,0,7); g.fill();
+    }
+    g.globalAlpha=Math.min(1,k*1.1); g.fillStyle=hexA('#fff0c0',.9);
+    g.beginPath(); g.arc(0,0,f.r*0.3*(1-p*0.5),0,7); g.fill();
+  }
+  g.restore();
 }
 
 function bar(g,x,y,w,h,f,left){
@@ -1090,6 +1365,7 @@ function render(){
     ctx.save(); ctx.globalAlpha=k;
     if(f.ring){ ctx.strokeStyle=f.col; ctx.lineWidth=3*k+1;
       ctx.beginPath(); ctx.arc(f.x,f.y,f.r+(1-k)*f.max,0,7); ctx.stroke(); }
+    else if(f.blast){ drawBlast(ctx,f,k); }
     else if(f.txt){ ctx.fillStyle=f.c; ctx.font='bold 18px Trebuchet MS'; ctx.textAlign='center';
       ctx.fillText(f.txt,f.x,f.y+(1-k)*-30); }
     else { f.x+=f.vx/60; f.y+=f.vy/60; f.vy+=1400/60; f.vx*=0.97;
@@ -1137,7 +1413,11 @@ requestAnimationFrame(loop);
 window.CLASH = { p1,p2,CHARS, get screen(){return screen}, startFight, goSelect, goMenu,
   setSel(i){ selIndex=i; selFlash=0.25; }, get sel(){return selIndex},
   // test hooks
-  POSE, paintFighter, walkJoint, drawLeg3d, GROUND_Y };
+  POSE, paintFighter, walkJoint, drawLeg3d, GROUND_Y,
+  drawProjectiles, drawBlast, blast, burst, ring, hexA,
+  projCount(){ return projectiles.length; }, get projs(){ return projectiles; },
+  setProjs(a){ projectiles.length=0; for(const p of a) projectiles.push(Object.assign({owner:p1,x:0,y:0,vx:0,vy:0,r:16,dmg:0,kb:0,life:9,t:0,armDelay:0,col:'#fff',pierce:false,homing:false,target:null,hitList:[],trail:[],kind:'orb',spin:0,pierce:true},p)); } ,
+  clearFx(){ fx.length=0; }, addBlast(x,y,r,col,life,kind){ blast(x,y,r,col,life,kind); return fx[fx.length-1]; }, get fxs(){ return fx; } };
 </script>
 </body>
 </html>
