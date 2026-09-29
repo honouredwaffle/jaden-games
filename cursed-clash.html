@@ -132,31 +132,31 @@ function drawArm3d(g,shX,shY,upAng,elbAng,upLen,foreLen,wdt,col,handCol,handR){
    ============================================================ */
 const CHARS = [
   { id:'goku', name:'GOKU', tag:'Saiyan Raised on Earth',
-    colA:'#ff8c1a', colB:'#1f63c9', colC:'#16161e', skin:'#f2c49b', shoe:'#2b4a8f', hair:'goku',
+    colA:'#ff8c1a', colB:'#1f63c9', colC:'#16161e', skin:'#f2c49b', shoe:'#2b4a8f', hair:'goku', style:'brawler',
     hp:110, speed:320, dmg:1.00,
     ability:{name:'KAMEHAMEHA', short:'KAMEHAMEHA', type:'wave',
       desc:'Cups both palms and fires a huge blue-white ki beam straight across the screen.', dmg:20, kb:430, speed:640, col:'#63c8ff'} },
 
   { id:'vegeta', name:'VEGETA', tag:'Prince of All Saiyans',
-    colA:'#e8ecf2', colB:'#26417a', colC:'#15151c', skin:'#f2c49b', shoe:'#dfe6ef', hair:'vegeta',
+    colA:'#e8ecf2', colB:'#26417a', colC:'#15151c', skin:'#f2c49b', shoe:'#dfe6ef', hair:'vegeta', style:'royal',
     hp:105, speed:315, dmg:1.05,
     ability:{name:'BIG BANG ATTACK', short:'BIG BANG', type:'orb',
       desc:'Hurls a huge blue-white ki sphere that pierces through anything.', dmg:26, kb:400, speed:300, col:'#8fd8ff', bigOrb:true, r:42} },
 
   { id:'saitama', name:'SAITAMA', tag:'One Punch',
-    colA:'#ffd83d', colB:'#e5382f', colC:'#eef2f5', skin:'#f2c49b', shoe:'#e5382f', hair:'bald',
+    colA:'#ffd83d', colB:'#e5382f', colC:'#eef2f5', skin:'#f2c49b', shoe:'#e5382f', hair:'bald', style:'casual',
     hp:120, speed:340, dmg:1.20,
     ability:{name:'SERIOUS PUNCH', short:'SERIOUS', type:'burst',
       desc:'One punch. Massive damage if it connects.', dmg:34, kb:620, dashT:0.34, col:'#ffe14d', fx:'punch'} },
 
   { id:'hiei', name:'HIEI', tag:'Master of the Jagan',
-    colA:'#191b26', colB:'#4a2a7a', colC:'#0c0c12', skin:'#e9cda9', shoe:'#101018', hair:'hiei',
+    colA:'#191b26', colB:'#4a2a7a', colC:'#0c0c12', skin:'#e9cda9', shoe:'#101018', hair:'hiei', style:'ninja',
     hp:100, speed:352, dmg:1.08,
     ability:{name:'DRAGON OF THE DARKNESS FLAME', short:'DARK FLAME', type:'wave',
       desc:'Unleashes the black dragon of the Darkness Flame straight across the screen.', dmg:24, kb:470, speed:560, col:'#a24dff', kind:'dragon', r:42, h:96} },
 
   { id:'shishio', name:'SHISHIO', tag:'The Hitokiri Battousai Slayer',
-    colA:'#2b2430', colB:'#c9b79a', colC:'#141018', skin:'#e7c6a1', shoe:'#1c1720', hair:'shishio',
+    colA:'#2b2430', colB:'#c9b79a', colC:'#141018', skin:'#e7c6a1', shoe:'#1c1720', hair:'shishio', style:'samurai',
     hp:108, speed:326, dmg:1.12,
     ability:{name:'HOMURA DAMA', short:'HOMURA DAMA', type:'burst',
       desc:'Erupts in searing flame — a point-blank blast that shreds through guard.', dmg:28, kb:560, dashT:0.32, col:'#ff5a1f', fx:'fire'} }
@@ -502,9 +502,54 @@ class Fighter {
 // Walk cycle: distance the fighter travels per full stride (2 steps).
 // Keep ground speed locked to the cycle so the feet plant without sliding.
 const WALK_CYCLE_PX = 84;   // ~2x the planted foot's ground travel per step
-function walkJoint(K){
+/* ---- per-character animation styles ---- */
+const STYLE = { BRAWLER:'brawler', ROYAL:'royal', CASUAL:'casual', NINJA:'ninja', SAMURAI:'samurai' };
+const STYLE_CFG = {
+  brawler:{ label:'heavy brawler', shoulderY:-86, torsoW:34, torsoH:46, beltH:8, legW:15, thigh:26, shin:24,
+    armW:13, upLen:20, foreLen:18,
+    spread:11, idle:{bUp:0.34,bElb:-0.55,fUp:0.30,fElb:-0.66},
+    walk:{ hipAmp:1.0, kneeAmp:1.0, hipRaise:0, hipBack:0, lean:0.10, armAmp:1.0, sway:2.4 },
+    punch:{ wind:[0.10,-0.55,-0.30,-1.75], hit:[-0.55,-1.52,-1.75,-0.04], rec:[-1.52,0.05,-0.04,-0.32], lean:0 },
+    kickRear:[0.14,-0.20], kick:{ w:[-0.10,-1.05,-0.20,-1.55,0,0.3], h:[-1.05,-1.42,-1.55,-0.08,0,-0.35], r:[-0.06,-0.14,-0.35,0] },
+    block:{ f:[-Math.PI/2+0.9,-0.9], b:[-Math.PI/2+0.9,-0.9], lean:0 },
+    idlePhase:0.0 },
+  royal:{ label:'royal kickboxer', shoulderY:-86, torsoW:33, torsoH:48, beltH:7, legW:14, thigh:28, shin:25,
+    armW:12, upLen:21, foreLen:19,
+    spread:8, idle:{bUp:-1.12,bElb:-1.32,fUp:-1.00,fElb:-1.42},
+    walk:{ hipAmp:1.14, kneeAmp:1.14, hipRaise:0, hipBack:0.05, lean:0.17, armAmp:0.72, sway:2.0 },
+    punch:{ wind:[0.10,-0.30,-0.32,-1.95], hit:[-0.30,-1.62,-1.95,-0.02], rec:[-1.62,0.10,-0.02,-0.40], lean:0.04 },
+    kickRear:[0.16,-0.24], kick:{ w:[-0.12,-1.20,-0.24,-1.72,0,0.36], h:[-1.20,-1.55,-1.72,-0.06,0,-0.42], r:[-0.08,-0.16,-0.42,0] },
+    block:{ f:[-2.22,-1.05], b:[-2.12,-1.15], lean:0.02 },
+    idlePhase:0.7 },
+  casual:{ label:'lazy puncher', shoulderY:-87, torsoW:36, torsoH:44, beltH:9, legW:16, thigh:24, shin:24,
+    armW:14, upLen:20, foreLen:17,
+    spread:6, idle:{bUp:0.04,bElb:-0.14,fUp:0.02,fElb:-0.20},
+    walk:{ hipAmp:0.78, kneeAmp:0.72, hipRaise:2.5, hipBack:0, lean:0.05, armAmp:0.55, sway:3.0 },
+    punch:{ wind:[0.10,-0.15,-0.30,-1.20], hit:[-0.15,-1.40,-1.20,0.06], rec:[-1.40,0.02,0.06,-0.18], lean:0 },
+    kickRear:[0.10,-0.16], kick:{ w:[-0.08,-0.78,-0.16,-1.15,0,0.22], h:[-0.78,-1.10,-1.15,-0.10,0,-0.24], r:[-0.05,-0.12,-0.24,0] },
+    block:{ f:[-0.40,-1.30], b:[0.25,-0.70], lean:0 },
+    idlePhase:1.3 },
+  ninja:{ label:'quick ninja', shoulderY:-84, torsoW:32, torsoH:45, beltH:6, legW:13, thigh:27, shin:24,
+    armW:12, upLen:19, foreLen:18,
+    spread:7, idle:{bUp:-0.62,bElb:-1.52,fUp:-0.52,fElb:-1.62},
+    walk:{ hipAmp:1.10, kneeAmp:1.30, hipRaise:0, hipBack:0.03, lean:0.23, armAmp:0.70, sway:1.6 },
+    punch:{ wind:[0.10,-0.75,-0.30,-2.05], hit:[-0.75,-1.48,-2.05,-0.12], rec:[-1.48,0.00,-0.12,-0.28], lean:0.03 },
+    kickRear:[0.12,-0.28], kick:{ w:[-0.10,-1.05,-0.30,-1.70,0,0.30], h:[-1.05,-1.48,-1.70,-0.05,0,-0.30], r:[-0.06,-0.12,-0.30,0] },
+    block:{ f:[-1.95,-0.75], b:[-0.45,-1.35], lean:0 },
+    idlePhase:1.9 },
+  samurai:{ label:'stern swordsman', shoulderY:-90, torsoW:35, torsoH:50, beltH:8, legW:15, thigh:28, shin:26,
+    armW:13, upLen:21, foreLen:19,
+    spread:12, idle:{bUp:0.42,bElb:-0.85,fUp:0.52,fElb:-0.95},
+    walk:{ hipAmp:0.88, kneeAmp:0.90, hipRaise:0, hipBack:0, lean:0.12, armAmp:0.45, sway:1.1 },
+    punch:{ wind:[0.10,-0.35,-0.32,-1.60], hit:[-0.35,-1.58,-1.60,0.04], rec:[-1.58,0.06,0.04,-0.44], lean:0.05 },
+    kickRear:[0.16,-0.22], kick:{ w:[-0.12,-0.95,-0.22,-1.35,0,0.28], h:[-0.95,-1.38,-1.35,-0.10,0,-0.28], r:[-0.06,-0.14,-0.28,0] },
+    block:{ f:[-1.55,-0.65], b:[0.70,-0.95], lean:0 },
+    idlePhase:2.4 }
+};
+function styleConfig(c){ return STYLE_CFG[c.style] || STYLE_CFG.brawler; }
+function walkJoint(K,sk){
   K=((K%1)+1)%1;
-  const ease=t=>t*t*(3-2*t);
+  const e=sk?sk.walk:STYLE_CFG.brawler.walk, ease=t=>t*t*(3-2*t);
   const C=(keys)=>{                              // smooth keyed curve
     for(let i=0;i<keys.length-1;i++){
       const [k0,v0]=keys[i], [k1,v1]=keys[i+1];
@@ -512,10 +557,23 @@ function walkJoint(K){
     }
     return keys[keys.length-1][1];
   };
-  const hipFwd  = C([[0,.50],[.12,.29],[.25,.06],[.40,-.24],[.50,-.44],[.62,-.26],[.75,.13],[.88,.44],[1,.50]]); // + = knee forward
-  const kneeFlex= C([[0,.16],[.12,.28],[.25,.20],[.40,.16],[.50,.40],[.62,.95],[.72,1.28],[.82,.82],[.92,.32],[1,.16]]); // + = heel folds back
-  const ank     = C([[0,-.10],[.12,.05],[.25,.00],[.40,.10],[.50,.45],[.62,.30],[.72,.05],[.82,-.05],[.92,-.12],[1,-.10]]); // + = toes down
+  const ha=e.hipAmp;
+  const hipFwd  = C([[0,.50],[.12,.29],[.25,.06],[.40,-.24],[.50,-.44],[.62,-.26],[.75,.13],[.88,.44],[1,.50]])*ha + (e.hipBack||0); // + = knee forward
+  const kneeFlex= C([[0,.16],[.12,.28],[.25,.20],[.40,.16],[.50,.40],[.62,.95],[.72,1.28],[.82,.82],[.92,.32],[1,.16]])*e.kneeAmp; // + = heel folds back
+  const ank     = C([[0,-.10],[.12,.05],[.25,.00],[.40,.10],[.50,.45],[.62,.30],[.72,.05],[.82,-.05],[.92,-.12],[1,-.10]])*ha; // + = toes down
   return {thigh:-hipFwd, knee:kneeFlex, foot:ank};
+}
+function kickPose(st,stage,k){
+  const S=st.kick;
+  if(stage==='wind') return {th:lerp(S.w[0],S.w[1],k), kn:lerp(S.w[2],S.w[3],k), ft:lerp(S.w[4],S.w[5],k)};
+  if(stage==='hit')  return {th:lerp(S.h[0],S.h[1],k), kn:lerp(S.h[2],S.h[3],k), ft:lerp(S.h[4],S.h[5],k)};
+  return {th:S.r[0]+(S.h[1]-S.r[0])*0, kn:S.r[1], ft:lerp(S.r[2],S.r[3],k), rec:true};
+}
+function punchPose(st,stage,k){
+  const P=st.punch;
+  if(stage==='wind') return {fUp:lerp(P.wind[0],P.wind[1],k), fElb:lerp(P.wind[2],P.wind[3],k)};
+  if(stage==='hit')  return {fUp:lerp(P.hit[0],P.hit[1],k),  fElb:lerp(P.hit[2],P.hit[3],k)};
+  return {fUp:lerp(P.rec[0],P.rec[1],k), fElb:lerp(P.rec[2],P.rec[3],k)};
 }
 function atkStage(a){
   if(a.t < a.startup)               return {stage:'wind', k: a.startup?a.t/a.startup:1};
@@ -539,35 +597,36 @@ function paintFighter(g,c,S){
   const pnPh = (pn && S.atk) ? atkStage(S.atk) : null;
   const kkPh = (kk && S.atk) ? atkStage(S.atk) : null;
 
+  // ---- per-character style ----
+  const STD=styleConfig(c), WK=STD.walk;
   // ---- legs (thigh + shin + foot, knee folds backward) ----
-  const HIP_Y=-48+bob, THIGH=26, SHIN=24, LEGW=15;
+  const HIP_Y=-48+bob, THIGH=STD.thigh, SHIN=STD.shin, LEGW=STD.legW;
+  const SP=STD.spread!=null?STD.spread:8;
   if(kkPh){
     // planted rear leg
-    drawLeg3d(g,-8,HIP_Y, 0.14,-0.20, THIGH,SHIN,LEGW, dark(c.colB,0.12), shoe);
+    drawLeg3d(g,-SP,HIP_Y, STD.kickRear[0],STD.kickRear[1], THIGH,SHIN,LEGW, dark(c.colB,0.12), shoe);
     // kicking front leg: knee up -> snap out -> retract
-    let th,kn,ft,k;
-    if(kkPh.stage==='wind'){ k=smooth(kkPh.k); th=lerp(-0.10,-1.05,k); kn=lerp(-0.20,-1.55,k); ft=0.3*k; }
-    else if(kkPh.stage==='hit'){ k=smooth(kkPh.k); th=lerp(-1.05,-1.42,k); kn=lerp(-1.55,-0.08,k); ft=-0.35*k; }
-    else { k=smooth(kkPh.k); th=lerp(-1.42,-0.06,k); kn=lerp(-0.08,-0.14,k); ft=-0.35*(1-k); }
-    drawLeg3d(g,8,HIP_Y, th,kn, THIGH,SHIN,LEGW, c.colB, shoe, ft);
+    const p=kickPose(STD,kkPh.stage,smooth(kkPh.k));
+    drawLeg3d(g,SP,HIP_Y, p.th,p.kn, THIGH,SHIN,LEGW, c.colB, shoe, p.ft);
   } else if(walking){
-    for(const L of [{hip:-8,ph:0,col:dark(c.colB,0.12)},{hip:8,ph:0.5,col:c.colB}]){
-      const j=walkJoint(a/6.2831853+L.ph);          // real hip/knee/ankle curves
+    for(const L of [{hip:-SP,ph:0,col:dark(c.colB,0.12)},{hip:SP,ph:0.5,col:c.colB}]){
+      const j=walkJoint(a/6.2831853+L.ph, STD);      // real hip/knee/ankle curves (per-style)
       drawLeg3d(g,L.hip,HIP_Y,j.thigh,j.knee,THIGH,SHIN,LEGW,L.col,shoe,j.foot);
     }
   } else if(airborne){
-    drawLeg3d(g,-8,HIP_Y, 0.45,-0.75, THIGH,SHIN,LEGW,dark(c.colB,0.12),shoe, 0.3);
-    drawLeg3d(g, 8,HIP_Y,-0.35,-0.5,  THIGH,SHIN,LEGW,c.colB,shoe, 0.3);
+    drawLeg3d(g,-SP,HIP_Y, 0.45,-0.75, THIGH,SHIN,LEGW,dark(c.colB,0.12),shoe, 0.3);
+    drawLeg3d(g, SP,HIP_Y,-0.35,-0.5,  THIGH,SHIN,LEGW,c.colB,shoe, 0.3);
   } else {
-    drawLeg3d(g,-8,HIP_Y, 0.06,-0.10, THIGH,SHIN,LEGW,dark(c.colB,0.12),shoe);
-    drawLeg3d(g, 8,HIP_Y,-0.06,-0.10, THIGH,SHIN,LEGW,c.colB,shoe);
+    drawLeg3d(g,-SP,HIP_Y, 0.06,-0.10, THIGH,SHIN,LEGW,dark(c.colB,0.12),shoe);
+    drawLeg3d(g, SP,HIP_Y,-0.06,-0.10, THIGH,SHIN,LEGW,c.colB,shoe);
   }
 
   // ---- torso ----
-  part3d(g,-17,-92+bob,34,46,11,sub);
-  part3d(g,-17,-92+bob,34,30,11,gi);             // gi top
+  const TW=STD.torsoW, TH=STD.torsoH, TX=-TW/2, TY=-92+bob;
+  part3d(g,TX,TY,TW,TH,11,sub);
+  part3d(g,TX,TY,TW,TH*0.65,11,gi);             // gi top
   g.save();                                      // sash / belt
-  part3d(g,-17,-64+bob,34,8,3, light(c.colB,0.05));
+  part3d(g,TX,-64+bob,TW,STD.beltH,3, light(c.colB,0.05));
   g.restore();
   // chest emblem highlight
   g.save(); g.globalAlpha=.20; g.fillStyle='#fff';
@@ -575,31 +634,29 @@ function paintFighter(g,c,S){
 
   // ---- back arm (counterbalances the front arm) ----
   const armSw = walking ? Math.cos(a) : Math.sin(t*2)*4;
+  const aAmp = walking ? WK.armAmp : 1;
   let bUp, bElb;
-  if(walking){ bUp=armSw*0.55; bElb=-0.5-Math.max(0,armSw)*0.35; }
-  else if(pnPh && S.atk.kind==='punch'){ bUp=Math.PI/2-0.35; bElb=-1.15; }   // retract to guard
+  if(walking){ bUp=armSw*0.55*aAmp; bElb=-0.5-Math.max(0,armSw)*0.35*aAmp; }
+  else if(pnPh && S.atk.kind==='punch'){ bUp=STD.block.b[0]; bElb=STD.block.b[1]; }   // retract to guard
   else if(kkPh){ bUp=1.15; bElb=-0.55; }                                     // swing back for balance
-  else if(eB){ bUp=-Math.PI/2+0.9; bElb=-0.9; }
+  else if(eB){ bUp=STD.block.b[0]; bElb=STD.block.b[1]; }
   else if(sp){ bUp=-Math.PI/2-0.35; bElb=-0.35; }
-  else { bUp=0.08; bElb=-0.30; }
-  drawArm3d(g,-15,-86+bob, bUp, bElb, 20,18, 13, dark(c.colB,0.12), skin, 6.5);
+  else { bUp=STD.idle.bUp; bElb=STD.idle.bElb; }
+  drawArm3d(g,-15,-86+bob, bUp, bElb, STD.upLen,STD.foreLen, STD.armW, dark(c.colB,0.12), skin, 6.5);
 
   // ---- front arm ----
   let fUp, fElb;
   if(pnPh && S.atk){
-    // wind up (pull elbow back) -> snap out straight -> retract
-    let k;
-    if(pnPh.stage==='wind'){ k=smooth(pnPh.k); fUp=lerp(0.10,-0.55,k); fElb=lerp(-0.30,-1.75,k); }
-    else if(pnPh.stage==='hit'){ k=smooth(pnPh.k); fUp=lerp(-0.55,-1.52,k); fElb=lerp(-1.75,-0.04,k); }
-    else { k=smooth(pnPh.k); fUp=lerp(-1.52,0.05,k); fElb=lerp(-0.04,-0.32,k); }
+    // wind up (pull elbow back) -> snap out straight -> retract (per-style)
+    const p=punchPose(STD,pnPh.stage,smooth(pnPh.k)); fUp=p.fUp; fElb=p.fElb;
   } else if(kkPh){
     fUp=-0.75; fElb=-0.9;                                                      // arms up while kicking
   } else if(walking){
-    fUp=-Math.cos(a)*0.55; fElb=-0.45-Math.max(0,Math.cos(a))*0.5;   // near arm opposes the far leg
-  } else if(eB){ fUp=-Math.PI/2+0.9; fElb=-0.9; }
+    fUp=-Math.cos(a)*0.55*aAmp; fElb=-0.45-Math.max(0,Math.cos(a))*0.5*aAmp;   // near arm opposes the far leg
+  } else if(eB){ fUp=STD.block.f[0]; fElb=STD.block.f[1]; }
   else if(sp){ fUp=-Math.PI/2-0.35; fElb=-0.35; }
-  else { fUp=Math.sin(t*2)*0.10; fElb=-0.35; }
-  drawArm3d(g,15,-86+bob, fUp, fElb, 22,20, 13, gi, skin, 7);
+  else { fUp=STD.idle.fUp+Math.sin(t*2)*0.05; fElb=STD.idle.fElb; }
+  drawArm3d(g,15,-86+bob, fUp, fElb, STD.upLen+2,STD.foreLen+2, STD.armW, gi, skin, 7);
 
   // punching fist highlight
   if(pnPh && pnPh.stage==='hit' && S.atk){
@@ -1109,7 +1166,7 @@ let trainT=0, trainDummyIdx=1, trainButtons=[], trainHits=0, trainCombo=0, train
 let trainMaxCombo=0, trainMsg='', trainMsgT=0;
 function resetTraining(){
   const gy=GROUND_Y();
-  p1.applyChar(CHARS[selIndex]); p2.applyChar(CHARS[1]);
+  p1.applyChar(CHARS[selIndex]); p2.applyChar(trainDummyChar());
   p1.role='player'; p2.role='dummy';
   p1.ai=false; p2.ai=false; p2.dir=-1;
   p1.x=W*0.34; p2.x=W*0.34+96; p1.y=p2.y=gy;
@@ -1122,7 +1179,11 @@ function resetTraining(){
   trainT=0; trainMenuOpen=false;
 }
 function openTraining(){ screen='training'; resetTraining(); padEl.classList.remove('hidden'); superBtn.textContent=p1.char.ability.short; }
-function trainSetDummy(i){ trainDummyIdx=(i+CHARS.length)%CHARS.length; p2.applyChar(CHARS[trainDummyIdx]); p2.hp=p2.maxhp; p2.ko=false; p2.state=POSE.IDLE; }
+function trainDummyChar(){ return CHARS[(selIndex+1)%CHARS.length]; }
+function trainSetPlayer(i){ selIndex=(i+CHARS.length)%CHARS.length;
+  p1.applyChar(CHARS[selIndex]); p1.hp=p1.maxhp; p1.meter=p1.maxMeter; p1.atk=null; p1.ko=false; p1.hitStun=0; p1.superT=0; p1.state=POSE.IDLE; p1.dir=1;
+  const dc=trainDummyChar(); p2.applyChar(dc); p2.hp=p2.maxhp; lastDummyHp=p2.maxhp; p2.ko=false; p2.atk=null; p2.state=POSE.IDLE; p2.dir=-1;
+  superBtn.textContent=p1.char.ability.short; clearProjectiles(); fx.length=0; }
 function trainReset(){ const dx=p2.x, dy=p2.y; p1.x=W*0.34; p1.vx=p1.vy=0; p1.hp=p1.maxhp; p1.meter=p1.maxMeter; p1.atk=null; p1.ko=false; p1.hitStun=0; p1.superT=0; p1.state=POSE.IDLE; p1.dir=1;
   p2.x=dx; p2.y=dy; p2.hp=p2.maxhp; p2.ko=false; p2.atk=null; p2.hitStun=0; p2.state=POSE.IDLE; p2.dir=-1;
   clearProjectiles(); fx.length=0; trainHits=0; trainCombo=0; trainMaxCombo=0; trainDispDmg=0; lastDummyHp=p2.maxhp; }
@@ -1226,7 +1287,7 @@ function drawTrainingHUD(g){
   g.globalAlpha=1; g.fillStyle='#fff'; g.textAlign='center'; g.font='bold 15px Trebuchet MS';
   g.fillText('TRAINING MENU',mb.x+mb.w/2,mb.y+mb.h*0.66); g.restore();
   g.save(); g.textAlign='center'; g.font='11px Trebuchet MS'; g.fillStyle='rgba(255,255,255,.35)';
-  g.fillText(isTouch?'TAP "TRAINING MENU" to switch dummy · SUPER button to test special':'A/D move · W jump · J punch · K kick · L block · I special · T menu · R reset · Esc back',W/2,H-14);
+  g.fillText(isTouch?'TAP "TRAINING MENU" to switch YOUR fighter · SUPER button to test special':'A/D move · W jump · J punch · K kick · L block · I special · T menu · R reset · Esc back',W/2,H-14);
   g.restore();
 }
 function renderTrainMenu(g){
@@ -1240,12 +1301,12 @@ function renderTrainMenu(g){
   g.save(); g.textAlign='center'; g.fillStyle='#fff'; g.font='bold 22px Trebuchet MS';
   g.fillText('TRAINING MENU',W/2,y+40); g.restore();
   g.save(); g.textAlign='left'; g.fillStyle='rgba(160,220,255,.85)'; g.font='bold 13px Trebuchet MS';
-  g.fillText('CHOOSE YOUR DUMMY',x+30,y+78); g.restore();
+  g.fillText('CHOOSE YOUR FIGHTER',x+30,y+78); g.restore();
   trainBtns=[];
   const n=CHARS.length, ts=Math.min(w*0.13,66), gap=ts*0.24, tot=n*ts+(n-1)*gap, sx=W/2-tot/2, ty=y+96;
   for(let i=0;i<n;i++){
-    const c=CHARS[i], bx=sx+i*(ts+gap), sel=i===trainDummyIdx;
-    const r={x:bx,y:ty,w:ts,h:ts,fn:()=>trainSetDummy(i)};
+    const c=CHARS[i], bx=sx+i*(ts+gap), sel=i===selIndex;
+    const r={x:bx,y:ty,w:ts,h:ts,fn:()=>trainSetPlayer(i)};
     trainBtns.push(r);
     g.save();
     g.fillStyle=sel?'rgba(255,90,140,.28)':'rgba(10,30,60,.6)'; roundRect(g,bx,ty,ts,ts,8); g.fill();
@@ -1254,8 +1315,10 @@ function renderTrainMenu(g){
     g.save(); g.translate(bx+ts/2,ty+ts-6); g.scale(ts/120*0.62,ts/120*0.62);
     paintFighter(g,c,{t:trainT+i*0.7,state:POSE.IDLE,anim:0,atk:null,hitFlash:0,superT:0}); g.restore();
   }
-  g.save(); g.textAlign='center'; g.fillStyle=CHARS[trainDummyIdx].colA; g.font='bold 14px Trebuchet MS';
-  g.fillText(CHARS[trainDummyIdx].name+'  ·  '+CHARS[trainDummyIdx].tag,W/2,ty+ts+24); g.restore();
+  g.save(); g.textAlign='center'; g.fillStyle=CHARS[selIndex].colA; g.font='bold 14px Trebuchet MS';
+  g.fillText(CHARS[selIndex].name+'  ·  '+CHARS[selIndex].tag,W/2,ty+ts+24); g.restore();
+  g.save(); g.textAlign='center'; g.fillStyle='rgba(255,160,190,.8)'; g.font='bold 12px Trebuchet MS';
+  g.fillText('DUMMY: '+CHARS[(selIndex+1)%CHARS.length].name,W/2,ty+ts+42); g.restore();
   const bw=w*0.8, bh=Math.min(H*0.072,46), bx=W/2-bw/2; let byy=ty+ts+48;
   const acts=[
     {label:'RESET  —  heal + straighten up',fn:()=>{ trainReset(); setTrainMenuOpen(false); },col:'#7fd7ff'},
@@ -1308,8 +1371,8 @@ function onKeyPress(code){
     if(code==='Escape'){ if(trainMenuOpen) setTrainMenuOpen(false); else goMenu(); }
     if(code==='KeyT') setTrainMenuOpen(!trainMenuOpen);
     if(code==='KeyR') trainReset();
-    if(code==='KeyQ') trainSetDummy(trainDummyIdx-1);
-    if(code==='KeyE') trainSetDummy(trainDummyIdx+1);
+    if(code==='KeyQ') trainSetPlayer(selIndex-1);
+    if(code==='KeyE') trainSetPlayer(selIndex+1);
   }
   else if(screen==='over'){
     if(go.includes(code)){ rivalIndex=randomRival(); startFight(); }
@@ -1620,9 +1683,9 @@ function render(){
 
 goMenu();
 requestAnimationFrame(loop);
-window.CLASH = { p1,p2,CHARS, get screen(){return screen}, startFight, goSelect, goMenu, openTraining, trainReset, trainSetDummy,
+window.CLASH = { p1,p2,CHARS, get screen(){return screen}, startFight, goSelect, goMenu, openTraining, trainReset, trainSetPlayer,
   setSel(i){ selIndex=i; selFlash=0.25; }, get sel(){return selIndex},
-  get train(){ return {dummy:trainDummyIdx, hits:trainHits, combo:trainCombo, maxCombo:trainMaxCombo, dmg:trainDispDmg, menu:trainMenuOpen, t:trainT}; },
+  get train(){ return {player:selIndex, dummy:(selIndex+1)%CHARS.length, hits:trainHits, combo:trainCombo, maxCombo:trainMaxCombo, dmg:trainDispDmg, menu:trainMenuOpen, t:trainT}; },
   setTrainMenu(v){ trainMenuOpen=!!v; },
   // test hooks
   POSE, paintFighter, walkJoint, drawLeg3d, GROUND_Y,
