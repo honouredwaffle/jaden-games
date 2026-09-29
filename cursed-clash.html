@@ -278,7 +278,7 @@ function fireAbility(f){
 /* ============================================================
    FIGHTER
    ============================================================ */
-const POSE = { IDLE:0, WALK:1, JUMP:2, PUNCH:3, KICK:4, BLOCK:5, HURT:6, KO:7, SUPER:8 };
+const POSE = { IDLE:0, WALK:1, JUMP:2, PUNCH:3, KICK:4, BLOCK:5, HURT:6, KO:7, SUPER:8, DUMMY:9 };
 
 class Fighter {
   constructor(opts){
@@ -287,7 +287,7 @@ class Fighter {
       hp:100,maxhp:100,meter:0,maxMeter:100,
       state:POSE.IDLE,t:0,anim:0,hitStun:0,blockStun:0,atk:null,hasHit:false,
       cooldown:0,superT:0,invuln:0,ko:false,hitFlash:0,combo:0,comboT:0,
-      name:'?',ai:false,aiT:0,aiState:'approach',abilityFired:false,dashTick:0,char:CHARS[0]
+      name:'?',ai:false,aiT:0,aiState:'approach',abilityFired:false,dashTick:0,char:CHARS[0],role:null
     },opts);
     this.applyChar(this.char);
   }
@@ -394,6 +394,7 @@ class Fighter {
     }
     let mv=0;
     if(this.ai) mv=this.aiMove(dt,foe);
+    else if(this.role==='dummy'){ this.dir = foe.x>=this.x?1:-1; if(this.onGround && !this.atk) this.state=POSE.IDLE; }
     else {
       if(keys['KeyA']||keys['ArrowLeft']||pad.x<-0.28) mv-=1;
       if(keys['KeyD']||keys['ArrowRight']||pad.x>0.28) mv+=1;
@@ -453,7 +454,10 @@ class Fighter {
     ring(this.x,this.top+58,col,a.super?26:12);
     floatText(this.x,this.top+17,Math.round(a.dmg),col);
     shake=Math.max(shake,a.super?14:5);
-    if(this.hp<=0){ this.hp=0; this.ko=true; this.state=POSE.KO; this.vy=-520; this.vx=dir*260; }
+    if(this.hp<=0){
+      if(this.role==='dummy'){ this.hp=this.maxhp; this.hitFlash=1; }
+      else { this.hp=0; this.ko=true; this.state=POSE.KO; this.vy=-520; this.vx=dir*260; }
+    }
   }
 
   applyPhysics(dt){
@@ -464,6 +468,8 @@ class Fighter {
     const L=W*0.06,R=W*0.94;
     if(this.x<L){ this.x=L; this.vx=Math.max(0,this.vx); }
     if(this.x>R){ this.x=R; this.vx=Math.min(0,this.vx); }
+    // training dummy stays on its half so it can't be walked into the corner
+    if(this.role==='dummy'){ const DL=W*0.40, DR=W*0.92; if(this.x<DL){ this.x=DL; this.vx=Math.max(0,this.vx); } if(this.x>DR) this.x=DR; }
     if(this.onGround && this.hitStun<=0 && !this.atk) this.vx*=(1-Math.min(1,dt*8));
     if(this.hitStun>0) this.vx*=(1-Math.min(1,dt*3));
   }
@@ -1075,9 +1081,18 @@ function drawHUD(g){
   g.font='bold 14px Trebuchet MS'; g.fillStyle='#fff'; g.textAlign='left';
   g.fillText(p1.name+' · '+p1.char.tag,padS,by-8);
   g.textAlign='right'; g.fillText(p2.char.tag+' · '+p2.name,W-padS,by-8);
-  g.textAlign='center'; g.font='bold 22px Trebuchet MS'; g.fillStyle='#ffd166';
-  g.fillText('CURSED CLASH',W/2,by+18);
+  g.textAlign='center';
+  // training shortcut button
+  const mb=menuBtnRect();
+  g.save();
+  g.fillStyle='rgba(255,255,255,.06)'; roundRect(g,mb.x,mb.y,mb.w,mb.h,9); g.fill();
+  g.strokeStyle='#8fe3ff'; g.lineWidth=2; g.globalAlpha=.8; roundRect(g,mb.x,mb.y,mb.w,mb.h,9); g.stroke();
+  g.globalAlpha=1; g.fillStyle='#fff'; g.font='bold 12px Trebuchet MS';
+  g.fillText('TRAINING (T)',mb.x+mb.w/2,mb.y+mb.h*0.66); g.restore();
+  g.font='bold 20px Trebuchet MS'; g.fillStyle='#ffd166';
+  g.fillText('CURSED CLASH',W/2,by+34);
 }
+function menuBtnRect(){ const w=Math.min(W*0.2,170), h=26; return {x:W/2-w/2,y:16,w,h}; }
 
 /* ============================================================
    FIGHTERS + SCREEN STATE
@@ -1090,6 +1105,177 @@ let selIndex=0, rivalIndex=1;
 let fightState='intro', fightT=0, roundTime=60;
 const ROUND_TIME=60;
 let lastFightWinner=null, overButtons=[];
+
+/* ---- training mode ---- */
+let trainT=0, trainDummyIdx=1, trainButtons=[], trainHits=0, trainCombo=0, trainComboT=0, trainDispDmg=0, trainDmgT=0, trainMenuOpen=false, trainBtns=[], lastDummyHp=100;
+let trainMaxCombo=0, trainMsg='', trainMsgT=0;
+function resetTraining(){
+  const gy=GROUND_Y();
+  p1.applyChar(CHARS[selIndex]); p2.applyChar(CHARS[1]);
+  p1.role='player'; p2.role='dummy';
+  p1.ai=false; p2.ai=false; p2.dir=-1;
+  p1.x=W*0.34; p2.x=W*0.34+96; p1.y=p2.y=gy;
+  p1.vx=p2.vx=p1.vy=p2.vy=0; p1.dir=1; p2.dir=-1;
+  p1.hp=p1.maxhp; p2.hp=p2.maxhp; p1.meter=p1.maxMeter; p2.meter=0;
+  p1.state=p2.state=POSE.IDLE; p1.atk=p2.atk=null; p1.ko=p2.ko=false;
+  p1.hitStun=p2.hitStun=0; p1.blockStun=p2.blockStun=0; p1.superT=p2.superT=0; p1.hitFlash=p2.hitFlash=0;
+  clearProjectiles(); fx.length=0;
+  trainHits=0; trainCombo=0; trainComboT=0; trainMaxCombo=0; trainDispDmg=0; trainDmgT=0; lastDummyHp=p2.maxhp;
+  trainT=0; trainMenuOpen=false;
+}
+function openTraining(){ screen='training'; resetTraining(); padEl.classList.remove('hidden'); superBtn.textContent=p1.char.ability.short; }
+function trainSetDummy(i){ trainDummyIdx=(i+CHARS.length)%CHARS.length; p2.applyChar(CHARS[trainDummyIdx]); p2.hp=p2.maxhp; p2.ko=false; p2.state=POSE.IDLE; }
+function trainReset(){ const dx=p2.x, dy=p2.y; p1.x=W*0.34; p1.vx=p1.vy=0; p1.hp=p1.maxhp; p1.meter=p1.maxMeter; p1.atk=null; p1.ko=false; p1.hitStun=0; p1.superT=0; p1.state=POSE.IDLE; p1.dir=1;
+  p2.x=dx; p2.y=dy; p2.hp=p2.maxhp; p2.ko=false; p2.atk=null; p2.hitStun=0; p2.state=POSE.IDLE; p2.dir=-1;
+  clearProjectiles(); fx.length=0; trainHits=0; trainCombo=0; trainMaxCombo=0; trainDispDmg=0; lastDummyHp=p2.maxhp; }
+function trainMenuRect(){ const w=Math.min(W*0.28,230), h=Math.min(H*0.07,46); return {x:W-w-14,y:H*0.155,w,h}; }
+function setTrainMenuOpen(v){ trainMenuOpen=!!v; if(trainMenuOpen) clearProjectiles(); padEl.classList.toggle('hidden', trainMenuOpen); }
+function updateTraining(dt){
+  trainT+=dt;
+  if(trainMenuOpen){ padEl.classList.add('hidden'); return; }
+  if(padEl.classList.contains('hidden')) padEl.classList.remove('hidden');
+  trainComboT=Math.max(0,trainComboT-dt); if(trainComboT===0) trainCombo=0;
+  trainDmgT=Math.max(0,trainDmgT-dt); if(trainDmgT===0) trainDispDmg=0;
+  trainMsgT=Math.max(0,trainMsgT-dt);
+  p1.update(dt,p2); p2.update(dt,p1);
+  const dx=p2.x-p1.x, minD=54;
+  if(Math.abs(dx)<minD){ const push=(minD-Math.abs(dx))/2*Math.sign(dx||1); p1.x-=push; }
+  if(p1.x>W*0.58) p1.x=W*0.58;
+  if(p1.hitFlash>0.9) hitStop=Math.max(hitStop,0.04);
+  if(p2.hp>lastDummyHp){ lastDummyHp=p2.hp; }
+  if(p2.hp<lastDummyHp){ const d=lastDummyHp-p2.hp; trainDispDmg+=d; trainDmgT=1.6; if(!p2.ko) trainHits++; lastDummyHp=p2.hp; }
+}
+function menuTrainRect(){
+  const w=Math.min(W*0.30,250), h=Math.min(H*0.075,50);
+  return {x:W/2-w/2, y:H*0.755, w, h};
+}
+function renderTraining(){
+  ctx.save();
+  const sx=(Math.random()-0.5)*shake, sy=(Math.random()-0.5)*shake;
+  ctx.translate(sx,sy);
+  drawArena(ctx);
+  // training floor guides
+  ctx.save();
+  ctx.strokeStyle='rgba(140,230,255,.20)'; ctx.lineWidth=2; ctx.setLineDash([14,12]);
+  ctx.beginPath(); ctx.moveTo(W*0.5,GROUND_Y()-150); ctx.lineTo(W*0.5,H); ctx.stroke();
+  ctx.setLineDash([]); ctx.restore();
+  ctx.save(); ctx.textAlign='center'; ctx.font='bold 11px Trebuchet MS';
+  ctx.fillStyle='rgba(160,220,255,.14)'; ctx.fillText('TRAINING GROUND',W/2,GROUND_Y()-7); ctx.restore();
+  // dummy marker ring
+  ctx.save(); ctx.strokeStyle='rgba(255,90,140,.5)'; ctx.lineWidth=2;
+  ctx.beginPath(); ctx.ellipse(p2.x,GROUND_Y(),58,14,0,0,7); ctx.stroke(); ctx.restore();
+  // fighters (player on top)
+  for(const f of [p2,p1].sort((a,b)=>a.y-b.y)) f.draw(ctx);
+  drawProjectiles(ctx);
+  if(!trainMenuOpen) for(let i=fx.length-1;i>=0;i--){
+    const f=fx[i]; f.t+=1/60;
+    if(f.t>=f.life){ fx.splice(i,1); continue; }
+    const k=1-f.t/f.life;
+    ctx.save(); ctx.globalAlpha=k;
+    if(f.ring){ ctx.strokeStyle=f.col; ctx.lineWidth=3*k+1; ctx.beginPath(); ctx.arc(f.x,f.y,f.r+(1-k)*f.max,0,7); ctx.stroke(); }
+    else if(f.blast){ drawBlast(ctx,f,k); }
+    else if(f.txt){ ctx.fillStyle=f.c; ctx.font='bold 18px Trebuchet MS'; ctx.textAlign='center'; ctx.fillText(f.txt,f.x,f.y+(1-k)*-30); }
+    else { f.x+=f.vx/60; f.y+=f.vy/60; f.vy+=1400/60; f.vx*=0.97; ctx.fillStyle=f.c; ctx.beginPath(); ctx.arc(f.x,f.y,f.r*k,0,7); ctx.fill(); }
+    ctx.restore();
+  }
+  ctx.restore();
+  drawTrainingHUD(ctx);
+  if(flashScreen>0){ ctx.fillStyle=`rgba(255,255,255,${flashScreen*0.8})`; ctx.fillRect(0,0,W,H); }
+  if(trainMenuOpen) renderTrainMenu(ctx);
+}
+function drawTrainingHUD(g){
+  const padS=W*0.04, bw=W*0.30, bh=22, by=30;
+  bar(g,padS,by,bw,bh,p1,true);
+  g.save(); g.font='bold 13px Trebuchet MS'; g.fillStyle='#fff'; g.textAlign='left';
+  g.fillText('P1 · '+p1.name,padS,by-8);
+  g.fillStyle=p1.meter>=p1.maxMeter?'#ffd166':'rgba(160,220,255,.7)';
+  g.fillText(p1.meter>=p1.maxMeter?'SPECIAL READY':'METER '+Math.round(p1.meter/p1.maxMeter*100)+'%',padS,by+bh+50);
+  g.restore();
+  const dx=W-padS-bw;
+  bar(g,dx,by,bw,bh,p2,false);
+  g.save(); g.font='bold 13px Trebuchet MS'; g.fillStyle='#fff'; g.textAlign='right';
+  g.fillText('DUMMY · '+p2.name,W-padS,by-8);
+  g.fillStyle='rgba(255,160,190,.85)';
+  g.fillText('HP '+Math.max(0,Math.round(p2.hp))+' / '+p2.maxhp,W-padS,by+bh+50);
+  g.restore();
+  g.save(); g.textAlign='center';
+  g.font='bold 20px Trebuchet MS'; g.fillStyle='#8fe3ff'; g.shadowColor='#5bc8ff'; g.shadowBlur=14;
+  g.fillText('TRAINING',W/2,by+16); g.shadowBlur=0;
+  g.font='11px Trebuchet MS'; g.fillStyle='rgba(255,255,255,.45)';
+  g.fillText('dummy never dies · you take no damage',W/2,by+32);
+  g.restore();
+  // damage stats
+  g.save(); g.textAlign='left';
+  g.font='bold 14px Trebuchet MS'; g.fillStyle='rgba(255,255,255,.55)';
+  g.fillText('DAMAGE DONE',padS,H*0.30);
+  g.font='bold 42px Trebuchet MS'; g.fillStyle=trainDmgT>0?'#fff':'#ffd166';
+  g.fillText(String(Math.round(trainDispDmg)),padS,H*0.30+46);
+  g.font='bold 12px Trebuchet MS'; g.fillStyle='rgba(255,255,255,.5)';
+  g.fillText('HITS  '+trainHits,padS,H*0.30+70);
+  if(trainMaxCombo>1) g.fillText('BEST COMBO  '+trainMaxCombo,padS,H*0.30+88);
+  g.restore();
+  if(trainCombo>1){
+    g.save(); g.textAlign='center';
+    const pop=1+0.25*Math.min(0.6,trainComboT);
+    g.translate(W*0.32,H*0.235); g.scale(pop,pop);
+    g.font='bold 34px Trebuchet MS'; g.fillStyle='#ff4d8d'; g.shadowColor='#ff4d8d'; g.shadowBlur=18;
+    g.fillText(trainCombo+' HITS',0,0); g.restore();
+  }
+  // menu button
+  const mb=trainMenuRect();
+  g.save();
+  g.fillStyle='rgba(255,255,255,.07)'; roundRect(g,mb.x,mb.y,mb.w,mb.h,10); g.fill();
+  g.strokeStyle='#8fe3ff'; g.lineWidth=2; g.globalAlpha=.85; roundRect(g,mb.x,mb.y,mb.w,mb.h,10); g.stroke();
+  g.globalAlpha=1; g.fillStyle='#fff'; g.textAlign='center'; g.font='bold 15px Trebuchet MS';
+  g.fillText('TRAINING MENU',mb.x+mb.w/2,mb.y+mb.h*0.66); g.restore();
+  g.save(); g.textAlign='center'; g.font='11px Trebuchet MS'; g.fillStyle='rgba(255,255,255,.35)';
+  g.fillText(isTouch?'TAP "TRAINING MENU" to switch dummy · SUPER button to test special':'A/D move · W jump · J punch · K kick · L block · I special · T menu · R reset · Esc back',W/2,H-14);
+  g.restore();
+}
+function renderTrainMenu(g){
+  g.fillStyle='rgba(0,0,0,.6)'; g.fillRect(0,0,W,H);
+  const w=Math.min(W*0.66,540), h=Math.min(H*0.74,480);
+  const x=W/2-w/2, y=H/2-h/2;
+  g.save();
+  g.fillStyle='rgba(12,22,46,.97)'; roundRect(g,x,y,w,h,16); g.fill();
+  g.strokeStyle='#8fe3ff'; g.lineWidth=2.5; g.shadowColor='#5bc8ff'; g.shadowBlur=22; roundRect(g,x,y,w,h,16); g.stroke();
+  g.restore();
+  g.save(); g.textAlign='center'; g.fillStyle='#fff'; g.font='bold 22px Trebuchet MS';
+  g.fillText('TRAINING MENU',W/2,y+40); g.restore();
+  g.save(); g.textAlign='left'; g.fillStyle='rgba(160,220,255,.85)'; g.font='bold 13px Trebuchet MS';
+  g.fillText('CHOOSE YOUR DUMMY',x+30,y+78); g.restore();
+  trainBtns=[];
+  const n=CHARS.length, ts=Math.min(w*0.13,66), gap=ts*0.24, tot=n*ts+(n-1)*gap, sx=W/2-tot/2, ty=y+96;
+  for(let i=0;i<n;i++){
+    const c=CHARS[i], bx=sx+i*(ts+gap), sel=i===trainDummyIdx;
+    const r={x:bx,y:ty,w:ts,h:ts,fn:()=>trainSetDummy(i)};
+    trainBtns.push(r);
+    g.save();
+    g.fillStyle=sel?'rgba(255,90,140,.28)':'rgba(10,30,60,.6)'; roundRect(g,bx,ty,ts,ts,8); g.fill();
+    g.strokeStyle=sel?'#ff5c8a':c.colA; g.lineWidth=sel?3:1.6; g.globalAlpha=sel?1:.6;
+    roundRect(g,bx,ty,ts,ts,8); g.stroke(); g.restore();
+    g.save(); g.translate(bx+ts/2,ty+ts-6); g.scale(ts/120*0.62,ts/120*0.62);
+    paintFighter(g,c,{t:trainT+i*0.7,state:POSE.IDLE,anim:0,atk:null,hitFlash:0,superT:0}); g.restore();
+  }
+  g.save(); g.textAlign='center'; g.fillStyle=CHARS[trainDummyIdx].colA; g.font='bold 14px Trebuchet MS';
+  g.fillText(CHARS[trainDummyIdx].name+'  ·  '+CHARS[trainDummyIdx].tag,W/2,ty+ts+24); g.restore();
+  const bw=w*0.8, bh=Math.min(H*0.072,46), bx=W/2-bw/2; let byy=ty+ts+48;
+  const acts=[
+    {label:'RESET  —  heal + straighten up',fn:()=>{ trainReset(); setTrainMenuOpen(false); },col:'#7fd7ff'},
+    {label:'DUMMY NEARER',fn:()=>{ p2.x=Math.max(W*0.6,p2.x-70); },col:'#9fd8ff'},
+    {label:'DUMMY FARTHER',fn:()=>{ p2.x=Math.min(W*0.92,p2.x+70); },col:'#9fd8ff'},
+    {label:'CLOSE',fn:()=>{ setTrainMenuOpen(false); },col:'#8f8fa8'}
+  ];
+  for(const a of acts){
+    const r={x:bx,y:byy,w:bw,h:bh,fn:a.fn}; trainBtns.push(r);
+    g.save();
+    g.fillStyle='rgba(255,255,255,.06)'; roundRect(g,bx,byy,bw,bh,10); g.fill();
+    g.strokeStyle=a.col; g.lineWidth=2; g.globalAlpha=.85; roundRect(g,bx,byy,bw,bh,10); g.stroke();
+    g.globalAlpha=1; g.fillStyle='#fff'; g.textAlign='center'; g.font='bold 15px Trebuchet MS';
+    g.fillText(a.label,W/2,byy+bh*0.66); g.restore();
+    byy+=bh+9;
+  }
+}
 
 function resetPositions(){
   const gy=GROUND_Y();
@@ -1113,20 +1299,30 @@ function randomRival(){ let r=selIndex,g=0; while(r===selIndex && g++<20) r=Math
 
 function onKeyPress(code){
   const go=['Space','Enter','KeyJ','NumpadEnter'];
-  if(screen==='menu'){ if(go.includes(code)) goSelect(); }
+  if(screen==='menu'){ if(code==='KeyT'){ openTraining(); return; } if(go.includes(code)) goSelect(); }
   else if(screen==='select'){
     if(['KeyA','ArrowLeft'].includes(code)){ selIndex=(selIndex+CHARS.length-1)%CHARS.length; selFlash=0.25; }
     if(['KeyD','ArrowRight'].includes(code)){ selIndex=(selIndex+1)%CHARS.length; selFlash=0.25; }
+    if(code==='KeyT'){ openTraining(); return; }
     if(go.includes(code)){ rivalIndex=randomRival(); startFight(); }
   }
-  else if(screen==='fight'){ if(code==='Escape') goSelect(); }
+  else if(screen==='fight'){ if(code==='Escape') goSelect(); if(code==='KeyT') openTraining(); }
+  else if(screen==='training'){
+    if(code==='Escape'){ if(trainMenuOpen) setTrainMenuOpen(false); else goMenu(); }
+    if(code==='KeyT') setTrainMenuOpen(!trainMenuOpen);
+    if(code==='KeyR') trainReset();
+    if(code==='KeyQ') trainSetDummy(trainDummyIdx-1);
+    if(code==='KeyE') trainSetDummy(trainDummyIdx+1);
+  }
   else if(screen==='over'){
     if(go.includes(code)){ rivalIndex=randomRival(); startFight(); }
+    if(code==='KeyT'){ openTraining(); return; }
     if(['Escape','Backspace'].includes(code)) goSelect();
   }
 }
 function onPointer(x,y){
-  if(screen==='menu'){ goSelect(); return; }
+  if(!x&&!y) { /* noop */ }
+  if(screen==='menu'){ if(inRect(x,y,menuTrainRect())){ openTraining(); return; } goSelect(); return; }
   if(screen==='select'){
     const tiles=selectTiles();
     for(let i=0;i<tiles.length;i++){
@@ -1137,6 +1333,12 @@ function onPointer(x,y){
       }
     }
     if(inRect(x,y,confirmRect())){ rivalIndex=randomRival(); startFight(); return; }
+    return;
+  }
+  if(screen==='fight'){ if(inRect(x,y,menuBtnRect())){ goSelect(); return; } return; }
+  if(screen==='training'){
+    if(trainMenuOpen){ for(const b of trainBtns){ if(inRect(x,y,b)){ b.fn(); return; } } return; }
+    for(const b of trainButtons){ if(inRect(x,y,b)){ b.fn(); return; } }
     return;
   }
   if(screen==='over'){ for(const b of overButtons){ if(inRect(x,y,b)){ b.fn(); return; } } }
@@ -1182,9 +1384,18 @@ function renderMenu(g){
   const blink=0.5+0.5*Math.sin(menuT*3);
   g.save(); g.textAlign='center'; g.globalAlpha=0.4+0.6*blink;
   g.fillStyle='#fff'; g.font='bold 20px Trebuchet MS';
-  g.fillText(isTouch?'TAP TO PLAY':'PRESS SPACE TO PLAY',cx,H*0.86); g.restore();
+  g.fillText(isTouch?'TAP TO PLAY':'PRESS SPACE TO PLAY',cx,H*0.845); g.restore();
+  // TRAINING button
+  const tb=menuTrainRect();
+  g.save();
+  const tg=g.createLinearGradient(tb.x,tb.y,tb.x,tb.y+tb.h);
+  tg.addColorStop(0,'rgba(70,200,255,.30)'); tg.addColorStop(1,'rgba(30,120,220,.30)');
+  g.fillStyle=tg; roundRect(g,tb.x,tb.y,tb.w,tb.h,10); g.fill();
+  g.strokeStyle='#8fe3ff'; g.lineWidth=2; g.shadowColor='#5bc8ff'; g.shadowBlur=14; roundRect(g,tb.x,tb.y,tb.w,tb.h,10); g.stroke();
+  g.shadowBlur=0; g.fillStyle='#fff'; g.textAlign='center'; g.font='bold 17px Trebuchet MS';
+  g.fillText(isTouch?'⚔  TRAINING':'⚔  TRAINING  (T)',tb.x+tb.w/2,tb.y+tb.h*0.66); g.restore();
   g.textAlign='center'; g.fillStyle='rgba(255,255,255,.35)'; g.font='12px Trebuchet MS';
-  g.fillText('A/D move · W jump · J punch · K kick · L block · I special',cx,H*0.94);
+  g.fillText('A/D move · W jump · J punch · K kick · L block · I special',cx,H*0.945);
 }
 
 /* ============================================================
@@ -1332,6 +1543,7 @@ function loop(now){
 function step(dt){
   if(screen==='menu'){ menuT+=dt; return; }
   if(screen==='select'){ selT+=dt; selFlash=Math.max(0,selFlash-dt*1.6); return; }
+  if(screen==='training'){ updateTraining(dt); return; }
   fightT+=dt; updateProjectiles(dt);
   if(screen==='over'){ p1.update(dt,p2); p2.update(dt,p1); return; }
   if(screen==='fight'){
@@ -1352,6 +1564,7 @@ function render(){
   ctx.clearRect(0,0,W,H);
   if(screen==='menu'){ renderMenu(ctx); return; }
   if(screen==='select'){ renderSelect(ctx); return; }
+  if(screen==='training'){ renderTraining(); return; }
   ctx.save();
   const sx=(Math.random()-0.5)*shake, sy=(Math.random()-0.5)*shake;
   ctx.translate(sx,sy);
@@ -1410,8 +1623,10 @@ function render(){
 
 goMenu();
 requestAnimationFrame(loop);
-window.CLASH = { p1,p2,CHARS, get screen(){return screen}, startFight, goSelect, goMenu,
+window.CLASH = { p1,p2,CHARS, get screen(){return screen}, startFight, goSelect, goMenu, openTraining, trainReset, trainSetDummy,
   setSel(i){ selIndex=i; selFlash=0.25; }, get sel(){return selIndex},
+  get train(){ return {dummy:trainDummyIdx, hits:trainHits, combo:trainCombo, maxCombo:trainMaxCombo, dmg:trainDispDmg, menu:trainMenuOpen, t:trainT}; },
+  setTrainMenu(v){ trainMenuOpen=!!v; },
   // test hooks
   POSE, paintFighter, walkJoint, drawLeg3d, GROUND_Y,
   drawProjectiles, drawBlast, blast, burst, ring, hexA,
