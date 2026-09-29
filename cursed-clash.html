@@ -382,7 +382,7 @@ class Fighter {
       if((keys['KeyW']||keys['ArrowUp']||pad.y<-0.5) && this.onGround){ this.vy=-820; this.onGround=false; }
     }
     if(this.state===POSE.BLOCK) this.vx*=0.6; else this.vx=mv*this.speed;
-    if(this.onGround) this.anim += Math.abs(this.vx)*dt*0.03;
+    if(this.onGround) this.anim += Math.abs(this.vx)*dt*Math.PI*2/WALK_CYCLE_PX;
   }
 
   aiMove(dt,foe){
@@ -471,6 +471,24 @@ class Fighter {
    CHARACTER ART  (shared by fight + menus)
    feet at (0,0), faces +x
    ============================================================ */
+// Walk cycle: distance the fighter travels per full stride (2 steps).
+// Keep ground speed locked to the cycle so the feet plant without sliding.
+const WALK_CYCLE_PX = 84;   // ~2x the planted foot's ground travel per step
+function walkJoint(K){
+  K=((K%1)+1)%1;
+  const ease=t=>t*t*(3-2*t);
+  const C=(keys)=>{                              // smooth keyed curve
+    for(let i=0;i<keys.length-1;i++){
+      const [k0,v0]=keys[i], [k1,v1]=keys[i+1];
+      if(K>=k0&&K<=k1){ const t=(K-k0)/(k1-k0||1); return v0+(v1-v0)*ease(t); }
+    }
+    return keys[keys.length-1][1];
+  };
+  const hipFwd  = C([[0,.50],[.12,.29],[.25,.06],[.40,-.24],[.50,-.44],[.62,-.26],[.75,.13],[.88,.44],[1,.50]]); // + = knee forward
+  const kneeFlex= C([[0,.16],[.12,.28],[.25,.20],[.40,.16],[.50,.40],[.62,.95],[.72,1.28],[.82,.82],[.92,.32],[1,.16]]); // + = heel folds back
+  const ank     = C([[0,-.10],[.12,.05],[.25,.00],[.40,.10],[.50,.45],[.62,.30],[.72,.05],[.82,-.05],[.92,-.12],[1,-.10]]); // + = toes down
+  return {thigh:-hipFwd, knee:kneeFlex, foot:ank};
+}
 function atkStage(a){
   if(a.t < a.startup)               return {stage:'wind', k: a.startup?a.t/a.startup:1};
   if(a.t < a.startup+a.active)      return {stage:'hit',  k: (a.t-a.startup)/(a.active||1)};
@@ -484,7 +502,7 @@ function paintFighter(g,c,S){
   const hairC= flash?'#ffffff':c.colC;
   const skin = flash?'#ffffff':c.skin;
   const shoe = flash?'#ffffff':c.shoe;
-  const bob  = state===POSE.WALK ? Math.abs(Math.sin(a))*2.4
+  const bob  = state===POSE.WALK ? Math.abs(Math.sin(a*Math.PI*2))*2.4
              : state===POSE.IDLE ? Math.sin(t*3)*2 : 0;
 
   const eB=state===POSE.BLOCK, pn=state===POSE.PUNCH, kk=state===POSE.KICK, sp=state===POSE.SUPER;
@@ -505,12 +523,9 @@ function paintFighter(g,c,S){
     else { k=smooth(kkPh.k); th=lerp(-1.42,-0.06,k); kn=lerp(-0.08,-0.14,k); ft=-0.35*(1-k); }
     drawLeg3d(g,8,HIP_Y, th,kn, THIGH,SHIN,LEGW, c.colB, shoe, ft);
   } else if(walking){
-    for(const L of [{hip:-8,ph:0,col:dark(c.colB,0.12)},{hip:8,ph:Math.PI,col:c.colB}]){
-      const sw=Math.sin(a+L.ph), lift=Math.max(0,Math.cos(a+L.ph));
-      const thighAng=sw*0.52;                       // hip swing
-      const kneeAng=-(0.30+0.95*Math.max(0,-sw))    // straight at contact, folds on the swing
-                    - 0.55*lift;                    // extra fold during the lift
-      drawLeg3d(g,L.hip,HIP_Y,thighAng,kneeAng,THIGH,SHIN,LEGW,L.col,shoe,0.22*sw);
+    for(const L of [{hip:-8,ph:0,col:dark(c.colB,0.12)},{hip:8,ph:0.5,col:c.colB}]){
+      const j=walkJoint(a/6.2831853+L.ph);          // real hip/knee/ankle curves
+      drawLeg3d(g,L.hip,HIP_Y,j.thigh,j.knee,THIGH,SHIN,LEGW,L.col,shoe,j.foot);
     }
   } else if(airborne){
     drawLeg3d(g,-8,HIP_Y, 0.45,-0.75, THIGH,SHIN,LEGW,dark(c.colB,0.12),shoe, 0.3);
@@ -531,7 +546,7 @@ function paintFighter(g,c,S){
   roundRect(g,-10,-88+bob,18,16,6); g.fill(); g.restore();
 
   // ---- back arm (counterbalances the front arm) ----
-  const armSw = walking ? Math.sin(a+Math.PI) : Math.sin(t*2)*4;
+  const armSw = walking ? Math.cos(a) : Math.sin(t*2)*4;
   let bUp, bElb;
   if(walking){ bUp=armSw*0.55; bElb=-0.5-Math.max(0,armSw)*0.35; }
   else if(pnPh && S.atk.kind==='punch'){ bUp=Math.PI/2-0.35; bElb=-1.15; }   // retract to guard
@@ -552,7 +567,7 @@ function paintFighter(g,c,S){
   } else if(kkPh){
     fUp=-0.75; fElb=-0.9;                                                      // arms up while kicking
   } else if(walking){
-    fUp=-Math.sin(a)*0.55; fElb=-0.45-Math.max(0,-Math.sin(a))*0.5;
+    fUp=-Math.cos(a)*0.55; fElb=-0.45-Math.max(0,Math.cos(a))*0.5;   // near arm opposes the far leg
   } else if(eB){ fUp=-Math.PI/2+0.9; fElb=-0.9; }
   else if(sp){ fUp=-Math.PI/2-0.35; fElb=-0.35; }
   else { fUp=Math.sin(t*2)*0.10; fElb=-0.35; }
@@ -1078,7 +1093,9 @@ function render(){
 goMenu();
 requestAnimationFrame(loop);
 window.CLASH = { p1,p2,CHARS, get screen(){return screen}, startFight, goSelect, goMenu,
-  setSel(i){ selIndex=i; selFlash=0.25; }, get sel(){return selIndex} };
+  setSel(i){ selIndex=i; selFlash=0.25; }, get sel(){return selIndex},
+  // test hooks
+  POSE, paintFighter, walkJoint, drawLeg3d, GROUND_Y };
 </script>
 </body>
 </html>
