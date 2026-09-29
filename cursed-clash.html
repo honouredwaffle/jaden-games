@@ -468,8 +468,6 @@ class Fighter {
     const L=W*0.06,R=W*0.94;
     if(this.x<L){ this.x=L; this.vx=Math.max(0,this.vx); }
     if(this.x>R){ this.x=R; this.vx=Math.min(0,this.vx); }
-    // training dummy stays on its half so it can't be walked into the corner
-    if(this.role==='dummy'){ const DL=W*0.40, DR=W*0.92; if(this.x<DL){ this.x=DL; this.vx=Math.max(0,this.vx); } if(this.x>DR) this.x=DR; }
     if(this.onGround && this.hitStun<=0 && !this.atk) this.vx*=(1-Math.min(1,dt*8));
     if(this.hitStun>0) this.vx*=(1-Math.min(1,dt*3));
   }
@@ -1137,10 +1135,8 @@ function updateTraining(dt){
   trainComboT=Math.max(0,trainComboT-dt); if(trainComboT===0) trainCombo=0;
   trainDmgT=Math.max(0,trainDmgT-dt); if(trainDmgT===0) trainDispDmg=0;
   trainMsgT=Math.max(0,trainMsgT-dt);
+  updateProjectiles(dt);
   p1.update(dt,p2); p2.update(dt,p1);
-  const dx=p2.x-p1.x, minD=54;
-  if(Math.abs(dx)<minD){ const push=(minD-Math.abs(dx))/2*Math.sign(dx||1); p1.x-=push; }
-  if(p1.x>W*0.58) p1.x=W*0.58;
   if(p1.hitFlash>0.9) hitStop=Math.max(hitStop,0.04);
   if(p2.hp>lastDummyHp){ lastDummyHp=p2.hp; }
   if(p2.hp<lastDummyHp){ const d=lastDummyHp-p2.hp; trainDispDmg+=d; trainDmgT=1.6; if(!p2.ko) trainHits++; lastDummyHp=p2.hp; }
@@ -1223,6 +1219,7 @@ function drawTrainingHUD(g){
   }
   // menu button
   const mb=trainMenuRect();
+  trainButtons.length=0; trainButtons.push({x:mb.x,y:mb.y,w:mb.w,h:mb.h,fn:()=>setTrainMenuOpen(true)});
   g.save();
   g.fillStyle='rgba(255,255,255,.07)'; roundRect(g,mb.x,mb.y,mb.w,mb.h,10); g.fill();
   g.strokeStyle='#8fe3ff'; g.lineWidth=2; g.globalAlpha=.85; roundRect(g,mb.x,mb.y,mb.w,mb.h,10); g.stroke();
