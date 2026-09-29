@@ -146,7 +146,19 @@ const CHARS = [
     colA:'#ffd83d', colB:'#e5382f', colC:'#eef2f5', skin:'#f2c49b', shoe:'#e5382f', hair:'bald',
     hp:120, speed:340, dmg:1.20,
     ability:{name:'SERIOUS PUNCH', short:'SERIOUS', type:'burst',
-      desc:'One punch. Massive damage if it connects.', dmg:34, kb:620, dashT:0.34, col:'#ffe14d'} }
+      desc:'One punch. Massive damage if it connects.', dmg:34, kb:620, dashT:0.34, col:'#ffe14d'} },
+
+  { id:'hiei', name:'HIEI', tag:'Master of the Jagan',
+    colA:'#191b26', colB:'#4a2a7a', colC:'#0c0c12', skin:'#e9cda9', shoe:'#101018', hair:'hiei',
+    hp:100, speed:352, dmg:1.08,
+    ability:{name:'DRAGON OF THE DARKNESS FLAME', short:'DARK FLAME', type:'wave',
+      desc:'Unleashes a black dragon of cursed flame straight across the screen.', dmg:24, kb:470, speed:780, col:'#8b3bff'} },
+
+  { id:'shishio', name:'SHISHIO', tag:'The Hitokiri Battousai Slayer',
+    colA:'#2b2430', colB:'#c9b79a', colC:'#141018', skin:'#e7c6a1', shoe:'#1c1720', hair:'shishio',
+    hp:108, speed:326, dmg:1.12,
+    ability:{name:'HOMURA DAMA', short:'HOMURA DAMA', type:'burst',
+      desc:'Erupts in searing flame — a point-blank blast that shreds through guard.', dmg:28, kb:560, dashT:0.32, col:'#ff5a1f'} }
 ];
 
 /* ============================================================
@@ -655,6 +667,36 @@ function drawHair3d(g,c,y,hairC){
       const grd=g.createLinearGradient(-16,y-32,16,y+2);
       grd.addColorStop(0,light(hairC,0.4)); grd.addColorStop(0.5,hairC); grd.addColorStop(1,dark(hairC,0.5));
       g.fillStyle=grd; g.fill(); g.stroke(); g.restore(); break;
+    }
+    case 'hiei': { // tall chaotic black spikes
+      g.save(); g.strokeStyle=dark(hairC,0.55); g.lineWidth=1.6; g.lineJoin='round';
+      g.beginPath();
+      g.moveTo(-15,y+3); g.lineTo(-13,y-18); g.lineTo(-7,y-30); g.lineTo(-4,y-18);
+      g.lineTo(-1,y-35); g.lineTo(3,y-19); g.lineTo(8,y-31); g.lineTo(11,y-16);
+      g.lineTo(16,y-20); g.lineTo(15,y+3); g.closePath();
+      const grd=g.createLinearGradient(-15,y-35,16,y+3);
+      grd.addColorStop(0,light(hairC,0.35)); grd.addColorStop(0.5,hairC); grd.addColorStop(1,dark(hairC,0.5));
+      g.fillStyle=grd; g.fill(); g.stroke();
+      // signature white starburst streak
+      g.save(); g.globalAlpha=.9; g.fillStyle='#eef0ff';
+      g.beginPath(); g.moveTo(1,y-34); g.lineTo(3.4,y-22); g.lineTo(6.6,y-31); g.lineTo(4,y-20); g.closePath(); g.fill();
+      g.restore();
+      g.restore(); break;
+    }
+    case 'shishio': { // wild dark hair + head bandages
+      g.save(); g.strokeStyle=dark(hairC,0.5); g.lineWidth=1.6; g.lineJoin='round';
+      g.beginPath();
+      g.moveTo(-16,y+4); g.lineTo(-17,y-16); g.lineTo(-9,y-24); g.lineTo(-2,y-20);
+      g.lineTo(4,y-30); g.lineTo(9,y-18); g.lineTo(16,y-24); g.lineTo(17,y-5); g.lineTo(15,y+4); g.closePath();
+      const grd=g.createLinearGradient(-17,y-30,17,y+4);
+      grd.addColorStop(0,light(hairC,0.3)); grd.addColorStop(0.5,hairC); grd.addColorStop(1,dark(hairC,0.5));
+      g.fillStyle=grd; g.fill(); g.stroke();
+      // bandage wrap across the crown
+      g.strokeStyle='#e3d7bb'; g.lineWidth=4; g.lineCap='round';
+      g.beginPath(); g.moveTo(-14,y-9); g.lineTo(14,y-15); g.stroke();
+      g.beginPath(); g.moveTo(-13,y-16); g.lineTo(15,y-20); g.stroke();
+      g.beginPath(); g.moveTo(-10,y-23); g.lineTo(12,y-25); g.stroke();
+      g.restore(); break;
     }
     case 'bald': { // shine
       g.save(); g.globalAlpha=.5; g.fillStyle='#fff';
