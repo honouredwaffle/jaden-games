@@ -227,6 +227,21 @@ function burst(x,y,n,col,spd=1){
 function ring(x,y,col,r=0){ fx.push({ring:true,x,y,r:r||12,max:90,col,t:0,life:.4}); }
 function blast(x,y,r,col,life=0.55,kind='energy'){ fx.push({blast:true,x,y,r,col,t:0,life,kind}); }
 function floatText(x,y,txt,col){ fx.push({txt:txt,x,y,vy:-60,t:0,life:.8,c:col||'#fff'}); }
+// block impact VFX (guard flash + shield ring, per-character colour)
+function guardFx(x,y,col,power=1){ fx.push({guard:true,x,y,col,power,t:0,life:.46}); }
+function drawGuardBurst(g,f,k){
+  const p=1-k, col=f.col, pw=f.power||1;
+  g.save(); g.translate(f.x,f.y);
+  const R=(26+70*p)*pw;
+  const rg=g.createRadialGradient(0,0,1,0,0,R);
+  rg.addColorStop(0,hexA('#ffffff',.55*k)); rg.addColorStop(.4,hexA(light(col,.3),.6*k)); rg.addColorStop(1,hexA(col,0));
+  g.fillStyle=rg; g.beginPath(); g.arc(0,0,R,0,7); g.fill();
+  g.globalAlpha=.9*k; g.strokeStyle=hexA(light(col,.4),.95); g.lineWidth=5*k+2; g.shadowColor=col; g.shadowBlur=20;
+  g.beginPath(); g.arc(0,0,R*0.92,0,7); g.stroke();
+  g.globalAlpha=.6*k; g.lineWidth=3*k+1;
+  g.beginPath(); g.arc(0,0,R*1.35,0,7); g.stroke();
+  g.restore();
+}
 
 /* ============================================================
    PROJECTILES
@@ -442,7 +457,9 @@ class Fighter {
     if(blocked){
       const chip=a.super?7:Math.max(1,Math.round((a.dmg||6)*0.12));
       this.hp-=chip; this.blockStun=0.18; this.vx=dir*(a.kb||120)*0.35;
-      burst(this.x,this.top+60,6,'#9fe8ff',.7); ring(this.x,this.top+60,'#9fe8ff',10);
+      const gcol=(styleConfig(this.char).block.guardCol)||'#9fe8ff';
+      burst(this.x,this.top+60,8,gcol,.7); ring(this.x,this.top+60,gcol,10);
+      guardFx(this.x,this.top+58,gcol,a.super?1.4:1);
       src.meter=Math.min(src.maxMeter,src.meter+3); return;
     }
     this.hp-=a.dmg; this.hitStun=(a.stun||0.25)+0.04; this.vx=dir*(a.kb||130);
@@ -511,7 +528,7 @@ const STYLE_CFG = {
     walk:{ hipAmp:1.0, kneeAmp:1.0, hipRaise:0, hipBack:0, lean:0.10, armAmp:1.0, sway:2.4 },
     punch:{ wind:[0.10,-0.55,-0.30,-1.75], hit:[-0.55,-1.52,-1.75,-0.04], rec:[-1.52,0.05,-0.04,-0.32], lean:0 },
     kickRear:[0.14,-0.20], kick:{ w:[-0.10,-1.05,-0.20,-1.55,0,0.3], h:[-1.05,-1.42,-1.55,-0.08,0,-0.35], r:[-0.06,-0.14,-0.35,0] },
-    block:{ f:[-Math.PI/2+0.9,-0.9], b:[-Math.PI/2+0.9,-0.9], lean:0 },
+    block:{ f:[-2.55,-1.05], b:[-2.30,-1.20], lean:0, guardCol:'#ff8c1a', guardKind:'ki', punchFx:'impact', punchCol:'#ff8c1a' },
     idlePhase:0.0 },
   royal:{ label:'royal kickboxer', shoulderY:-86, torsoW:33, torsoH:48, beltH:7, legW:14, thigh:28, shin:25,
     armW:12, upLen:21, foreLen:19,
@@ -519,7 +536,7 @@ const STYLE_CFG = {
     walk:{ hipAmp:1.14, kneeAmp:1.14, hipRaise:0, hipBack:0.05, lean:0.17, armAmp:0.72, sway:2.0 },
     punch:{ wind:[0.10,-0.30,-0.32,-1.95], hit:[-0.30,-1.62,-1.95,-0.02], rec:[-1.62,0.10,-0.02,-0.40], lean:0.04 },
     kickRear:[0.16,-0.24], kick:{ w:[-0.12,-1.20,-0.24,-1.72,0,0.36], h:[-1.20,-1.55,-1.72,-0.06,0,-0.42], r:[-0.08,-0.16,-0.42,0] },
-    block:{ f:[-2.22,-1.05], b:[-2.12,-1.15], lean:0.02 },
+    block:{ f:[-2.50,-1.15], b:[-2.28,-1.28], lean:0.02, guardCol:'#8fd8ff', guardKind:'ki', punchFx:'shock', punchCol:'#8fd8ff' },
     idlePhase:0.7 },
   casual:{ label:'lazy puncher', shoulderY:-87, torsoW:36, torsoH:44, beltH:9, legW:16, thigh:24, shin:24,
     armW:14, upLen:20, foreLen:17,
@@ -527,7 +544,7 @@ const STYLE_CFG = {
     walk:{ hipAmp:0.78, kneeAmp:0.72, hipRaise:2.5, hipBack:0, lean:0.05, armAmp:0.55, sway:3.0 },
     punch:{ wind:[0.10,-0.15,-0.30,-1.20], hit:[-0.15,-1.40,-1.20,0.06], rec:[-1.40,0.02,0.06,-0.18], lean:0 },
     kickRear:[0.10,-0.16], kick:{ w:[-0.08,-0.78,-0.16,-1.15,0,0.22], h:[-0.78,-1.10,-1.15,-0.10,0,-0.24], r:[-0.05,-0.12,-0.24,0] },
-    block:{ f:[-0.40,-1.30], b:[0.25,-0.70], lean:0 },
+    block:{ f:[-2.12,-1.42], b:[-1.85,-1.55], lean:0, guardCol:'#ffe14d', guardKind:'impact', punchFx:'boom', punchCol:'#ffe14d' },
     idlePhase:1.3 },
   ninja:{ label:'quick ninja', shoulderY:-84, torsoW:32, torsoH:45, beltH:6, legW:13, thigh:27, shin:24,
     armW:12, upLen:19, foreLen:18,
@@ -535,7 +552,7 @@ const STYLE_CFG = {
     walk:{ hipAmp:1.10, kneeAmp:1.30, hipRaise:0, hipBack:0.03, lean:0.23, armAmp:0.70, sway:1.6 },
     punch:{ wind:[0.10,-0.75,-0.30,-2.05], hit:[-0.75,-1.48,-2.05,-0.12], rec:[-1.48,0.00,-0.12,-0.28], lean:0.03 },
     kickRear:[0.12,-0.28], kick:{ w:[-0.10,-1.05,-0.30,-1.70,0,0.30], h:[-1.05,-1.48,-1.70,-0.05,0,-0.30], r:[-0.06,-0.12,-0.30,0] },
-    block:{ f:[-1.95,-0.75], b:[-0.45,-1.35], lean:0 },
+    block:{ f:[-2.72,-0.95], b:[-2.45,-1.12], lean:0, guardCol:'#a24dff', guardKind:'dark', punchFx:'darkflame', punchCol:'#a24dff' },
     idlePhase:1.9 },
   samurai:{ label:'stern swordsman', shoulderY:-90, torsoW:35, torsoH:50, beltH:8, legW:15, thigh:28, shin:26,
     armW:13, upLen:21, foreLen:19,
@@ -543,7 +560,7 @@ const STYLE_CFG = {
     walk:{ hipAmp:0.88, kneeAmp:0.90, hipRaise:0, hipBack:0, lean:0.12, armAmp:0.45, sway:1.1 },
     punch:{ wind:[0.10,-0.35,-0.32,-1.60], hit:[-0.35,-1.58,-1.60,0.04], rec:[-1.58,0.06,0.04,-0.44], lean:0.05 },
     kickRear:[0.16,-0.22], kick:{ w:[-0.12,-0.95,-0.22,-1.35,0,0.28], h:[-0.95,-1.38,-1.35,-0.10,0,-0.28], r:[-0.06,-0.14,-0.28,0] },
-    block:{ f:[-1.55,-0.65], b:[0.70,-0.95], lean:0 },
+    block:{ f:[-2.38,-1.25], b:[-2.15,-1.38], lean:0, guardCol:'#ff5a1f', guardKind:'fire', punchFx:'flame', punchCol:'#ff5a1f' },
     idlePhase:2.4 }
 };
 function styleConfig(c){ return STYLE_CFG[c.style] || STYLE_CFG.brawler; }
@@ -599,6 +616,7 @@ function paintFighter(g,c,S){
 
   // ---- per-character style ----
   const STD=styleConfig(c), WK=STD.walk;
+  const bGuard=STD.block.b, fGuard=STD.block.f;   // both arms raised into a face guard when blocking
   // ---- legs (thigh + shin + foot, knee folds backward) ----
   const HIP_Y=-48+bob, THIGH=STD.thigh, SHIN=STD.shin, LEGW=STD.legW;
   const SP=STD.spread!=null?STD.spread:8;
@@ -639,10 +657,10 @@ function paintFighter(g,c,S){
   if(walking){ bUp=armSw*0.55*aAmp; bElb=-0.5-Math.max(0,armSw)*0.35*aAmp; }
   else if(pnPh && S.atk.kind==='punch'){ bUp=STD.block.b[0]; bElb=STD.block.b[1]; }   // retract to guard
   else if(kkPh){ bUp=1.15; bElb=-0.55; }                                     // swing back for balance
-  else if(eB){ bUp=STD.block.b[0]; bElb=STD.block.b[1]; }
+  else if(eB){ bUp=bGuard[0]; bElb=bGuard[1]; }
   else if(sp){ bUp=-Math.PI/2-0.35; bElb=-0.35; }
   else { bUp=STD.idle.bUp; bElb=STD.idle.bElb; }
-  drawArm3d(g,-15,-86+bob, bUp, bElb, STD.upLen,STD.foreLen, STD.armW, dark(c.colB,0.12), skin, 6.5);
+  drawArm3d(g,-15,-86+bob, bUp, bElb, STD.upLen,STD.foreLen, STD.armW, eB?light(dark(c.colB,0.12),0.18):dark(c.colB,0.12), skin, 6.5);
 
   // ---- front arm ----
   let fUp, fElb;
@@ -653,10 +671,10 @@ function paintFighter(g,c,S){
     fUp=-0.75; fElb=-0.9;                                                      // arms up while kicking
   } else if(walking){
     fUp=-Math.cos(a)*0.55*aAmp; fElb=-0.45-Math.max(0,Math.cos(a))*0.5*aAmp;   // near arm opposes the far leg
-  } else if(eB){ fUp=STD.block.f[0]; fElb=STD.block.f[1]; }
+  } else if(eB){ fUp=fGuard[0]; fElb=fGuard[1]; }
   else if(sp){ fUp=-Math.PI/2-0.35; fElb=-0.35; }
   else { fUp=STD.idle.fUp+Math.sin(t*2)*0.05; fElb=STD.idle.fElb; }
-  drawArm3d(g,15,-86+bob, fUp, fElb, STD.upLen+2,STD.foreLen+2, STD.armW, gi, skin, 7);
+  drawArm3d(g,15,-86+bob, fUp, fElb, STD.upLen+2,STD.foreLen+2, STD.armW, eB?light(gi,0.20):gi, skin, 7);
 
   // punching fist highlight
   if(pnPh && pnPh.stage==='hit' && S.atk){
@@ -679,15 +697,66 @@ function paintFighter(g,c,S){
   g.beginPath(); g.moveTo(9.5,-118+bob); g.lineTo(14,-119+bob); g.stroke();
   g.restore();
 
+  // ---- block guard: forearms + shield drawn ON TOP of the head so the guard reads in front of the face ----
+  if(eB){
+    const gc=(STD.block.guardCol)||c.colA, gk=(STD.block.guardKind)||'ki', t0=S.t||0;
+    // back forearm first (outer layer), then glow shield, then front forearm across the face
+    drawArm3d(g,-15,-86+bob, bGuard[0], bGuard[1], STD.upLen,STD.foreLen, STD.armW, light(dark(c.colB,0.12),0.18), skin, 6.5);
+    g.save();
+    const gg=g.createRadialGradient(19,-108,2,19,-108,32);
+    gg.addColorStop(0,hexA(light(gc,.4),.34)); gg.addColorStop(1,hexA(gc,0));
+    g.fillStyle=gg; g.beginPath(); g.arc(19,-108,32,0,7); g.fill();
+    g.strokeStyle=hexA(gc,.85); g.lineWidth=3; g.shadowColor=gc; g.shadowBlur=16;
+    const rr=13+Math.sin(t0*5)*1.6;
+    g.beginPath(); g.arc(19,-108,rr,0,7); g.stroke();
+    if(gk==='ki'){ g.globalAlpha=.5; g.beginPath(); g.arc(19,-108,rr+7+Math.sin(t0*7)*2,0,7); g.stroke(); }
+    if(gk==='fire'){ g.globalAlpha=.7;
+      for(let i=0;i<5;i++){ const a=-1.4+i*0.44+t0*1.2;
+        g.beginPath(); g.moveTo(19,-108); g.lineTo(19+Math.cos(a)*22,-108+Math.sin(a)*22); g.stroke(); } }
+    if(gk==='dark'){ g.globalAlpha=.55; g.strokeStyle=hexA('#12001f',.9); g.shadowBlur=12;
+      for(let i=0;i<3;i++){ const a=t0*2+i*2.1;
+        g.beginPath(); g.arc(19,-108,rr+3+i*4,a,a+1.8); g.stroke(); } }
+    if(gk==='impact'){ g.globalAlpha=.6; g.strokeStyle='#fff'; g.shadowBlur=18;
+      g.beginPath(); g.moveTo(8,-130); g.lineTo(30,-86); g.stroke(); }
+    g.restore();
+    drawArm3d(g,15,-86+bob, fGuard[0], fGuard[1], STD.upLen+2,STD.foreLen+2, STD.armW, light(gi,0.20), skin, 7);
+  }
+
   // ---- strike impact fx on active frames ----
   if(pnPh && pnPh.stage==='hit' && S.atk){
-    const hx=S.atk.reach-4;
-    g.save(); g.globalAlpha=.95; g.strokeStyle='#fff'; g.lineWidth=6; g.lineCap='round';
-    g.shadowColor=c.colA; g.shadowBlur=26;
-    g.beginPath(); g.moveTo(15,-86); g.lineTo(hx,-70); g.stroke();
-    g.globalAlpha=.5; g.strokeStyle=c.colA; g.lineWidth=3;
-    g.beginPath(); g.moveTo(15,-96); g.lineTo(hx-6,-84); g.stroke();
-    g.beginPath(); g.moveTo(15,-76); g.lineTo(hx-6,-58); g.stroke();
+    const hx=S.atk.reach-4, fx0=(STD.block.punchFx)||'impact', fc=(STD.block.punchCol)||c.colA;
+    g.save(); g.lineCap='round';
+    if(fx0==='shock'||fx0==='boom'){
+      const R=fx0==='boom'?20:16;
+      const sg=g.createRadialGradient(hx,-70,1,hx,-70,R*1.7);
+      sg.addColorStop(0,hexA('#ffffff',.95)); sg.addColorStop(.45,hexA(fc,.8)); sg.addColorStop(1,hexA(fc,0));
+      g.fillStyle=sg; g.beginPath(); g.arc(hx,-70,R*1.7,0,7); g.fill();
+      g.globalAlpha=.95; g.strokeStyle='#ffffff'; g.lineWidth=6; g.shadowColor=fc; g.shadowBlur=30;
+      g.beginPath(); g.arc(hx,-70,R*0.55,0,7); g.stroke();
+      g.globalAlpha=.8; g.strokeStyle=hexA(fc,.9); g.lineWidth=3;
+      g.beginPath(); g.arc(hx,-70,R*0.9,0,7); g.stroke();
+      if(fx0==='boom'){ g.globalAlpha=.85; g.strokeStyle='#fff'; g.lineWidth=3;
+        for(let i=0;i<8;i++){ const a=i/8*6.283;
+          g.beginPath(); g.moveTo(hx+Math.cos(a)*R*0.6, -70+Math.sin(a)*R*0.6);
+          g.lineTo(hx+Math.cos(a)*R*1.8, -70+Math.sin(a)*R*1.8); g.stroke(); } }
+    } else if(fx0==='flame'||fx0==='darkflame'){
+      const base=fx0==='flame'?fc:'#a24dff';
+      g.globalAlpha=.9; g.strokeStyle='#fff'; g.lineWidth=5; g.shadowColor=base; g.shadowBlur=26;
+      g.beginPath(); g.moveTo(15,-86); g.lineTo(hx,-70); g.stroke();
+      for(let i=0;i<7;i++){ const a=-1.25+i*0.42, rr=30+((i*7)%14);
+        const px=hx-6, py=-70;
+        const fg=g.createRadialGradient(px,py,1,px+Math.cos(a)*rr,py+Math.sin(a)*rr,14);
+        fg.addColorStop(0,hexA(fx0==='flame'?'#fff2c0':'#e8c8ff',.95));
+        fg.addColorStop(.5,hexA(base,.85)); fg.addColorStop(1,hexA(dark(base,.4),0));
+        g.fillStyle=fg; g.beginPath(); g.arc(px+Math.cos(a)*rr,py+Math.sin(a)*rr,14,0,7); g.fill(); }
+    } else { // 'impact' — sai blow-through
+      g.globalAlpha=.95; g.strokeStyle='#fff'; g.lineWidth=6;
+      g.shadowColor=fc; g.shadowBlur=26;
+      g.beginPath(); g.moveTo(15,-86); g.lineTo(hx,-70); g.stroke();
+      g.globalAlpha=.5; g.strokeStyle=fc; g.lineWidth=3;
+      g.beginPath(); g.moveTo(15,-96); g.lineTo(hx-6,-84); g.stroke();
+      g.beginPath(); g.moveTo(15,-76); g.lineTo(hx-6,-58); g.stroke();
+    }
     g.restore();
   }
   if(kkPh && kkPh.stage==='hit' && S.atk){
@@ -1230,6 +1299,7 @@ function renderTraining(){
     const k=1-f.t/f.life;
     ctx.save(); ctx.globalAlpha=k;
     if(f.ring){ ctx.strokeStyle=f.col; ctx.lineWidth=3*k+1; ctx.beginPath(); ctx.arc(f.x,f.y,f.r+(1-k)*f.max,0,7); ctx.stroke(); }
+    else if(f.guard){ drawGuardBurst(ctx,f,k); }
     else if(f.blast){ drawBlast(ctx,f,k); }
     else if(f.txt){ ctx.fillStyle=f.c; ctx.font='bold 18px Trebuchet MS'; ctx.textAlign='center'; ctx.fillText(f.txt,f.x,f.y+(1-k)*-30); }
     else { f.x+=f.vx/60; f.y+=f.vy/60; f.vy+=1400/60; f.vx*=0.97; ctx.fillStyle=f.c; ctx.beginPath(); ctx.arc(f.x,f.y,f.r*k,0,7); ctx.fill(); }
@@ -1638,6 +1708,7 @@ function render(){
     ctx.save(); ctx.globalAlpha=k;
     if(f.ring){ ctx.strokeStyle=f.col; ctx.lineWidth=3*k+1;
       ctx.beginPath(); ctx.arc(f.x,f.y,f.r+(1-k)*f.max,0,7); ctx.stroke(); }
+    else if(f.guard){ drawGuardBurst(ctx,f,k); }
     else if(f.blast){ drawBlast(ctx,f,k); }
     else if(f.txt){ ctx.fillStyle=f.c; ctx.font='bold 18px Trebuchet MS'; ctx.textAlign='center';
       ctx.fillText(f.txt,f.x,f.y+(1-k)*-30); }
@@ -1689,7 +1760,9 @@ window.CLASH = { p1,p2,CHARS, get screen(){return screen}, startFight, goSelect,
   setTrainMenu(v){ trainMenuOpen=!!v; },
   // test hooks
   POSE, paintFighter, walkJoint, drawLeg3d, GROUND_Y,
-  drawProjectiles, drawBlast, blast, burst, ring, hexA,
+  drawProjectiles, drawBlast, drawGuardBurst, blast, burst, ring, hexA, guardFx, styleConfig, STYLE_CFG, CHARS,
+  mkFighter(c,S){ return {char:c, t:S.t||0, anim:S.anim||0, state:S.state??POSE.IDLE, onGround:S.onGround!==false, atk:S.atk||null, superT:S.superT||0, hitFlash:S.hitFlash||0, hitStun:0, combo:0, comboT:0, dir:S.dir||1, vx:0, vy:0, x:0, y:0, w:54, h:130, top:-130 }; },
+  get styleCfg(){ return STYLE_CFG; },
   projCount(){ return projectiles.length; }, get projs(){ return projectiles; },
   setProjs(a){ projectiles.length=0; for(const p of a) projectiles.push(Object.assign({owner:p1,x:0,y:0,vx:0,vy:0,r:16,dmg:0,kb:0,life:9,t:0,armDelay:0,col:'#fff',pierce:false,homing:false,target:null,hitList:[],trail:[],kind:'orb',spin:0,pierce:true},p)); } ,
   clearFx(){ fx.length=0; }, addBlast(x,y,r,col,life,kind){ blast(x,y,r,col,life,kind); return fx[fx.length-1]; }, get fxs(){ return fx; } };
