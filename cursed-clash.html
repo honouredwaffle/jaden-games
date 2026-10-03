@@ -231,7 +231,7 @@ function pressInput(name){
   } else if(name==='dash'){
     pendingKind=null; p1.doAttack('dash');
   } else if(name==='hop'){
-    pendingKind=null; jumpPending=0; p1.tryHop();
+    pendingKind=null; jumpPending=0; p1.tryHop(keys['KeyF']||padBlock);   // F+Space = guard-up defensive hop
   } else if(name==='rollL'){
     pendingKind=null; jumpPending=0; p1.tryRoll(-1);
   } else if(name==='rollR'){
@@ -442,6 +442,7 @@ const STAGGER_BYPASS=0.6, STAGGER_BREAK=1.4;
 // ground states: downed time, getup frames, trip vulnerability, hop/roll dodge windows
 const TRIP_TIME=1.3, GETUP_TIME=1.1, TRIP_VULN=1.3;
 const HOP_TIME=0.55, ROLL_TIME=0.42, HOP_CLEAR=0.40, ROLL_CLEAR=0.30, ROLL_SPEED=780;
+const HOP_LIFT=-380, HOP_LIFT_BLOCK=-340;   // defensive hop (guard up) is a touch lower + shorter than a plain hop
 // button -> state id, for the debug/test hooks
 const STATE={IDLE:0,WALK:1,JUMP:2,PUNCH:3,KICK:4,BLOCK:5,HURT:6,KO:7,SUPER:8,DUMMY:9,PARRY:10,UPPER:11,SWEEP:12,DASH:13,SLAM:14,CROUCH:15,STAGGER:16,TRIP:17,GETUP:18,HOP:19,ROLL:20};
 // how much each move taxes the guard meter when blocked (heavier hits break guard faster)
@@ -458,7 +459,7 @@ class Fighter {
       cooldown:0,superT:0,invuln:0,ko:false,hitFlash:0,combo:0,comboT:0,
       parryT:0,parryWindow:0,parryCool:0,parryKick:0,parrySpark:0,parryHeld:false,
       blockMeter:0,maxBlock:100,staggerT:0,blockFlash:0,
-      tripped:false,tripT:0,getupT:0,hopT:0,rolling:false,rollT:0,rollDir:1,
+      tripped:false,tripT:0,getupT:0,hopT:0,hopBlocked:false,rolling:false,rollT:0,rollDir:1,
       name:'?',ai:false,aiT:0,aiState:'approach',aiReaction:null,aiReactT:0,aiTell:false,aiDodge:null,aiRollDir:1,abilityFired:false,dashTick:0,char:CHARS[0],role:null
     },opts);
     this.applyChar(this.char);
@@ -466,7 +467,7 @@ class Fighter {
   applyChar(c){ this.char=c; this.colA=c.colA; this.colB=c.colB; this.colC=c.colC;
     this.name=c.name; this.maxhp=c.hp; this.hp=c.hp; this.speed=c.speed;
     this.blockMeter=0; this.staggerT=0; this.blockFlash=0; this.parryCool=0; this.parryWindow=0;
-    this.tripped=false; this.tripT=0; this.getupT=0; this.hopT=0; this.rolling=false; this.rollT=0; this.rollDir=1; }
+    this.tripped=false; this.tripT=0; this.getupT=0; this.hopT=0; this.hopBlocked=false; this.rolling=false; this.rollT=0; this.rollDir=1; }
   get top(){ return this.y-this.h; }
   hurtbox(){
     if(this.tripped || this.getupT>0){                 // lying on the ground: low, wide, easy to punish
@@ -509,11 +510,13 @@ class Fighter {
     floatText(this.x,this.top+2,'TRIPPED!','#ff6bd0');
     burst(this.x,this.y-12,14,'#ff6bd0',1.0); ring(this.x,this.y-12,'#ff6bd0',12,52);
   }
-  // small hop — clears a sweep (unless you're airborne / floored / staggered)
-  tryHop(){
+  // small hop — clears a sweep (unless you're airborne / floored / staggered).
+  // Holding block (or a raised guard) gives a *defensive hop*: guard stays up, lower + shorter lift.
+  tryHop(guarding){
     if(this.hopT>0 || this.rolling || this.tripped || this.getupT>0 || this.staggerT>0 || this.hitStun>0 || this.ko || !this.onGround || this.superT>0) return false;
-    this.hopT=HOP_TIME; this.vy=-540; this.onGround=false; this.state=POSE.HOP;
-    burst(this.x,this.y,8,'#cfefff',.8); return true;
+    this.hopBlocked=!!guarding; this.hopT=guarding?HOP_TIME*0.85:HOP_TIME; this.vy=guarding?HOP_LIFT_BLOCK:HOP_LIFT;
+    this.onGround=false; this.state=POSE.HOP;
+    burst(this.x,this.y,guarding?9:8, guarding?'#9fe8ff':'#cfefff',.8); return true;
   }
   // roll/dodge left or right — i-frames during the roll, then a recovery gap
   tryRoll(dir){
@@ -561,8 +564,7 @@ class Fighter {
     // trip → getup, hop / roll dodge timers
     if(this.tripped){ this.tripT-=dt; if(this.tripT<=0){ this.tripped=false; this.getupT=GETUP_TIME; this.state=POSE.GETUP; } }
     if(this.getupT>0){ this.getupT=Math.max(0,this.getupT-dt); if(this.getupT===0){ this.state=POSE.IDLE; } }
-    if(this.hopT>0) this.hopT=Math.max(0,this.hopT-dt);
-    if(this.rolling){ this.rollT-=dt;
+    if(this.hopT>0) this.hopT=Math.max(0,this.hopT-dt);    if(this.rolling){ this.rollT-=dt;
       if(this.rollT<=0){ this.rolling=false; this.rollT=0; this.state=POSE.IDLE; } else { this.vx=this.rollDir*ROLL_SPEED; } }
     this.comboT=Math.max(0,this.comboT-dt);
     if(this.comboT===0) this.combo=0;
@@ -669,7 +671,7 @@ class Fighter {
       const pHeld = keys['KeyP']||padParry;
       if(pHeld && !this.parryHeld) this.doParry();     // fresh tap only — no hold-to-spam
       this.parryHeld = pHeld;
-      if(this.hopT>0) this.state=POSE.HOP;
+      if(this.hopT>0) this.state=POSE.HOP;            // guard stays up if this was a defensive hop (hopBlocked)
       else if(this.parryWindow>0){ /* hold the deflect stance */ }
       else if(crouch) this.state=POSE.CROUCH;
       else if(keys['KeyF']||padBlock) this.state=POSE.BLOCK;
@@ -984,6 +986,7 @@ function paintFighter(g,c,S){
              : state===POSE.IDLE ? Math.sin(t*3)*2 : 0) + (cr?16:0) + (sgr?Math.abs(Math.sin(t*13))*4:0);
 
   const eB=state===POSE.BLOCK, pn=state===POSE.PUNCH, kk=state===POSE.KICK, sp=state===POSE.SUPER, pry=state===POSE.PARRY;
+  const guardUp = eB || (hopS && S.hopBlocked);   // block, or the defensive hop that keeps the guard up
   const accept = pry || (S.parrySpark>0);   // cross-arm deflect guard (parry stance + the moment after a deflect)
   const walking = state===POSE.WALK;
   const airborne = state===POSE.JUMP || S.onGround===false;
@@ -1033,8 +1036,13 @@ function paintFighter(g,c,S){
     drawLeg3d(g,-SP-3,HIP_Y, 0.30+wob,-0.34, THIGH,SHIN,LEGW,dark(c.colB,0.12),shoe, 0.25);
     drawLeg3d(g, SP+3,HIP_Y,-0.30-wob,-0.38, THIGH,SHIN,LEGW,c.colB,shoe, 0.2);
   } else if(hopS){
-    drawLeg3d(g,-SP,HIP_Y, 0.95,-1.15, THIGH,SHIN,LEGW,dark(c.colB,0.12),shoe, 0.55);
-    drawLeg3d(g, SP,HIP_Y, 1.15,-1.35, THIGH,SHIN,LEGW,c.colB,shoe, 0.62);
+    if(S.hopBlocked){   // defensive hop: low tucked lift, guard stays up
+      drawLeg3d(g,-SP,HIP_Y, 0.55,-1.05, THIGH,SHIN,LEGW,dark(c.colB,0.12),shoe, 0.62);
+      drawLeg3d(g, SP,HIP_Y, 0.40,-0.95, THIGH,SHIN,LEGW,c.colB,shoe, 0.66);
+    } else {
+      drawLeg3d(g,-SP,HIP_Y, 0.95,-1.15, THIGH,SHIN,LEGW,dark(c.colB,0.12),shoe, 0.55);
+      drawLeg3d(g, SP,HIP_Y, 1.15,-1.35, THIGH,SHIN,LEGW,c.colB,shoe, 0.62);
+    }
   } else if(rollS){
     drawLeg3d(g,-SP,HIP_Y, 0.72,-1.05, THIGH,SHIN,LEGW,dark(c.colB,0.12),shoe, 0.45);
     drawLeg3d(g, SP,HIP_Y, 0.92,-1.25, THIGH,SHIN,LEGW,c.colB,shoe, 0.5);
@@ -1072,15 +1080,15 @@ function paintFighter(g,c,S){
   else if(slPh){ bUp=slPh.stage==='wind'?-2.7:-0.4; bElb=-0.7; }             // slam: both arms overhead
   else if(swPh||dsPh){ bUp=-0.55; bElb=-0.95; }
   else if(accept){ bUp=-2.15; bElb=-1.20; }                                  // deflect: cross-arm guard
-  else if(eB){ bUp=bGuard[0]; bElb=bGuard[1]; }
+  else if(guardUp){ bUp=bGuard[0]; bElb=bGuard[1]; }
   else if(sp){ bUp=-Math.PI/2-0.35; bElb=-0.35; }
   else if(cr){ bUp=0.5; bElb=-1.0; }
   else if(sgr){ bUp=1.35+Math.sin(t*13)*0.2; bElb=-0.35; }          // arms flung out, defenceless
-  else if(hopS){ bUp=-1.3; bElb=-0.7; }
+  else if(hopS){ bUp=1.05; bElb=-1.15; }
   else if(rollS){ bUp=1.2; bElb=-1.5; }
   else if(tripS || getupS){ bUp=-2.0; bElb=-0.8; }
   else { bUp=STD.idle.bUp; bElb=STD.idle.bElb; }
-  drawArm3d(g,-15,-86+bob, bUp, bElb, STD.upLen,STD.foreLen, STD.armW, eB?light(dark(c.colB,0.12),0.18):dark(c.colB,0.12), skin, 6.5);
+  drawArm3d(g,-15,-86+bob, bUp, bElb, STD.upLen,STD.foreLen, STD.armW, guardUp?light(dark(c.colB,0.12),0.18):dark(c.colB,0.12), skin, 6.5);
 
   // ---- front arm ----
   let fUp, fElb;
@@ -1104,16 +1112,16 @@ function paintFighter(g,c,S){
   } else if(walking){
     fUp=-Math.cos(a)*0.55*aAmp; fElb=-0.45-Math.max(0,Math.cos(a))*0.5*aAmp;   // near arm opposes the far leg
   } else if(accept){ fUp=-2.15; fElb=-1.20; }                                  // deflect: cross-arm guard
-  else if(eB){ fUp=fGuard[0]; fElb=fGuard[1]; }
+  else if(guardUp){ fUp=fGuard[0]; fElb=fGuard[1]; }
   else if(sp){ fUp=-Math.PI/2-0.35; fElb=-0.35; }
   else if(cr){ fUp=0.45; fElb=-1.0; }
   else if(sgr){ fUp=1.25-Math.sin(t*13)*0.2; fElb=-0.35; }           // arms flung out, defenceless
-  else if(hopS){ fUp=-1.25; fElb=-0.75; }
+  else if(hopS){ fUp=1.0; fElb=-1.1; }
   else if(rollS){ fUp=1.1; fElb=-1.55; }
   else if(tripS){ fUp=-2.05; fElb=-0.7; }
   else if(getupS){ const p=smooth(Math.min(1,1-(S.getupT||0)/GETUP_TIME)); fUp=lerp(-2.0,0.3,p); fElb=lerp(-0.7,-0.6,p); }
   else { fUp=STD.idle.fUp+Math.sin(t*2)*0.05; fElb=STD.idle.fElb; }
-  drawArm3d(g,15,-86+bob, fUp, fElb, STD.upLen+2,STD.foreLen+2, STD.armW, eB?light(gi,0.20):gi, skin, 7);
+  drawArm3d(g,15,-86+bob, fUp, fElb, STD.upLen+2,STD.foreLen+2, STD.armW, guardUp?light(gi,0.20):gi, skin, 7);
 
   // punching fist highlight
   if(pnPh && pnPh.stage==='hit' && S.atk){
@@ -1137,7 +1145,7 @@ function paintFighter(g,c,S){
   g.restore();
 
   // ---- block guard: forearms + shield drawn ON TOP of the head so the guard reads in front of the face ----
-  if(eB){
+  if(guardUp){
     const gc=(STD.block.guardCol)||c.colA, gk=(STD.block.guardKind)||'ki', t0=S.t||0;
     // back forearm first (outer layer), then glow shield, then front forearm across the face
     drawArm3d(g,-15,-86+bob, bGuard[0], bGuard[1], STD.upLen,STD.foreLen, STD.armW, light(dark(c.colB,0.12),0.18), skin, 6.5);
@@ -2436,7 +2444,7 @@ window.CLASH = { p1,p2,CHARS, get screen(){return screen}, startFight, goSelect,
   setCtrlMode, toggleCtrl, get ctrlMode(){return ctrlMode}, ctrl(){ return {index:ctrlMode, name:ctrlMode===0?'COMPUTER':'MOBILE', touchUI:TU()}; }, syncPad,
   parry(side){ (side==='p2'?p2:p1).doParry(); },
   PARRY_CD, STAGGER_TIME, STAGGER_BYPASS, STAGGER_BREAK, guardCost, breakGuard(side,dur){ (side==='p2'?p2:p1).breakGuard(dur); },
-  TRIP_TIME, GETUP_TIME, TRIP_VULN, HOP_TIME, ROLL_TIME, HOP_CLEAR, ROLL_CLEAR, ROLL_SPEED, STATE,
+  TRIP_TIME, GETUP_TIME, TRIP_VULN, HOP_TIME, ROLL_TIME, HOP_CLEAR, ROLL_CLEAR, ROLL_SPEED, HOP_LIFT, HOP_LIFT_BLOCK, STATE,
   trip(side){ (side==='p2'?p2:p1).trip(); }, hop(side){ return (side==='p2'?p2:p1).tryHop(); }, roll(side,dir){ return (side==='p2'?p2:p1).tryRoll(dir); },
   get blocks(){ return {p1:p1.blockMeter, p2:p2.blockMeter, max:p1.maxBlock, stagger1:p1.staggerT, stagger2:p2.staggerT, parryCd1:p1.parryCool, parryCd2:p2.parryCool,
     trip1:p1.tripped, trip2:p2.tripped, getup1:p1.getupT, getup2:p2.getupT, hop1:p1.hopT, hop2:p2.hopT, roll1:p1.rolling, roll2:p2.rolling}; },
