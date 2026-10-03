@@ -5,7 +5,7 @@ const { chromium } = require('playwright-core');
   const p = await b.newPage({viewport:{width:1280,height:720}});
   const errs=[]; p.on('pageerror',e=>errs.push('PAGEERR: '+e.message));
   p.on('console',m=>{ if(m.type()==='error') errs.push('CONSOLE: '+m.text()); });
-  await p.goto('file://'+process.cwd()+'/cursed-clash.html');
+  await p.goto('file://'+process.cwd()+'/final-riot.html');
   await p.waitForTimeout(400);
 
   const out = await p.evaluate(()=>{

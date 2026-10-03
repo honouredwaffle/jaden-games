@@ -3,7 +3,7 @@ const { chromium } = require('playwright-core');
   const b = await chromium.launch({args:['--use-gl=swiftshader','--enable-unsafe-swiftshader']});
   const p = await b.newPage({viewport:{width:1280,height:720}});
   const errs=[]; p.on('pageerror',e=>errs.push(e.message));
-  await p.goto('file://'+process.cwd()+'/cursed-clash.html');
+  await p.goto('file://'+process.cwd()+'/final-riot.html');
   await p.waitForTimeout(400);
   // render the walk pose in isolation at 8 phases onto a clean canvas, and record knee angle formula
   const res = await p.evaluate(()=>{

@@ -4,7 +4,7 @@ const { chromium } = require('playwright-core');
   for(const vp of [{width:1280,height:720,name:'landscape'},{width:390,height:844,name:'portrait'}]){
     const p = await b.newPage({viewport:vp});
     const errs=[]; p.on('pageerror',e=>errs.push('PAGEERR: '+e.message));
-    await p.goto('file://'+process.cwd()+'/cursed-clash.html');
+    await p.goto('file://'+process.cwd()+'/final-riot.html');
     await p.waitForTimeout(400);
     await p.evaluate(()=>{ const C=window.CLASH; C.setCtrlMode(1); C.goSelect(); C.setSel(0); C.setArenaOverride(0); C.startFight(); });
     await p.waitForTimeout(1400);

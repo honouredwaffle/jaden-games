@@ -3,7 +3,7 @@ const { chromium } = require('playwright-core'); const fs=require('fs');
   const b=await chromium.launch({args:['--use-gl=swiftshader','--enable-unsafe-swiftshader']});
   const p=await b.newPage({viewport:{width:1400,height:760}});
   const errs=[]; p.on('pageerror',e=>errs.push(e.message));
-  await p.goto('file://'+process.cwd()+'/cursed-clash.html'); await p.waitForTimeout(400);
+  await p.goto('file://'+process.cwd()+'/final-riot.html'); await p.waitForTimeout(400);
   const url=await p.evaluate(()=>{
     const C=window.CLASH, VY=820,G=2100,T=2*VY/G, GY=560;
     const CW=340, CH=720;

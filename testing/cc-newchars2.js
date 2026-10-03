@@ -7,7 +7,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   const p=await b.newPage({viewport:{width:1400,height:900}});
   const errs=[]; p.on('pageerror',e=>errs.push('pageerror:'+e.message));
   p.on('console',m=>{ if(m.type()==='error') errs.push('console:'+m.text()); });
-  await p.goto('file://'+process.cwd()+'/cursed-clash.html',{waitUntil:'load'});
+  await p.goto('file://'+process.cwd()+'/final-riot.html',{waitUntil:'load'});
   await sleep(500);
 
   // strip of all 5 fighters, idle + walk pose

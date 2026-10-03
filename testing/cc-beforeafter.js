@@ -4,7 +4,7 @@ const EXEC='/root/.cache/ms-playwright/chromium-1208/chrome-linux64/chrome';
 (async()=>{
   const b=await chromium.launch({executablePath:EXEC,headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
   const p=await b.newPage({viewport:{width:1200,height:700}});
-  await p.goto('file://'+process.cwd()+'/cursed-clash.html',{waitUntil:'load'});
+  await p.goto('file://'+process.cwd()+'/final-riot.html',{waitUntil:'load'});
   await p.waitForTimeout(400);
   const durl = await p.evaluate(()=>{
     const C=window.CLASH;

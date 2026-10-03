@@ -6,7 +6,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   const p=await b.newPage({viewport:{width:1280,height:720}});
   const errs=[]; p.on('pageerror',e=>errs.push('pageerror:'+e.message));
   p.on('console',m=>{ if(m.type()==='error') errs.push('console:'+m.text()); });
-  await p.goto('file://'+process.cwd()+'/cursed-clash.html',{waitUntil:'load'});
+  await p.goto('file://'+process.cwd()+'/final-riot.html',{waitUntil:'load'});
   await sleep(500);
   const roster = await p.evaluate(()=>window.CLASH.CHARS.map(c=>c.id+'/'+c.name+'/'+c.hair+'/'+c.ability.type));
   await p.keyboard.press('Enter'); await sleep(400);

@@ -5,7 +5,7 @@ const sleep=ms=>new Promise(r=>setTimeout(r,ms));
   const b=await chromium.launch({executablePath:EXEC,headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
   const p=await b.newPage({viewport:{width:1280,height:720}});
   const errs=[]; p.on('pageerror',e=>errs.push(e.message));
-  await p.goto('file://'+process.cwd()+'/cursed-clash.html',{waitUntil:'load'});
+  await p.goto('file://'+process.cwd()+'/final-riot.html',{waitUntil:'load'});
   await sleep(500);
   await p.keyboard.press('Enter'); await sleep(300);
   await p.evaluate(()=>window.CLASH.setSel(0)); await sleep(120);
