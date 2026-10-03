@@ -418,12 +418,14 @@ const MOVES = {
   punch: {state:'PUNCH', startup:.06,active:.06,recover:.12,dmg:6, kb:130,stun:.22,reach:66,yoff:-70,award:8},
   kick:  {state:'KICK',  startup:.11,active:.10,recover:.24,dmg:10,kb:260,stun:.32,reach:82,yoff:-52,award:12},
   upper: {state:'UPPER', startup:.09,active:.10,recover:.30,dmg:11,kb:210,stun:.30,reach:62,yoff:-98,award:12,launch:true},
-  sweep: {state:'SWEEP', startup:.10,active:.09,recover:.32,dmg:9, kb:150,stun:.44,reach:92,yoff:8,  award:12,knockdown:true},
+  sweep: {state:'SWEEP', startup:.10,active:.09,recover:.32,dmg:9, kb:150,stun:.44,reach:92,yoff:8,  award:12,knockdown:true,bypass:true},
   dash:  {state:'DASH',  startup:.08,active:.13,recover:.26,dmg:11,kb:320,stun:.30,reach:78,yoff:-58,award:12,lunge:640},
-  slam:  {state:'SLAM',  startup:.20,active:.12,recover:.36,dmg:18,kb:470,stun:.50,reach:80,yoff:-70,award:20,heavy:true},
+  slam:  {state:'SLAM',  startup:.20,active:.12,recover:.36,dmg:18,kb:470,stun:.50,reach:80,yoff:-70,award:20,heavy:true,guardBreak:true},
 };
 // guard-meter tuning: parry is a once-every-20s read; a full guard = 1.5s stagger
 const PARRY_CD=20, STAGGER_TIME=1.5, BLOCK_DECAY=9;
+// bypass moves slip clean through a guard; guardBreak moves shatter it. Both slam the meter to full + stagger.
+const STAGGER_BYPASS=0.6, STAGGER_BREAK=1.4;
 // how much each move taxes the guard meter when blocked (heavier hits break guard faster)
 const GUARD_COST={ punch:8, kick:14, upper:15, sweep:16, dash:16, slam:30, counter:26 };
 function guardCost(a){ if(a.super) return 42; if(a.kind && GUARD_COST[a.kind]!=null) return GUARD_COST[a.kind];
@@ -449,8 +451,8 @@ class Fighter {
   hurtbox(){ return {x:this.x-this.w*0.55,y:this.top+8,w:this.w*1.1,h:this.h-8}; }
   blocking(){ return this.state===POSE.BLOCK && this.onGround; }
   // guard broken: stagger for a beat, wide open — the punish window for breaking someone's block
-  breakGuard(){
-    this.blockMeter=0; this.staggerT=STAGGER_TIME; this.state=POSE.STAGGER;
+  breakGuard(dur=STAGGER_TIME){
+    this.blockMeter=0; this.staggerT=(dur||STAGGER_TIME); this.state=POSE.STAGGER;
     this.atk=null; this.hitStun=0; this.blockStun=0; this.vx*=0.2; this.hitFlash=1;
     shake=Math.max(shake,14); hitStop=Math.max(hitStop,0.09);
     floatText(this.x,this.top+6,'GUARD BREAK!','#ffd166');
@@ -477,7 +479,8 @@ class Fighter {
     const M=MOVES[kind] || MOVES.punch;
     this.atk={kind,startup:M.startup,active:M.active,recover:M.recover,
       dmg:M.dmg*this.char.dmg*this.dmul, kb:M.kb, stun:M.stun, reach:M.reach, yoff:M.yoff,
-      award:M.award, launch:!!M.launch, knockdown:!!M.knockdown, heavy:!!M.heavy};
+      award:M.award, launch:!!M.launch, knockdown:!!M.knockdown, heavy:!!M.heavy,
+      bypass:!!M.bypass, guardBreak:!!M.guardBreak};
     this.state = POSE[M.state] ?? POSE.PUNCH;
     this.atk.t=0; this.hasHit=false; this.cooldown=this.atk.startup+this.atk.active+this.atk.recover;
     if(M.lunge) this.vx = this.dir*M.lunge;   // dash strike carries you in
@@ -694,6 +697,23 @@ class Fighter {
     const dir = src.x<=this.x?1:-1;
     const blocked = this.blocking() && this.dir!==dir;
     if(blocked){
+      // ---- bypass / guardBreak: these moves don't care about your guard ----
+      if(a.bypass || a.guardBreak){
+        this.hp-=a.dmg;                          // full damage straight through
+        this.vx=dir*(a.kb||130);
+        if(!a.super && this.onGround) this.vy=-120;
+        this.hitFlash=1; this.atk=null;
+        this.hitStun=(a.stun||0.25)+0.04;
+        this.blockMeter=this.maxBlock;           // guard bar slammed to full
+        this.staggerT = a.bypass ? STAGGER_BYPASS : STAGGER_BREAK;
+        this.state=POSE.STAGGER;
+        const bc = a.bypass ? '#ff6bd0' : '#ffd166';
+        burst(this.x,this.top+58,14,bc,1.1); ring(this.x,this.top+58,bc,14,56);
+        floatText(this.x,this.top+6, a.bypass?'BYPASS!':'GUARD BREAK!', bc);
+        shake=Math.max(shake, a.bypass?10:14); hitStop=Math.max(hitStop,0.07);
+        src.meter=Math.min(src.maxMeter,src.meter+6*src.meterMul);
+        return a.bypass?'bypass':'guardbreak';
+      }
       const red = a.super?0.35:0.25;                    // block only softens it: take 25% (75% reduction)
       const dealt = Math.max(1, Math.round((a.dmg||6)*red));
       this.hp-=dealt; this.blockStun=0.18; this.vx=dir*(a.kb||120)*0.35;
@@ -1627,8 +1647,10 @@ function bar(g,x,y,w,h,f,left){
     g.fillStyle=gg; roundRect(g,x,gy2,Math.max(2,w*gp),gh2,3); g.fill(); g.restore(); }
   g.strokeStyle = f.staggerT>0 ? '#ff3b30' : (f.blockFlash>0 ? '#ffffff' : (gp>0.75?'#ff9f43':'rgba(255,255,255,.22)'));
   g.lineWidth = f.blockFlash>0?2:1; roundRect(g,x,gy2,w,gh2,3); g.stroke();
-  if(f.staggerT>0){ g.fillStyle='#ff3b30'; g.font='bold 11px Trebuchet MS'; g.textAlign='center';
+  if(f.staggerT>0 && f.ko!==true){ g.fillStyle='#ff3b30'; g.font='bold 11px Trebuchet MS'; g.textAlign='center';
     g.fillText('STAGGER',x+w/2,gy2+gh2+11); }
+  else if(gp>=1){ g.fillStyle='#ffd166'; g.font='bold 10px Trebuchet MS'; g.textAlign='center';
+    g.fillText('BREAK',x+w/2,gy2+gh2+11); }
   g.restore();
 }
 function hudScrim(g){
@@ -2067,7 +2089,7 @@ function renderSelect(g){
   g.fillStyle='rgba(255,255,255,.4)'; g.font='12px Trebuchet MS';
   g.fillText(isTouch?'tap a tile twice to lock in':'A/D to browse · SPACE to lock in',W*0.04,H*0.155);
   g.fillStyle='rgba(160,220,255,.6)'; g.font='11px Trebuchet MS';
-  g.fillText('MOVES  ·  LMB punch · RMB kick · LMB+RMB slam · Space+LMB uppercut · Ctrl+RMB sweep · Q dash · F block · F+LMB parry',W*0.04,H*0.132);
+  g.fillText('MOVES  ·  LMB punch · RMB kick · LMB+RMB slam · Space+LMB uppercut · Ctrl+RMB sweep · Q dash · F block · F+LMB parry   |   sweep bypasses · slam breaks guard',W*0.04,H*0.132);
   g.textAlign='right'; g.fillStyle='rgba(255,255,255,.5)';
   g.fillText('PLAYER 2  ·  CPU',W*0.96,H*0.075);
   g.restore();
@@ -2285,7 +2307,7 @@ window.CLASH = { p1,p2,CHARS, get screen(){return screen}, startFight, goSelect,
   setDiffIndex(i){ setDiff(i); },
   setCtrlMode, toggleCtrl, get ctrlMode(){return ctrlMode}, ctrl(){ return {index:ctrlMode, name:ctrlMode===0?'COMPUTER':'MOBILE', touchUI:TU()}; }, syncPad,
   parry(side){ (side==='p2'?p2:p1).doParry(); },
-  PARRY_CD, STAGGER_TIME, guardCost, breakGuard(side){ (side==='p2'?p2:p1).breakGuard(); },
+  PARRY_CD, STAGGER_TIME, STAGGER_BYPASS, STAGGER_BREAK, guardCost, breakGuard(side,dur){ (side==='p2'?p2:p1).breakGuard(dur); },
   get blocks(){ return {p1:p1.blockMeter, p2:p2.blockMeter, max:p1.maxBlock, stagger1:p1.staggerT, stagger2:p2.staggerT, parryCd1:p1.parryCool, parryCd2:p2.parryCool}; },
   pressInput, stepInput, resetInput, crouchHeld, held, downAt, get pending(){ return {kind:pendingKind,t:pendingT,jump:jumpPending}; },
   get train(){ return {player:selIndex, dummy:(selIndex+1)%CHARS.length, hits:trainHits, combo:trainCombo, maxCombo:trainMaxCombo, dmg:trainDispDmg, menu:trainMenuOpen, t:trainT}; },
