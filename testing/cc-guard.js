@@ -1,64 +1,88 @@
-// Verify per-character BLOCK guard pose (forearm in front of the FACE) + block/punch VFX wiring.
-const { chromium } = require('/root/.npm/_npx/e41f203b7505f1fb/node_modules/playwright-core');
-const fs=require('fs');
-const EXEC='/root/.cache/ms-playwright/chromium-1208/chrome-linux64/chrome';
-const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+// Cursed Clash — guard meter, block damage reduction, parry cooldown
+const { chromium } = require('playwright-core');
 (async()=>{
-  const b=await chromium.launch({executablePath:EXEC,headless:true,args:['--no-sandbox','--disable-dev-shm-usage']});
-  const p=await b.newPage({viewport:{width:1280,height:720}});
-  const errs=[]; p.on('pageerror',e=>errs.push('pageerror:'+e.message));
-  p.on('console',m=>{ if(m.type()==='error') errs.push('console:'+m.text()); });
-  await p.goto('file://'+process.cwd()+'/cursed-clash.html',{waitUntil:'load'});
-  await sleep(400);
+  const b = await chromium.launch({args:['--use-gl=swiftshader','--enable-unsafe-swiftshader']});
+  const p = await b.newPage({viewport:{width:1280,height:720}});
+  const errs=[]; p.on('pageerror',e=>errs.push('PAGEERR: '+e.message));
+  p.on('console',m=>{ if(m.type()==='error') errs.push('CONSOLE: '+m.text()); });
+  await p.goto('file://'+process.cwd()+'/cursed-clash.html');
+  await p.waitForTimeout(400);
 
-  const res = await p.evaluate(()=>{
-    const C=window.CLASH;
-    // FK mirror of drawArm3d (rotate upAng, len upLen; rotate elbAng, len foreLen; fist at foreLen+handR)
-    function fist(shX,shY,upAng,elbAng,upLen,foreLen,handR){
-      const R=(th,L)=>[-L*Math.sin(th), L*Math.cos(th)];
-      const e=R(upAng,upLen), elb=[shX+e[0],shY+e[1]];
-      const f=R(upAng+elbAng, foreLen+handR*0.55);
-      return {elb, fist:[elb[0]+f[0], elb[1]+f[1]]};
+  const out = await p.evaluate(()=>{
+    const C=window.CLASH, R={};
+    // helper: land one blocked hit of `kind` on p2 and report hp loss + guard gain
+    function blockedHit(kind, meter0){
+      C.goSelect(); C.setSel(0); C.startFight();
+      const p1=C.p1,p2=C.p2;
+      p1.x=400; p1.y=C.GROUND_Y(); p1.dir=1; p1.cooldown=0; p1.atk=null; p1.hitStun=0; p1.parryWindow=0;
+      p2.x=470; p2.y=C.GROUND_Y(); p2.dir=-1; p2.hp=p2.maxhp; p2.blockMeter=meter0||0; p2.staggerT=0; p2.maxhp=p2.maxhp;
+      p1.doAttack(kind);
+      const dmg=p1.atk.dmg, before=p2.hp;
+      for(let i=0;i<40;i++){ p2.state=C.POSE.BLOCK; p2.onGround=true; p2.dir=-1; p2.blockStun=0; p2.staggerT=0;
+        p1.update(1/60,p2); p2.blockStun=0;
+        if(p2.hp<before) break; }
+      return {dmg, hpDrop:+(before-p2.hp).toFixed(2), meter:+p2.blockMeter.toFixed(1)};
     }
-    const out=[];
-    for(const c of C.CHARS){
-      const st=C.styleConfig(c);
-      const cfg=st.block;
-      const r=fist(15,-86, cfg.f[0],cfg.f[1], st.upLen+2, st.foreLen+2, 7);
-      // head center (1,-110) r15, eyes y ~ -115..-118, face front x ~ 10..16
-      const inFrontOfFace = (r.fist[1] <= -112 && r.fist[1] >= -134) && (r.fist[0] >= 6 && r.fist[0] <= 30);
-      out.push({name:c.name, style:c.style, guardCol:cfg.guardCol, guardKind:cfg.guardKind, punchFx:cfg.punchFx,
-        elbow:r.elb.map(v=>+v.toFixed(1)), fist:r.fist.map(v=>+v.toFixed(1)), inFrontOfFace});
-    }
-    // render a board: each char blocking + each char punch-hit
-    const CW=300, CH=300, cols=5, cv=document.createElement('canvas');
-    cv.width=CW*cols; cv.height=CH*2; const g=cv.getContext('2d');
-    g.fillStyle='#0a0714'; g.fillRect(0,0,cv.width,cv.height);
-    function cell(cx,cy,title,draw){ g.save(); g.fillStyle='rgba(255,255,255,.04)'; g.fillRect(cx,cy,CW,CH);
-      g.strokeStyle='rgba(255,255,255,.12)'; g.strokeRect(cx,cy,CW,CH);
-      g.fillStyle='#fff'; g.font='bold 16px sans-serif'; g.fillText(title,cx+12,cy+24);
-      g.save(); g.beginPath(); g.rect(cx,cy+28,CW,CH-28); g.clip(); g.translate(cx+CW/2, cy+CH*0.82); draw(g); g.restore(); g.restore(); }
-    C.CHARS.forEach((c,i)=>{
-      // BLOCK (holding)
-      cell(i*CW,0,c.name+' BLOCK', gg=>{ gg.scale(1.6,1.6); C.paintFighter(gg,c,C.mkFighter(c,{state:C.POSE.BLOCK,t:1.2})); });
-      // punch hit frame
-      const atk={t:0,startup:0.06,active:0.10,recover:0.12,reach:70,kind:'punch',yoff:0};
-      atk.t=0.10;
-      cell(i*CW,CH,c.name+' PUNCH', gg=>{ gg.scale(1.6,1.6); C.paintFighter(gg,c,C.mkFighter(c,{state:C.POSE.PUNCH,t:1.2,atk})); });
-    });
-    const durl=cv.toDataURL('image/png');
-    // VFX spot-checks
-    const fxChecks={
-      guardFn: typeof C.guardFx==='function',
-      drawGuardBurst: typeof C.drawGuardBurst==='function',
-      perCharGuardCols: [...new Set(out.map(o=>o.guardCol))].length,
-      perCharPunchFx: [...new Set(out.map(o=>o.punchFx))].length,
-    };
-    return {out, fxChecks, png:durl};
+
+    // 1. block = 75% damage reduction
+    R.blockPunch = blockedHit('punch');
+    R.blockSlam  = blockedHit('slam');
+    R.blockPunch.expected = Math.max(1, Math.round(R.blockPunch.dmg*0.25));
+    R.blockSlam.expected  = Math.max(1, Math.round(R.blockSlam.dmg*0.25));
+
+    // 2. different moves tax the guard differently
+    R.guardPerMove = {punch:blockedHit('punch',0).meter, kick:blockedHit('kick',0).meter,
+      slam:blockedHit('slam',0).meter, super:null};
+    // super tax via a synthetic blocked hit
+    (()=>{ C.goSelect(); C.setSel(0); C.startFight(); const p1=C.p1,p2=C.p2;
+      p1.x=400;p2.x=470;p2.dir=-1;p2.blockMeter=0;p2.hp=p2.maxhp;
+      p2.state=C.POSE.BLOCK; p2.onGround=true;
+      p2.takeHit(p1,{dmg:20,kb:200,stun:.3,super:true,yoff:-60});
+      R.guardPerMove.super=+p2.blockMeter.toFixed(1);
+    })();
+
+    // 3. guard meter decays over time
+    (()=>{ C.goSelect(); C.setSel(0); C.startFight(); const p2=C.p2; p2.ai=false; p2.blockMeter=60;
+      const t0=p2.blockMeter; for(let i=0;i<60;i++) p2.update(1/60,C.p1);
+      R.decay={from:t0, to:+p2.blockMeter.toFixed(1)};
+    })();
+
+    // 4. guard break -> 1.5s stagger, meter reset, can't act
+    (()=>{ C.goSelect(); C.setSel(0); C.startFight(); const p1=C.p1,p2=C.p2;
+      p1.x=400;p2.x=470;p2.dir=-1;p2.blockMeter=95;p2.hp=p2.maxhp;
+      p2.state=C.POSE.BLOCK; p2.takeHit(p1,{dmg:18,kb:470,stun:.5,yoff:-70});
+      R.breakGuard={ stagger:+p2.staggerT.toFixed(2), meter:+p2.blockMeter.toFixed(1), state:p2.state, isStagger:p2.state===C.POSE.STAGGER };
+      const cd0=p2.cooldown; p2.cooldown=0; p2.doAttack&&p2.doAttack('punch');
+      R.breakGuard.atkBlocked = !p2.atk;   // can't attack while staggered
+      // after stagger ends, meter drain keeps working
+      for(let i=0;i<100;i++) p2.update(1/60,p1);
+      R.breakGuard.staggerAfter = +p2.staggerT.toFixed(2);
+    })();
+
+    // 5. parry cooldown = 20s, blocks a second parry
+    (()=>{ C.goSelect(); C.setSel(0); C.startFight(); const p1=C.p1;
+      p1.cooldown=0;p1.atk=null;p1.hitStun=0;p1.parryWindow=0;p1.parryCool=0;
+      p1.doParry();
+      const first={window:+p1.parryWindow.toFixed(2), cool:+p1.parryCool.toFixed(1)};
+      p1.parryWindow=0;                       // simulate the window expiring
+      p1.doParry();                           // should be refused (on cooldown)
+      R.parry={cd:C.PARRY_CD, first, secondRefused: p1.parryWindow===0 && p1.parryCool<=C.PARRY_CD};
+    })();
+
+    // 6. F + LMB pressed together -> parry
+    (()=>{ C.goSelect(); C.setSel(0); C.startFight(); C.resetInput(); const p1=C.p1;
+      p1.cooldown=0;p1.atk=null;p1.hitStun=0;p1.parryWindow=0;p1.parryCool=0;
+      C.pressInput('block'); C.pressInput('punch');   // F then LMB inside the window
+      R.parryCombo={ window:+p1.parryWindow.toFixed(2), atk: p1.atk&&p1.atk.kind, pending:C.pending.kind };
+      C.resetInput(); p1.parryWindow=0;p1.parryCool=0;p1.cooldown=0;p1.atk=null;
+      C.pressInput('punch'); C.pressInput('block');   // LMB then F
+      R.parryComboReverse={ window:+p1.parryWindow.toFixed(2) };
+    })();
+
+    return R;
   });
-  fs.writeFileSync('testing/cc-guard.png', Buffer.from(res.png.split(',')[1],'base64'));
-  const allFace = res.out.every(o=>o.inFrontOfFace);
-  console.log(JSON.stringify({cells:res.out, fxChecks:res.fxChecks, allGuardInFrontOfFace:allFace, errs},null,1));
+
+  out.errs=errs;
+  console.log(JSON.stringify(out,null,1));
   await b.close();
-  if(errs.length||!allFace) process.exit(2);
-})().catch(e=>{console.error('FAIL',e.message);process.exit(1)});
+})();

@@ -25,27 +25,44 @@ const { chromium } = require('playwright-core');
     return out;
   });
 
-  // ---- mouse: right click = kick, left click = punch ----
-  const mouse = {};
-  await p.evaluate(()=>{ const C=window.CLASH; C.goSelect(); C.setSel(0); C.startFight(); C.p2.ai=false; C.p2.x=760; C.p1.x=360;
-    C.p1.cooldown=0; C.p1.hitStun=0; C.p1.atk=null; C.p1.parryWindow=0; });
-  await p.waitForTimeout(1300);
-  await p.evaluate(()=>{ const C=window.CLASH; C.p1.cooldown=0; C.p1.hitStun=0; C.p1.atk=null; C.p2.x=760; C.p1.x=360; });
-  await p.mouse.click(640,400,{button:'right'});
-  await p.waitForTimeout(120);
-  mouse.afterRight = await p.evaluate(()=>window.CLASH.p1.atk && window.CLASH.p1.atk.kind);
-  await p.evaluate(()=>{ const C=window.CLASH; C.p1.cooldown=0; C.p1.hitStun=0; C.p1.atk=null; });
-  await p.mouse.click(640,400,{button:'left'});
-  await p.waitForTimeout(120);
-  mouse.afterLeft = await p.evaluate(()=>window.CLASH.p1.atk && window.CLASH.p1.atk.kind);
-
-  // ---- keys Z X C V ----
-  const keys = {};
-  for(const [code,exp] of [['KeyZ','upper'],['KeyX','sweep'],['KeyC','dash'],['KeyV','slam']]){
-    await p.evaluate(()=>{ const C=window.CLASH; C.p1.cooldown=0; C.p1.atk=null; C.p1.hitStun=0; });
-    await p.keyboard.press(code); await p.waitForTimeout(90);
-    keys[code] = await p.evaluate(()=>window.CLASH.p1.atk && window.CLASH.p1.atk.kind);
+  // ---- live fight for the input tests ----
+  await p.evaluate(()=>{ const C=window.CLASH; C.setCtrlMode(0); C.goSelect(); C.setSel(0); C.startFight(); C.p2.ai=false; C.p2.x=760; C.p1.x=360; });
+  await p.waitForTimeout(1400);
+  await p.mouse.move(640,400);
+  async function reset(){
+    await p.evaluate(()=>{ const C=window.CLASH; C.resetInput();
+      C.p1.cooldown=0; C.p1.atk=null; C.p1.hitStun=0; C.p1.parryWindow=0; C.p1.superT=0;
+      C.p1.vx=0; C.p1.vy=0; C.p1.onGround=true; C.p1.x=360; C.p1.hp=C.p1.maxhp; C.p2.x=760; });
+    await p.waitForTimeout(60);
   }
+  async function capture(ms=380){
+    const kinds=new Set(); const t0=Date.now();
+    while(Date.now()-t0<ms){ const k=await p.evaluate(()=>window.CLASH.p1.atk&&window.CLASH.p1.atk.kind); if(k)kinds.add(k); await p.waitForTimeout(20); }
+    return [...kinds];
+  }
+
+  // ---- mouse: left = punch, right = kick, both = slam ----
+  const mouse={};
+  await reset(); await p.mouse.click(640,400,{button:'left'});  mouse.left  = await capture();
+  await reset(); await p.mouse.click(640,400,{button:'right'}); mouse.right = await capture();
+  await reset(); await p.mouse.down({button:'left'}); await p.mouse.down({button:'right'});
+  mouse.both = await capture(); await p.mouse.up({button:'left'}); await p.mouse.up({button:'right'});
+
+  // ---- keyboard bindings (J/K are punch/kick aliases) ----
+  const keys={};
+  await reset(); await p.keyboard.press('q'); keys.q = await capture();
+  await reset(); await p.keyboard.press('j'); keys.j = await capture();
+  await reset(); await p.keyboard.press('k'); keys.k = await capture();
+  await reset(); await p.keyboard.down('Space'); await p.keyboard.down('j'); await p.keyboard.up('Space'); await p.keyboard.up('j');
+  keys.spaceJ = await capture(); keys.spaceJ_air = await p.evaluate(()=>!window.CLASH.p1.onGround);
+  await reset(); await p.keyboard.down('Control'); await p.keyboard.down('k'); await p.keyboard.up('Control'); await p.keyboard.up('k');
+  keys.ctrlK = await capture();
+  await reset(); await p.keyboard.down('j'); await p.keyboard.down('k'); await p.keyboard.up('j'); await p.keyboard.up('k');
+  keys.jk = await capture();
+  await reset(); await p.keyboard.down('f'); await p.waitForTimeout(80);
+  keys.blockF = await p.evaluate(()=>{ const C=window.CLASH; return C.p1.state===C.POSE.BLOCK; }); await p.keyboard.up('f');
+  await reset(); await p.keyboard.press('Space'); await p.waitForTimeout(260);
+  keys.jumpAir = await p.evaluate(()=>!window.CLASH.p1.onGround); await p.keyboard.up('Space');
 
   // ---- AI uses varied moves ----
   const aiKinds = await p.evaluate(()=>{
@@ -58,12 +75,8 @@ const { chromium } = require('playwright-core');
     return [...seen];
   });
 
-  // mobile buttons present & wired
-  const mobileBtns = await p.evaluate(()=>{
-    document.querySelectorAll('#pad .btn').forEach(b=>b.removeAttribute('style'));
-    const btns=[...document.querySelectorAll('#pad .btn')].map(b=>b.dataset.k);
-    return btns;
-  });
+  // mobile buttons present
+  const mobileBtns = await p.evaluate(()=> [...document.querySelectorAll('#pad .btn')].map(b=>b.dataset.k));
 
   console.log(JSON.stringify({moveResults, mouse, keys, aiKinds, mobileBtns, errs},null,1));
   await b.close();

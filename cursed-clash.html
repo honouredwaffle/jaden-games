@@ -27,15 +27,14 @@
 <div id="wrap"><canvas id="c"></canvas></div>
 <div id="pad" class="hidden">
   <div id="stick"><div id="knob"></div></div>
-  <div class="btn" data-k="punch" style="right:4vw;bottom:8vh;width:20vmin;height:20vmin">PUNCH</div>
-  <div class="btn" data-k="block" style="right:4vw;bottom:29vh;width:15vmin;height:15vmin;font-size:11px">BLOCK</div>
-  <div class="btn" data-k="super" style="right:5vw;bottom:46vh;width:16vmin;height:16vmin;font-size:10px">SPECIAL</div>
-  <div class="btn" data-k="kick"  style="right:23vw;bottom:9vh;width:20vmin;height:20vmin">KICK</div>
-  <div class="btn" data-k="parry" style="right:23vw;bottom:31vh;width:15vmin;height:15vmin;font-size:11px;border-color:rgba(140,255,240,.5)">PARRY</div>
-  <div class="btn" data-k="upper" style="left:3vw;bottom:76vh;width:11vmin;height:11vmin;font-size:9px;border-color:rgba(255,220,120,.55)">UPPER</div>
-  <div class="btn" data-k="sweep" style="left:3vw;bottom:64vh;width:11vmin;height:11vmin;font-size:9px;border-color:rgba(160,255,180,.55)">SWEEP</div>
-  <div class="btn" data-k="dash"  style="left:3vw;bottom:52vh;width:11vmin;height:11vmin;font-size:9px;border-color:rgba(160,220,255,.55)">DASH</div>
-  <div class="btn" data-k="slam"  style="left:3vw;bottom:40vh;width:11vmin;height:11vmin;font-size:9px;border-color:rgba(255,150,150,.55)">SLAM</div>
+  <div class="btn" data-k="punch"  style="right:4vw;bottom:8vh;width:20vmin;height:20vmin">PUNCH</div>
+  <div class="btn" data-k="kick"   style="right:23vw;bottom:8vh;width:20vmin;height:20vmin">KICK</div>
+  <div class="btn" data-k="block"  style="right:4vw;bottom:29vh;width:15vmin;height:15vmin;font-size:11px">BLOCK</div>
+  <div class="btn" data-k="parry"  style="right:23vw;bottom:29vh;width:15vmin;height:15vmin;font-size:11px;border-color:rgba(140,255,240,.5)">PARRY</div>
+  <div class="btn" data-k="super"  style="right:12vw;bottom:47vh;width:16vmin;height:16vmin;font-size:10px">SPECIAL</div>
+  <div class="btn" data-k="jump"   style="left:3vw;bottom:76vh;width:12vmin;height:12vmin;font-size:9px;border-color:rgba(255,220,120,.55)">JUMP</div>
+  <div class="btn" data-k="crouch" style="left:3vw;bottom:63vh;width:12vmin;height:12vmin;font-size:9px;border-color:rgba(160,255,180,.55)">CROUCH</div>
+  <div class="btn" data-k="dash"   style="left:3vw;bottom:50vh;width:12vmin;height:12vmin;font-size:9px;border-color:rgba(160,220,255,.55)">DASH</div>
 </div>
 <script>
 /* ============================================================
@@ -175,14 +174,69 @@ const CHARS = [
    ============================================================ */
 const keys = {};
 window.addEventListener('keydown', e=>{
-  if(!keys[e.code]) onKeyPress(e.code);
-  keys[e.code]=true;
+  if(!keys[e.code]){
+    keys[e.code]=true;
+    // discrete press actions (combos are resolved inside pressInput)
+    if(e.code==='Space'){ held.jump=true; pressInput('jump'); }
+    else if(e.code==='KeyQ'){ pressInput('dash'); }
+    else if(e.code==='KeyJ'){ held.punch=true; pressInput('punch'); }
+    else if(e.code==='KeyK'){ held.kick=true; pressInput('kick'); }
+    else if(e.code==='KeyF'){ pressInput('block'); }
+    onKeyPress(e.code);
+  } else keys[e.code]=true;
   if(['ArrowLeft','ArrowRight','ArrowUp','ArrowDown','Space'].includes(e.code)) e.preventDefault();
 });
-window.addEventListener('keyup', e=>{ keys[e.code]=false; });
+window.addEventListener('keyup', e=>{
+  keys[e.code]=false;
+  if(e.code==='Space') held.jump=false;
+  if(e.code==='KeyJ') held.punch=false;
+  if(e.code==='KeyK') held.kick=false;
+});
 
 const pad = { x:0, y:0 };
-let padPunch=false, padKick=false, padBlock=false, padSuper=false, padParry=false;
+let padBlock=false, padSuper=false, padParry=false;
+// ---- unified input state (keyboard + touch): held buttons + last-press time for combos ----
+const held = { punch:false, kick:false, jump:false, crouch:false };
+const downAt = {};
+const COMBO_W = 0.15;                       // "pressed together" window, seconds
+let pendingKind=null, pendingT=0, jumpPending=0;
+function canAct(){ return (screen==='fight' || (screen==='training' && !trainMenuOpen)) && p1 && !p1.ko; }
+function crouchHeld(){ return !!(keys['ControlLeft']||keys['ControlRight']||held.crouch); }
+function combo(kind){ pendingKind=null; jumpPending=0; p1.doAttack(kind); }
+// resolve a two-button move when both land inside the combo window; a lone press is buffered briefly
+function pressInput(name){
+  if(!canAct()) return;
+  const now=performance.now()/1000;
+  const since = n => now-(downAt[n]??-9);
+  downAt[name]=now;
+  if(name==='punch'){
+    if(since('block')<=COMBO_W){ parryCombo(); return; }           // F + LMB = parry
+    if(held.kick && since('kick')<=COMBO_W){ combo('slam'); return; }   // LMB+RMB = slam
+    if(held.jump && since('jump')<=COMBO_W){ combo('upper'); return; }  // Space+LMB = uppercut
+    pendingKind='punch'; pendingT=COMBO_W;
+  } else if(name==='kick'){
+    if(crouchHeld()){ p1.doAttack('sweep'); return; }                   // crouch + RMB = sweep (no window)
+    if(held.punch && since('punch')<=COMBO_W){ combo('slam'); return; }
+    pendingKind='kick'; pendingT=COMBO_W;
+  } else if(name==='jump'){
+    if(held.punch && since('punch')<=COMBO_W){ combo('upper'); return; }
+    jumpPending=COMBO_W;                                                // hold the jump in case an uppercut lands
+  } else if(name==='dash'){
+    pendingKind=null; p1.doAttack('dash');
+  } else if(name==='block'){
+    if(since('punch')<=COMBO_W){ parryCombo(); return; }            // F + LMB = parry
+  }
+}
+function resetInput(){ pendingKind=null; pendingT=0; jumpPending=0;
+  held.punch=held.kick=held.jump=held.crouch=false;
+  for(const k in downAt) downAt[k]=-9; }
+// F + LMB pressed together -> parry (the once-every-20s deflect)
+function parryCombo(){ pendingKind=null; jumpPending=0; if(canAct()) p1.doParry(); }
+// commit buffered single inputs once their combo window has elapsed
+function stepInput(dt){
+  if(pendingKind){ pendingT-=dt; if(pendingT<=0){ const k=pendingKind; pendingKind=null; if(canAct() && p1.hitStun<=0) p1.doAttack(k); } }
+  if(jumpPending>0){ jumpPending-=dt; if(jumpPending<=0 && canAct() && p1.onGround && p1.hitStun<=0 && p1.superT<=0){ p1.vy=-820; p1.onGround=false; } }
+}
 const stick = document.getElementById('stick'), knob=document.getElementById('knob');
 let stickId=null, sCx=0, sCy=0;
 function stickStart(e){ const t=e.changedTouches?e.changedTouches[0]:e;
@@ -205,9 +259,18 @@ window.addEventListener('mouseup',()=>{ if(stickId==='m') stickEnd(); });
 
 document.querySelectorAll('.btn').forEach(b=>{
   const k=b.dataset.k;
-  const on=()=>{ b.classList.add('on'); if(k==='punch')padPunch=true; if(k==='kick')padKick=true; if(k==='block')padBlock=true; if(k==='super')padSuper=true; if(k==='parry')padParry=true;
-    if(k==='upper')p1.doAttack('upper'); if(k==='sweep')p1.doAttack('sweep'); if(k==='dash')p1.doAttack('dash'); if(k==='slam')p1.doAttack('slam'); };
-  const off=()=>{ b.classList.remove('on'); if(k==='punch')padPunch=false; if(k==='kick')padKick=false; if(k==='block')padBlock=false; if(k==='super')padSuper=false; if(k==='parry')padParry=false; };
+  const on=()=>{ b.classList.add('on');
+    if(k==='punch'){ held.punch=true; pressInput('punch'); }
+    else if(k==='kick'){ held.kick=true; pressInput('kick'); }
+    else if(k==='jump'){ held.jump=true; pressInput('jump'); }
+    else if(k==='crouch'){ held.crouch=true; }
+    else if(k==='dash'){ pressInput('dash'); }
+    else if((k==='block')){ padBlock=true; pressInput('block'); }
+    else if(k==='super')padSuper=true; else if(k==='parry')padParry=true; };
+  const off=()=>{ b.classList.remove('on');
+    if(k==='punch')held.punch=false; else if(k==='kick')held.kick=false; else if(k==='jump')held.jump=false;
+    else if(k==='crouch')held.crouch=false;
+    else if(k==='block')padBlock=false; else if(k==='super')padSuper=false; else if(k==='parry')padParry=false; };
   b.addEventListener('touchstart',e=>{e.preventDefault();on();},{passive:false});
   b.addEventListener('touchend',e=>{e.preventDefault();off();},{passive:false});
   b.addEventListener('touchcancel',off);
@@ -220,22 +283,34 @@ function syncPad(){
   if(padEl) padEl.classList.toggle('hidden', !want);
   if(stick) stick.style.display = TU() ? '' : 'none';
 }
+function updateParryBtn(){
+  const b=document.querySelector('[data-k="parry"]'); if(!b) return;
+  const cd=(typeof p1!=='undefined'&&p1)?p1.parryCool:0;
+  b.style.opacity = cd>0 ? '0.4' : '1';
+}
 function setCtrlMode(i){ ctrlMode=((i%2)+2)%2; try{ localStorage.setItem('cc_ctrl',String(ctrlMode)); }catch(e){} syncPad(); }
 function toggleCtrl(){ setCtrlMode(ctrlMode+1); }
 cv.addEventListener('contextmenu', e=>e.preventDefault());
+// pointerdown → menu / training-button taps (touch + mouse)
 cv.addEventListener('pointerdown', e=>{
   const r=cv.getBoundingClientRect();
-  const x=e.clientX-r.left, y=e.clientY-r.top;
-  // mouse normals: LEFT = punch, RIGHT = kick (during a fight / training)
-  if(screen==='fight'){
-    if(e.button===2){ e.preventDefault(); p1.doAttack('kick'); return; }
-    if(e.button===0 && !inRect(x,y,menuBtnRect())){ p1.doAttack('punch'); return; }
-  } else if(screen==='training' && !trainMenuOpen){
-    if(e.button===2){ e.preventDefault(); p1.doAttack('kick'); return; }
-    if(e.button===0 && !inRect(x,y,trainMenuRect())){ p1.doAttack('punch'); return; }
-  }
-  onPointer(x,y);
+  onPointer(e.clientX-r.left, e.clientY-r.top);
 });
+// mousedown fires per-button, so LMB+RMB combos register even while the other is already held
+cv.addEventListener('mousedown', e=>{
+  const r=cv.getBoundingClientRect();
+  const x=e.clientX-r.left, y=e.clientY-r.top;
+  if(screen==='fight' || (screen==='training' && !trainMenuOpen)){
+    const onTopBtn = (screen==='fight') ? inRect(x,y,menuBtnRect()) : inRect(x,y,trainMenuRect());
+    if(e.button===2){ e.preventDefault(); held.kick=true; pressInput('kick'); return; }
+    if(e.button===0 && !onTopBtn){ held.punch=true; pressInput('punch'); return; }
+  }
+});
+window.addEventListener('mouseup', e=>{
+  if(e.button===2) held.kick=false;
+  if(e.button===0) held.punch=false;
+});
+window.addEventListener('blur', resetInput);
 
 function inRect(x,y,r){ return r && x>=r.x && x<=r.x+r.w && y>=r.y && y<=r.y+r.h; }
 function rectHit(a,b){ return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y; }
@@ -337,8 +412,8 @@ function fireAbility(f){
    FIGHTER
    ============================================================ */
 const POSE = { IDLE:0, WALK:1, JUMP:2, PUNCH:3, KICK:4, BLOCK:5, HURT:6, KO:7, SUPER:8, DUMMY:9, PARRY:10,
-  UPPER:11, SWEEP:12, DASH:13, SLAM:14 };
-// ---- movelist: LMB punch · RMB kick · Z/X/C/V (or 1/2/3/4) = UPPER / SWEEP / DASH / SLAM ----
+  UPPER:11, SWEEP:12, DASH:13, SLAM:14, CROUCH:15, STAGGER:16 };
+// ---- movelist: LMB punch · RMB kick · LMB+RMB slam · Space+LMB uppercut · Ctrl(hold)+RMB sweep · Q dash · Space jump · F block ----
 const MOVES = {
   punch: {state:'PUNCH', startup:.06,active:.06,recover:.12,dmg:6, kb:130,stun:.22,reach:66,yoff:-70,award:8},
   kick:  {state:'KICK',  startup:.11,active:.10,recover:.24,dmg:10,kb:260,stun:.32,reach:82,yoff:-52,award:12},
@@ -347,6 +422,12 @@ const MOVES = {
   dash:  {state:'DASH',  startup:.08,active:.13,recover:.26,dmg:11,kb:320,stun:.30,reach:78,yoff:-58,award:12,lunge:640},
   slam:  {state:'SLAM',  startup:.20,active:.12,recover:.36,dmg:18,kb:470,stun:.50,reach:80,yoff:-70,award:20,heavy:true},
 };
+// guard-meter tuning: parry is a once-every-20s read; a full guard = 1.5s stagger
+const PARRY_CD=20, STAGGER_TIME=1.5, BLOCK_DECAY=9;
+// how much each move taxes the guard meter when blocked (heavier hits break guard faster)
+const GUARD_COST={ punch:8, kick:14, upper:15, sweep:16, dash:16, slam:30, counter:26 };
+function guardCost(a){ if(a.super) return 42; if(a.kind && GUARD_COST[a.kind]!=null) return GUARD_COST[a.kind];
+  return Math.max(6, Math.round((a.kb||120)/18)); }
 
 class Fighter {
   constructor(opts){
@@ -356,23 +437,33 @@ class Fighter {
       state:POSE.IDLE,t:0,anim:0,hitStun:0,blockStun:0,atk:null,hasHit:false,
       cooldown:0,superT:0,invuln:0,ko:false,hitFlash:0,combo:0,comboT:0,
       parryT:0,parryWindow:0,parryCool:0,parryKick:0,parrySpark:0,parryHeld:false,
+      blockMeter:0,maxBlock:100,staggerT:0,blockFlash:0,
       name:'?',ai:false,aiT:0,aiState:'approach',aiReaction:null,aiReactT:0,aiTell:false,abilityFired:false,dashTick:0,char:CHARS[0],role:null
     },opts);
     this.applyChar(this.char);
   }
   applyChar(c){ this.char=c; this.colA=c.colA; this.colB=c.colB; this.colC=c.colC;
-    this.name=c.name; this.maxhp=c.hp; this.hp=c.hp; this.speed=c.speed; }
+    this.name=c.name; this.maxhp=c.hp; this.hp=c.hp; this.speed=c.speed;
+    this.blockMeter=0; this.staggerT=0; this.blockFlash=0; this.parryCool=0; this.parryWindow=0; }
   get top(){ return this.y-this.h; }
   hurtbox(){ return {x:this.x-this.w*0.55,y:this.top+8,w:this.w*1.1,h:this.h-8}; }
   blocking(){ return this.state===POSE.BLOCK && this.onGround; }
+  // guard broken: stagger for a beat, wide open — the punish window for breaking someone's block
+  breakGuard(){
+    this.blockMeter=0; this.staggerT=STAGGER_TIME; this.state=POSE.STAGGER;
+    this.atk=null; this.hitStun=0; this.blockStun=0; this.vx*=0.2; this.hitFlash=1;
+    shake=Math.max(shake,14); hitStop=Math.max(hitStop,0.09);
+    floatText(this.x,this.top+6,'GUARD BREAK!','#ffd166');
+    burst(this.x,this.top+58,18,'#ffd166',1.2); ring(this.x,this.top+58,'#ffd166',16,60);
+  }
   parrying(){ return this.parryWindow>0; }
   get dmul(){ return this.ai ? aiDiff().dmg : 1; }      // AI hits at its difficulty's damage scale
   get meterMul(){ return this.ai ? aiDiff().meter : 1; }
   // tap P (or the PARRY button) to open a short deflect window. Time it and you negate
   // the hit and answer with a free counter — no more getting blended the second you're touched.
   doParry(){
-    if(this.cooldown>0 || this.hitStun>0 || this.ko || this.superT>0 || this.parryCool>0 || this.parryWindow>0 || this.atk) return;
-    this.parryWindow=0.30; this.parryCool=0.55;
+    if(this.cooldown>0 || this.hitStun>0 || this.staggerT>0 || this.ko || this.superT>0 || this.parryCool>0 || this.parryWindow>0 || this.atk) return;
+    this.parryWindow=0.30; this.parryCool=PARRY_CD;   // a parry is a big commitment — one every 20s
     this.state=POSE.PARRY; this.vx*=0.5;
   }
   doCounter(){
@@ -382,7 +473,7 @@ class Fighter {
   }
 
   doAttack(kind){
-    if(this.cooldown>0 || this.hitStun>0 || this.ko || this.superT>0 || this.parryWindow>0) return;
+    if(this.cooldown>0 || this.hitStun>0 || this.staggerT>0 || this.ko || this.superT>0 || this.parryWindow>0) return;
     const M=MOVES[kind] || MOVES.punch;
     this.atk={kind,startup:M.startup,active:M.active,recover:M.recover,
       dmg:M.dmg*this.char.dmg*this.dmul, kb:M.kb, stun:M.stun, reach:M.reach, yoff:M.yoff,
@@ -404,6 +495,10 @@ class Fighter {
     this.parryCool=Math.max(0,this.parryCool-dt);
     this.parryKick=Math.max(0,this.parryKick-dt);
     this.parrySpark=Math.max(0,this.parrySpark-dt*3.5);
+    // guard meter (Valheim-style): drains slowly when you're not taking hits on the guard
+    this.blockMeter=Math.max(0,this.blockMeter-dt*BLOCK_DECAY);
+    if(this.staggerT>0) this.staggerT=Math.max(0,this.staggerT-dt);
+    this.blockFlash=Math.max(0,this.blockFlash-dt*2.5);
     this.comboT=Math.max(0,this.comboT-dt);
     if(this.comboT===0) this.combo=0;
     if(this.ko){ this.parryWindow=0; this.state=POSE.KO; this.applyPhysics(dt); return; }
@@ -484,6 +579,7 @@ class Fighter {
   }
 
   control(dt,foe){
+    if(this.staggerT>0){ this.vx*=0.86; this.state=POSE.STAGGER; return; }   // guard-broken: wide open for StaggerTime
     if(this.hitStun>0 || this.blockStun>0 || (this.atk && this.atk.t<this.atk.startup+this.atk.active+this.atk.recover)){
       this.vx *= this.onGround?0.86:0.98;
       if(this.onGround && !this.atk) this.state = this.hitStun>0?POSE.HURT:this.state;
@@ -493,21 +589,23 @@ class Fighter {
     if(this.ai) mv=this.aiMove(dt,foe);
     else if(this.role==='dummy'){ this.dir = foe.x>=this.x?1:-1; if(this.onGround && !this.atk) this.state=POSE.IDLE; }
     else {
+      const crouch = crouchHeld();
       if(keys['KeyA']||keys['ArrowLeft']||pad.x<-0.28) mv-=1;
       if(keys['KeyD']||keys['ArrowRight']||pad.x>0.28) mv+=1;
+      if(crouch) mv=0;                                // hold crouch (Ctrl / CROUCH button)
       this.dir = foe.x>=this.x?1:-1;
       const pHeld = keys['KeyP']||padParry;
-      if(pHeld && !this.parryHeld) this.doParry();   // fresh tap only — no hold-to-spam
+      if(pHeld && !this.parryHeld) this.doParry();     // fresh tap only — no hold-to-spam
       this.parryHeld = pHeld;
       if(this.parryWindow>0){ /* hold the deflect stance */ }
-      else if(keys['KeyL']||padBlock) this.state=POSE.BLOCK;
-      else if(keys['KeyJ']||padPunch) this.doAttack('punch');
-      else if(keys['KeyK']||padKick) this.doAttack('kick');
+      else if(crouch) this.state=POSE.CROUCH;
+      else if(keys['KeyF']||padBlock) this.state=POSE.BLOCK;
       else if(keys['KeyI']||padSuper) this.doSuper();
       else if(this.onGround) this.state = Math.abs(mv)>0.1?POSE.WALK:POSE.IDLE;
-      if((keys['KeyW']||keys['ArrowUp']||pad.y<-0.5) && this.onGround){ this.vy=-820; this.onGround=false; }
     }
-    if(this.state===POSE.BLOCK||this.state===POSE.PARRY) this.vx*=0.55; else this.vx=mv*this.speed;
+    if(this.state===POSE.BLOCK||this.state===POSE.PARRY) this.vx*=0.55;
+    else if(this.state===POSE.CROUCH) this.vx*=0.6;
+    else this.vx=mv*this.speed;
     if(this.onGround) this.anim += Math.abs(this.vx)*dt*Math.PI*2/WALK_CYCLE_PX;
   }
 
@@ -583,7 +681,7 @@ class Fighter {
       const fromFront = this.dir!==kbDir;   // same facing rule as block: guard the side you're looking at
       const reachOK = Math.abs(src.x-this.x) <= (a.ranged?300:(a.reach!=null?a.reach+90:150));
       if(fromFront && reachOK){
-        this.parryWindow=0; this.parryCool=0.55; this.parrySpark=1; this.parryKick=0.18;
+        this.parryWindow=0; this.parryCool=PARRY_CD; this.parrySpark=1; this.parryKick=0.18;
         this.hp=Math.min(this.maxhp,this.hp+Math.round((a.dmg||0)*0.12));
         this.vx=0; this.hitStun=0;
         parrySparkFx(this.x,this.top+58,this.char.colA,this.dir);
@@ -596,12 +694,18 @@ class Fighter {
     const dir = src.x<=this.x?1:-1;
     const blocked = this.blocking() && this.dir!==dir;
     if(blocked){
-      const chip=a.super?7:Math.max(1,Math.round((a.dmg||6)*0.12));
-      this.hp-=chip; this.blockStun=0.18; this.vx=dir*(a.kb||120)*0.35;
+      const red = a.super?0.35:0.25;                    // block only softens it: take 25% (75% reduction)
+      const dealt = Math.max(1, Math.round((a.dmg||6)*red));
+      this.hp-=dealt; this.blockStun=0.18; this.vx=dir*(a.kb||120)*0.35;
+      this.blockFlash=1;
+      this.blockMeter += guardCost(a);                  // different moves tax the guard differently
       const gcol=(styleConfig(this.char).block.guardCol)||'#9fe8ff';
       burst(this.x,this.top+60,8,gcol,.7); ring(this.x,this.top+60,gcol,10);
       guardFx(this.x,this.top+58,gcol,a.super?1.4:1);
-      src.meter=Math.min(src.maxMeter,src.meter+3*src.meterMul); return 'block';
+      src.meter=Math.min(src.maxMeter,src.meter+3*src.meterMul);
+      floatText(this.x,this.top+22,'-'+dealt,'#ffd166');
+      if(this.blockMeter>=this.maxBlock) this.breakGuard();
+      return 'block';
     }
     this.hp-=a.dmg; this.hitStun=(a.stun||0.25)+0.04; this.vx=dir*(a.kb||130);
     if(!a.super && this.onGround) this.vy=-120;
@@ -747,8 +851,9 @@ function paintFighter(g,c,S){
   const hairC= flash?'#ffffff':c.colC;
   const skin = flash?'#ffffff':c.skin;
   const shoe = flash?'#ffffff':c.shoe;
-  const bob  = state===POSE.WALK ? Math.abs(Math.sin(a*Math.PI*2))*2.4
-             : state===POSE.IDLE ? Math.sin(t*3)*2 : 0;
+  const cr = state===POSE.CROUCH, sgr = state===POSE.STAGGER;
+  const bob  = (state===POSE.WALK ? Math.abs(Math.sin(a*Math.PI*2))*2.4
+             : state===POSE.IDLE ? Math.sin(t*3)*2 : 0) + (cr?16:0) + (sgr?Math.abs(Math.sin(t*13))*4:0);
 
   const eB=state===POSE.BLOCK, pn=state===POSE.PUNCH, kk=state===POSE.KICK, sp=state===POSE.SUPER, pry=state===POSE.PARRY;
   const accept = pry || (S.parrySpark>0);   // cross-arm deflect guard (parry stance + the moment after a deflect)
@@ -792,6 +897,13 @@ function paintFighter(g,c,S){
   } else if(airborne){
     drawLeg3d(g,-SP,HIP_Y, 0.45,-0.75, THIGH,SHIN,LEGW,dark(c.colB,0.12),shoe, 0.3);
     drawLeg3d(g, SP,HIP_Y,-0.35,-0.5,  THIGH,SHIN,LEGW,c.colB,shoe, 0.3);
+  } else if(cr){
+    drawLeg3d(g,-SP,HIP_Y, 1.0,-0.42, THIGH,SHIN,LEGW,dark(c.colB,0.12),shoe, 0.35);
+    drawLeg3d(g, SP,HIP_Y, 1.0,-0.42, THIGH,SHIN,LEGW,c.colB,shoe, 0.35);
+  } else if(sgr){
+    const wob=Math.sin(t*13)*0.14;                       // guard broken: off-balance wobbly stance
+    drawLeg3d(g,-SP-3,HIP_Y, 0.30+wob,-0.34, THIGH,SHIN,LEGW,dark(c.colB,0.12),shoe, 0.25);
+    drawLeg3d(g, SP+3,HIP_Y,-0.30-wob,-0.38, THIGH,SHIN,LEGW,c.colB,shoe, 0.2);
   } else {
     drawLeg3d(g,-SP,HIP_Y, 0.06,-0.10, THIGH,SHIN,LEGW,dark(c.colB,0.12),shoe);
     drawLeg3d(g, SP,HIP_Y,-0.06,-0.10, THIGH,SHIN,LEGW,c.colB,shoe);
@@ -821,6 +933,8 @@ function paintFighter(g,c,S){
   else if(accept){ bUp=-2.15; bElb=-1.20; }                                  // deflect: cross-arm guard
   else if(eB){ bUp=bGuard[0]; bElb=bGuard[1]; }
   else if(sp){ bUp=-Math.PI/2-0.35; bElb=-0.35; }
+  else if(cr){ bUp=0.5; bElb=-1.0; }
+  else if(sgr){ bUp=1.35+Math.sin(t*13)*0.2; bElb=-0.35; }          // arms flung out, defenceless
   else { bUp=STD.idle.bUp; bElb=STD.idle.bElb; }
   drawArm3d(g,-15,-86+bob, bUp, bElb, STD.upLen,STD.foreLen, STD.armW, eB?light(dark(c.colB,0.12),0.18):dark(c.colB,0.12), skin, 6.5);
 
@@ -848,6 +962,8 @@ function paintFighter(g,c,S){
   } else if(accept){ fUp=-2.15; fElb=-1.20; }                                  // deflect: cross-arm guard
   else if(eB){ fUp=fGuard[0]; fElb=fGuard[1]; }
   else if(sp){ fUp=-Math.PI/2-0.35; fElb=-0.35; }
+  else if(cr){ fUp=0.45; fElb=-1.0; }
+  else if(sgr){ fUp=1.25-Math.sin(t*13)*0.2; fElb=-0.35; }           // arms flung out, defenceless
   else { fUp=STD.idle.fUp+Math.sin(t*2)*0.05; fElb=STD.idle.fElb; }
   drawArm3d(g,15,-86+bob, fUp, fElb, STD.upLen+2,STD.foreLen+2, STD.armW, eB?light(gi,0.20):gi, skin, 7);
 
@@ -1500,6 +1616,19 @@ function bar(g,x,y,w,h,f,left){
   g.fillStyle=mg; roundRect(g,x,my,w*mp,mh,4); g.fill(); g.restore();
   g.fillStyle='#fff'; g.font='bold 10px Trebuchet MS'; g.textAlign='center';
   if(f.meter>=f.maxMeter) g.fillText(f.char.ability.short+' READY',x+w/2,my+7.5);
+  // guard meter (Valheim-style): fills as you block, drains over time; full = guard break + stagger
+  const gy2=my+mh+5, gh2=7;
+  g.fillStyle='rgba(0,0,0,.6)'; roundRect(g,x-1,gy2-1,w+2,gh2+2,4); g.fill();
+  g.fillStyle='#20140a'; roundRect(g,x,gy2,w,gh2,3); g.fill();
+  const gp=Math.min(1,(f.blockMeter||0)/(f.maxBlock||100));
+  if(gp>0){ const gg=g.createLinearGradient(x,0,x+w,0);
+    gg.addColorStop(0,'#ffd166'); gg.addColorStop(1, gp>=1?'#ff3b30':'#ff9f43');
+    g.save(); if(!left){ g.translate(x+w,0); g.scale(-1,1); g.translate(-x,0); }
+    g.fillStyle=gg; roundRect(g,x,gy2,Math.max(2,w*gp),gh2,3); g.fill(); g.restore(); }
+  g.strokeStyle = f.staggerT>0 ? '#ff3b30' : (f.blockFlash>0 ? '#ffffff' : (gp>0.75?'#ff9f43':'rgba(255,255,255,.22)'));
+  g.lineWidth = f.blockFlash>0?2:1; roundRect(g,x,gy2,w,gh2,3); g.stroke();
+  if(f.staggerT>0){ g.fillStyle='#ff3b30'; g.font='bold 11px Trebuchet MS'; g.textAlign='center';
+    g.fillText('STAGGER',x+w/2,gy2+gh2+11); }
   g.restore();
 }
 function hudScrim(g){
@@ -1540,6 +1669,12 @@ function drawHUD(g){
   const D=aiDiff();
   g.save(); g.textAlign='center'; g.font='bold 12px Trebuchet MS'; g.fillStyle=hexA(D.col,.95);
   g.shadowColor='rgba(0,0,0,.8)'; g.shadowBlur=6; g.fillText('AI · '+D.name,W/2, small? by+112 : 118); g.restore();
+  // parry cooldown readout (P1)
+  g.save(); g.textAlign='left'; g.font='bold 11px Trebuchet MS';
+  const pc=p1.parryCool||0;
+  g.fillStyle = pc>0 ? 'rgba(255,255,255,.55)' : '#9ff7ff';
+  g.fillText(pc>0 ? ('PARRY '+Math.ceil(pc)+'s') : 'PARRY READY', padS, 104);
+  g.restore();
 }
 function menuBtnRect(){ const w=Math.min(W*0.2,170), h=26; return {x:W/2-w/2,y:16,w,h}; }
 function diffRect(){ const w=Math.min(W*0.24,224), h=Math.min(H*0.078,50); return {x:W*0.5-12-w, y:H*0.70, w, h}; }
@@ -1592,7 +1727,7 @@ function resetTraining(){
   trainHits=0; trainCombo=0; trainComboT=0; trainMaxCombo=0; trainDispDmg=0; trainDmgT=0; lastDummyHp=p2.maxhp;
   trainT=0; trainMenuOpen=false;
 }
-function openTraining(){ screen='training'; resetTraining(); superBtn.textContent=p1.char.ability.short; syncPad(); }
+function openTraining(){ screen='training'; resetTraining(); resetInput(); superBtn.textContent=p1.char.ability.short; syncPad(); }
 function trainDummyChar(){ return CHARS[(selIndex+1)%CHARS.length]; }
 function trainSetPlayer(i){ selIndex=(i+CHARS.length)%CHARS.length;
   p1.applyChar(CHARS[selIndex]); p1.hp=p1.maxhp; p1.meter=p1.maxMeter; p1.atk=null; p1.ko=false; p1.hitStun=0; p1.superT=0; p1.state=POSE.IDLE; p1.dir=1;
@@ -1704,7 +1839,7 @@ function drawTrainingHUD(g){
   g.globalAlpha=1; g.fillStyle='#fff'; g.textAlign='center'; g.font='bold 15px Trebuchet MS';
   g.fillText('TRAINING MENU',mb.x+mb.w/2,mb.y+mb.h*0.66); g.restore();
   g.save(); g.textAlign='center'; g.font='11px Trebuchet MS'; g.fillStyle='rgba(255,255,255,.35)';
-  g.fillText(TU()?'TAP "TRAINING MENU" to switch YOUR fighter · SUPER button to test special':'LMB punch · RMB kick · Z/X/C/V moves · P parry · I special · T menu · R reset · Esc back',W/2,H-14);
+  g.fillText(TU()?'TAP "TRAINING MENU" to switch YOUR fighter · SUPER button to test special':'LMB/RMB punch/kick · LMB+RMB slam · Space+LMB uppercut · Ctrl+RMB sweep · Q dash · F block · F+LMB parry · I special · T menu · R reset · Esc back',W/2,H-14);
   g.restore();
 }
 function renderTrainMenu(g){
@@ -1768,7 +1903,7 @@ function resetPositions(){
 function startFight(){
   p1.applyChar(CHARS[selIndex]); p2.applyChar(CHARS[rivalIndex]);
   arenaIndex = (arenaOverride!=null) ? arenaOverride : charKey(p1.char);   // each fighter gets a home stage
-  resetPositions(); screen='fight';
+  resetPositions(); resetInput(); screen='fight';
   superBtn.textContent = p1.char.ability.short;
   syncPad();
 }
@@ -1777,13 +1912,6 @@ function goSelect(){ screen='select'; selT=0; padEl.classList.add('hidden'); cle
 function randomRival(){ let r=selIndex,g=0; while(r===selIndex && g++<20) r=Math.floor(Math.random()*CHARS.length); return r; }
 
 function onKeyPress(code){
-  // move keys: Z/X/C/V or 1/2/3/4 = UPPER / SWEEP / DASH / SLAM
-  if(screen==='fight'||screen==='training'){
-    if(code==='KeyZ'||code==='Digit1') p1.doAttack('upper');
-    else if(code==='KeyX'||code==='Digit2') p1.doAttack('sweep');
-    else if(code==='KeyC'||code==='Digit3') p1.doAttack('dash');
-    else if(code==='KeyV'||code==='Digit4') p1.doAttack('slam');
-  }
   if((screen==='menu'||screen==='select') && code==='KeyM') setDiff(diffIndex+1);
   if((screen==='menu'||screen==='select') && code==='KeyC') toggleCtrl();
   if(code==='BracketLeft'||code==='Comma'){ setArena(arenaIndex-1); arenaOverride=arenaIndex; }
@@ -1801,8 +1929,6 @@ function onKeyPress(code){
     if(code==='Escape'){ if(trainMenuOpen) setTrainMenuOpen(false); else goMenu(); }
     if(code==='KeyT') setTrainMenuOpen(!trainMenuOpen);
     if(code==='KeyR') trainReset();
-    if(code==='KeyQ') trainSetPlayer(selIndex-1);
-    if(code==='KeyE') trainSetPlayer(selIndex+1);
   }
   else if(screen==='over'){
     if(go.includes(code)){ rivalIndex=randomRival(); startFight(); }
@@ -1896,7 +2022,7 @@ function renderMenu(g){
   g.shadowBlur=0; g.fillStyle='#fff'; g.textAlign='center'; g.font='bold 17px Trebuchet MS';
   g.fillText(isTouch?'⚔  TRAINING':'⚔  TRAINING  (T)',tb.x+tb.w/2,tb.y+tb.h*0.66); g.restore();
   g.textAlign='center'; g.fillStyle='rgba(255,255,255,.35)'; g.font='12px Trebuchet MS';
-  g.fillText('LMB punch · RMB kick · Z X C V moves · P parry · I special',cx,H*0.945);
+  g.fillText('LMB/RMB punch/kick · LMB+RMB slam · Space+LMB uppercut · Ctrl+RMB sweep · Q dash · F block (dmg -75%) · F+LMB parry (20s)',cx,H*0.945);
 }
 
 /* ============================================================
@@ -1941,7 +2067,7 @@ function renderSelect(g){
   g.fillStyle='rgba(255,255,255,.4)'; g.font='12px Trebuchet MS';
   g.fillText(isTouch?'tap a tile twice to lock in':'A/D to browse · SPACE to lock in',W*0.04,H*0.155);
   g.fillStyle='rgba(160,220,255,.6)'; g.font='11px Trebuchet MS';
-  g.fillText('MOVES  ·  Z UPPER  X SWEEP  C DASH  V SLAM   (LMB punch · RMB kick)',W*0.04,H*0.132);
+  g.fillText('MOVES  ·  LMB punch · RMB kick · LMB+RMB slam · Space+LMB uppercut · Ctrl+RMB sweep · Q dash · F block · F+LMB parry',W*0.04,H*0.132);
   g.textAlign='right'; g.fillStyle='rgba(255,255,255,.5)';
   g.fillText('PLAYER 2  ·  CPU',W*0.96,H*0.075);
   g.restore();
@@ -2061,14 +2187,16 @@ function loop(now){
 }
 function step(dt){
   arenaT+=dt;
+  updateParryBtn();
   if(screen==='menu'){ menuT+=dt; return; }
   if(screen==='select'){ selT+=dt; selFlash=Math.max(0,selFlash-dt*1.6); return; }
-  if(screen==='training'){ updateTraining(dt); return; }
+  if(screen==='training'){ stepInput(dt); updateTraining(dt); return; }
   fightT+=dt; updateProjectiles(dt);
   if(screen==='over'){ p1.update(dt,p2); p2.update(dt,p1); return; }
   if(screen==='fight'){
     if(fightState==='intro'){ if(fightT>1.1){ fightState='live'; fightT=0; } return; }
     roundTime-=dt;
+    stepInput(dt);
     p1.update(dt,p2); p2.update(dt,p1);
     const dx=p2.x-p1.x, minD=54;
     if(Math.abs(dx)<minD){ const push=(minD-Math.abs(dx))/2*Math.sign(dx||1); p1.x-=push; p2.x+=push; }
@@ -2157,6 +2285,9 @@ window.CLASH = { p1,p2,CHARS, get screen(){return screen}, startFight, goSelect,
   setDiffIndex(i){ setDiff(i); },
   setCtrlMode, toggleCtrl, get ctrlMode(){return ctrlMode}, ctrl(){ return {index:ctrlMode, name:ctrlMode===0?'COMPUTER':'MOBILE', touchUI:TU()}; }, syncPad,
   parry(side){ (side==='p2'?p2:p1).doParry(); },
+  PARRY_CD, STAGGER_TIME, guardCost, breakGuard(side){ (side==='p2'?p2:p1).breakGuard(); },
+  get blocks(){ return {p1:p1.blockMeter, p2:p2.blockMeter, max:p1.maxBlock, stagger1:p1.staggerT, stagger2:p2.staggerT, parryCd1:p1.parryCool, parryCd2:p2.parryCool}; },
+  pressInput, stepInput, resetInput, crouchHeld, held, downAt, get pending(){ return {kind:pendingKind,t:pendingT,jump:jumpPending}; },
   get train(){ return {player:selIndex, dummy:(selIndex+1)%CHARS.length, hits:trainHits, combo:trainCombo, maxCombo:trainMaxCombo, dmg:trainDispDmg, menu:trainMenuOpen, t:trainT}; },
   setTrainMenu(v){ trainMenuOpen=!!v; },
   // test hooks
