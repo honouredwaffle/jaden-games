@@ -177,7 +177,14 @@ window.addEventListener('keydown', e=>{
   if(!keys[e.code]){
     keys[e.code]=true;
     // discrete press actions (combos are resolved inside pressInput)
-    if(e.code==='Space'){ held.jump=true; pressInput('jump'); }
+    if(e.code==='Space'){
+      held.jump=true;
+      // Space+F = hop (clear a sweep); Space+A/D = roll left/right (dodge); a bare Space = jump
+      if(keys['KeyF']||padBlock) pressInput('hop');
+      else if(keys['KeyA']||keys['ArrowLeft']) pressInput('rollL');
+      else if(keys['KeyD']||keys['ArrowRight']) pressInput('rollR');
+      else pressInput('jump');
+    }
     else if(e.code==='KeyQ'){ pressInput('dash'); }
     else if(e.code==='KeyJ'){ held.punch=true; pressInput('punch'); }
     else if(e.code==='KeyK'){ held.kick=true; pressInput('kick'); }
@@ -223,6 +230,12 @@ function pressInput(name){
     jumpPending=COMBO_W;                                                // hold the jump in case an uppercut lands
   } else if(name==='dash'){
     pendingKind=null; p1.doAttack('dash');
+  } else if(name==='hop'){
+    pendingKind=null; jumpPending=0; p1.tryHop();
+  } else if(name==='rollL'){
+    pendingKind=null; jumpPending=0; p1.tryRoll(-1);
+  } else if(name==='rollR'){
+    pendingKind=null; jumpPending=0; p1.tryRoll(1);
   } else if(name==='block'){
     if(since('punch')<=COMBO_W){ parryCombo(); return; }            // F + LMB = parry
   }
@@ -412,7 +425,7 @@ function fireAbility(f){
    FIGHTER
    ============================================================ */
 const POSE = { IDLE:0, WALK:1, JUMP:2, PUNCH:3, KICK:4, BLOCK:5, HURT:6, KO:7, SUPER:8, DUMMY:9, PARRY:10,
-  UPPER:11, SWEEP:12, DASH:13, SLAM:14, CROUCH:15, STAGGER:16 };
+  UPPER:11, SWEEP:12, DASH:13, SLAM:14, CROUCH:15, STAGGER:16, TRIP:17, GETUP:18, HOP:19, ROLL:20 };
 // ---- movelist: LMB punch · RMB kick · LMB+RMB slam · Space+LMB uppercut · Ctrl(hold)+RMB sweep · Q dash · Space jump · F block ----
 const MOVES = {
   punch: {state:'PUNCH', startup:.06,active:.06,recover:.12,dmg:6, kb:130,stun:.22,reach:66,yoff:-70,award:8},
@@ -426,6 +439,11 @@ const MOVES = {
 const PARRY_CD=20, STAGGER_TIME=1.5, BLOCK_DECAY=9;
 // bypass moves slip clean through a guard; guardBreak moves shatter it. Both slam the meter to full + stagger.
 const STAGGER_BYPASS=0.6, STAGGER_BREAK=1.4;
+// ground states: downed time, getup frames, trip vulnerability, hop/roll dodge windows
+const TRIP_TIME=1.3, GETUP_TIME=1.1, TRIP_VULN=1.3;
+const HOP_TIME=0.55, ROLL_TIME=0.42, HOP_CLEAR=0.40, ROLL_CLEAR=0.30, ROLL_SPEED=780;
+// button -> state id, for the debug/test hooks
+const STATE={IDLE:0,WALK:1,JUMP:2,PUNCH:3,KICK:4,BLOCK:5,HURT:6,KO:7,SUPER:8,DUMMY:9,PARRY:10,UPPER:11,SWEEP:12,DASH:13,SLAM:14,CROUCH:15,STAGGER:16,TRIP:17,GETUP:18,HOP:19,ROLL:20};
 // how much each move taxes the guard meter when blocked (heavier hits break guard faster)
 const GUARD_COST={ punch:8, kick:14, upper:15, sweep:16, dash:16, slam:30, counter:26 };
 function guardCost(a){ if(a.super) return 42; if(a.kind && GUARD_COST[a.kind]!=null) return GUARD_COST[a.kind];
@@ -440,15 +458,23 @@ class Fighter {
       cooldown:0,superT:0,invuln:0,ko:false,hitFlash:0,combo:0,comboT:0,
       parryT:0,parryWindow:0,parryCool:0,parryKick:0,parrySpark:0,parryHeld:false,
       blockMeter:0,maxBlock:100,staggerT:0,blockFlash:0,
-      name:'?',ai:false,aiT:0,aiState:'approach',aiReaction:null,aiReactT:0,aiTell:false,abilityFired:false,dashTick:0,char:CHARS[0],role:null
+      tripped:false,tripT:0,getupT:0,hopT:0,rolling:false,rollT:0,rollDir:1,
+      name:'?',ai:false,aiT:0,aiState:'approach',aiReaction:null,aiReactT:0,aiTell:false,aiDodge:null,aiRollDir:1,abilityFired:false,dashTick:0,char:CHARS[0],role:null
     },opts);
     this.applyChar(this.char);
   }
   applyChar(c){ this.char=c; this.colA=c.colA; this.colB=c.colB; this.colC=c.colC;
     this.name=c.name; this.maxhp=c.hp; this.hp=c.hp; this.speed=c.speed;
-    this.blockMeter=0; this.staggerT=0; this.blockFlash=0; this.parryCool=0; this.parryWindow=0; }
+    this.blockMeter=0; this.staggerT=0; this.blockFlash=0; this.parryCool=0; this.parryWindow=0;
+    this.tripped=false; this.tripT=0; this.getupT=0; this.hopT=0; this.rolling=false; this.rollT=0; this.rollDir=1; }
   get top(){ return this.y-this.h; }
-  hurtbox(){ return {x:this.x-this.w*0.55,y:this.top+8,w:this.w*1.1,h:this.h-8}; }
+  hurtbox(){
+    if(this.tripped || this.getupT>0){                 // lying on the ground: low, wide, easy to punish
+      const hx=this.x - this.dir*128; const x0=Math.min(this.x,hx)-18, x1=Math.max(this.x,hx)+18;
+      return {x:x0, y:this.y-54, w:x1-x0, h:58};
+    }
+    return {x:this.x-this.w*0.55,y:this.top+8,w:this.w*1.1,h:this.h-8};
+  }
   blocking(){ return this.state===POSE.BLOCK && this.onGround; }
   // guard broken: stagger for a beat, wide open — the punish window for breaking someone's block
   breakGuard(dur=STAGGER_TIME){
@@ -465,6 +491,7 @@ class Fighter {
   // the hit and answer with a free counter — no more getting blended the second you're touched.
   doParry(){
     if(this.cooldown>0 || this.hitStun>0 || this.staggerT>0 || this.ko || this.superT>0 || this.parryCool>0 || this.parryWindow>0 || this.atk) return;
+    if(this.tripped || this.getupT>0 || this.rolling || this.hopT>0) return;
     this.parryWindow=0.30; this.parryCool=PARRY_CD;   // a parry is a big commitment — one every 20s
     this.state=POSE.PARRY; this.vx*=0.5;
   }
@@ -473,9 +500,38 @@ class Fighter {
     this.state=POSE.PUNCH; this.atk.t=0; this.hasHit=false;
     this.cooldown=this.atk.startup+this.atk.active+this.atk.recover;
   }
+  // swept off your feet: guard the body, not the legs. Lie vulnerable, then scramble up.
+  trip(dur=TRIP_TIME){
+    this.tripped=true; this.tripT=dur; this.getupT=0;
+    this.blockMeter=this.maxBlock; this.atk=null; this.hitStun=0; this.blockStun=0;
+    this.onGround=true; this.vy=0; this.vx*=0.25; this.state=POSE.TRIP; this.hitFlash=1;
+    shake=Math.max(shake,10); hitStop=Math.max(hitStop,0.07);
+    floatText(this.x,this.top+2,'TRIPPED!','#ff6bd0');
+    burst(this.x,this.y-12,14,'#ff6bd0',1.0); ring(this.x,this.y-12,'#ff6bd0',12,52);
+  }
+  // small hop — clears a sweep (unless you're airborne / floored / staggered)
+  tryHop(){
+    if(this.hopT>0 || this.rolling || this.tripped || this.getupT>0 || this.staggerT>0 || this.hitStun>0 || this.ko || !this.onGround || this.superT>0) return false;
+    this.hopT=HOP_TIME; this.vy=-540; this.onGround=false; this.state=POSE.HOP;
+    burst(this.x,this.y,8,'#cfefff',.8); return true;
+  }
+  // roll/dodge left or right — i-frames during the roll, then a recovery gap
+  tryRoll(dir){
+    if(this.rolling || this.hopT>0 || this.tripped || this.getupT>0 || this.staggerT>0 || this.hitStun>0 || this.ko) return false;
+    this.rolling=true; this.rollT=ROLL_TIME; this.rollDir=Math.sign(dir)||1;
+    this.atk=null; this.superT=0; this.state=POSE.ROLL; this.vx=this.rollDir*ROLL_SPEED;
+    burst(this.x,this.y-20,10,'#9fe8ff',.8); return true;
+  }
+  // i-frames: a hop clears a sweep (you're over the legs); a roll i-frames early and slides clear
+  dodging(a){
+    const rollIframe = this.rolling && this.rollT > (ROLL_TIME-ROLL_CLEAR);
+    if(a && a.bypass) return this.hopT>0 || rollIframe;   // hop over / roll away from a sweep
+    return rollIframe;                                    // roll dodges everything else
+  }
 
   doAttack(kind){
     if(this.cooldown>0 || this.hitStun>0 || this.staggerT>0 || this.ko || this.superT>0 || this.parryWindow>0) return;
+    if(this.tripped || this.getupT>0 || this.rolling || this.hopT>0) return;
     const M=MOVES[kind] || MOVES.punch;
     this.atk={kind,startup:M.startup,active:M.active,recover:M.recover,
       dmg:M.dmg*this.char.dmg*this.dmul, kb:M.kb, stun:M.stun, reach:M.reach, yoff:M.yoff,
@@ -485,7 +541,7 @@ class Fighter {
     this.atk.t=0; this.hasHit=false; this.cooldown=this.atk.startup+this.atk.active+this.atk.recover;
     if(M.lunge) this.vx = this.dir*M.lunge;   // dash strike carries you in
   }
-  doSuper(){ if(this.meter<this.maxMeter || this.ko || this.superT>0 || this.parryWindow>0) return; fireAbility(this); }
+  doSuper(){ if(this.meter<this.maxMeter || this.ko || this.superT>0 || this.parryWindow>0 || this.tripped || this.getupT>0 || this.rolling) return; fireAbility(this); }
 
   update(dt,foe){
     this.t+=dt; this.cooldown=Math.max(0,this.cooldown-dt);
@@ -502,9 +558,21 @@ class Fighter {
     this.blockMeter=Math.max(0,this.blockMeter-dt*BLOCK_DECAY);
     if(this.staggerT>0) this.staggerT=Math.max(0,this.staggerT-dt);
     this.blockFlash=Math.max(0,this.blockFlash-dt*2.5);
+    // trip → getup, hop / roll dodge timers
+    if(this.tripped){ this.tripT-=dt; if(this.tripT<=0){ this.tripped=false; this.getupT=GETUP_TIME; this.state=POSE.GETUP; } }
+    if(this.getupT>0){ this.getupT=Math.max(0,this.getupT-dt); if(this.getupT===0){ this.state=POSE.IDLE; } }
+    if(this.hopT>0) this.hopT=Math.max(0,this.hopT-dt);
+    if(this.rolling){ this.rollT-=dt;
+      if(this.rollT<=0){ this.rolling=false; this.rollT=0; this.state=POSE.IDLE; } else { this.vx=this.rollDir*ROLL_SPEED; } }
     this.comboT=Math.max(0,this.comboT-dt);
     if(this.comboT===0) this.combo=0;
     if(this.ko){ this.parryWindow=0; this.state=POSE.KO; this.applyPhysics(dt); return; }
+    if(this.tripped || this.getupT>0){
+      this.state = this.tripped ? POSE.TRIP : POSE.GETUP;
+      this.vx*=(1-Math.min(1,dt*6));
+      this.applyPhysics(dt); return;
+    }
+    if(this.rolling){ this.applyPhysics(dt); return; }
 
     if(this.superT>0){
       this.superT-=dt;
@@ -569,10 +637,10 @@ class Fighter {
         if(!foe.invuln && rectHit(bb,foe.hurtbox())){
           this.hasHit=true;
           const res=foe.takeHit(this,a);
-          if(res!=='parry'){
+          if(res!=='parry' && res!=='dodge'){
             this.meter=Math.min(this.maxMeter,this.meter+(a.award||8)*this.meterMul);
             if(res==='hit' && a.launch){ foe.vy=-430; foe.onGround=false; }
-            if(res==='hit' && a.knockdown){ foe.vy=-180; foe.onGround=false; foe.hitStun=Math.max(foe.hitStun,0.5); }
+            if(res==='hit' && a.knockdown && !a.bypass){ foe.vy=-180; foe.onGround=false; foe.hitStun=Math.max(foe.hitStun,0.5); }
           }
         }
       }
@@ -583,6 +651,7 @@ class Fighter {
 
   control(dt,foe){
     if(this.staggerT>0){ this.vx*=0.86; this.state=POSE.STAGGER; return; }   // guard-broken: wide open for StaggerTime
+    if(this.tripped || this.getupT>0){ this.vx*=0.85; return; }              // on the floor / scrambling up
     if(this.hitStun>0 || this.blockStun>0 || (this.atk && this.atk.t<this.atk.startup+this.atk.active+this.atk.recover)){
       this.vx *= this.onGround?0.86:0.98;
       if(this.onGround && !this.atk) this.state = this.hitStun>0?POSE.HURT:this.state;
@@ -600,7 +669,8 @@ class Fighter {
       const pHeld = keys['KeyP']||padParry;
       if(pHeld && !this.parryHeld) this.doParry();     // fresh tap only — no hold-to-spam
       this.parryHeld = pHeld;
-      if(this.parryWindow>0){ /* hold the deflect stance */ }
+      if(this.hopT>0) this.state=POSE.HOP;
+      else if(this.parryWindow>0){ /* hold the deflect stance */ }
       else if(crouch) this.state=POSE.CROUCH;
       else if(keys['KeyF']||padBlock) this.state=POSE.BLOCK;
       else if(keys['KeyI']||padSuper) this.doSuper();
@@ -608,6 +678,7 @@ class Fighter {
     }
     if(this.state===POSE.BLOCK||this.state===POSE.PARRY) this.vx*=0.55;
     else if(this.state===POSE.CROUCH) this.vx*=0.6;
+    else if(this.state===POSE.HOP) this.vx*=0.96;
     else this.vx=mv*this.speed;
     if(this.onGround) this.anim += Math.abs(this.vx)*dt*Math.PI*2/WALK_CYCLE_PX;
   }
@@ -624,7 +695,13 @@ class Fighter {
     if(tell && !this.aiTell){
       const inRange = (foe.atk && dist <= (foe.atk.reach||80)+70) || (foe.superT>0 && dist<330) || projIn;
       const r=Math.random();
-      if(inRange && r < D.parry) this.aiReaction='parry';
+      const kind = (foe.atk && foe.atk.t < foe.atk.startup+foe.atk.active+0.03) ? foe.atk.kind : null;
+      const dodges = D.dodge!=null ? D.dodge : 0.45;
+      if(inRange && (kind==='sweep'||kind==='slam') && r < dodges){
+        this.aiReaction = (kind==='sweep') ? 'hop' : 'roll';     // hop the sweep's legs, roll out of the slam
+        this.aiRollDir = (this.x < W/2) ? 1 : -1;
+      }
+      else if(inRange && r < D.parry) this.aiReaction='parry';
       else if(r < D.parry + D.block) this.aiReaction='block';
       else this.aiReaction=null;
       this.aiReactT = D.react[0] + Math.random()*(D.react[1]-D.react[0]);
@@ -635,6 +712,8 @@ class Fighter {
       if(this.aiReactT<=0){
         if(this.aiReaction==='parry') this.doParry();
         else if(this.aiReaction==='block') this.aiReaction='blockActive';
+        else if(this.aiReaction==='hop'){ this.tryHop(); this.aiReaction=null; }
+        else if(this.aiReaction==='roll'){ this.tryRoll(this.aiRollDir); this.aiReaction=null; }
       }
     }
     if(this.parryWindow>0) return 0;                                  // hold the deflect
@@ -695,27 +774,48 @@ class Fighter {
       }
     }
     const dir = src.x<=this.x?1:-1;
-    const blocked = this.blocking() && this.dir!==dir;
+    const facing = this.dir!==dir;
+    const vuln = (this.tripped || this.getupT>0) ? TRIP_VULN : 1;   // downed = 1.3x damage
+    const dmg = a.dmg * vuln;
+    const blocked = this.blocking() && facing;
+    // ---- dodge i-frames: a hop (F+Space) clears a sweep, a roll (Space+dir) slides out of it ----
+    if(facing && !this.invuln && this.dodging(a)){
+      floatText(this.x,this.top+6,'DODGE!','#9fe8ff');
+      burst(this.x,this.y-30,8,'#9fe8ff',.7);
+      return 'dodge';
+    }
     if(blocked){
       // ---- bypass / guardBreak: these moves don't care about your guard ----
-      if(a.bypass || a.guardBreak){
-        this.hp-=a.dmg;                          // full damage straight through
+      if(a.bypass){
+        // sweep: you guard your body, not your legs — swept clean off your feet
+        this.hp-=dmg; this.atk=null; this.hitFlash=1;
+        if(this.role!=='dummy'){ src.combo++; src.comboT=1.2; }
+        burst(this.x,this.y-10,14,'#ff6bd0',1.1); ring(this.x,this.y-10,'#ff6bd0',12,56);
+        shake=Math.max(shake,10); hitStop=Math.max(hitStop,0.07);
+        src.meter=Math.min(src.maxMeter,src.meter+6*src.meterMul);
+        this.trip();                                   // down + vulnerable
+        if(this.hp<=0 && this.role!=='dummy'){ this.hp=0; this.ko=true; this.state=POSE.KO; this.vy=-520; this.vx=dir*260; }
+        return 'trip';
+      }
+      if(a.guardBreak){
+        this.hp-=dmg;                          // full damage straight through
         this.vx=dir*(a.kb||130);
         if(!a.super && this.onGround) this.vy=-120;
         this.hitFlash=1; this.atk=null;
         this.hitStun=(a.stun||0.25)+0.04;
         this.blockMeter=this.maxBlock;           // guard bar slammed to full
-        this.staggerT = a.bypass ? STAGGER_BYPASS : STAGGER_BREAK;
+        this.staggerT = STAGGER_BREAK;
         this.state=POSE.STAGGER;
-        const bc = a.bypass ? '#ff6bd0' : '#ffd166';
+        const bc='#ffd166';
         burst(this.x,this.top+58,14,bc,1.1); ring(this.x,this.top+58,bc,14,56);
-        floatText(this.x,this.top+6, a.bypass?'BYPASS!':'GUARD BREAK!', bc);
-        shake=Math.max(shake, a.bypass?10:14); hitStop=Math.max(hitStop,0.07);
+        floatText(this.x,this.top+6,'GUARD BREAK!', bc);
+        shake=Math.max(shake,14); hitStop=Math.max(hitStop,0.07);
         src.meter=Math.min(src.maxMeter,src.meter+6*src.meterMul);
-        return a.bypass?'bypass':'guardbreak';
+        if(this.hp<=0 && this.role!=='dummy'){ this.hp=0; this.ko=true; this.state=POSE.KO; this.vy=-520; this.vx=dir*260; }
+        return 'guardbreak';
       }
       const red = a.super?0.35:0.25;                    // block only softens it: take 25% (75% reduction)
-      const dealt = Math.max(1, Math.round((a.dmg||6)*red));
+      const dealt = Math.max(1, Math.round(dmg*red));
       this.hp-=dealt; this.blockStun=0.18; this.vx=dir*(a.kb||120)*0.35;
       this.blockFlash=1;
       this.blockMeter += guardCost(a);                  // different moves tax the guard differently
@@ -727,19 +827,20 @@ class Fighter {
       if(this.blockMeter>=this.maxBlock) this.breakGuard();
       return 'block';
     }
-    this.hp-=a.dmg; this.hitStun=(a.stun||0.25)+0.04; this.vx=dir*(a.kb||130);
+    this.hp-=dmg; this.hitStun=(a.stun||0.25)+0.04; this.vx=dir*(a.kb||130);
     if(!a.super && this.onGround) this.vy=-120;
     this.hitFlash=1; this.atk=null;
-    src.combo++; src.comboT=1.2;
+    if(this.role!=='dummy'){ src.combo++; src.comboT=1.2; }
     const col = a.super?'#ff4d8d':'#ffd166';
     burst(this.x+dir*-10,this.top+60,a.super?26:12,col,a.super?1.4:1);
     ring(this.x,this.top+58,col,a.super?26:12);
-    floatText(this.x,this.top+17,Math.round(a.dmg),col);
-    shake=Math.max(shake,a.super?14:5);
+    floatText(this.x,this.top+17,(vuln>1?'-'+Math.round(dmg)+'!':Math.round(dmg)),col);
+    shake=Math.max(shake,a.super?14:(vuln>1?9:5));
     if(this.hp<=0){
       if(this.role==='dummy'){ this.hp=this.maxhp; this.hitFlash=1; }
       else { this.hp=0; this.ko=true; this.state=POSE.KO; this.vy=-520; this.vx=dir*260; }
     }
+    if(a.bypass) this.trip();        // a sweep trips you whether or not you blocked
     return 'hit';
   }
 
@@ -767,6 +868,12 @@ class Fighter {
     g.save();
     g.translate(this.x,this.y); g.scale(this.dir,1);
     if(this.ko) g.rotate(-this.dir*1.35);
+    else if(this.tripped){ g.translate(0,-10); g.rotate(-this.dir*1.42); }        // flat on your back
+    else if(this.getupT>0){ const prog=1-this.getupT/GETUP_TIME; const k=1-prog; g.rotate(-this.dir*1.42*k); }  // kip up (feet stay planted on the pivot)
+    else if(this.rolling){ const prog=1-this.rollT/ROLL_TIME;       // full tuck-and-roll, pivoting about the body centre
+      const lift=24*Math.sin(prog*Math.PI);
+      g.translate(0,-lift);
+      g.translate(0,-54); g.rotate(this.dir*this.rollDir*prog*Math.PI*2); g.scale(0.88,0.88); g.translate(0,54); }
     paintFighter(g,this.char,this);
     g.restore();
 
@@ -872,6 +979,7 @@ function paintFighter(g,c,S){
   const skin = flash?'#ffffff':c.skin;
   const shoe = flash?'#ffffff':c.shoe;
   const cr = state===POSE.CROUCH, sgr = state===POSE.STAGGER;
+  const tripS = state===POSE.TRIP, getupS = state===POSE.GETUP, hopS = state===POSE.HOP, rollS = state===POSE.ROLL;
   const bob  = (state===POSE.WALK ? Math.abs(Math.sin(a*Math.PI*2))*2.4
              : state===POSE.IDLE ? Math.sin(t*3)*2 : 0) + (cr?16:0) + (sgr?Math.abs(Math.sin(t*13))*4:0);
 
@@ -924,6 +1032,19 @@ function paintFighter(g,c,S){
     const wob=Math.sin(t*13)*0.14;                       // guard broken: off-balance wobbly stance
     drawLeg3d(g,-SP-3,HIP_Y, 0.30+wob,-0.34, THIGH,SHIN,LEGW,dark(c.colB,0.12),shoe, 0.25);
     drawLeg3d(g, SP+3,HIP_Y,-0.30-wob,-0.38, THIGH,SHIN,LEGW,c.colB,shoe, 0.2);
+  } else if(hopS){
+    drawLeg3d(g,-SP,HIP_Y, 0.95,-1.15, THIGH,SHIN,LEGW,dark(c.colB,0.12),shoe, 0.55);
+    drawLeg3d(g, SP,HIP_Y, 1.15,-1.35, THIGH,SHIN,LEGW,c.colB,shoe, 0.62);
+  } else if(rollS){
+    drawLeg3d(g,-SP,HIP_Y, 0.72,-1.05, THIGH,SHIN,LEGW,dark(c.colB,0.12),shoe, 0.45);
+    drawLeg3d(g, SP,HIP_Y, 0.92,-1.25, THIGH,SHIN,LEGW,c.colB,shoe, 0.5);
+  } else if(tripS){
+    drawLeg3d(g,-SP,HIP_Y, -0.34,-0.28, THIGH,SHIN,LEGW,dark(c.colB,0.12),shoe, -0.5);
+    drawLeg3d(g, SP,HIP_Y, -0.14,-0.16, THIGH,SHIN,LEGW,c.colB,shoe, -0.4);
+  } else if(getupS){
+    const p=smooth(Math.min(1,1-(S.getupT||0)/GETUP_TIME));
+    drawLeg3d(g,-SP,HIP_Y, lerp(-0.12,0.40,p), lerp(-0.18,-0.55,p), THIGH,SHIN,LEGW,dark(c.colB,0.12),shoe, lerp(-0.3,0.35,p));
+    drawLeg3d(g, SP,HIP_Y, lerp(-0.06,0.34,p), lerp(-0.14,-0.5,p),  THIGH,SHIN,LEGW,c.colB,shoe, lerp(-0.3,0.35,p));
   } else {
     drawLeg3d(g,-SP,HIP_Y, 0.06,-0.10, THIGH,SHIN,LEGW,dark(c.colB,0.12),shoe);
     drawLeg3d(g, SP,HIP_Y,-0.06,-0.10, THIGH,SHIN,LEGW,c.colB,shoe);
@@ -955,6 +1076,9 @@ function paintFighter(g,c,S){
   else if(sp){ bUp=-Math.PI/2-0.35; bElb=-0.35; }
   else if(cr){ bUp=0.5; bElb=-1.0; }
   else if(sgr){ bUp=1.35+Math.sin(t*13)*0.2; bElb=-0.35; }          // arms flung out, defenceless
+  else if(hopS){ bUp=-1.3; bElb=-0.7; }
+  else if(rollS){ bUp=1.2; bElb=-1.5; }
+  else if(tripS || getupS){ bUp=-2.0; bElb=-0.8; }
   else { bUp=STD.idle.bUp; bElb=STD.idle.bElb; }
   drawArm3d(g,-15,-86+bob, bUp, bElb, STD.upLen,STD.foreLen, STD.armW, eB?light(dark(c.colB,0.12),0.18):dark(c.colB,0.12), skin, 6.5);
 
@@ -984,6 +1108,10 @@ function paintFighter(g,c,S){
   else if(sp){ fUp=-Math.PI/2-0.35; fElb=-0.35; }
   else if(cr){ fUp=0.45; fElb=-1.0; }
   else if(sgr){ fUp=1.25-Math.sin(t*13)*0.2; fElb=-0.35; }           // arms flung out, defenceless
+  else if(hopS){ fUp=-1.25; fElb=-0.75; }
+  else if(rollS){ fUp=1.1; fElb=-1.55; }
+  else if(tripS){ fUp=-2.05; fElb=-0.7; }
+  else if(getupS){ const p=smooth(Math.min(1,1-(S.getupT||0)/GETUP_TIME)); fUp=lerp(-2.0,0.3,p); fElb=lerp(-0.7,-0.6,p); }
   else { fUp=STD.idle.fUp+Math.sin(t*2)*0.05; fElb=STD.idle.fElb; }
   drawArm3d(g,15,-86+bob, fUp, fElb, STD.upLen+2,STD.foreLen+2, STD.armW, eB?light(gi,0.20):gi, skin, 7);
 
@@ -1275,11 +1403,11 @@ function charKey(c){ return hash(c.id||c.name||'x')%ARENAS.length; }
 
 /* ---- difficulties: shape the AI's reads, aggression and reactions ---- */
 const DIFFS = [
-  { key:'easy',   name:'EASY',   col:'#7fe37f', react:[0.30,0.55], block:0.30, parry:0.10, aggro:0.45, spacing:0.30, superUse:0.20, dmg:0.85, meter:0.80, speed:0.92, jump:0.08,
+  { key:'easy',   name:'EASY',   col:'#7fe37f', react:[0.30,0.55], block:0.30, parry:0.10, dodge:0.15, aggro:0.45, spacing:0.30, superUse:0.20, dmg:0.85, meter:0.80, speed:0.92, jump:0.08,
     desc:'slow reads \u2014 barely guards' },
-  { key:'normal', name:'NORMAL', col:'#ffd166', react:[0.16,0.34], block:0.55, parry:0.34, aggro:0.68, spacing:0.50, superUse:0.45, dmg:1.00, meter:1.00, speed:1.00, jump:0.16,
+  { key:'normal', name:'NORMAL', col:'#ffd166', react:[0.16,0.34], block:0.55, parry:0.34, dodge:0.42, aggro:0.68, spacing:0.50, superUse:0.45, dmg:1.00, meter:1.00, speed:1.00, jump:0.16,
     desc:'even fight \u2014 punishes sloppy' },
-  { key:'hard',   name:'HARD',   col:'#ff5c8a', react:[0.07,0.19], block:0.80, parry:0.68, aggro:0.92, spacing:0.62, superUse:0.78, dmg:1.12, meter:1.25, speed:1.06, jump:0.26,
+  { key:'hard',   name:'HARD',   col:'#ff5c8a', react:[0.07,0.19], block:0.80, parry:0.68, dodge:0.72, aggro:0.92, spacing:0.62, superUse:0.78, dmg:1.12, meter:1.25, speed:1.06, jump:0.26,
     desc:'reads you \u2014 parry it back' }
 ];
 let diffIndex = 1;
@@ -1861,7 +1989,7 @@ function drawTrainingHUD(g){
   g.globalAlpha=1; g.fillStyle='#fff'; g.textAlign='center'; g.font='bold 15px Trebuchet MS';
   g.fillText('TRAINING MENU',mb.x+mb.w/2,mb.y+mb.h*0.66); g.restore();
   g.save(); g.textAlign='center'; g.font='11px Trebuchet MS'; g.fillStyle='rgba(255,255,255,.35)';
-  g.fillText(TU()?'TAP "TRAINING MENU" to switch YOUR fighter · SUPER button to test special':'LMB/RMB punch/kick · LMB+RMB slam · Space+LMB uppercut · Ctrl+RMB sweep · Q dash · F block · F+LMB parry · I special · T menu · R reset · Esc back',W/2,H-14);
+  g.fillText(TU()?'TAP "TRAINING MENU" to switch YOUR fighter · SUPER button to test special':'LMB/RMB punch/kick · LMB+RMB slam · Space+LMB uppercut · Ctrl+RMB sweep (trips) · Q dash · F block · F+LMB parry · F+Space hop · Space+A/D roll · I special · T menu · R reset · Esc back',W/2,H-14);
   g.restore();
 }
 function renderTrainMenu(g){
@@ -2044,7 +2172,7 @@ function renderMenu(g){
   g.shadowBlur=0; g.fillStyle='#fff'; g.textAlign='center'; g.font='bold 17px Trebuchet MS';
   g.fillText(isTouch?'⚔  TRAINING':'⚔  TRAINING  (T)',tb.x+tb.w/2,tb.y+tb.h*0.66); g.restore();
   g.textAlign='center'; g.fillStyle='rgba(255,255,255,.35)'; g.font='12px Trebuchet MS';
-  g.fillText('LMB/RMB punch/kick · LMB+RMB slam · Space+LMB uppercut · Ctrl+RMB sweep · Q dash · F block (dmg -75%) · F+LMB parry (20s)',cx,H*0.945);
+  g.fillText('LMB/RMB punch/kick · LMB+RMB slam · Space+LMB uppercut · Ctrl+RMB sweep · Q dash · F block (-75%) · F+LMB parry (20s) · F+Space hop · Space+A/D roll',cx,H*0.945);
 }
 
 /* ============================================================
@@ -2089,7 +2217,7 @@ function renderSelect(g){
   g.fillStyle='rgba(255,255,255,.4)'; g.font='12px Trebuchet MS';
   g.fillText(isTouch?'tap a tile twice to lock in':'A/D to browse · SPACE to lock in',W*0.04,H*0.155);
   g.fillStyle='rgba(160,220,255,.6)'; g.font='11px Trebuchet MS';
-  g.fillText('MOVES  ·  LMB punch · RMB kick · LMB+RMB slam · Space+LMB uppercut · Ctrl+RMB sweep · Q dash · F block · F+LMB parry   |   sweep bypasses · slam breaks guard',W*0.04,H*0.132);
+  g.fillText('MOVES  ·  LMB punch · RMB kick · LMB+RMB slam · Space+LMB uppercut · Ctrl+RMB sweep · Q dash · F block · F+LMB parry   |   sweep trips (hop with F+Space) · slam breaks guard (roll with Space+A/D)',W*0.04,H*0.132);
   g.textAlign='right'; g.fillStyle='rgba(255,255,255,.5)';
   g.fillText('PLAYER 2  ·  CPU',W*0.96,H*0.075);
   g.restore();
@@ -2308,7 +2436,10 @@ window.CLASH = { p1,p2,CHARS, get screen(){return screen}, startFight, goSelect,
   setCtrlMode, toggleCtrl, get ctrlMode(){return ctrlMode}, ctrl(){ return {index:ctrlMode, name:ctrlMode===0?'COMPUTER':'MOBILE', touchUI:TU()}; }, syncPad,
   parry(side){ (side==='p2'?p2:p1).doParry(); },
   PARRY_CD, STAGGER_TIME, STAGGER_BYPASS, STAGGER_BREAK, guardCost, breakGuard(side,dur){ (side==='p2'?p2:p1).breakGuard(dur); },
-  get blocks(){ return {p1:p1.blockMeter, p2:p2.blockMeter, max:p1.maxBlock, stagger1:p1.staggerT, stagger2:p2.staggerT, parryCd1:p1.parryCool, parryCd2:p2.parryCool}; },
+  TRIP_TIME, GETUP_TIME, TRIP_VULN, HOP_TIME, ROLL_TIME, HOP_CLEAR, ROLL_CLEAR, ROLL_SPEED, STATE,
+  trip(side){ (side==='p2'?p2:p1).trip(); }, hop(side){ return (side==='p2'?p2:p1).tryHop(); }, roll(side,dir){ return (side==='p2'?p2:p1).tryRoll(dir); },
+  get blocks(){ return {p1:p1.blockMeter, p2:p2.blockMeter, max:p1.maxBlock, stagger1:p1.staggerT, stagger2:p2.staggerT, parryCd1:p1.parryCool, parryCd2:p2.parryCool,
+    trip1:p1.tripped, trip2:p2.tripped, getup1:p1.getupT, getup2:p2.getupT, hop1:p1.hopT, hop2:p2.hopT, roll1:p1.rolling, roll2:p2.rolling}; },
   pressInput, stepInput, resetInput, crouchHeld, held, downAt, get pending(){ return {kind:pendingKind,t:pendingT,jump:jumpPending}; },
   get train(){ return {player:selIndex, dummy:(selIndex+1)%CHARS.length, hits:trainHits, combo:trainCombo, maxCombo:trainMaxCombo, dmg:trainDispDmg, menu:trainMenuOpen, t:trainT}; },
   setTrainMenu(v){ trainMenuOpen=!!v; },

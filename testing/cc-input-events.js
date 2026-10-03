@@ -6,6 +6,7 @@ const { chromium } = require('playwright-core');
   const errs=[]; p.on('pageerror',e=>errs.push('PAGEERR: '+e.message));
   await p.goto('file://'+process.cwd()+'/cursed-clash.html');
   await p.waitForTimeout(400);
+  await p.evaluate(()=>{ window.__dbg=[]; window.addEventListener('keydown',e=>{window.__dbg.push(e.code);},true); });
   await p.evaluate(()=>{ const C=window.CLASH; C.setCtrlMode(0); C.goSelect(); C.setSel(0); C.startFight(); C.p2.ai=false; });
   await p.waitForTimeout(1500);
   await p.mouse.move(640,400);
@@ -13,7 +14,8 @@ const { chromium } = require('playwright-core');
   async function reset(){
     await p.evaluate(()=>{ const C=window.CLASH; C.resetInput();
       C.p1.cooldown=0; C.p1.atk=null; C.p1.hitStun=0; C.p1.parryWindow=0; C.p1.superT=0;
-      C.p1.vx=0; C.p1.vy=0; C.p1.onGround=true; C.p1.x=360; C.p1.hp=C.p1.maxhp; C.p2.x=760; });
+      C.p1.vx=0; C.p1.vy=0; C.p1.onGround=true; C.p1.x=360; C.p1.hp=C.p1.maxhp; C.p2.x=760;
+      C.p1.rolling=false; C.p1.rollT=0; C.p1.hopT=0; C.p1.tripped=false; C.p1.getupT=0; C.p1.staggerT=0; });
     await p.waitForTimeout(60);
   }
   async function capture(ms=400){
@@ -71,6 +73,8 @@ const { chromium } = require('playwright-core');
   await p.keyboard.down('l'); await p.waitForTimeout(80);
   out.blockL = await p.evaluate(()=>{ const C=window.CLASH; return C.p1.state===C.POSE.BLOCK; });
   await p.keyboard.up('l');
+
+  // F + Space -> hop, Space + A/D -> roll (dedicated real-key coverage lives in cc-dodge.js)
 
   await keyUpAll();
   out.errs=errs;
