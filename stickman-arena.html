@@ -323,18 +323,24 @@ const TLEN=26, HEADSEG=9, HR=7, UARM=13, FARM=12, THIGH=16, SHIN=16, BLADE=24;
 function seg(o,len,a){ return {x:o.x+Math.sin(a)*len, y:o.y+Math.cos(a)*len}; }
 
 function computePose(f, now, dt){
-  const p = { lean:0.09, hipDrop:0, headTilt:-0.04,
-    afU:0.30, afL:0.55,   // front arm upper / forearm
-    abU:-0.22, abL:-0.05, // back arm
-    lfU:0.06, lfL:0.05, lbU:-0.06, lbL:-0.01,
-    y:f.y };
+  const p = { lean:0.16, hipDrop:0, headTilt:-0.05,
+    afU:0.80, afL:1.20,   // front arm upper / forearm
+    abU:-0.62, abL:-0.28, // back arm
+    lfU:0.50, lfL:0.10, lbU:-0.60, lbL:-0.10,
+    bladeA:1.70, y:f.y };
 
   const st=f.state;
 
   if(st==='idle'){
     const b=Math.sin(now/480)*0.05;
-    p.lean=0.09+b*0.4; p.afU=0.30+b*0.5; p.abU=-0.22-b*0.4; p.headTilt=-0.04;
-    p.hipDrop=Math.sin(now/480)*0.6;
+    p.lean=0.16+b*0.3;
+    p.lfU=0.50; p.lfL=0.10;      // front leg forward
+    p.lbU=-0.60; p.lbL=-0.10;    // back leg back (clear separation)
+    p.afU=0.80+b*0.5; p.afL=1.20+b*0.4;   // front arm raised, blade forward
+    p.abU=-0.62-b*0.3; p.abL=-0.28;
+    p.bladeA=1.70+b*0.4;         // blade angled up-forward
+    p.headTilt=-0.05;
+    p.hipDrop=Math.sin(now/480)*0.5;
   }
   else if(st==='walk'){
     const s=Math.sin(f.walkPhase), c=Math.cos(f.walkPhase);
