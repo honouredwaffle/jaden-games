@@ -137,15 +137,19 @@ function syncTouchVisibility(){
   const show = (game.state==='fight' || game.state==='ko');
   el.classList.toggle('hidden', !show);
 }
-/* tap canvas to start / rematch / pick on mobile */
+/* tap/click: choose a fighter, toggle CPU, or start */
 cv.addEventListener('pointerdown', e=>{
   const r=cv.getBoundingClientRect();
   const x=(e.clientX-r.left)/r.width*W;
   const y=(e.clientY-r.top)/r.height*H;
   if(game.state==='menu'){
-    if(y>476) startFight();
-    else if(x<W/2) game.selP1=(game.selP1+1)%ATTR_KEYS.length;
-    else game.selP2=(game.selP2+1)%ATTR_KEYS.length;
+    const n=ATTR_KEYS.length;
+    if(y>480){ game.state='selecting'; game.selT=0; return; }
+    if(y<110 && x>W-170){ game.p2cpu=!game.p2cpu; return; }
+    const idx=clamp(Math.floor(x/(W/n)),0,n-1);
+    game.selP1=idx;
+  } else if(game.state==='selecting'){
+    // ignore
   } else if(game.state==='ko' && game.koTimer>700){ startFight(); }
 });
 
@@ -446,25 +450,23 @@ function computePose(f, now, dt){
   }
 
   // forward kinematics
-  const hip={x:0,y:p.hipDrop};
+  return fk(p);
+}
+
+/* generic forward-kinematics: angles -> joint positions. pose-local origin = hip */
+function fk(p){
+  const hip={x:0,y:p.hipDrop||0};
   const neck={x:hip.x+Math.sin(p.lean)*TLEN, y:hip.y-Math.cos(p.lean)*TLEN};
-  const ha=p.lean+p.headTilt;
+  const ha=p.lean+(p.headTilt||0);
   const head={x:neck.x+Math.sin(ha)*HEADSEG, y:neck.y-Math.cos(ha)*HEADSEG};
   const sh={x:neck.x, y:neck.y+2};
-  // legs
   const bKnee=seg(hip,THIGH,p.lbU), bFoot=seg(bKnee,SHIN,p.lbL);
   const fKnee=seg(hip,THIGH,p.lfU), fFoot=seg(fKnee,SHIN,p.lfL);
-  // arms
   const bElb=seg(sh,UARM,p.abU), bHand=seg(bElb,FARM,p.abL);
   const fElb=seg(sh,UARM,p.afU), fHand=seg(fElb,FARM,p.afL);
-  // blade extends from front hand
-  const bladeA = (p.bladeA!==undefined)? p.bladeA : p.afL;
+  const bladeA=(p.bladeA!==undefined)?p.bladeA:p.afL;
   const bladeTip=seg(fHand,BLADE,bladeA);
-
-  p.hip=hip; p.neck=neck; p.head=head; p.sh=sh;
-  p.bKnee=bKnee; p.bFoot=bFoot; p.fKnee=fKnee; p.fFoot=fFoot;
-  p.bElb=bElb; p.bHand=bHand; p.fElb=fElb; p.fHand=fHand;
-  p.bladeTip=bladeTip; p.bladeA=bladeA;
+  Object.assign(p,{hip,neck,head,sh,bKnee,bFoot,fKnee,fFoot,bElb,bHand,fElb,fHand,bladeTip,bladeA});
   return p;
 }
 
@@ -623,7 +625,7 @@ function aiThink(f,opp,dt){
    GAME
    ============================================================ */
 let beams=[];
-const game={ state:'menu', winner:null, koTimer:0, p2cpu:false, selP1:2, selP2:0 };
+const game={ state:'menu', winner:null, koTimer:0, p2cpu:false, selP1:2, selP2:0, selT:0 };
 
 let p1, p2;
 function makeFighters(){
@@ -648,7 +650,12 @@ function update(dt, now){
     if(consume('ArrowLeft')) game.selP2=(game.selP2+ATTR_KEYS.length-1)%ATTR_KEYS.length;
     if(consume('ArrowRight')) game.selP2=(game.selP2+1)%ATTR_KEYS.length;
     if(consume('KeyC')) game.p2cpu=!game.p2cpu;
-    if(consume('Space')||consume('Enter')) startFight();
+    if(consume('Space')||consume('Enter')){ game.state='selecting'; game.selT=0; }
+    return;
+  }
+  if(game.state==='selecting'){
+    game.selT+=dt;
+    if(game.selT>=900) startFight();
     return;
   }
 
@@ -701,7 +708,7 @@ function render(now){
   ctx.fillStyle='rgba(60,55,45,0.10)'; ctx.fillRect(0,GROUND+2,W,H-GROUND);
   ctx.strokeStyle='#2a2a2a'; ctx.lineWidth=3; ctx.beginPath(); ctx.moveTo(0,GROUND+2); ctx.lineTo(W,GROUND+2); ctx.stroke();
 
-  if(game.state==='menu'){ drawMenu(); ctx.restore(); return; }
+  if(game.state==='menu'||game.state==='selecting'){ drawMenu(now); ctx.restore(); return; }
 
   drawBeams();
   // fighters (draw the one further back first)
@@ -751,43 +758,122 @@ function drawHUD(){
   ctx.fillText((p2.isCPU?'CPU  —  ':'P2  —  ')+p2.attrDef.name+' '+p2.attrDef.emoji, W-24, 66);
 }
 
-function drawMenu(){
-  ctx.textAlign='center';
-  ctx.fillStyle='#141414'; ctx.font='bold 66px Trebuchet MS';
-  ctx.fillText('STICKMAN ARENA', W/2, 120);
-  ctx.font='20px Trebuchet MS'; ctx.fillStyle='#555';
-  ctx.fillText('grey-box build v0.1  •  pick your attribute', W/2, 156);
-
-  const show=(x,sel,label,side)=>{
-    const ad=ATTR[ATTR_KEYS[sel]];
-    ctx.fillStyle='#141414'; ctx.font='bold 20px Trebuchet MS';
-    ctx.fillText(label, x, 240);
-    ctx.font='bold 40px Trebuchet MS'; ctx.fillStyle=ad.main;
-    ctx.fillText(ad.emoji+' '+ad.name, x, 292);
-    // move list
-    const kit=KITS[ATTR_KEYS[sel]];
-    ctx.font='15px Trebuchet MS';
-    for(let i=0;i<4;i++){
-      ctx.fillStyle = kit[i]==='wip'? '#999' : '#141414';
-      const nm = kit[i]==='wip'? 'W.I.P' : kit[i].toUpperCase();
-      ctx.fillText((i+1)+'. '+nm, x, 330+i*24);
+/* generic rig painter at a screen position */
+function drawRig(p, sx, sy, scale, front, back, ad, opts){
+  opts=opts||{};
+  ctx.save(); ctx.translate(sx,sy); ctx.scale(scale,scale);
+  const lw=5, lwB=4;
+  const line=(a,b,col,w)=>{ ctx.strokeStyle=col; ctx.lineWidth=w; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); };
+  const dot=(a,r,col)=>{ ctx.fillStyle=col; ctx.beginPath(); ctx.arc(a.x,a.y,r,0,TAU); ctx.fill(); };
+  line(p.hip,p.bKnee,back,lwB); line(p.bKnee,p.bFoot,back,lwB);
+  line(p.sh,p.bElb,back,lwB); line(p.bElb,p.bHand,back,lwB);
+  line(p.hip,p.neck,front,lw+1);
+  dot(p.head,HR,front);
+  if(opts.horns){
+    const ha=p.lean+(p.headTilt||0);
+    ctx.strokeStyle=ad.main; ctx.lineWidth=3; ctx.lineCap='round';
+    for(const s of [-0.6,0.6]){
+      const bx=p.head.x+Math.sin(ha+s*0.5)*4, by=p.head.y-Math.cos(ha+s*0.5)*4;
+      const hx=bx+Math.sin(ha+s*0.5-s)*9, hy=by-Math.cos(ha+s*0.5-s)*9;
+      ctx.beginPath(); ctx.moveTo(bx,by); ctx.quadraticCurveTo(bx+s*7,by-6,hx,hy); ctx.stroke();
     }
-    ctx.fillStyle='#888'; ctx.font='13px Trebuchet MS';
-    ctx.fillText(side, x, 448);
-  };
-  show(260, game.selP1, 'PLAYER 1', 'A / D to change');
-  show(700, game.selP2, (game.p2cpu?'CPU':'PLAYER 2'), '◀ ▶ to change');
-
-  ctx.fillStyle='#141414'; ctx.font='bold 26px Trebuchet MS';
-  ctx.fillText('PRESS SPACE / TAP BELOW TO FIGHT', W/2, 500);
-  ctx.fillStyle='#666'; ctx.font='15px Trebuchet MS';
-  if(isTouch){
-    ctx.fillText('TAP LEFT = P1 attribute  •  TAP RIGHT = '+(game.p2cpu?'CPU':'P2')+' attribute  •  TAP BOTTOM = GO', W/2, 524);
-  } else {
-    ctx.fillText('C = toggle CPU opponent   •   P1: A/D move, W jump, S crouch, F punch, G kick, H block, 1-4 attribute moves', W/2, 526);
   }
-  // start button strip (tap target on mobile)
-  ctx.fillStyle='rgba(20,20,25,0.06)'; ctx.fillRect(W/2-150,470,300,34);
+  line(p.hip,p.fKnee,front,lw); line(p.fKnee,p.fFoot,front,lw); dot(p.fFoot,3,front);
+  line(p.sh,p.fElb,front,lw); line(p.fElb,p.fHand,front,lw);
+  if(opts.blade!==false){
+    ctx.strokeStyle=ad.main; ctx.lineWidth=3; ctx.lineCap='round';
+    ctx.shadowColor=ad.main; ctx.shadowBlur=opts.glow||8;
+    ctx.beginPath(); ctx.moveTo(p.fHand.x,p.fHand.y); ctx.lineTo(p.bladeTip.x,p.bladeTip.y); ctx.stroke();
+    ctx.shadowBlur=0;
+  }
+  dot(p.fHand,2.5,front);
+  ctx.restore();
+}
+
+function attrAura(ad, x, y, now, strength){
+  const pulse=1+0.08*Math.sin(now/300);
+  ctx.save();
+  const g=ctx.createRadialGradient(x,y-10,6,x,y-10,95*pulse);
+  g.addColorStop(0,ad.main); g.addColorStop(0.35,ad.glow); g.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.globalAlpha=0.28*strength;
+  ctx.fillStyle=g; ctx.beginPath(); ctx.arc(x,y-10,95*pulse,0,TAU); ctx.fill();
+  ctx.restore();
+}
+
+function ring(x,y,col,label){
+  ctx.save();
+  ctx.strokeStyle=col; ctx.lineWidth=3; ctx.globalAlpha=0.9;
+  ctx.strokeRect(x-72,y-118,144,196);
+  ctx.globalAlpha=1; ctx.fillStyle=col;
+  ctx.fillRect(x-72,y-118,44,20);
+  ctx.fillStyle='#fff'; ctx.font='bold 13px Trebuchet MS'; ctx.textAlign='center';
+  ctx.fillText(label, x-50, y-104);
+  ctx.restore();
+}
+
+/* pose for the character-select figures. ch = 0..1 "chosen" flourish */
+function selectPose(attr, t, ch){
+  const b=Math.sin(t/450);
+  let p={ lean:0.15, headTilt:-0.05, hipDrop:Math.sin(t/450)*0.9,
+    afU:0.85, afL:1.25, abU:-0.65, abL:-0.30,
+    lfU:0.50, lfL:0.12, lbU:-0.60, lbL:-0.12, bladeA:1.75 };
+  if(attr==='devil'){ p.lfU=0.72; p.lbU=-0.82; p.lfL=0.34; p.lbL=-0.30; p.lean=0.22; p.afU=0.95; p.afL=1.1; }
+  if(attr==='poison'){ p.lean=0.18+b*0.03; p.afU=1.05; }
+  if(attr==='lightning'){ p.lfU=0.55; p.lbU=-0.65; }
+  if(ch>0){
+    const k=ease(clamp(ch,0,1));
+    // raise weapon OVERHEAD + power stance (the "chosen" pose)
+    p.afU=lerp(p.afU, 2.50, k); p.afL=lerp(p.afL, 2.95, k); p.bladeA=lerp(p.bladeA, 3.05, k);
+    p.abU=lerp(p.abU, 2.30, k); p.abL=lerp(p.abL, 2.75, k);
+    p.lean=lerp(p.lean, -0.12, k); p.headTilt=lerp(-0.05,-0.22,k);
+    p.hipDrop=lerp(p.hipDrop, -2.0, k);
+  }
+  return fk(p);
+}
+
+function drawMenu(now){
+  const slots=ATTR_KEYS, n=slots.length;
+  ctx.textAlign='center';
+  ctx.fillStyle='#141414'; ctx.font='bold 52px Trebuchet MS';
+  ctx.fillText('STICKMAN ARENA', W/2, 74);
+  ctx.font='17px Trebuchet MS'; ctx.fillStyle='#777';
+  ctx.fillText('CHARACTER SELECT  —  pick your fighter', W/2, 102);
+
+  const cy=330, sc=1.7;
+  for(let i=0;i<n;i++){
+    const x=W*(i+0.5)/n;
+    const ad=ATTR[slots[i]];
+    const isP1=i===game.selP1, isP2=i===game.selP2;
+    const chosen=isP1||isP2;
+    let ch = chosen ? (0.5+0.5*Math.sin(now/300)) : 0;
+    if(game.state==='selecting' && chosen) ch = ease(clamp(game.selT/480,0,1));
+    const p=selectPose(slots[i], now+i*500, ch);
+    attrAura(ad, x, cy-40, now, chosen?1.0:0.45);
+    if(isP2) ring(x,cy-40,'#ff3b3b', game.p2cpu?'CPU':'P2');
+    if(isP1) ring(x,cy-40,'#2f9bff','P1');
+    drawRig(p, x, cy, sc, '#141414', '#707070', ad,
+      {horns:slots[i]==='devil', glow: chosen?16:8});
+    ctx.fillStyle=ad.main; ctx.font='bold 22px Trebuchet MS'; ctx.textAlign='center';
+    ctx.fillText(ad.emoji+' '+ad.name, x, cy+66);
+    const kit=KITS[slots[i]];
+    const done=kit.filter(k=>k!=='wip').length;
+    ctx.font='bold 13px Trebuchet MS';
+    if(done===0){ ctx.fillStyle='#aaa'; ctx.fillText('W.I.P', x, cy+88); }
+    else { ctx.fillStyle='#555'; ctx.fillText(done+' / 4 moves', x, cy+88); }
+  }
+
+  // bottom bar
+  ctx.fillStyle='rgba(20,20,25,0.07)'; ctx.fillRect(W/2-190,486,380,40);
+  ctx.fillStyle='#141414'; ctx.font='bold 24px Trebuchet MS'; ctx.textAlign='center';
+  ctx.fillText('SPACE / TAP TO CHOOSE', W/2, 514);
+  ctx.fillStyle='#777'; ctx.font='14px Trebuchet MS';
+  if(isTouch){ ctx.fillText('tap a fighter to pick  •  tap here to fight  •  C = CPU', W/2, 540); }
+  else { ctx.fillText('P1: A/D   •   P2: ◀ ▶   •   C = toggle CPU   •   then SPACE', W/2, 540); }
+  // CPU toggle chip (tap top-right)
+  ctx.fillStyle= game.p2cpu? '#2f9bff' : '#b8b0a0';
+  ctx.fillRect(W-160, 24, 136, 30);
+  ctx.fillStyle='#fff'; ctx.font='bold 14px Trebuchet MS'; ctx.textAlign='center';
+  ctx.fillText(game.p2cpu? 'VS CPU  (tap)' : '2 PLAYER  (tap)', W-92, 44);
 }
 
 /* ---------- loop ---------- */
