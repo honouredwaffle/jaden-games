@@ -505,19 +505,22 @@ function attrFront(p, ad, attr, now, k){
   const ha=p.lean+(p.headTilt||0);
   if(attr==='devil'){ drawHorns(p, ad, k); }
 
-  if(attr==='fire'){                     // flame "hair" crown + embers
+  if(attr==='fire'){                     // flame "hair" — flickering tongues, not a crown
     ctx.save();
-    const base={x:p.head.x, y:p.head.y-4};
-    for(let i=0;i<5;i++){
-      const sx=(i-2)*3.2;
-      const fl=10+Math.sin(now/90+i*1.3)*4;
-      const g2=ctx.createLinearGradient(base.x+sx, base.y, base.x+sx, base.y-fl*k);
-      g2.addColorStop(0, ad.main); g2.addColorStop(0.6,'#ffb300'); g2.addColorStop(1, 'rgba(255,220,0,0)');
+    const base={x:p.head.x, y:p.head.y-3};
+    const offs=[-4.5,-1.8,1.2,4.2];
+    for(let i=0;i<offs.length;i++){
+      const sx=offs[i];
+      const fl=12+Math.sin(now/70+i*1.7)*6 + (i===1||i===2?5:0);   // taller middle tongues
+      const w=2.2+Math.sin(now/110+i)*0.6;
+      const wob=Math.sin(now/130+i*2)*2;
+      const g2=ctx.createLinearGradient(base.x+sx, base.y, base.x+sx+wob, base.y-fl*k);
+      g2.addColorStop(0,'#ff4a00'); g2.addColorStop(0.5, ad.main); g2.addColorStop(0.8,'#ffb300'); g2.addColorStop(1, 'rgba(255,235,120,0)');
       ctx.fillStyle=g2;
       ctx.beginPath();
-      ctx.moveTo(base.x+sx-3, base.y);
-      ctx.quadraticCurveTo(base.x+sx-3, base.y-fl*k, base.x+sx, base.y-fl*1.5*k);
-      ctx.quadraticCurveTo(base.x+sx+3, base.y-fl*k, base.x+sx+3, base.y);
+      ctx.moveTo(base.x+sx-w, base.y);
+      ctx.quadraticCurveTo(base.x+sx-w*1.4, base.y-fl*0.55*k, base.x+sx+wob, base.y-fl*k);   // left edge up to wavy tip
+      ctx.quadraticCurveTo(base.x+sx+w*1.4, base.y-fl*0.55*k, base.x+sx+w, base.y);
       ctx.closePath(); ctx.fill();
     }
     ctx.restore();
@@ -566,34 +569,31 @@ function attrFront(p, ad, attr, now, k){
 
 function drawDevilWings(p, ad, spread){
   if(spread<0.03) return;
-  const bx=p.sh.x, by=p.sh.y-3;
+  const bx=(p.sh.x+p.hip.x)/2, by=(p.sh.y+p.hip.y)/2;
   const wings=[
-    {base:-2.55, len:46, dy:-4, shade:0.30},   // upper wing (behind)
-    {base:-1.95, len:40, dy: 6, shade:0.62},   // lower wing (nearer)
+    {base:1.95, len:48, ax:bx,   ay:by-9},   // upper lobe sweeps up+back
+    {base:3.40, len:40, ax:bx-3, ay:by+9},   // lower lobe sweeps down+back
   ];
   ctx.save();
   for(const w of wings){
     const L=w.len*spread;
-    const base={x:bx, y:by+w.dy*spread};
+    const base={x:w.ax, y:w.ay};
     const pts=[];
     for(let f=0; f<3; f++){
-      const a=w.base + f*0.42;
-      const r=L*(1 - f*0.18);
+      const a=w.base - f*0.34;
+      const r=L*(1 - f*0.16);
       pts.push({x:base.x+Math.cos(a)*r, y:base.y+Math.sin(a)*r});
     }
-    // membrane with scalloped (concave) lower edge between tips
     ctx.beginPath(); ctx.moveTo(base.x,base.y);
     ctx.lineTo(pts[0].x, pts[0].y);
     for(let f=1; f<pts.length; f++){
-      const mid={x:(pts[f-1].x+pts[f].x)/2 - 5*spread, y:(pts[f-1].y+pts[f].y)/2 + 5*spread};
+      const mid={x:(pts[f-1].x+pts[f].x)/2 - 4*spread, y:(pts[f-1].y+pts[f].y)/2 - 4*spread};
       ctx.quadraticCurveTo(mid.x, mid.y, pts[f].x, pts[f].y);
     }
-    ctx.quadraticCurveTo(base.x-14*spread, base.y+12*spread, base.x, base.y);
+    ctx.quadraticCurveTo(base.x-12*spread, base.y+4*spread, base.x, base.y);
     ctx.closePath();
-    ctx.fillStyle=ad.dark; ctx.globalAlpha=w.shade*spread; ctx.fill();
-    ctx.globalAlpha=0.9*spread; ctx.strokeStyle=ad.dark; ctx.lineWidth=2; ctx.stroke();
-    // finger bones
-    ctx.strokeStyle=ad.main; ctx.lineWidth=2.4; ctx.lineCap='round'; ctx.globalAlpha=0.85;
+    ctx.fillStyle=ad.dark; ctx.globalAlpha=0.9; ctx.fill();
+    ctx.strokeStyle=ad.main; ctx.lineWidth=2.2; ctx.lineCap='round'; ctx.globalAlpha=0.9;
     for(const q of pts){ ctx.beginPath(); ctx.moveTo(base.x,base.y); ctx.lineTo(q.x,q.y); ctx.stroke(); }
     ctx.globalAlpha=1;
   }
@@ -603,23 +603,35 @@ function drawDevilWings(p, ad, spread){
 function drawDevilTail(p, ad, tt){
   ctx.save();
   ctx.strokeStyle=ad.dark; ctx.lineWidth=5; ctx.lineCap='round';
-  let tx=p.hip.x-6, ty=p.hip.y+2, ang=Math.PI*0.72;
+  let tx=p.hip.x-5, ty=p.hip.y+4, ang=Math.PI*0.45;
   ctx.beginPath(); ctx.moveTo(tx,ty);
-  for(let i=0;i<6;i++){ ang+=0.55+Math.sin(tt+i*0.6)*0.18; const len=13-i*0.9; tx+=Math.cos(ang)*len; ty+=Math.sin(ang)*len; ctx.lineTo(tx,ty); }
+  for(let i=0;i<6;i++){ ang+=0.38+Math.sin(tt+i*0.6)*0.14; const len=11-i*0.7; tx+=Math.cos(ang)*len; ty+=Math.sin(ang)*len; ctx.lineTo(tx,ty); }
   ctx.stroke();
-  ctx.fillStyle=ad.main; ctx.beginPath(); ctx.arc(tx,ty,3.4,0,TAU); ctx.fill();
+  // red spade tip
+  ctx.fillStyle=ad.main;
+  ctx.beginPath(); ctx.moveTo(tx,ty-3.5); ctx.lineTo(tx+3.5,ty+0.5); ctx.lineTo(tx,ty+3); ctx.lineTo(tx-3.5,ty+0.5); ctx.closePath(); ctx.fill();
   ctx.restore();
 }
 
 function drawHorns(p, ad, grow){
   if(grow<0.03) return;
   const ha=p.lean+(p.headTilt||0);
-  ctx.save(); ctx.strokeStyle=ad.main; ctx.lineWidth=3.6; ctx.lineCap='round';
-  for(const s of [-0.62,0.62]){
-    const g=grow*15;
-    const bx=p.head.x+Math.sin(ha+s*0.5)*4, by=p.head.y-Math.cos(ha+s*0.5)*4;
-    const hx=bx+Math.sin(ha+s*0.5-s)*g, hy=by-Math.cos(ha+s*0.5-s)*g;
-    ctx.beginPath(); ctx.moveTo(bx,by); ctx.quadraticCurveTo(bx+s*8*grow, by-8*grow, hx, hy); ctx.stroke();
+  ctx.save();
+  const hx0=p.head.x, hy0=p.head.y;
+  for(const s of [-1,1]){
+    const g=grow;
+    // root on the head top, tip out+up
+    const rootA={x:hx0+Math.sin(ha+s*0.15)*4, y:hy0-Math.cos(ha+s*0.15)*4};
+    const rootB={x:hx0+Math.sin(ha+s*0.55)*5, y:hy0-Math.cos(ha+s*0.55)*5};
+    const tip ={x:hx0 + s*11*g, y:hy0 - 17*g};
+    const ctl ={x:hx0 + s*9*g, y:hy0 - 12*g};
+    ctx.beginPath();
+    ctx.moveTo(rootA.x, rootA.y);
+    ctx.quadraticCurveTo(ctl.x, ctl.y, tip.x, tip.y);
+    ctx.quadraticCurveTo(hx0+s*6*g, hy0-6*g, rootB.x, rootB.y);
+    ctx.closePath();
+    ctx.fillStyle=ad.main; ctx.fill();
+    ctx.strokeStyle=ad.glow; ctx.lineWidth=0.8; ctx.stroke();
   }
   ctx.restore();
 }
@@ -1015,7 +1027,7 @@ function selectPose(attr, t, ch){
   } else {
     p=Object.assign({}, READY);
     p.hipDrop=b*0.9; p.lean=0.16+b*0.02; p.afU=0.85+b*0.05;
-    if(attr==='devil'){ p.lfU=0.70; p.lbU=-0.80; p.lfL=0.30; p.lbL=-0.28; p.lean=0.22; p.afU=0.95; p.afL=1.1; p.tailT=b; p.horns=0.6; p.wings=0.4; }
+    if(attr==='devil'){ p.lfU=0.62; p.lbU=-0.72; p.lfL=0.24; p.lbL=-0.24; p.lean=0.20; p.afU=0.18; p.afL=0.30; p.abU=-0.30; p.abL=-0.15; p.tailT=b; p.horns=0.85; p.wings=0.85; }
   }
   p.tailT=(p.horns||0)>0 ? (t/520) : b;   // tail animates once demon form is up
   return fk(p);
