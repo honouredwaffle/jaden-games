@@ -845,8 +845,8 @@ function drawMenu(now){
     const ad=ATTR[slots[i]];
     const isP1=i===game.selP1, isP2=i===game.selP2;
     const chosen=isP1||isP2;
-    let ch = chosen ? (0.5+0.5*Math.sin(now/300)) : 0;
-    if(game.state==='selecting' && chosen) ch = ease(clamp(game.selT/480,0,1));
+    let ch = chosen ? (0.14+0.10*Math.sin(now/420)) : 0;   // subtle idle sway while selected
+    if(game.state==='selecting' && chosen) ch = ease(clamp(game.selT/480,0,1));  // big flourish on choose
     const p=selectPose(slots[i], now+i*500, ch);
     attrAura(ad, x, cy-40, now, chosen?1.0:0.45);
     if(isP2) ring(x,cy-40,'#ff3b3b', game.p2cpu?'CPU':'P2');
