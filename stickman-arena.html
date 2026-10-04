@@ -471,8 +471,160 @@ function fk(p){
 }
 
 /* ============================================================
-   DRAW
+   ATTRIBUTE SIGNATURES — give each fighter a unique silhouette
    ============================================================ */
+// things drawn BEHIND the body (wings, tail, cloak, ground-glow)
+function attrBack(p, ad, attr, now, k){
+  k=k===undefined?1:k;
+  if(attr==='devil'){ drawDevilWings(p, ad, k); drawDevilTail(p, ad, now/430); }
+  if(attr==='fire' && k>0.02){          // heat haze/shadow glow behind legs
+    ctx.save(); ctx.globalAlpha=0.28*k; ctx.fillStyle=ad.main;
+    ctx.beginPath(); ctx.ellipse(p.hip.x, p.hip.y+14, 20*k, 6*k, 0,0,TAU); ctx.fill(); ctx.restore();
+  }
+  if(attr==='poison' && k>0.02){         // dripping cloak silhouette behind torso
+    ctx.save(); ctx.globalAlpha=0.5*k; ctx.fillStyle=ad.dark;
+    ctx.beginPath();
+    ctx.moveTo(p.neck.x-7*k, p.neck.y+2);
+    ctx.quadraticCurveTo(p.hip.x-16*k, p.hip.y+4, p.hip.x-11*k, p.hip.y+18*k);
+    ctx.lineTo(p.hip.x+11*k, p.hip.y+18*k);
+    ctx.quadraticCurveTo(p.hip.x+16*k, p.hip.y+4, p.neck.x+7*k, p.neck.y+2);
+    ctx.closePath(); ctx.fill(); ctx.restore();
+  }
+  if(attr==='lightning' && k>0.02){      // electric ground arc behind
+    ctx.save(); ctx.globalAlpha=0.35*k; ctx.strokeStyle=ad.main; ctx.lineWidth=2;
+    for(let i=0;i<2;i++){ ctx.beginPath(); let x=p.hip.x-16; const y=p.hip.y+12+i*4;
+      ctx.moveTo(x,y); for(let s=0;s<5;s++){ x+=8; ctx.lineTo(x, y+Math.sin(now/70+s+i)*4);} ctx.stroke(); }
+    ctx.restore();
+  }
+}
+
+// things drawn ON the body (head gear, crest, flame-hair, drips, sparks)
+function attrFront(p, ad, attr, now, k){
+  k=k===undefined?1:k;
+  if(k<0.02) return;
+  const ha=p.lean+(p.headTilt||0);
+  if(attr==='devil'){ drawHorns(p, ad, k); }
+
+  if(attr==='fire'){                     // flame "hair" crown + embers
+    ctx.save();
+    const base={x:p.head.x, y:p.head.y-4};
+    for(let i=0;i<5;i++){
+      const sx=(i-2)*3.2;
+      const fl=10+Math.sin(now/90+i*1.3)*4;
+      const g2=ctx.createLinearGradient(base.x+sx, base.y, base.x+sx, base.y-fl*k);
+      g2.addColorStop(0, ad.main); g2.addColorStop(0.6,'#ffb300'); g2.addColorStop(1, 'rgba(255,220,0,0)');
+      ctx.fillStyle=g2;
+      ctx.beginPath();
+      ctx.moveTo(base.x+sx-3, base.y);
+      ctx.quadraticCurveTo(base.x+sx-3, base.y-fl*k, base.x+sx, base.y-fl*1.5*k);
+      ctx.quadraticCurveTo(base.x+sx+3, base.y-fl*k, base.x+sx+3, base.y);
+      ctx.closePath(); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  if(attr==='lightning'){                // spiky crest + crackle arcs
+    ctx.save(); ctx.strokeStyle=ad.main; ctx.lineWidth=2.4; ctx.lineCap='round'; ctx.shadowColor=ad.main; ctx.shadowBlur=6;
+    for(let i=0;i<5;i++){
+      const sx=p.head.x+(i-2)*2.6, sy=p.head.y-6;
+      const h=6+Math.sin(now/60+i)*2;
+      ctx.beginPath(); ctx.moveTo(sx,sy); ctx.lineTo(sx+(i-2)*1.5, sy-h*k); ctx.stroke();
+    }
+    // small crackles around shoulders
+    for(let i=0;i<3;i++){
+      const a=now/120+i*2.1, r=20;
+      const cx=p.sh.x+Math.cos(a)*r*k, cy=p.sh.y+Math.sin(a)*r*k;
+      ctx.beginPath(); ctx.moveTo(cx,cy); ctx.lineTo(cx+Math.cos(a)*7, cy+Math.sin(a)*7+3); ctx.stroke();
+    }
+    ctx.restore();
+  }
+
+  if(attr==='poison'){                   // pointed hood over head + dripping globs
+    ctx.save();
+    // hood (pointed cowl)
+    ctx.fillStyle=ad.dark; ctx.globalAlpha=0.92;
+    ctx.beginPath();
+    ctx.moveTo(p.head.x-10, p.head.y+3);
+    ctx.quadraticCurveTo(p.head.x-11, p.head.y-10*k, p.head.x-1, p.head.y-16*k);
+    ctx.quadraticCurveTo(p.head.x+9, p.head.y-20*k, p.head.x+3, p.head.y-26*k);   // peak
+    ctx.quadraticCurveTo(p.head.x+12, p.head.y-16*k, p.head.x+10, p.head.y+3);
+    ctx.closePath(); ctx.fill();
+    // drips falling from hands + blade tip
+    const vy=Math.sin(now/260)*2;
+    const pts=[[p.fHand.x,p.fHand.y],[p.bHand.x,p.bHand.y],[(p.fHand.x+p.bladeTip.x)/2,(p.fHand.y+p.bladeTip.y)/2]];
+    for(const d of pts){
+      ctx.globalAlpha=0.9; ctx.fillStyle=ad.main;
+      for(let i=0;i<3;i++){ const yy=d[1]+6*k + ((now/6+i*10)%16) + vy; ctx.beginPath(); ctx.arc(d[0]+(i-1)*1.5, yy, 2.6-i*0.5, 0, TAU); ctx.fill(); }
+      // drip stream
+      ctx.globalAlpha=0.5; ctx.strokeStyle=ad.main; ctx.lineWidth=1.6;
+      ctx.beginPath(); ctx.moveTo(d[0], d[1]+4*k); ctx.lineTo(d[0], d[1]+14*k+vy); ctx.stroke();
+    }
+    ctx.restore();
+  }
+}
+
+
+function drawDevilWings(p, ad, spread){
+  if(spread<0.03) return;
+  const bx=p.sh.x, by=p.sh.y-3;
+  const wings=[
+    {base:-2.55, len:46, dy:-4, shade:0.30},   // upper wing (behind)
+    {base:-1.95, len:40, dy: 6, shade:0.62},   // lower wing (nearer)
+  ];
+  ctx.save();
+  for(const w of wings){
+    const L=w.len*spread;
+    const base={x:bx, y:by+w.dy*spread};
+    const pts=[];
+    for(let f=0; f<3; f++){
+      const a=w.base + f*0.42;
+      const r=L*(1 - f*0.18);
+      pts.push({x:base.x+Math.cos(a)*r, y:base.y+Math.sin(a)*r});
+    }
+    // membrane with scalloped (concave) lower edge between tips
+    ctx.beginPath(); ctx.moveTo(base.x,base.y);
+    ctx.lineTo(pts[0].x, pts[0].y);
+    for(let f=1; f<pts.length; f++){
+      const mid={x:(pts[f-1].x+pts[f].x)/2 - 5*spread, y:(pts[f-1].y+pts[f].y)/2 + 5*spread};
+      ctx.quadraticCurveTo(mid.x, mid.y, pts[f].x, pts[f].y);
+    }
+    ctx.quadraticCurveTo(base.x-14*spread, base.y+12*spread, base.x, base.y);
+    ctx.closePath();
+    ctx.fillStyle=ad.dark; ctx.globalAlpha=w.shade*spread; ctx.fill();
+    ctx.globalAlpha=0.9*spread; ctx.strokeStyle=ad.dark; ctx.lineWidth=2; ctx.stroke();
+    // finger bones
+    ctx.strokeStyle=ad.main; ctx.lineWidth=2.4; ctx.lineCap='round'; ctx.globalAlpha=0.85;
+    for(const q of pts){ ctx.beginPath(); ctx.moveTo(base.x,base.y); ctx.lineTo(q.x,q.y); ctx.stroke(); }
+    ctx.globalAlpha=1;
+  }
+  ctx.restore();
+}
+
+function drawDevilTail(p, ad, tt){
+  ctx.save();
+  ctx.strokeStyle=ad.dark; ctx.lineWidth=5; ctx.lineCap='round';
+  let tx=p.hip.x-6, ty=p.hip.y+2, ang=Math.PI*0.72;
+  ctx.beginPath(); ctx.moveTo(tx,ty);
+  for(let i=0;i<6;i++){ ang+=0.55+Math.sin(tt+i*0.6)*0.18; const len=13-i*0.9; tx+=Math.cos(ang)*len; ty+=Math.sin(ang)*len; ctx.lineTo(tx,ty); }
+  ctx.stroke();
+  ctx.fillStyle=ad.main; ctx.beginPath(); ctx.arc(tx,ty,3.4,0,TAU); ctx.fill();
+  ctx.restore();
+}
+
+function drawHorns(p, ad, grow){
+  if(grow<0.03) return;
+  const ha=p.lean+(p.headTilt||0);
+  ctx.save(); ctx.strokeStyle=ad.main; ctx.lineWidth=3.6; ctx.lineCap='round';
+  for(const s of [-0.62,0.62]){
+    const g=grow*15;
+    const bx=p.head.x+Math.sin(ha+s*0.5)*4, by=p.head.y-Math.cos(ha+s*0.5)*4;
+    const hx=bx+Math.sin(ha+s*0.5-s)*g, hy=by-Math.cos(ha+s*0.5-s)*g;
+    ctx.beginPath(); ctx.moveTo(bx,by); ctx.quadraticCurveTo(bx+s*8*grow, by-8*grow, hx, hy); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+
 function drawFighter(f, now){
   const p=f.pose; if(!p) return;
   const ad=f.attrDef;
@@ -516,6 +668,9 @@ function drawFighter(f, now){
     ctx.restore();
   }
 
+  // attribute signature (back)
+  attrBack(p, ad, f.attr, now, 1);
+
   // back limbs
   line(p.hip,p.bKnee,back,lwB); line(p.bKnee,p.bFoot,back,lwB);
   line(p.sh,p.bElb,back,lwB); line(p.bElb,p.bHand,back,lwB);
@@ -523,16 +678,8 @@ function drawFighter(f, now){
   line(p.hip,p.neck,front,lw+1);
   // head
   dot(p.head,HR,front);
-  // devil horns / attribute head accent
-  if(f.attr==='devil'){
-    ctx.strokeStyle=ad.main; ctx.lineWidth=3; ctx.lineCap='round';
-    const ha=p.lean+p.headTilt;
-    for(const s of [-0.6,0.6]){
-      const bx=p.head.x+Math.sin(ha+s*0.5)*4, by=p.head.y-Math.cos(ha+s*0.5)*4;
-      const hx=bx+Math.sin(ha+s*0.5 - s)*9, hy=by-Math.cos(ha+s*0.5 - s)*9;
-      ctx.beginPath(); ctx.moveTo(bx,by); ctx.quadraticCurveTo(bx+s*7,by-6,hx,hy); ctx.stroke();
-    }
-  }
+  // attribute signature (front) — horns, flame-hair, crest, hood
+  attrFront(p, ad, f.attr, now, 1);
   // front leg
   line(p.hip,p.fKnee,front,lw); line(p.fKnee,p.fFoot,front,lw);
   dot(p.fFoot,3,front);
@@ -761,23 +908,18 @@ function drawHUD(){
 /* generic rig painter at a screen position */
 function drawRig(p, sx, sy, scale, front, back, ad, opts){
   opts=opts||{};
+  const now=opts.now||0, k=(opts.k===undefined?1:opts.k), attr=opts.attr;
   ctx.save(); ctx.translate(sx,sy); ctx.scale(scale,scale);
   const lw=5, lwB=4;
   const line=(a,b,col,w)=>{ ctx.strokeStyle=col; ctx.lineWidth=w; ctx.lineCap='round'; ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke(); };
   const dot=(a,r,col)=>{ ctx.fillStyle=col; ctx.beginPath(); ctx.arc(a.x,a.y,r,0,TAU); ctx.fill(); };
+
+  if(attr) attrBack(p, ad, attr, now, k);
   line(p.hip,p.bKnee,back,lwB); line(p.bKnee,p.bFoot,back,lwB);
   line(p.sh,p.bElb,back,lwB); line(p.bElb,p.bHand,back,lwB);
   line(p.hip,p.neck,front,lw+1);
   dot(p.head,HR,front);
-  if(opts.horns){
-    const ha=p.lean+(p.headTilt||0);
-    ctx.strokeStyle=ad.main; ctx.lineWidth=3; ctx.lineCap='round';
-    for(const s of [-0.6,0.6]){
-      const bx=p.head.x+Math.sin(ha+s*0.5)*4, by=p.head.y-Math.cos(ha+s*0.5)*4;
-      const hx=bx+Math.sin(ha+s*0.5-s)*9, hy=by-Math.cos(ha+s*0.5-s)*9;
-      ctx.beginPath(); ctx.moveTo(bx,by); ctx.quadraticCurveTo(bx+s*7,by-6,hx,hy); ctx.stroke();
-    }
-  }
+  if(attr) attrFront(p, ad, attr, now, k);
   line(p.hip,p.fKnee,front,lw); line(p.fKnee,p.fFoot,front,lw); dot(p.fFoot,3,front);
   line(p.sh,p.fElb,front,lw); line(p.fElb,p.fHand,front,lw);
   if(opts.blade!==false){
@@ -812,22 +954,70 @@ function ring(x,y,col,label){
 }
 
 /* pose for the character-select figures. ch = 0..1 "chosen" flourish */
-function selectPose(attr, t, ch){
-  const b=Math.sin(t/450);
-  let p={ lean:0.15, headTilt:-0.05, hipDrop:Math.sin(t/450)*0.9,
-    afU:0.85, afL:1.25, abU:-0.65, abL:-0.30,
-    lfU:0.50, lfL:0.12, lbU:-0.60, lbL:-0.12, bladeA:1.75 };
-  if(attr==='devil'){ p.lfU=0.72; p.lbU=-0.82; p.lfL=0.34; p.lbL=-0.30; p.lean=0.22; p.afU=0.95; p.afL=1.1; }
-  if(attr==='poison'){ p.lean=0.18+b*0.03; p.afU=1.05; }
-  if(attr==='lightning'){ p.lfU=0.55; p.lbU=-0.65; }
-  if(ch>0){
-    const k=ease(clamp(ch,0,1));
-    // raise weapon OVERHEAD + power stance (the "chosen" pose)
-    p.afU=lerp(p.afU, 2.50, k); p.afL=lerp(p.afL, 2.95, k); p.bladeA=lerp(p.bladeA, 3.05, k);
-    p.abU=lerp(p.abU, 2.30, k); p.abL=lerp(p.abL, 2.75, k);
-    p.lean=lerp(p.lean, -0.12, k); p.headTilt=lerp(-0.05,-0.22,k);
-    p.hipDrop=lerp(p.hipDrop, -2.0, k);
+/* ---- per-attribute PICK choreography (keyframe list, interpolated) ---- */
+const READY = { lean:0.16, headTilt:-0.05, hipDrop:0,
+  afU:0.85, afL:1.25, abU:-0.65, abL:-0.30,
+  lfU:0.50, lfL:0.12, lbU:-0.60, lbL:-0.12, bladeA:1.75,
+  horns:0, wings:0, glow:0.35 };
+
+/* each key: u (0..1), plus any pose fields to lerp toward */
+const PICK = {
+  devil: [   // crouch/coil low -> rise (hips lead) -> horns sprout -> wings flare -> hero stance
+    {u:0,    lean:0.16, headTilt:-0.05, hipDrop:0,  afU:0.85, afL:1.15, abU:-0.60, abL:-0.30, lfU:0.62, lfL:0.20, lbU:-0.70, lbL:-0.24, bladeA:1.60, horns:0, wings:0,   glow:0.35},
+    {u:0.28, lean:0.70, headTilt:0.45,  hipDrop:8,  afU:0.35, afL:0.15, abU:0.55,  abL:0.40,  lfU:1.05, lfL:-0.75, lbU:-1.10, lbL:0.60, bladeA:0.30, horns:0, wings:0,   glow:0.55},
+    {u:0.55, lean:0.24, headTilt:-0.02, hipDrop:2,  afU:0.60, afL:0.70, abU:-0.20, abL:-0.10, lfU:0.55, lfL:0.10, lbU:-0.60, lbL:-0.10, bladeA:0.90, horns:0.6, wings:0.4, glow:0.8},
+    {u:0.78, lean:0.02, headTilt:-0.12, hipDrop:-1, afU:0.70, afL:0.55, abU:-0.55, abL:-0.35, lfU:0.50, lfL:0.16, lbU:-0.55, lbL:-0.16, bladeA:1.55, horns:1, wings:0.8, glow:1.0},
+    {u:1,    lean:-0.12,headTilt:-0.20, hipDrop:-2, afU:0.55, afL:0.30, abU:-0.95, abL:-0.70, lfU:0.44, lfL:0.18, lbU:-0.48, lbL:-0.18, bladeA:1.90, horns:1, wings:1,   glow:1.0},
+  ],
+  fire: [    // wind up back -> big overhead two-hand raise -> downward chop to power stance
+    {u:0,    lean:0.16, headTilt:-0.05, afU:0.85, afL:1.25, abU:-0.65, abL:-0.30, bladeA:1.75, glow:0.35},
+    {u:0.28, lean:-0.30,headTilt:0.08,  afU:-0.60,afL:-1.30,abU:-0.55, abL:-1.10, bladeA:-2.10,glow:0.8},
+    {u:0.55, lean:-0.14,headTilt:-0.22, afU:2.45, afL:2.95, abU:2.25, abL:2.80, bladeA:3.05, glow:1.0},
+    {u:0.80, lean:0.34, headTilt:0.10,  afU:1.35, afL:1.15, abU:1.10, abL:0.90, bladeA:1.05, glow:1.0},
+    {u:1,    lean:0.20, headTilt:-0.04, afU:0.95, afL:1.35, abU:-0.30, abL:-0.10, bladeA:1.70, glow:0.9},
+  ],
+  poison: [  // low guard -> blade twirl up -> settle into a coiled "come at me" stance
+    {u:0,    lean:0.16, headTilt:-0.05, afU:0.85, afL:1.25, abU:-0.65, abL:-0.30, bladeA:1.75, glow:0.35},
+    {u:0.30, lean:0.30, headTilt:0.20,  afU:0.20, afL:-0.60,abU:-0.90, abL:-1.10, bladeA:-1.00,glow:0.9},
+    {u:0.60, lean:0.10, headTilt:-0.10, afU:1.90, afL:2.20, abU:-0.30, abL:-0.10, bladeA:2.40, glow:1.0},
+    {u:1,    lean:0.24, headTilt:-0.06, afU:1.05, afL:1.45, abU:-0.85, abL:-0.55, bladeA:1.95, glow:0.9},
+  ],
+  lightning: [ // quick draw: snap blade out to the side with a jolt, lean back, arm extended
+    {u:0,    lean:0.16, headTilt:-0.05, afU:0.85, afL:1.25, abU:-0.65, abL:-0.30, bladeA:1.75, glow:0.35},
+    {u:0.25, lean:0.30, headTilt:0.12,  afU:0.30, afL:-0.30,abU:-0.40, abL:-0.30, bladeA:-0.60,glow:0.9},
+    {u:0.55, lean:-0.22,headTilt:0.06,  afU:1.30, afL:1.05, abU:-1.10, abL:-0.90, bladeA:1.45, glow:1.0},
+    {u:1,    lean:-0.10,headTilt:-0.08, afU:1.05, afL:1.00, abU:-0.95, abL:-0.85, bladeA:1.55, glow:0.9},
+  ],
+};
+
+function poseLerp(a, b, k){
+  const o={}; for(const key in b){ if(key==='u') continue; o[key]=lerp(a[key]!==undefined?a[key]:b[key], b[key], k); } return o;
+}
+function pickPose(attr, u){
+  const keys=PICK[attr]||PICK.fire;
+  if(u<=0) return Object.assign({}, READY, keys[0]);
+  for(let i=1;i<keys.length;i++){
+    if(u<=keys[i].u){
+      const k=ease((u-keys[i-1].u)/(keys[i].u-keys[i-1].u));
+      return poseLerp(keys[i-1], keys[i], k);
+    }
   }
+  return Object.assign({}, keys[keys.length-1]);
+}
+
+function selectPose(attr, t, ch){
+  const b=Math.sin(t/520);
+  let p;
+  if(ch>0.001){
+    p=pickPose(attr, ch);
+    // gentle breathing on top of the held pose
+    p.hipDrop=(p.hipDrop||0)+b*0.7; p.lean=(p.lean||0)+b*0.01;
+  } else {
+    p=Object.assign({}, READY);
+    p.hipDrop=b*0.9; p.lean=0.16+b*0.02; p.afU=0.85+b*0.05;
+    if(attr==='devil'){ p.lfU=0.70; p.lbU=-0.80; p.lfL=0.30; p.lbL=-0.28; p.lean=0.22; p.afU=0.95; p.afL=1.1; p.tailT=b; p.horns=0.6; p.wings=0.4; }
+  }
+  p.tailT=(p.horns||0)>0 ? (t/520) : b;   // tail animates once demon form is up
   return fk(p);
 }
 
@@ -845,14 +1035,14 @@ function drawMenu(now){
     const ad=ATTR[slots[i]];
     const isP1=i===game.selP1, isP2=i===game.selP2;
     const chosen=isP1||isP2;
-    let ch = chosen ? (0.14+0.10*Math.sin(now/420)) : 0;   // subtle idle sway while selected
-    if(game.state==='selecting' && chosen) ch = ease(clamp(game.selT/480,0,1));  // big flourish on choose
+    let ch = 0;                                              // idle: ready stance, no flourish
+    if(game.state==='selecting' && chosen) ch = clamp(game.selT/950,0,1);  // play pick animation on choose
     const p=selectPose(slots[i], now+i*500, ch);
     attrAura(ad, x, cy-40, now, chosen?1.0:0.45);
     if(isP2) ring(x,cy-40,'#ff3b3b', game.p2cpu?'CPU':'P2');
     if(isP1) ring(x,cy-40,'#2f9bff','P1');
     drawRig(p, x, cy, sc, '#141414', '#707070', ad,
-      {horns:slots[i]==='devil', glow: chosen?16:8});
+      {attr:slots[i], now:now, k:(slots[i]==='devil'? (p.horns||0) : 1), glow: chosen?16:8});
     ctx.fillStyle=ad.main; ctx.font='bold 22px Trebuchet MS'; ctx.textAlign='center';
     ctx.fillText(ad.emoji+' '+ad.name, x, cy+66);
     const kit=KITS[slots[i]];
