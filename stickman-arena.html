@@ -131,6 +131,12 @@ if(isTouch){
   addEventListener('orientationchange', ()=>setTimeout(layoutTouch,150));
   layoutTouch();
 }
+function syncTouchVisibility(){
+  if(!isTouch) return;
+  const el=document.getElementById('touch');
+  const show = (game.state==='fight' || game.state==='ko');
+  el.classList.toggle('hidden', !show);
+}
 /* tap canvas to start / rematch / pick on mobile */
 cv.addEventListener('pointerdown', e=>{
   const r=cv.getBoundingClientRect();
@@ -632,6 +638,7 @@ function startFight(){ makeFighters(); game.state='fight'; game.winner=null; gam
 /* ---------- update ---------- */
 let last=performance.now();
 function update(dt, now){
+  syncTouchVisibility();
   if(hitstop>0){ hitstop-=dt; }
   if(shake>0) shake*=Math.pow(0.9, dt/16);
 
