@@ -2,28 +2,39 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <title>Stickman Arena</title>
 <style>
   :root{ --paper:#f2ecdd; }
   *{ box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
   html,body{ margin:0; height:100%; background:#0e0e12; overflow:hidden;
+    touch-action:none; overscroll-behavior:none; -webkit-user-select:none; user-select:none;
     font-family:'Trebuchet MS',Verdana,sans-serif; color:#222; }
   #wrap{ position:fixed; inset:0; display:flex; align-items:center; justify-content:center; }
   #game{ position:relative; width:960px; height:540px; max-width:100vw; max-height:100vh;
     aspect-ratio:16/9; background:var(--paper); box-shadow:0 10px 40px rgba(0,0,0,.6); }
   canvas{ display:block; width:100%; height:100%; image-rendering:auto; }
   /* touch controls */
-  #touch{ position:absolute; inset:0; pointer-events:none; }
-  #touch button{ pointer-events:auto; position:absolute; border:none; border-radius:14px;
-    background:rgba(20,20,25,.55); color:#fff; font-size:15px; font-weight:bold;
-    width:60px; height:60px; backdrop-filter:blur(3px); }
-  #touch button:active{ background:rgba(255,90,0,.75); }
-  .tleft{left:14px;bottom:14px} .tright{left:84px;bottom:14px}
-  .tjump{left:44px;bottom:84px} .tcrouch{left:114px;bottom:14px}
-  .tf{right:104px;bottom:14px} .tg{right:104px;bottom:84px}
-  .th{right:34px;bottom:84px} .ts1{right:174px;bottom:14px} .ts2{right:174px;bottom:84px}
+  #touch{ position:fixed; inset:0; pointer-events:none; z-index:20; }
+  #touch button{ pointer-events:auto; position:absolute; border:2px solid rgba(255,255,255,.4);
+    border-radius:50%; background:rgba(15,15,20,.5); color:#fff; font-weight:bold;
+    font-size:15px; width:62px; height:62px; display:flex; align-items:center;
+    justify-content:center; backdrop-filter:blur(4px); -webkit-user-select:none; user-select:none; }
+  #touch button:active{ background:rgba(255,90,0,.85); border-color:#fff; }
+  .tleft  { left:calc(16px + env(safe-area-inset-left,0px));  bottom:calc(20px + env(safe-area-inset-bottom,0px)); }
+  .tright { left:calc(92px + env(safe-area-inset-left,0px));  bottom:calc(20px + env(safe-area-inset-bottom,0px)); }
+  .tcrouch{ left:calc(16px + env(safe-area-inset-left,0px));  bottom:calc(96px + env(safe-area-inset-bottom,0px)); }
+  .tjump  { left:calc(92px + env(safe-area-inset-left,0px));  bottom:calc(96px + env(safe-area-inset-bottom,0px)); }
+  .tf { right:calc(92px + env(safe-area-inset-right,0px));  bottom:calc(20px + env(safe-area-inset-bottom,0px)); }
+  .tg { right:calc(16px + env(safe-area-inset-right,0px));  bottom:calc(20px + env(safe-area-inset-bottom,0px)); }
+  .th { right:calc(16px + env(safe-area-inset-right,0px));  bottom:calc(96px + env(safe-area-inset-bottom,0px)); }
+  .ts1{ right:calc(92px + env(safe-area-inset-right,0px));  bottom:calc(96px + env(safe-area-inset-bottom,0px)); }
+  .ts2{ right:calc(168px + env(safe-area-inset-right,0px)); bottom:calc(20px + env(safe-area-inset-bottom,0px)); }
   .hidden{ display:none !important; }
+  #rotate{ position:fixed; inset:0; z-index:50; background:#0e0e12; color:#fff;
+    display:flex; align-items:center; justify-content:center; flex-direction:column;
+    gap:14px; font-size:20px; text-align:center; padding:24px; }
+  #rotate .big{ font-size:56px; }
 </style>
 </head>
 <body>
@@ -34,12 +45,13 @@
     <button class="tright" data-k="KeyD">▶</button>
     <button class="tcrouch" data-k="KeyS">▼</button>
     <button class="tjump" data-k="KeyW">▲</button>
-    <button class="tf" data-k="KeyF">PU</button>
-    <button class="tg" data-k="KeyG">KI</button>
-    <button class="th" data-k="KeyH">BL</button>
-    <button class="ts1" data-k="Digit1">①</button>
-    <button class="ts2" data-k="Digit2">②</button>
+    <button class="tg" data-k="KeyG">KICK</button>
+    <button class="tf" data-k="KeyF">PUNCH</button>
+    <button class="th" data-k="KeyH">BLOCK</button>
+    <button class="ts1" data-k="Digit1">M1</button>
+    <button class="ts2" data-k="Digit2">M2</button>
   </div>
+  <div id="rotate" class="hidden"><div class="big">🔄</div><div>Rotate your phone to <b>landscape</b><br>to play Stickman Arena</div></div>
 </div></div>
 <script>
 "use strict";
@@ -99,9 +111,13 @@ addEventListener('keyup', e=>{ keys[e.code]=false; });
 function consume(code){ if(pressed[code]){ pressed[code]=false; return true; } return false; }
 
 /* touch controls */
-if('ontouchstart' in window){
-  document.getElementById('touch').classList.remove('hidden');
-  const map = {};
+const isTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints>0);
+function layoutTouch(){
+  const portrait = window.innerHeight > window.innerWidth;
+  document.getElementById('touch').classList.toggle('hidden', !isTouch);
+  document.getElementById('rotate').classList.toggle('hidden', !(isTouch && portrait));
+}
+if(isTouch){
   document.querySelectorAll('#touch button').forEach(b=>{
     const k=b.dataset.k;
     const on=e=>{ e.preventDefault(); if(!keys[k]) pressed[k]=true; keys[k]=true; };
@@ -109,8 +125,23 @@ if('ontouchstart' in window){
     b.addEventListener('touchstart',on,{passive:false});
     b.addEventListener('touchend',off,{passive:false});
     b.addEventListener('touchcancel',off,{passive:false});
+    b.addEventListener('contextmenu',e=>e.preventDefault());
   });
+  addEventListener('resize', layoutTouch);
+  addEventListener('orientationchange', ()=>setTimeout(layoutTouch,150));
+  layoutTouch();
 }
+/* tap canvas to start / rematch / pick on mobile */
+cv.addEventListener('pointerdown', e=>{
+  const r=cv.getBoundingClientRect();
+  const x=(e.clientX-r.left)/r.width*W;
+  const y=(e.clientY-r.top)/r.height*H;
+  if(game.state==='menu'){
+    if(y>476) startFight();
+    else if(x<W/2) game.selP1=(game.selP1+1)%ATTR_KEYS.length;
+    else game.selP2=(game.selP2+1)%ATTR_KEYS.length;
+  } else if(game.state==='ko' && game.koTimer>700){ startFight(); }
+});
 
 /* ---------- effects ---------- */
 let particles = [];
@@ -741,9 +772,15 @@ function drawMenu(){
   show(700, game.selP2, (game.p2cpu?'CPU':'PLAYER 2'), '◀ ▶ to change');
 
   ctx.fillStyle='#141414'; ctx.font='bold 26px Trebuchet MS';
-  ctx.fillText('PRESS SPACE TO FIGHT', W/2, 500);
+  ctx.fillText('PRESS SPACE / TAP BELOW TO FIGHT', W/2, 500);
   ctx.fillStyle='#666'; ctx.font='15px Trebuchet MS';
-  ctx.fillText('C = toggle CPU opponent   •   P1: A/D move, W jump, S crouch, F punch, G kick, H block, 1-4 attribute moves', W/2, 526);
+  if(isTouch){
+    ctx.fillText('TAP LEFT = P1 attribute  •  TAP RIGHT = '+(game.p2cpu?'CPU':'P2')+' attribute  •  TAP BOTTOM = GO', W/2, 524);
+  } else {
+    ctx.fillText('C = toggle CPU opponent   •   P1: A/D move, W jump, S crouch, F punch, G kick, H block, 1-4 attribute moves', W/2, 526);
+  }
+  // start button strip (tap target on mobile)
+  ctx.fillStyle='rgba(20,20,25,0.06)'; ctx.fillRect(W/2-150,470,300,34);
 }
 
 /* ---------- loop ---------- */
